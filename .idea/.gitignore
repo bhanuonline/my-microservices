@@ -1,3 +1,16 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+# Ignore Maven build output
+target/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.iml
+*.class
+
+# OS-specific
+.DS_Store
