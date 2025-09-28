@@ -12,7 +12,40 @@
     <artifactId>notification</artifactId>
 
     <properties>
-
+        <java.version>17</java.version>
     </properties>
+    <dependencies>
+        <!-- Common-lib -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream</artifactId>
+            <version>3.2.7</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>debug</id>
+            <properties>
+                <spring-boot.run.jvmArguments>
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5007
+                </spring-boot.run.jvmArguments>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

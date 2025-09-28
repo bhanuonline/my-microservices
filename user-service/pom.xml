@@ -64,5 +64,17 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>debug</id>
+			<properties>
+				<spring-boot.run.jvmArguments>
+					-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+				</spring-boot.run.jvmArguments>
+			</properties>
+		</profile>
+	</profiles>
 </project>
