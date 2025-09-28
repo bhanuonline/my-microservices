@@ -53,4 +53,14 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+	<profiles>
+		<profile>
+			<id>debug</id>
+			<properties>
+				<spring-boot.run.jvmArguments>
+					-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006
+				</spring-boot.run.jvmArguments>
+			</properties>
+		</profile>
+	</profiles>
 </project>

@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: my-kafka
+    ports:
+      - "9092:9092"  # Broker port for clients
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+
+      # Kafka KRaft mode settings
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      # Listeners (both broker & controller)
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      # External advertised listener
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      # Single-node quorum voters (nodeID@host:controller-port)
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@my-kafka:9093
+
+    # Optional for persistence
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+volumes:
+  kafka_data:
+    driver: local
