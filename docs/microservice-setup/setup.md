@@ -7,6 +7,8 @@ mvn clean install -Dmaven.test.skip=true
 mvn wrapper:wrapper
 ./mvnw spring-boot:run
 ./mvnw spring-boot:run -Pdebug
+./mvnw spring-boot:run -Dspring-boot.run.profiles=preprod,dev
+
 ./mvnw spring-boot:run \
 -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5006"
 mvn dependency:tree | grep web

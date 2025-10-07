@@ -15,6 +15,7 @@
         <module>api-gateway</module>
         <module>eureka-server</module>
         <module>notification</module>
+        <module>interview</module>
     </modules>
 
     <parent>
