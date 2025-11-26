@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Access Denied</title>
+</head>
+<body>
+<h2>🚫 Access Denied</h2>
+
+<p>You do not have permission to access this page.</p>
+
+<!-- Optional show reason if present -->
+<p th:if="${errorMessage != null}">
+    Reason: <span th:text="${errorMessage}"></span>
+</p>
+
+<a th:href="@{/home}">Go back to Home</a>
+</body>
+</html>

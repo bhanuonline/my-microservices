@@ -32,7 +32,7 @@ public class InterviewApplication {
         app.sayhello();   // Will log "Miki"
        // Parrot parrot=context.getBean(Parrot.class);
 
-        log.info("Stared");
+        log.info("Stared!!");
     }
 
     public void sayhello(){

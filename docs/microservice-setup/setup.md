@@ -17,6 +17,8 @@ mvn dependency:list
 jar tf target/eureka-server-1.0.0-SNAPSHOT.jar | grep spring-web
 jar tf target/eureka-server.jar | grep AutoConfiguration
 
+clean and re-download dependencies
+mvn dependency:purge-local-repository
 lsof -i :5005 
 
 #kafka
