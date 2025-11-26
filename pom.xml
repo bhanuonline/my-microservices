@@ -16,6 +16,8 @@
         <module>eureka-server</module>
         <module>notification</module>
         <module>interview</module>
+        <module>admin</module>
+        <module>process</module>
     </modules>
 
     <parent>

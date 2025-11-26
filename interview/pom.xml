@@ -34,6 +34,32 @@
             <version>1.3.2</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- JWT lib-->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.11.5</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring Boot Starter Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -44,5 +70,15 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>debug</id>
+            <properties>
+                <spring-boot.run.jvmArguments>
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5008
+                </spring-boot.run.jvmArguments>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

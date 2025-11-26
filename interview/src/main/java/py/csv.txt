@@ -1,0 +1,470 @@
+Order code: 68232230073, Order Placed Time: Thu Oct 23 14:08:09 AST 2025, Language: ar, User Info: UID: aseelboo10@gmail.com, Name: Aseel Khalouf, Type: Registered,Location: 04-1-3-959 - Ar Rabi, Bucket Size: 11, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167117936, Category Hierarchy: null > Household > Bath & Laundry > Bath Linen > Bath Mats & Tub Mats
+Product: 165987512, Category Hierarchy: null > Household > Bath & Laundry > Bath Accessories > Toothbrush Holders & Tumblers, null, null
+Product: 166919547, Category Hierarchy: null > Household > Bath & Laundry > Bath Accessories > Soap Dishes & Dispensers, null, null
+Product: 165448786, Category Hierarchy: null > Household > Bath & Laundry > Bathroom Organizing > Wall Fixtures & Hooks, null
+Product: 166750283, Category Hierarchy: null > Household > Bath & Laundry > Laundry Solutions > Laundry Hampers, null
+Product: 165262301, Category Hierarchy: null > Household > Bath & Laundry > Waste Bins & Accessories, null
+Product: 165987508, Category Hierarchy: null > Household > Bath & Laundry > Bath Accessories > Tissue Boxes and Cotton Jars, null
+Product: 167225467, Category Hierarchy: null > Household > Wall Decor & Mirrors > Wall Art, null
+Product: 168159470, Category Hierarchy: Baby > Boys > Clothing > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 166769070, Category Hierarchy: null > Household > Home Fragrance > Candles
+Product: 165991194, Category Hierarchy: null > Household > Home Fragrance > Candles
+-----------------------------------
+Order code: 68232223971, Order Placed Time: Thu Oct 23 13:06:14 AST 2025, Language: ar, User Info: UID: bakr.adi.94@gmail.com, Name: Bakr Adi, Type: Registered,Location: 04-1-3-973 - As Sulimaniyah, Bucket Size: 8, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167331233, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167979672, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167558979, Category Hierarchy: Women > Clothing > Coats & Jackets > Jackets, Women > Winterwear > Coats & Jackets > Jackets
+Product: 166472441, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 168231246, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168594222, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 167494633, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167349534, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+-----------------------------------
+Order code: 68232249797, Order Placed Time: Thu Oct 23 17:15:16 AST 2025, Language: ar, User Info: UID: abusamor911@gmail.com, Name: Salman Khalil, Type: Registered,Location: 04-1-3-1034 - Al Munsiyah, Bucket Size: 27, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168038284, Category Hierarchy: Baby > Boys > Clothing > Bodysuits
+Product: 167836908, Category Hierarchy: Baby > Boys > Shoes > Closed Shoes
+Product: 168286672, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits, Baby > Boys > Clothing > Winterwear > Sleepsuits
+Product: 167749628, Category Hierarchy: Baby > Boys > Clothing > Rompers
+Product: 168287222, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits, Baby > Boys > Clothing > Winterwear > Sleepsuits, Baby > Boys > Clothing > Multipacks
+Product: 165945953, Category Hierarchy: Baby > Gear > Strollers & Prams > Strollers
+Product: 165730225, Category Hierarchy: Baby > Gear > Strollers & Prams > Accessories
+Product: 167183081, Category Hierarchy: Baby > Diapering > Diaper Bags, Baby > Gear > Diaper Bags
+Product: 167112077, Category Hierarchy: Baby > Gear > Car Seats
+Product: 166844226, Category Hierarchy: Baby > Diapering > Diaper Bags, Baby > Gear > Diaper Bags
+Product: 167014050, Category Hierarchy: Baby > Nursery > Furniture > Cribs & Beds > Baby Cribs
+Product: 164493547, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 167603253, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Receiving Blankets
+Product: 167718739, Category Hierarchy: Baby > Nursery > Furniture > Wardrobes & Storage
+Product: 167571629, Category Hierarchy: Baby > Nursery > Baby Bedding
+Product: 166118121, Category Hierarchy: Baby > Nursery > Furniture > Cribs & Beds > Bassinets
+Product: 167571634, Category Hierarchy: Baby > Bath & Care > Towels
+Product: 167834130, Category Hierarchy: Baby > Bath & Care > Towels
+Product: 166449370, Category Hierarchy: Baby > Bath & Care > Towels
+Product: 167085692, Category Hierarchy: Baby > Bath & Care > Grooming
+Product: 167517566, Category Hierarchy: Baby > Bath & Care > Grooming
+Product: 164131743, Category Hierarchy: Baby > Bath & Care > Hair, Body & Skincare
+Product: 158823369, Category Hierarchy: Baby > Feeding > Sterilizers & Warmers
+Product: 168278584, Category Hierarchy: Men > Clothing > Innerwear > Underwear
+Product: 167613721, Category Hierarchy: Men > Clothing > Sweaters & Pullovers, Men > Winterwear > Sweaters & Pullovers
+Product: 167660638, Category Hierarchy: Men > Clothing > Coord Sets, Men > Clothing > Bottoms > Trousers & Chinos > Trousers
+Product: 166651255, Category Hierarchy: Men > Shoes > Formal Shoes
+-----------------------------------
+Order code: 68232248793, Order Placed Time: Thu Oct 23 17:07:07 AST 2025, Language: ar, User Info: UID: cac9137a-fa80-463c-af67-822fde73893c|basherbas2022@icloud.com, Name: عبدالله حسن , Type: Registered,Location: 04-3-18-1275 - An Nuzhah, Bucket Size: 4, Payment: COD_PAYMENT_MODE, Sales Application: WebMobile, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167616934, Category Hierarchy: Baby > Girls > Clothing > Multipacks, Baby > Girls > Clothing > Nightwear > Sleepsuits
+Product: 167835391, Category Hierarchy: Baby > Feeding > Feeding Bottles > Bottles & Teats
+Product: 167941155, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits
+Product: 166111649, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits, Baby > Boys > Clothing > Multipacks
+-----------------------------------
+Order code: 68232241764, Order Placed Time: Thu Oct 23 15:59:43 AST 2025, Language: en, User Info: UID: mawada.hamza@gmail.com, Name: Mawadah Hamza, Type: Registered,Location: 04-1-3-1039 - An Narjis, Bucket Size: 14, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 156460324, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 167257659, Category Hierarchy: Baby > Feeding > Cleaning Liquids
+Product: 166111010, Category Hierarchy: Baby > Nursery > Furniture > Cribs & Beds > Baby Cribs
+Product: 168091723, Category Hierarchy: Baby > Feeding > Bibs
+Product: 167476335, Category Hierarchy: Baby > Feeding > Breast Feeding & Care
+Product: 167052054, Category Hierarchy: Baby > Feeding > Bibs
+Product: 167406489, Category Hierarchy: Baby > Feeding > Bibs
+Product: 165078356, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 165087223, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 167363820, Category Hierarchy: Baby > Diapering > Bins & Refills
+Product: 168215215, Category Hierarchy: Women > Clothing > Lingerie > Bras
+Product: 168215230, Category Hierarchy: Women > Clothing > Lingerie > Bras
+Product: 168102646, Category Hierarchy: Women > Clothing > Nightwear > Nighties
+Product: 167860348, Category Hierarchy: Women > Clothing > Nightwear > Nighties
+-----------------------------------
+Order code: 68232239154, Order Placed Time: Thu Oct 23 15:37:42 AST 2025, Language: en, User Info: UID: mdarifrabbani@gmail.com, Name: Mohammed Rabbani, Type: Registered,Location: 04-1-3-1052 - Al Wazarat, Bucket Size: 13, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: Web, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 166988302, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Boys > Clothing > Tshirts & Polos
+Product: 166467886, Category Hierarchy: Boys > Shoes > Sports, Boys > Shoes > Sneakers, Girls > Shoes > Sports, Girls > Shoes > School Shoes, Boys > Shoes > School Shoes
+Product: 167120871, Category Hierarchy: Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 167120492, Category Hierarchy: Boys > Clothing > Shirts
+Product: 166997181, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 167478122, Category Hierarchy: Boys > Clothing > Sets & Coords
+Product: 168120838, Category Hierarchy: Baby > Boys > Accessories > Socks, Boys > Accessories > Socks
+Product: 165907381, Category Hierarchy: Men > Winterwear > Hoodies & Sweatshirts, Men > Clothing > Hoodies & Sweatshirts
+Product: 167773078, Category Hierarchy: Men > Shoes > Sneakers
+Product: 167875218, Category Hierarchy: Men > Shoes > Sneakers
+Product: 168120723, Category Hierarchy: Boys > Accessories > Socks
+Product: 166109847, Category Hierarchy: Men > Clothing > Hoodies & Sweatshirts, Men > Winterwear > Hoodies & Sweatshirts
+Product: 165906932, Category Hierarchy: Men > Clothing > Bottoms > Joggers
+-----------------------------------
+Order code: 68232239421, Order Placed Time: Thu Oct 23 15:40:38 AST 2025, Language: ar, User Info: UID: f.labadi39@gmail.com, Name: Fadi Labadi, Type: Registered,Location: 04-1-3-991 - Al Aqiq, Bucket Size: 7, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168274432, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets, Boys > Clothing > Nightwear
+Product: 168084671, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168597133, Category Hierarchy: Men > Clothing > Nightwear > Sets
+Product: 166744860, Category Hierarchy: Women > Bags & Wallets > Handbags
+Product: 167940578, Category Hierarchy: Women > Bags & Wallets > Handbags
+Product: 168244338, Category Hierarchy: Boys > Clothing > Tshirts & Polos, Baby > Boys > Clothing > Tshirts & Polos
+Product: 168180005, Category Hierarchy: Boys > Clothing > Tshirts & Polos, Baby > Boys > Clothing > Tshirts & Polos
+-----------------------------------
+Order code: 68232230465, Order Placed Time: Thu Oct 23 14:16:40 AST 2025, Language: ar, User Info: UID: nour.mkh101@gmail.com, Name: نور محمد, Type: Registered,Location: 04-1-3-1055 - Al Yasmin, Bucket Size: 25, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167841575, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 167842737, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 167832164, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 168239517, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 168104263, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords, Baby > Girls > Clothing > Winterwear > Sets & Coords
+Product: 168062415, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Jackets & Coats
+Product: 168131387, Category Hierarchy: Baby > Girls > Clothing > Rompers
+Product: 168248439, Category Hierarchy: Baby > Girls > Clothing > Dresses & Jumpsuits
+Product: 167539107, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 168062845, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 167635004, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 168095045, Category Hierarchy: Boys > Clothing > Bottoms > Shorts
+Product: 168421809, Category Hierarchy: Boys > Clothing > Sportswear > Tops, Sports > Boys > Clothing > Tops, Boys > Clothing > Tshirts & Polos
+Product: 167159058, Category Hierarchy: Baby > Boys > Clothing > Sets & Coords, Boys > Clothing > Sets & Coords
+Product: 168421849, Category Hierarchy: Boys > Clothing > Sportswear > Tops, Sports > Boys > Clothing > Tops, Boys > Clothing > Tshirts & Polos
+Product: 168070556, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts
+Product: 165212161, Category Hierarchy: Boys > Clothing > Bottoms > Shorts
+Product: 168081782, Category Hierarchy: Boys > Clothing > Jumpers & Cardigans, Boys > Clothing > Winterwear > Jumpers & Cardigans
+Product: 167838137, Category Hierarchy: Boys > Clothing > Innerwear > Boxers & Briefs, Baby > Boys > Clothing > Innerwear
+Product: 168085796, Category Hierarchy: Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168086186, Category Hierarchy: Boys > Clothing > Jackets & Coats, Boys > Clothing > Winterwear > Jackets & Coats
+Product: 168086178, Category Hierarchy: Boys > Clothing > Winterwear > Jackets & Coats, Boys > Clothing > Jackets & Coats
+Product: 168265094, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits, Baby > Girls > Clothing > Winterwear > Sleepsuits
+Product: 168368831, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits, Baby > Girls > Clothing > Winterwear > Sleepsuits
+Product: 168239229, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits
+-----------------------------------
+Order code: 68232229256, Order Placed Time: Thu Oct 23 13:58:57 AST 2025, Language: ar, User Info: UID: rawyasaeed234@gmail.com, Name: راوية سعيد, Type: Registered,Location: 04-1-3-1081 - Dhahrat Laban, Bucket Size: 21, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168072058, Category Hierarchy: Boys > Clothing > Sets & Coords, Boys > Clothing > Winterwear > Sets & Coords
+Product: 168181692, Category Hierarchy: Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 168181549, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168085824, Category Hierarchy: Boys > Clothing > Jumpers & Cardigans, Boys > Clothing > Winterwear > Jumpers & Cardigans
+Product: 168072175, Category Hierarchy: Boys > Clothing > Sets & Coords, Boys > Clothing > Winterwear > Sets & Coords
+Product: 168070587, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168071888, Category Hierarchy: Boys > Clothing > Winterwear > Jackets & Coats, Boys > Clothing > Jackets & Coats
+Product: 167240496, Category Hierarchy: Sports > Boys > Clothing > Tops, Boys > Clothing > Winterwear > Sweatshirts
+Product: 168156178, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets, Girls > Clothing > Winterwear > Pyjama Sets, Girls > Clothing > Nightwear, Baby > Girls > Clothing > Winterwear > Pyjama Sets
+Product: 168140515, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Pyjama Sets, Girls > Clothing > Nightwear, Girls > Clothing > Winterwear > Pyjama Sets, Baby > Girls > Clothing > Nightwear > Pyjama Sets
+Product: 168222814, Category Hierarchy: Baby > Girls > Clothing > T-shirts, Girls > Clothing > Tshirts
+Product: 168111923, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Sweatshirts, Girls > Clothing > Winterwear > Sweatshirts, Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Sweatshirts
+Product: 164757856, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Winter Accessories, Baby > Boys > Accessories > Caps
+Product: 168260247, Category Hierarchy: Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 167832071, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Trousers
+Product: 168126503, Category Hierarchy: Baby > Boys > Clothing > Jumpers & Cardigans, Baby > Boys > Clothing > Winterwear > Jumpers & Cardigans
+Product: 168121150, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Jumpers & Cardigans, Baby > Boys > Clothing > Jumpers & Cardigans
+Product: 167831858, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Trousers
+Product: 168126495, Category Hierarchy: Baby > Boys > Clothing > Jumpers & Cardigans, Baby > Boys > Clothing > Winterwear > Jumpers & Cardigans
+Product: 168121104, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Jackets & Blazers, Baby > Boys > Clothing > Jackets & Blazers
+Product: 168126388, Category Hierarchy: Baby > Boys > Clothing > Jackets & Blazers, Baby > Boys > Clothing > Winterwear > Jackets & Blazers
+-----------------------------------
+Order code: 68232225112, Order Placed Time: Thu Oct 23 13:20:46 AST 2025, Language: ar, User Info: UID: bakr.adi.94@gmail.com, Name: Bakr Adi, Type: Registered,Location: 04-1-3-973 - As Sulimaniyah, Bucket Size: 10, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167596470, Category Hierarchy: Women > Winterwear > Hoodies & Sweatshirts > Hoodies, Women > Clothing > Hoodies & Sweatshirts > Hoodies
+Product: 168091669, Category Hierarchy: Women > Shoes > Flats > Loafers
+Product: 168150420, Category Hierarchy: Women > Clothing > T-shirts
+Product: 168048372, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 168148275, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 168078033, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 167939893, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 167462805, Category Hierarchy: Women > Shoes > Flats > Sandals
+Product: 167900356, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 168309957, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+-----------------------------------
+Order code: 68232223971, Order Placed Time: Thu Oct 23 13:06:14 AST 2025, Language: ar, User Info: UID: bakr.adi.94@gmail.com, Name: Bakr Adi, Type: Registered,Location: 04-1-3-973 - As Sulimaniyah, Bucket Size: 8, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167331233, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167979672, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167558979, Category Hierarchy: Women > Clothing > Coats & Jackets > Jackets, Women > Winterwear > Coats & Jackets > Jackets
+Product: 166472441, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 168231246, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168594222, Category Hierarchy: Women > Clothing > Bottoms > Jeans
+Product: 167494633, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+Product: 167349534, Category Hierarchy: Women > Clothing > Shirts & Blouses > Shirts
+-----------------------------------
+Order code: 68232222724, Order Placed Time: Thu Oct 23 12:56:54 AST 2025, Language: ar, User Info: UID: k68jybvhbs@privaterelay.appleid.com, Name: Anfal Suliman, Type: Registered,Location: 04-1-5-308 - Al Iskan, Bucket Size: 10, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168084670, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167614302, Category Hierarchy: Baby > Feeding > Feeding Bottles > Bottles & Teats
+Product: 168121138, Category Hierarchy: Baby > Boys > Clothing > Jumpers & Cardigans, Baby > Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168180665, Category Hierarchy: Boys > Clothing > Bottoms > Trousers, Baby > Boys > Clothing > Bottoms > Trousers
+Product: 167021448, Category Hierarchy: Boys > Shoes > Boots
+Product: 168129193, Category Hierarchy: Boys > Clothing > Bottoms > Jeans, Baby > Boys > Clothing > Bottoms > Jeans
+Product: 167758035, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168084845, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 166520769, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168139449, Category Hierarchy: Baby > Nursery > Furniture > Cribs & Beds > Baby Cribs
+-----------------------------------
+Order code: 68232219018, Order Placed Time: Thu Oct 23 12:21:02 AST 2025, Language: ar, User Info: UID: fatimah.bahakeem@icloud.com, Name: Fatimah Bahakeem, Type: Registered,Location: 04-1-3-1038 - An Nada, Bucket Size: 22, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 166995511, Category Hierarchy: Boys > Clothing > Bottoms > Trousers
+Product: 168085886, Category Hierarchy: Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168244583, Category Hierarchy: Boys > Clothing > Tshirts & Polos, Baby > Boys > Clothing > Tshirts & Polos
+Product: 167832072, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Trousers
+Product: 167831859, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Trousers
+Product: 168430533, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Sweatshirts
+Product: 168230555, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Sweatshirts
+Product: 168430505, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts
+Product: 168428039, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 168428202, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 168085663, Category Hierarchy: Boys > Clothing > Bottoms > Jeans
+Product: 168085674, Category Hierarchy: Boys > Clothing > Bottoms > Jeans
+Product: 168070517, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168071908, Category Hierarchy: Boys > Clothing > Winterwear > Jackets & Coats, Boys > Clothing > Jackets & Coats
+Product: 168069463, Category Hierarchy: Boys > Clothing > Schoolwear > Jackets & Coats, Boys > Clothing > Jackets & Coats, Boys > Clothing > Winterwear > Jackets & Coats
+Product: 168085908, Category Hierarchy: Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168181862, Category Hierarchy: Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168086078, Category Hierarchy: Boys > Clothing > Winterwear > Jumpers & Cardigans, Boys > Clothing > Jumpers & Cardigans
+Product: 168155530, Category Hierarchy: Boys > Clothing > Nightwear, Boys > Clothing > Winterwear > Pyjama Sets
+Product: 168155516, Category Hierarchy: Boys > Clothing > Winterwear > Pyjama Sets, Boys > Clothing > Nightwear
+Product: 168244726, Category Hierarchy: Baby > Boys > Accessories > Socks, Boys > Accessories > Socks
+Product: 166777924, Category Hierarchy: Boys > Accessories > Socks
+-----------------------------------
+Order code: 68232217743, Order Placed Time: Thu Oct 23 12:08:11 AST 2025, Language: ar, User Info: UID: osamahegazy800@gmail.com, Name: Osama Ali, Type: Registered,Location: 04-3-16-1674 - Yanbu Al Baher, Bucket Size: 1, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167247254, Category Hierarchy: Sports > Men > Clothing > T-shirts & Polos, Men > Clothing > T-shirts & Polos > T-shirts
+-----------------------------------
+Order code: 68232211554, Order Placed Time: Thu Oct 23 10:52:48 AST 2025, Language: ar, User Info: UID: mohammedola107@gmail.com, Name: Ola Mohammed, Type: Registered,Location: 04-2-11-1770 - Al Aziziyah, Bucket Size: 10, Payment: CREDIT_CARD (Card Type: MASTERCARD), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 165989400, Category Hierarchy: null > Household > Dining > Dinnerware > Bowls, null
+Product: 165989392, Category Hierarchy: null > Household > Dining > Serveware > Serving Platters, null
+Product: 167408787, Category Hierarchy: Men > Clothing > Shirts
+Product: 167423419, Category Hierarchy: Women > Shoes > Flats > Slides, Women > Shoes > Flipflops & Slides
+Product: 167662313, Category Hierarchy: Men > Clothing > Bottoms > Trousers & Chinos > Trousers, Men > Clothing > Coord Sets
+Product: 167838575, Category Hierarchy: Men > Clothing > Bottoms > Trousers & Chinos > Chinos
+Product: 166767325, Category Hierarchy: Men > Clothing > Bottoms > Trousers & Chinos > Trousers
+Product: 167817349, Category Hierarchy: Women > Shoes > Flipflops & Slides
+Product: 168343178, Category Hierarchy: Men > Clothing > Shirts
+Product: 167526119, Category Hierarchy: Men > Clothing > Shirts
+-----------------------------------
+Order code: 68232210070, Order Placed Time: Thu Oct 23 10:33:31 AST 2025, Language: ar, User Info: UID: msm_sweet@yahoo.com, Name: May Sulaiman, Type: Registered,Location: 04-1-3-1092 - King Khalid Airport, Bucket Size: 11, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 168361163, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168053423, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168411091, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168411095, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 167080209, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 168131640, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords, Girls > Clothing > Sets & Coords
+Product: 167639683, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords, Girls > Clothing > Sets & Coords
+Product: 168361090, Category Hierarchy: Girls > Clothing > Schoolwear > Jackets & Coats, Girls > Clothing > Winterwear > Jackets & Coats, Girls > Clothing > Jackets & Coats
+Product: 166980143, Category Hierarchy: Girls > Clothing > Winterwear > Thermal Sets, Baby > Girls > Clothing > Winterwear > Thermal Sets
+Product: 167915776, Category Hierarchy: Boys > Shoes > Sneakers
+Product: 168361102, Category Hierarchy: Girls > Clothing > Winterwear > Jackets & Coats, Girls > Clothing > Schoolwear > Jackets & Coats, Girls > Clothing > Jackets & Coats
+-----------------------------------
+Order code: 68232204447, Order Placed Time: Thu Oct 23 09:19:07 AST 2025, Language: ar, User Info: UID: rahom.21.n@gmail.com, Name: Rahma AL Najjar, Type: Registered,Location: 04-3-18-1188 - Abhur Al Janubiyah, Bucket Size: 7, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168159596, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants, Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 167426961, Category Hierarchy: Boys > Clothing > Schoolwear > Bottoms > Shorts, Baby > Boys > Clothing > Bottoms > Shorts, Boys > Clothing > Bottoms > Shorts, Baby > Boys > Clothing > Schoolwear > Shorts
+Product: 168062417, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Jackets & Coats
+Product: 168248433, Category Hierarchy: Baby > Girls > Clothing > T-shirts
+Product: 165555939, Category Hierarchy: null > School > Lunch Essentials > Lunch Boxes
+Product: 167088446, Category Hierarchy: Baby > Girls > Clothing > T-shirts
+Product: 167331881, Category Hierarchy: Baby > Girls > Clothing > T-shirts
+-----------------------------------
+Order code: 68232198335, Order Placed Time: Thu Oct 23 07:51:27 AST 2025, Language: ar, User Info: UID: mishail.alhussain@hotmail.com, Name: مشاعل عبدالله, Type: Registered,Location: 04-1-3-1024 - Al Malqa, Bucket Size: 1, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: N/A
+Product: 164324198, Category Hierarchy: Women > Clothing > Lingerie > Shapewear
+-----------------------------------
+Order code: 68232195015, Order Placed Time: Thu Oct 23 07:02:58 AST 2025, Language: en, User Info: UID: sabeer331@gmail.com, Name: MOHAMMED SABEER, Type: Registered,Location: 04-1-3-973 - As Sulimaniyah, Bucket Size: 22, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: Web, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167183563, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks
+Product: 166947020, Category Hierarchy: Baby > Girls > Clothing > Bottoms > Shorts, Girls > Clothing > Bottoms > Shorts
+Product: 167835827, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 164493547, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Blankets & Quilts
+Product: 168287223, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Sleepsuits, Baby > Boys > Clothing > Multipacks, Baby > Boys > Clothing > Nightwear > Sleepsuits
+Product: 168286764, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits, Baby > Girls > Clothing > Winterwear > Sleepsuits, Baby > Girls > Clothing > Nightwear > Sleepsuits, Baby > Boys > Clothing > Winterwear > Sleepsuits
+Product: 168139477, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits
+Product: 168276760, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167072710, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168296929, Category Hierarchy: Baby > Girls > Clothing > Bodysuits, Baby > Boys > Clothing > Bodysuits, Baby > Girls > Clothing > Winterwear > Bodysuits, Baby > Boys > Clothing > Winterwear > Bodysuits
+Product: 167022591, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Winter Accessories, Baby > Boys > Accessories > Caps
+Product: 168278992, Category Hierarchy: Baby > Boys > Shoes > Booties
+Product: 160778895, Category Hierarchy: Baby > Nursery > Baby Bedding
+Product: 168237339, Category Hierarchy: Baby > Feeding > Bibs
+Product: 168154730, Category Hierarchy: Baby > Boys > Shoes > Booties
+Product: 168237340, Category Hierarchy: Baby > Nursery > Blankets & Swaddles > Receiving Blankets
+Product: 165167336, Category Hierarchy: Baby > Bath & Care > Hair, Body & Skincare
+Product: 167178466, Category Hierarchy: Baby > Bath & Care > Oral Care
+Product: 166873843, Category Hierarchy: Baby > Bath & Care > Hair, Body & Skincare
+Product: 168208204, Category Hierarchy: Baby > Boys > Clothing > Multipacks, Baby > Boys > Clothing > Bodysuits
+Product: 168158198, Category Hierarchy: Baby > Boys > Clothing > Multipacks, Baby > Boys > Clothing > Tshirts & Polos
+Product: 168163676, Category Hierarchy: Baby > Boys > Clothing > Multipacks, Baby > Boys > Accessories > Mittens
+-----------------------------------
+Order code: 68232195354, Order Placed Time: Thu Oct 23 07:05:09 AST 2025, Language: ar, User Info: UID: ahood79@hotmail.com, Name: عهود محمد, Type: Registered,Location: 04-2-14-1983 - Jalmudah, Bucket Size: 21, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 168084779, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets, Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 166146922, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 166698277, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168216361, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168244370, Category Hierarchy: Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 168409135, Category Hierarchy: Women > Clothing > Dresses
+Product: 166669263, Category Hierarchy: Women > Clothing > Shirts & Blouses > Blouses
+Product: 168212523, Category Hierarchy: Women > Clothing > Shirts & Blouses > Blouses
+Product: 164655216, Category Hierarchy: Baby > Bath & Care > Wipes, Baby > Diapering > Baby Wipes, null
+Product: 168085222, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167627932, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167757802, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168284410, Category Hierarchy: Women > Clothing > Bottoms > Trousers
+Product: 167487553, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167871512, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets, Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168159469, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Sweatshirts
+Product: 168229977, Category Hierarchy: Baby > Boys > Clothing > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 168179663, Category Hierarchy: Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Sweatshirts
+Product: 168693548, Category Hierarchy: Boys > Clothing > Winterwear > Sets & Coords, Baby > Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Winterwear > Sets & Coords, Boys > Clothing > Sets & Coords
+Product: 168693553, Category Hierarchy: Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Winterwear > Sets & Coords, Boys > Clothing > Winterwear > Sets & Coords
+Product: 168273319, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Jumpers & Cardigans, Baby > Boys > Clothing > Jumpers & Cardigans
+-----------------------------------
+Order code: 68232195245, Order Placed Time: Thu Oct 23 07:02:15 AST 2025, Language: en, User Info: UID: misbah.anis@gmail.com, Name: Misbah Anis, Type: Registered,Location: 04-1-3-933 - Uhud, Bucket Size: 3, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168130771, Category Hierarchy: Baby > Gear > Strollers & Prams > Buggies
+Product: 166085082, Category Hierarchy: Baby > Girls > Accessories > Socks
+Product: 166082166, Category Hierarchy: null > Household > Wall Decor & Mirrors > Wall Accents, null
+-----------------------------------
+Order code: 68232194901, Order Placed Time: Thu Oct 23 06:58:08 AST 2025, Language: ar, User Info: UID: mohammed.elrzzaz@gmail.com, Name: محمد الرزاز, Type: Registered,Location: 04-1-3-935 - Al Izdihar, Bucket Size: 1, Payment: COD_PAYMENT_MODE, Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167021217, Category Hierarchy: null > Travel > Luggages & Bags > Luggage
+-----------------------------------
+Order code: 68232192080, Order Placed Time: Thu Oct 23 06:11:44 AST 2025, Language: en, User Info: UID: mohamed.rahees@gmail.com, Name: Mohamed Rahees, Type: Registered,Location: 04-1-3-1023 - Al Malaz, Bucket Size: 18, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: WebMobile, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 168477477, Category Hierarchy: Women > Clothing > T-shirts
+Product: 168597942, Category Hierarchy: Women > Clothing > T-shirts
+Product: 166778543, Category Hierarchy: Girls > Clothing > Multipacks, Girls > Clothing > Innerwear > Panties
+Product: 166929107, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 167679574, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 168260109, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+Product: 168180518, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Jeans, Boys > Clothing > Bottoms > Jeans
+Product: 168086023, Category Hierarchy: Boys > Clothing > Bottoms > Jeans
+Product: 167444685, Category Hierarchy: Girls > Clothing > Bottoms > Jeans & Jeggings
+Product: 166872575, Category Hierarchy: Girls > Clothing > Tshirts
+Product: 167936109, Category Hierarchy: Men > Clothing > T-shirts & Polos > Polos
+Product: 166822875, Category Hierarchy: Men > Clothing > T-shirts & Polos > Polos
+Product: 166734886, Category Hierarchy: Men > Clothing > T-shirts & Polos > Polos
+Product: 165431175, Category Hierarchy: Girls > Accessories > Socks, Boys > Accessories > Socks
+Product: 165431173, Category Hierarchy: Girls > Accessories > Socks, Boys > Accessories > Socks
+Product: 168244609, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts
+Product: 168244355, Category Hierarchy: Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts
+Product: 165589811, Category Hierarchy: Girls > Accessories > Socks, Boys > Accessories > Socks
+-----------------------------------
+Order code: 68232186865, Order Placed Time: Thu Oct 23 04:34:47 AST 2025, Language: ar, User Info: UID: baabdulrab@gmail.com, Name: بيان عبدالرب, Type: Registered,Location: 04-1-3-1055 - Al Yasmin, Bucket Size: 7, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 168073671, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Dresses, Girls > Clothing > Dresses & Jumpsuits, Baby > Girls > Clothing > Dresses & Jumpsuits, Girls > Clothing > Winterwear > Dresses
+Product: 168250439, Category Hierarchy: Girls > Clothing > Sets & Coords, Baby > Girls > Clothing > Winterwear > Sets & Coords, Girls > Clothing > Winterwear > Sets & Coords, Baby > Girls > Clothing > Sets & Coords
+Product: 168430928, Category Hierarchy: Girls > Clothing > Sets & Coords, Girls > Clothing > Winterwear > Sets & Coords
+Product: 168172864, Category Hierarchy: Girls > Clothing > Winterwear > Sets & Coords, Girls > Clothing > Sets & Coords
+Product: 168175982, Category Hierarchy: Boys > Shoes > Sneakers
+Product: 167593157, Category Hierarchy: Boys > Shoes > Sneakers
+Product: 168249352, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords, Girls > Clothing > Sets & Coords, Girls > Clothing > Winterwear > Sets & Coords, Baby > Girls > Clothing > Winterwear > Sets & Coords
+-----------------------------------
+Order code: 68232181780, Order Placed Time: Thu Oct 23 03:04:25 AST 2025, Language: ar, User Info: UID: lovelessness926@gmail.com, Name: لطيفة عبداللة الحقباني, Type: Registered,Location: 04-1-3-882 - Al Burj, Bucket Size: 2, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 166671362, Category Hierarchy: Women > Clothing > Sportswear & Activewear > Bottoms > Leggings, Women > Clothing > Bottoms > Leggings, Sports > Women > Clothing > Activewear Leggings
+Product: 166671354, Category Hierarchy: Women > Clothing > Lingerie > Bras, Women > Clothing > Sportswear & Activewear > Sports Bras, Sports > Women > Clothing > Sports Bras
+-----------------------------------
+Order code: 68232180780, Order Placed Time: Thu Oct 23 02:50:12 AST 2025, Language: ar, User Info: UID: rogayah201421@gmail.com, Name: رقية الرشيدي, Type: Registered,Location: 04-1-7-605 - Al Khaldiyah, Bucket Size: 19, Payment: COD_PAYMENT_MODE, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 167941473, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167638948, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167490673, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168084669, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 167410853, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 160027741, Category Hierarchy: Girls > Clothing > Innerwear > Vests
+Product: 162076045, Category Hierarchy: Girls > Clothing > Innerwear > Vests
+Product: 168126425, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos
+Product: 168260379, Category Hierarchy: Baby > Boys > Clothing > Sets & Coords
+Product: 164215586, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks
+Product: 159593591, Category Hierarchy: Baby > Diapering > Changing Mats
+Product: 167834142, Category Hierarchy: Baby > Diapering > Changing Mats
+Product: 167178454, Category Hierarchy: Baby > Diapering > Bins & Refills
+Product: 168694081, Category Hierarchy: Girls > Clothing > Sets & Coords, Baby > Girls > Clothing > Sets & Coords, Baby > Girls > Clothing > Winterwear > Sets & Coords, Girls > Clothing > Winterwear > Sets & Coords
+Product: 168693305, Category Hierarchy: Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Sweatshirts, Girls > Clothing > Winterwear > Sweatshirts, Baby > Girls > Clothing > Winterwear > Sweatshirts
+Product: 168493190, Category Hierarchy: Girls > Clothing > Bottoms > Joggers & Trackpants, Baby > Girls > Clothing > Bottoms > Joggers & Trackpants
+Product: 168235706, Category Hierarchy: Baby > Boys > Clothing > Sets & Coords
+Product: 168239508, Category Hierarchy: Girls > Clothing > Dresses & Jumpsuits, Baby > Girls > Clothing > Dresses & Jumpsuits
+Product: 168693583, Category Hierarchy: Baby > Boys > Clothing > Winterwear > Sets & Coords, Boys > Clothing > Sets & Coords, Boys > Clothing > Winterwear > Sets & Coords, Baby > Boys > Clothing > Sets & Coords
+-----------------------------------
+Order code: 68232177396, Order Placed Time: Thu Oct 23 02:11:24 AST 2025, Language: ar, User Info: UID: atheer.1417.sa@gmail.com, Name: Atheer mohammed, Type: Registered,Location: 04-1-5-419 - Qurtubah, Bucket Size: 14, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167671656, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Shorts, Boys > Clothing > Bottoms > Shorts
+Product: 167692605, Category Hierarchy: Women > Clothing > Bottoms > Skirts
+Product: 167214759, Category Hierarchy: Women > Clothing > Shirts & Blouses > Blouses
+Product: 167329372, Category Hierarchy: Women > Clothing > Coord Sets, Women > Clothing > Bottoms > Trousers
+Product: 167329384, Category Hierarchy: Women > Clothing > Shirts & Blouses > Blouses, Women > Clothing > Coord Sets
+Product: 166387298, Category Hierarchy: Women > Clothing > Nightwear > Nighties
+Product: 167675116, Category Hierarchy: Baby > Boys > Clothing > Shirts, Boys > Clothing > Shirts
+Product: 167154551, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos
+Product: 168121008, Category Hierarchy: Baby > Boys > Clothing > Jackets & Blazers
+Product: 167666599, Category Hierarchy: Boys > Clothing > Bottoms > Shorts, Baby > Boys > Clothing > Bottoms > Shorts
+Product: 168430368, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants, Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 166857929, Category Hierarchy: Baby > Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Winterwear > Sweatshirts
+Product: 168443848, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos, Boys > Clothing > Tshirts & Polos
+Product: 168233680, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos
+-----------------------------------
+Order code: 68232177421, Order Placed Time: Thu Oct 23 02:05:59 AST 2025, Language: ar, User Info: UID: omalbraabiro9@gmail.com, Name: ام البراء, Type: Registered,Location: 04-1-1-22 - Al Wardatain, Bucket Size: 4, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 165937523, Category Hierarchy: Sports > Boys > Sport Shoes, Boys > Shoes > Sports, Boys > Shoes > Sneakers
+Product: 168070307, Category Hierarchy: Boys > Clothing > Bottoms > Shorts
+Product: 167717123, Category Hierarchy: Boys > Clothing > Sportswear > Bottoms, Boys > Clothing > Bottoms > Shorts
+Product: 168260042, Category Hierarchy: Boys > Clothing > Tshirts & Polos
+-----------------------------------
+Order code: 68232176491, Order Placed Time: Thu Oct 23 02:00:50 AST 2025, Language: ar, User Info: UID: 78c8xdwvrt@privaterelay.appleid.com, Name: Nahlah Hamad, Type: Registered,Location: 04-1-5-512 - Qassim, Bucket Size: 4, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168230779, Category Hierarchy: Boys > Clothing > Winterwear > Sets & Coords, Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Winterwear > Sets & Coords
+Product: 168230782, Category Hierarchy: Boys > Clothing > Winterwear > Sets & Coords, Baby > Boys > Clothing > Sets & Coords, Boys > Clothing > Sets & Coords, Baby > Boys > Clothing > Winterwear > Sets & Coords
+Product: 166704980, Category Hierarchy: Boys > Shoes > Sports, Girls > Shoes > School Shoes, Sports > Boys > Sport Shoes, Boys > Shoes > Sneakers
+Product: 166593708, Category Hierarchy: Sports > Boys > Sport Shoes, Girls > Shoes > School Shoes, Boys > Shoes > Sports, Boys > Shoes > Sneakers
+-----------------------------------
+Order code: 68232172506, Order Placed Time: Thu Oct 23 01:21:05 AST 2025, Language: ar, User Info: UID: tyam199x@gmail.com, Name: فيصل الزهراني, Type: Registered,Location: 04-1-1-153 - Atud, Bucket Size: 1, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 166151258, Category Hierarchy: Baby > Infant Activity
+-----------------------------------
+Order code: 68232171120, Order Placed Time: Thu Oct 23 01:10:31 AST 2025, Language: ar, User Info: UID: engahmed171981@gmail.com, Name: Ahmed Abdelrehim, Type: Registered,Location: 04-1-10-1707 - Al Badanah, Bucket Size: 15, Payment: COD_PAYMENT_MODE, Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 166976290, Category Hierarchy: Baby > Girls > Accessories > Socks, Girls > Accessories > Socks
+Product: 167760478, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets
+Product: 166742930, Category Hierarchy: Women > Clothing > Nightwear > Pyjamas > Long Sets
+Product: 167868267, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets
+Product: 167868276, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets
+Product: 167759294, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Pyjama Sets
+Product: 168073467, Category Hierarchy: Girls > Clothing > Winterwear > Jumpers & Cardigans, Girls > Clothing > Jumpers & Cardigans, Baby > Girls > Clothing > Winterwear > Jumpers & Cardigans, Baby > Girls > Clothing > Jumpers & Cardigans
+Product: 168073473, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Jumpers & Cardigans, Girls > Clothing > Jumpers & Cardigans, Girls > Clothing > Winterwear > Jumpers & Cardigans, Baby > Girls > Clothing > Jumpers & Cardigans
+Product: 167478263, Category Hierarchy: Girls > Clothing > Sets & Coords
+Product: 167478268, Category Hierarchy: Girls > Clothing > Sets & Coords
+Product: 168073549, Category Hierarchy: Baby > Girls > Clothing > Bottoms > Jeans, Girls > Clothing > Bottoms > Jeans & Jeggings
+Product: 166980325, Category Hierarchy: Girls > Clothing > Nightwear
+Product: 167206300, Category Hierarchy: Girls > Clothing > Nightwear
+Product: 167727330, Category Hierarchy: Women > Clothing > Coats & Jackets > Jackets, Women > Winterwear > Coats & Jackets > Jackets
+Product: 168049522, Category Hierarchy: Women > Clothing > Bottoms > Joggers
+-----------------------------------
+Order code: 68232170368, Order Placed Time: Thu Oct 23 01:03:36 AST 2025, Language: ar, User Info: UID: n.s.q.1993@gmail.com, Name: سليمان محمد, Type: Registered,Location: 04-1-3-966 - Ar Rayan, Bucket Size: 19, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null), CP_SA_IPP_16102025_1Promotion (null)
+Product: 167241253, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos
+Product: 167072180, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos
+Product: 168420911, Category Hierarchy: Boys > Clothing > Tshirts & Polos, Boys > Clothing > Sportswear > Tops
+Product: 168180867, Category Hierarchy: Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts
+Product: 167944014, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks
+Product: 168154726, Category Hierarchy: Baby > Boys > Clothing > Bodysuits
+Product: 168296937, Category Hierarchy: Baby > Boys > Clothing > Bodysuits
+Product: 168296864, Category Hierarchy: Baby > Girls > Clothing > Bodysuits, Baby > Boys > Clothing > Bodysuits
+Product: 167489853, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks
+Product: 168250163, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants, Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168430242, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168230624, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants, Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168250001, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168070514, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 167480328, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos, Boys > Clothing > Tshirts & Polos
+Product: 168158867, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Joggers & Trackpants, Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 167547437, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168159629, Category Hierarchy: Boys > Clothing > Bottoms > Joggers & Trackpants, Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+Product: 168317503, Category Hierarchy: Boys > Clothing > Schoolwear > T-shirts & Polos, Boys > Clothing > Tshirts & Polos
+-----------------------------------
+Order code: 68232169143, Order Placed Time: Thu Oct 23 00:52:56 AST 2025, Language: ar, User Info: UID: 78wdkqffwh@privaterelay.appleid.com, Name: Ghadi Dode, Type: Registered,Location: 04-3-17-1402 - Al Mabuth, Bucket Size: 7, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168296870, Category Hierarchy: Baby > Girls > Clothing > Bodysuits, Baby > Boys > Clothing > Bodysuits
+Product: 168140729, Category Hierarchy: Baby > Girls > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks, Baby > Girls > Clothing > Multipacks, Baby > Boys > Clothing > Bodysuits
+Product: 168111264, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 167539095, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords
+Product: 167782635, Category Hierarchy: Baby > Girls > Clothing > Dresses & Jumpsuits
+Product: 167831639, Category Hierarchy: Baby > Girls > Clothing > Dresses & Jumpsuits
+Product: 168135932, Category Hierarchy: Baby > Girls > Clothing > Sets & Coords, Baby > Girls > Clothing > Winterwear > Sets & Coords
+-----------------------------------
+Order code: 68232167220, Order Placed Time: Thu Oct 23 00:41:52 AST 2025, Language: ar, User Info: UID: fcvwpzpqjy@privaterelay.appleid.com, Name: Manal Almalki, Type: Registered,Location: 04-1-2-674 - Al Hussaini, Bucket Size: 6, Payment: TABBY_INSTALLMENTS, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 165687436, Category Hierarchy: Baby > Feeding > Bibs
+Product: 168296931, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Winterwear > Bodysuits, Baby > Girls > Clothing > Bodysuits, Baby > Girls > Clothing > Winterwear > Bodysuits
+Product: 167757932, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits
+Product: 167777429, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits
+Product: 167659589, Category Hierarchy: Baby > Girls > Clothing > Nightwear > Sleepsuits
+Product: 167941204, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Sleepsuits
+-----------------------------------
+Order code: 68232164884, Order Placed Time: Thu Oct 23 00:24:41 AST 2025, Language: ar, User Info: UID: 42bksp9jwd@privaterelay.appleid.com, Name: عفاف خالد, Type: Registered,Location: 04-1-5-345 - Al Fayziyah, Bucket Size: 9, Payment: APPLE_PAY, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168084670, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168181792, Category Hierarchy: Baby > Boys > Clothing > Bodysuits, Baby > Boys > Clothing > Multipacks
+Product: 168244606, Category Hierarchy: Baby > Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts, Boys > Clothing > Sweatshirts, Boys > Clothing > Winterwear > Sweatshirts
+Product: 168279262, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168216348, Category Hierarchy: Baby > Boys > Clothing > Nightwear > Pyjama Sets
+Product: 168443876, Category Hierarchy: Baby > Boys > Clothing > Tshirts & Polos, Boys > Clothing > Tshirts & Polos
+Product: 168159315, Category Hierarchy: Baby > Boys > Clothing > Sweatshirts, Baby > Boys > Clothing > Winterwear > Sweatshirts
+Product: 168235498, Category Hierarchy: Boys > Clothing > Bottoms > Trousers, Baby > Boys > Clothing > Bottoms > Trousers
+Product: 168158247, Category Hierarchy: Baby > Boys > Clothing > Bottoms > Joggers & Trackpants
+-----------------------------------
+Order code: 68232164445, Order Placed Time: Thu Oct 23 00:19:17 AST 2025, Language: ar, User Info: UID: a.s.hanora83@gmail.com, Name: احمد صلاح, Type: Registered,Location: 04-1-3-958 - Ar Rabwah, Bucket Size: 1, Payment: CREDIT_CARD (Card Type: VISA), Sales Application: ANDROID, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 166803809, Category Hierarchy: Men > Shoes > Sandals
+-----------------------------------
+Order code: 68232163673, Order Placed Time: Thu Oct 23 00:17:34 AST 2025, Language: en, User Info: UID: waleedkhalid24@outlook.com, Name: Waleed Mian, Type: Registered,Location: 04-3-17-1354 - Abu Burayqa, Bucket Size: 8, Payment: TABBY_INSTALLMENTS, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 166857931, Category Hierarchy: Baby > Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Winterwear > Sweatshirts
+Product: 168249087, Category Hierarchy: Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Winterwear > Sweatshirts, Girls > Clothing > Winterwear > Sweatshirts
+Product: 167832698, Category Hierarchy: Girls > Clothing > Bottoms > Leggings, Baby > Girls > Clothing > Bottoms > Leggings
+Product: 166522405, Category Hierarchy: Baby > Girls > Clothing > Bottoms > Leggings
+Product: 167083911, Category Hierarchy: Baby > Girls > Clothing > Bottoms > Trousers
+Product: 168225075, Category Hierarchy: Baby > Girls > Clothing > Winterwear > Sweatshirts, Baby > Girls > Clothing > Sweatshirts
+Product: 168073310, Category Hierarchy: Baby > Girls > Clothing > Sweatshirts, Baby > Girls > Clothing > Winterwear > Sweatshirts
+Product: 165420556, Category Hierarchy: Men > Winterwear > Sweaters & Pullovers, Men > Clothing > Sweaters & Pullovers
+-----------------------------------
+Order code: 68232163417, Order Placed Time: Thu Oct 23 00:14:30 AST 2025, Language: ar, User Info: UID: shorouq.hamooud.2018@gmail.com, Name: شروق الشهري, Type: Registered,Location: 04-1-3-1090 - Qurtubah, Bucket Size: 3, Payment: COD_PAYMENT_MODE, Sales Application: IPHONE, Promotions: centrepoint_rpm_pfppPromotion (null)
+Product: 168264033, Category Hierarchy: Sports > Boys > Sport Shoes, Sports > Girls > Sport Shoes, Baby > Boys > Shoes > Closed Shoes, Baby > Girls > Shoes > Closed Shoes
+Product: 168264038, Category Hierarchy: Sports > Girls > Sport Shoes, Sports > Boys > Sport Shoes, Baby > Boys > Shoes > Closed Shoes, Baby > Girls > Shoes > Closed Shoes
+Product: 167037676, Category Hierarchy: Baby > Boys > Shoes > Closed Shoes
+-----------------------------------
