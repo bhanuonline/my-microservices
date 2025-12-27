@@ -4,7 +4,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 public class JwtExample {
@@ -19,12 +21,30 @@ public class JwtExample {
         // Build token
         String jwt = Jwts.builder()
                 .setSubject("alice") // 'sub' claim
-                .claim("userId", 123) // custom claim
+                .claim("abc", 123) // custom claim
                 .setIssuedAt(now)     // 'iat' claim
                 .setExpiration(expiry) // 'exp' claim
                 .signWith(key)        // sign with key
                 .compact();
 
         System.out.println("JWT Token: " + jwt);
+
+        // Parse and verify JWT
+        var claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(jwt)
+                .getBody();
+
+        System.out.println("\nDecoded token data:");
+        System.out.println("Subject: " + claims.getSubject());
+        System.out.println("Role: " + claims.get("abc"));
+        System.out.println("Expiration: " + claims.getExpiration());
+
+
+        String[] parts = jwt.split("\\.");
+
+        System.out.println(new String(Base64.getUrlDecoder().decode(parts[0])));
+        System.out.println(new String(Base64.getUrlDecoder().decode(parts[1])));
     }
 }
