@@ -1,3 +1,11 @@
+
+# Step to run
+#python3 -m venv venv
+#source venv/bin/activate
+#pip install fpdf
+#python bill.py
+
+
 import numpy as np
 import time
 #print(np.__version__)
