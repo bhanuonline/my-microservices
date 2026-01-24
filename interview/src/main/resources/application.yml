@@ -1,0 +1,9 @@
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentService:
+        failureRateThreshold: 50
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2

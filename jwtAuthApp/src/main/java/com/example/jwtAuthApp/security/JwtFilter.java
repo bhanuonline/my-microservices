@@ -1,5 +1,6 @@
 package com.example.jwtAuthApp.security;
 
+import com.example.jwtAuthApp.service.AuthService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -15,7 +16,7 @@ import java.io.IOException;
 public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired private JwtUtil jwtUtil;
-    @Autowired private CustomUserDetailsService userService;
+    @Autowired private AuthService userService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
@@ -33,10 +34,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
         var userDetails = userService.loadUserByUsername(username);
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
+        //var auth = new UsernamePasswordAuthenticationToken(
+                //userDetails, null, userDetails.getAuthorities());
 
-        SecurityContextHolder.getContext().setAuthentication(auth);
+        //SecurityContextHolder.getContext().setAuthentication(auth);
         chain.doFilter(req, res);
     }
 }

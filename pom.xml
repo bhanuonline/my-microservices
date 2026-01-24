@@ -19,6 +19,13 @@
         <module>admin</module>
         <module>process</module>
         <module>jwtAuthApp</module>
+        <module>paymentservice</module>
+        <module>order-service</module>
+        <module>service</module>
+        <module>auth-server</module>
+        <module>resource-server</module>
+        <module>client-app</module>
+        <module>spring-security-apps</module>
     </modules>
 
     <parent>

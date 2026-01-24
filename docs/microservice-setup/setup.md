@@ -45,3 +45,72 @@ docker ps
 run docker : docker compose -f kafka-compose.yml up -d
 check log :docker compose -f kafka-compose.yml logs -f kafka
 
+#ProductService
+setjava17
+port : 8082
+jps -v : running java process
+⌥ + ⌘ + L : format
+mvn clean install -Dmaven.test.skip=true
+./mvnw spring-boot:run -Pdebug
+
+
+
+#service
+
+    docker run -it --rm maven:3.9.6-eclipse-temurin-17 bash
+    docker image
+    
+    COPY . .
+    RUN mvn -pl service -am clean package -DskipTests
+    -pl service = build the service module only
+    -am = also build its required modules (including the parent)
+    docker rmi <image-id>
+    docker images
+    docker run -p 8080:8080 my-service
+    docker logs -f sweet_jemison(service name docker ps check the container)
+    
+    how to go inside the container
+    docker exec -it sweet_jemison /bin/bash
+    docker exec sweet_jemison ls -l /app/target
+    
+    #if db not install on docker then run it and chnage the db name 
+    docker run -d \
+    --name my-mysql \
+    -e MYSQL_ROOT_PASSWORD=root \
+    -e MYSQL_DATABASE=servicedb \
+    -p 3307:3306 \
+    mysql:8
+    sudo lsof -i :3306
+    
+    # list running containers
+    docker ps
+    # stop/remove existing MySQL container if appropriate
+    docker stop <container_id>
+    docker rm <container_id>
+    
+    mvn -pl service -am clean package -DskipTests # on root folder run
+    docker build -t my-service:latest .
+    
+    #if sumthing change then
+    mvn clean package
+    docker build -t my-service .
+    docker run -p 8093:8093 my-service
+    
+    #run time
+    docker run -d \
+    -p 8080:8080 \
+    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3307/mydb \
+    -e SPRING_DATASOURCE_USERNAME=root \
+    -e SPRING_DATASOURCE_PASSWORD=secret \
+    my-service
+    
+    docker image history my-service
+    
+    CREATE USER 'appuser'@'%' IDENTIFIED BY 'appsecret';
+    GRANT ALL PRIVILEGES ON mydb.* TO 'appuser'@'%';
+    FLUSH PRIVILEGES;
+    
+    or
+    ALTER USER 'root'@'%' IDENTIFIED BY 'secret';
+    FLUSH PRIVILEGES;
+

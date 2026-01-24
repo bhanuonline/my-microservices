@@ -1,0 +1,1 @@
+Compress the string "aabcccccaaa" into "a2b1c5a3" with minimal space complexity.

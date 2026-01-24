@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login</title>
+</head>
+<body>
+<h2>Admin Login</h2>
+
+<div th:if="${param.error}">
+    Invalid username or password.
+</div>
+
+<div th:if="${param.logout}">
+    You have been logged out successfully.
+</div>
+<form th:action="@{/admin/login}" method="post">
+    <label>Username:</label>
+    <input type="text" name="username" />
+    <label>Password:</label>
+    <input type="password" name="password" />
+    <button type="submit">Login</button>
+</form>
+</body>
+</html>

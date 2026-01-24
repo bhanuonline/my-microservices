@@ -40,7 +40,7 @@ management:
       exposure:
         include: '*'          # exposes all endpoints
 
-debug: true
+debug: false
 
 logging:
   level:
