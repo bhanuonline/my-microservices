@@ -12,6 +12,7 @@ Iterating Through Lists
 
     For-each loop (recommended)
     Iterator
+        If you want to start iterating from the end directly, you must pass the list size to listIterator(). in case if want to pirnt in reverse direction
     Traditional for loop
     Stream API (Java 8+)
 

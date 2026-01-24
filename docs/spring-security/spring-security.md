@@ -1,5 +1,20 @@
 **What Spring Security actually does**
 
+Its job:
+authentication (who are you?),
+authorization (what are you allowed to do?),
+CSRF protection, session management,
+and integration with common protocols like OAuth 2.0/OpenID Connect.
+
+Stage	        What you learn	                                                                What it teaches
+1️⃣	    Basic authentication (UserDetailsService, PasswordEncoder, SecurityFilterChain)	        How requests are intercepted and checked
+2️⃣	    Authorization with roles (@PreAuthorize, SecurityExpression)	                        Controlling access by user roles
+3️⃣	    CSRF, sessions, Remember‑Me	                                                            Web layer safety & state management
+4️⃣	    Form login vs. HTTP Basic vs. Token‑based auth	                                        Auth mechanisms
+5️⃣	    Integrating OAuth 2.0	                                                                Delegating trust to external providers
+6️⃣	    Running an Authorization Server	                                                        Issuing + validating tokens
+7️⃣	    Resource Server	                                                                        Protecting APIs via JWT validation
+
 Spring Security is a filter chain that sits in front of your web application.
 When any HTTP request reaches your app, Security intercepts it through a set of filters before it reaches your controller. Its two main responsibilities are:
 
@@ -164,6 +179,60 @@ Zone	                Core Interfaces / Classes	                                 
 3. Protection / Filters	SecurityFilterChain, custom OncePerRequestFilter	                            Add custom security logic (tokens, audit, rate‑limit, headers)
 
 
+DelegatingFilterProxy
+↓ delegates to
+FilterChainProxy#doFilter()
+↓ finds matching SecurityFilterChain
+↓ executes filters:
+SecurityContextHolderFilter
+UsernamePasswordAuthenticationFilter
+AuthorizationFilter
+ExceptionTranslationFilter
+...
 
+Client → FilterChainProxy → [ various filters ] → DispatcherServlet → Controller
 
+**Authentication sub‑flow**
+UsernamePasswordAuthenticationFilter
+│
+▼
+AuthenticationManager
+│
+▼
+┌────────────────────────────────────────┐
+│   One or more AuthenticationProvider    │
+│   (DAO, LDAP, JWT, OAuth2, custom...)   │
+└────────────────────────────────────────┘
+│
+▼
+UserDetailsService → loads user from DB
+│
+▼
+PasswordEncoder → verifies password
+│
+▼
+Authentication (principal + roles)
+stored in SecurityContextHolder
 
+Authorization sub‑flow
+
+FilterSecurityInterceptor
+│
+▼
+AccessDecisionManager
+│
+▼
+AccessDecisionVoters (role checks, expressions)
+│
+├──> allow → continue to controller
+└──> deny  → 403 Forbidden (or redirect)
+
+**Context lifecycle**
+[ Request start ]
+↓
+SecurityContextPersistenceFilter loads security context
+↓
+Filters + controller use SecurityContextHolder.getContext()
+↓
+SecurityContextPersistenceFilter saves context to session
+[ Response sent ]

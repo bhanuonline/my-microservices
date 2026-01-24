@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Spring Security Demo</title>
+</head>
+<body>
+<h2 th:text="${message}"></h2>
+
+<p><a href="/">Home</a> | <a href="/public/info">Public Page</a> |
+<!--    <a href="/logout">Logout</a></p>-->
+<form th:action="@{/logout}" method="post">
+    <!-- include CSRF token, if CSRF is enabled -->
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+    <button type="submit">Logout</button>
+</form>
+</body>
+</html>

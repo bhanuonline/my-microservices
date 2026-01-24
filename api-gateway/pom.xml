@@ -17,10 +17,6 @@
     <dependencies>
         <!-- Spring Cloud Gateway (Reactive) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
@@ -40,6 +36,27 @@
                     <artifactId>spring-boot-starter-web</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.security</groupId>-->
+<!--            <artifactId>spring-security-config</artifactId>-->
+<!--        </dependency>-->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.security</groupId>-->
+<!--            <artifactId>spring-security-config</artifactId>-->
+<!--        </dependency>-->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
 
 
@@ -69,7 +86,7 @@
             <id>debug</id>
             <properties>
                 <spring-boot.run.jvmArguments>
-                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5008
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5012
                 </spring-boot.run.jvmArguments>
             </properties>
         </profile>

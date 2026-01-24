@@ -19,6 +19,12 @@ spring:
             - Path=/products/**
           filters:
             - StripPrefix=1
+        - id: myservice
+          uri: lb://MYSERVICE
+          predicates:
+              - Path=/myservice/**
+          filters:
+              - StripPrefix=1
 
 # Actuator config for debugging Gateway
 management:

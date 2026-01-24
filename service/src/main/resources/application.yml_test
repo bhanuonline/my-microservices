@@ -1,0 +1,78 @@
+# ==========================================================
+# 🧩 Default Configuration (common to all environments)
+# ==========================================================
+spring:
+  application:
+    name: service
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+server:
+  error:
+    include-message: always
+
+# ==========================================================
+# 🧪 DEV PROFILE CONFIGURATION
+# ==========================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/devdb
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+
+logging:
+  level:
+    org.springframework: DEBUG
+    com.example: DEBUG
+
+server:
+  port: 8080
+
+# ==========================================================
+# 🏭 PROD PROFILE CONFIGURATION
+# ==========================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:mysql://prod-db-server:3306/proddb
+    username: prod_user
+    password: ${DB_PASSWORD}  # Use env variable for security
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+logging:
+  level:
+    org.springframework: INFO
+    com.example: INFO
+
+server:
+  port: 9090
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

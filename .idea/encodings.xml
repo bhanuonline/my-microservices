@@ -4,14 +4,21 @@
     <file url="file://$PROJECT_DIR$/admin-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/admin/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/auth-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/client-app/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/common-lib/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/eureka-server/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/interview/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/jwtAuthApp/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/notification/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/order-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/paymentservice/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/process/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/product-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/product-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/resource-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/spring-security-apps/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/user-service/src/main/java" charset="UTF-8" />

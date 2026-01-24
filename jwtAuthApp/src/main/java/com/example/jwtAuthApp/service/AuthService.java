@@ -27,4 +27,8 @@ public class AuthService {
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole().name());
         return new JwtResponse(token, user.getUsername(), user.getRole().name());
     }
+
+    public Object loadUserByUsername(String username) {
+        return null;
+    }
 }
