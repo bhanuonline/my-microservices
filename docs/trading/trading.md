@@ -364,3 +364,21 @@ Price Channel = market boundary
 🔴 Top line → where price is getting rejected
 🔴 Bottom line → where price is getting support
 🔵 Middle line → trend direction
+
+❗ Never trade against the channel slope
+
+| Channel Direction    | What to do |
+| -------------------- | ---------- |
+| Channel sloping up   | Buy only   |
+| Channel sloping down | Sell only  |
+| Channel flat         | Avoid      |
+
+![img.png](img.png)
+
+
+
+#### 
+HA candle > normal close : PE down-sell
+HA candle < normal close : CE long
+Nifty diff at least : 10 points
+

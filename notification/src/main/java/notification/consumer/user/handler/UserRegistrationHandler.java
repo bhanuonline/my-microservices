@@ -34,7 +34,7 @@ public class UserRegistrationHandler {
         //process(dto);
     }
 
-    @KafkaListener(topics = "user-registration", groupId = "notification-user")
+    //@KafkaListener(topics = "user-registration", groupId = "notification-user")
     public void consume(Message<String> message) throws JsonProcessingException {
         String payload = message.getPayload();
         log.info("Raw payload received: {}", payload);

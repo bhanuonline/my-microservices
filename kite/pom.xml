@@ -10,6 +10,14 @@
     </parent>
 
     <artifactId>kite</artifactId>
+    <dependencies>
+        <!-- https://central.sonatype.com/artifact/com.zerodhatech.kiteconnect/kiteconnect -->
+        <dependency>
+            <groupId>com.zerodhatech.kiteconnect</groupId>
+            <artifactId>kiteconnect</artifactId>
+            <version>3.5.1</version>
+        </dependency>
+    </dependencies>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

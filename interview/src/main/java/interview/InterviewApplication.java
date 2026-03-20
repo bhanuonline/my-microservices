@@ -14,8 +14,8 @@ import org.springframework.context.annotation.ComponentScan;
 import outside.OutSidebean;
 
 @Slf4j
-@ComponentScan(basePackages = {"outside","interview.spring"})
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+//@ComponentScan(basePackages = {"outside","interview.spring"})
+//@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
 public class InterviewApplication {
 
     @Autowired

@@ -26,6 +26,7 @@
         <module>resource-server</module>
         <module>client-app</module>
         <module>spring-security-apps</module>
+        <module>kite</module>
     </modules>
 
     <parent>

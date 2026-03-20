@@ -87,3 +87,16 @@ python3 -m venv venv
 source venv/bin/activate
 pip install numpy
 pip install pandas
+
+# 📦 What is scikit-learn?
+scikit-learn is a popular Python machine learning library used for:
+
+* Regression
+* Classification
+* Clustering
+* Model evaluation
+* Data preprocessing
+
+It works on top of:
+* NumPy
+* SciPy

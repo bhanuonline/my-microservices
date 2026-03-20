@@ -1,16 +1,21 @@
-spring:
+#spring:
 #  kafka:
 #    bootstrap-servers: localhost:9092
 #    producer:
 #      key-serializer: org.apache.kafka.common.serialization.StringSerializer
 #      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-  cloud:
-    stream:
-      kafka:
-        binder:
-          brokers: localhost:9092
-      bindings:
-        userRegistrationInput:
-          destination: user-registration       # Same topic name as producer
-          group: notification-user  # Consumer group name
-          content-type: application/json
+#  cloud:
+#    stream:
+#      kafka:
+#        binder:
+#          brokers: localhost:9092
+#      bindings:
+#        userRegistrationInput:
+#          destination: user-registration       # Same topic name as producer
+#          group: notification-user  # Consumer group name
+#          content-type: application/json
+
+features:
+  email:
+    batch-enabled: true
+    batch-threshold: 10

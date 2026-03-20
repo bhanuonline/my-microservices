@@ -222,3 +222,82 @@ Changes visible (arrays are mutable)
 4️⃣5️⃣ Arrays passed by?
 Value of reference (effectively reference)
 “Java is pass-by-value. For arrays, the value passed is the reference, so modifying elements affects the original array, but reassigning the reference does not.”
+
+Core difference between Comparable and Comparator
+
+| Aspect                 | Comparable       | Comparator            |
+| ---------------------- | ---------------- | --------------------- |
+| Who compares?          | Object itself    | Separate object       |
+| Method                 | `compareTo(T o)` | `compare(T o1, T o2)` |
+| Part of data?          | Yes              | No                    |
+| Used in `max(List<T>)` | ✅                | ❌                     |
+
+| Question                      | Comparable | Comparator |
+| ----------------------------- | ---------- | ---------- |
+| Comparison code inside class? | ✅ Yes      | ❌ No       |
+| Object compares itself?       | ✅ Yes      | ❌ No       |
+| Extra object needed?          | ❌ No       | ✅ Yes      |
+
+
+
+🧩 Real-life analogy
+Comparable → Student compares marks with another student
+Comparator → Teacher compares two students
+
+🧠 One-line memory trick
+Comparable → compareTo → this vs other
+Comparator → compare → other vs other
+
+Hash-based collections
+HashSet, HashMap
+Use 👉 equals() + hashCode()
+Ignore compareTo()
+
+Sorted collections
+TreeSet, TreeMap
+Use 👉 compareTo() or Comparator
+Ignore equals()
+
+⚠️ If inconsistent → data loss
+🔑 Comparable uses compareTo() only, but compareTo() must agree with equals() to avoid bugs.
+
+Comparable → uses compareTo only
+equals() / hashCode() → used by HashSet / HashMap
+TreeSet / TreeMap → use compareTo or Comparator
+
+One-line memory trick 🧠
+Sorting uses compareTo, hashing uses equals + hashCode
+
+
+### Spring Singleton & Thread Safety — Memory Notes 🧠
+1️⃣ Spring singleton ≠ thread-safe
+Singleton only means one object
+It does NOT guarantee thread safety
+
+2️⃣ Threads do NOT create objects
+Objects are created only using new
+Multiple threads can use the same object
+
+3️⃣ Singleton is thread-safe when:
+❇ No instance variables (stateless)
+❇ Only local variables
+❇ Immutable fields (final, not modified)
+❇ Uses thread-safe classes (ConcurrentHashMap)
+
+4️⃣ Singleton is NOT thread-safe when:
+❌ Has mutable instance variables
+❌ Uses HashMap, ArrayList, etc.
+❌ Shared data is modified by threads
+
+5️⃣ Instance variables = shared in singleton
+All threads see same instance variables
+Leads to race condition if not protected
+
+6️⃣ static makes it worse
+static = shared across JVM
+static HashMap + threads = ❌ danger
+
+7️⃣ Best fixes (in order)
+Use ConcurrentHashMap
+Synchronize access
+Avoid shared mutable state

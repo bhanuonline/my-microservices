@@ -5,5 +5,5 @@ import org.springframework.messaging.SubscribableChannel;
 
 public interface UserRegistrationInput {
     //@Input("userRegistrationInput")
-    SubscribableChannel userRegistrationInput();
+    //SubscribableChannel userRegistrationInput();
 }
