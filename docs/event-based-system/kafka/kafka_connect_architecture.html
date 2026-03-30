@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kafka Connect: source &amp; sink connectors</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeede9;
+  --text: #1a1a18; --text2: #5a5a56; --text3: #8a8a84;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e6de; --text2: #a8a69e; --text3: #6a6a64;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+  }
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text2);
+  font-size: 12px; cursor: pointer;
+}
+.tab.on { background: #534AB7; border-color: #534AB7; color: #EEEDFE; font-weight: 500; }
+.tab:hover:not(.on) { background: var(--bg3); }
+.panel { display: none; } .panel.on { display: block; }
+
+/* architecture */
+.arch { display: flex; gap: 10px; align-items: stretch; margin-bottom: 14px; flex-wrap: wrap; }
+.arch-col { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 110px; }
+.arch-col.mid { flex: 1.4; }
+.col-lbl { font-size: 10px; font-weight: 500; letter-spacing: .05em; color: var(--text3); text-transform: uppercase; margin-bottom: 4px; text-align: center; }
+
+.sys-box { border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; background: var(--bg2); text-align: center; }
+.sys-name { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.sys-sub  { font-size: 10px; color: var(--text3); }
+
+.connect-box { border: 1px solid #AFA9EC; border-radius: 10px; padding: 12px; background: #EEEDFE; flex: 1; }
+.connect-title { font-size: 11px; font-weight: 500; color: #3C3489; margin-bottom: 8px; text-align: center; }
+.connector-chip { font-size: 10px; padding: 4px 8px; border-radius: 6px; margin-bottom: 5px; border: 1px solid #AFA9EC; background: var(--bg); color: #534AB7; text-align: center; }
+.connector-chip.sink { border-color: #5DCAA5; color: #085041; }
+@media (prefers-color-scheme: dark) {
+  .connect-box { background: #26215C; border-color: #7F77DD; }
+  .connect-title { color: #CECBF6; }
+  .connector-chip { background: var(--bg2); color: #CECBF6; border-color: #7F77DD; }
+  .connector-chip.sink { color: #9FE1CB; border-color: #1D9E75; }
+}
+
+.topic-chip { border: 1px solid var(--border2); border-radius: 8px; padding: 7px 10px; background: var(--bg2); font-size: 11px; font-weight: 500; color: var(--text); text-align: center; }
+.topic-chip.active { border-color: #7F77DD; background: #EEEDFE; color: #3C3489; }
+@media (prefers-color-scheme: dark) {
+  .topic-chip.active { background: #26215C; color: #CECBF6; border-color: #7F77DD; }
+}
+
+/* flow */
+.flow-area { border: 1px solid var(--border2); border-radius: 10px; padding: 14px; background: var(--bg2); margin-bottom: 12px; }
+.flow-title { font-size: 11px; font-weight: 500; color: var(--text); margin-bottom: 10px; }
+.pipeline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.pipe-node { border-radius: 8px; border: 1px solid; padding: 7px 12px; font-size: 11px; font-weight: 500; text-align: center; min-width: 90px; }
+.pipe-node.src      { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+.pipe-node.connect  { background: #FAEEDA; border-color: #EF9F27; color: #633806; }
+.pipe-node.topic    { background: var(--bg); border-color: #7F77DD; color: #534AB7; }
+.pipe-node.sink-n   { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+.pipe-arrow { font-size: 14px; color: var(--text3); flex-shrink: 0; }
+@media (prefers-color-scheme: dark) {
+  .pipe-node.src     { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+  .pipe-node.connect { background: #412402; border-color: #BA7517; color: #FAC775; }
+  .pipe-node.sink-n  { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+}
+
+.record-stream { min-height: 48px; border: 1px dashed var(--border2); border-radius: 8px; padding: 8px; display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start; background: var(--bg); }
+.record { font-size: 9px; padding: 3px 7px; border-radius: 5px; border: 1px solid; animation: popin .3s ease; }
+@keyframes popin { 0%{opacity:0;transform:scale(.8)} 100%{opacity:1;transform:scale(1)} }
+.record.db    { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+.record.topic { background: #FAEEDA; border-color: #EF9F27; color: #633806; }
+.record.es    { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+@media (prefers-color-scheme: dark) {
+  .record.db    { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+  .record.topic { background: #412402; border-color: #BA7517; color: #FAC775; }
+  .record.es    { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+}
+
+.controls { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+.btn { padding: 6px 13px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text); font-size: 12px; cursor: pointer; }
+.btn:hover { background: var(--bg3); }
+.btn.pri { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+.btn.pri:hover { background: #3C3489; }
+
+.config-box {
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px;
+  padding: 14px; font-size: 11px; font-family: var(--mono); color: var(--text2);
+  line-height: 1.8; white-space: pre-wrap; margin-bottom: 10px;
+}
+.config-box .key     { color: #534AB7; }
+.config-box .val     { color: #0F6E56; }
+.config-box .comment { color: var(--text3); }
+@media (prefers-color-scheme: dark) {
+  .config-box .key { color: #CECBF6; }
+  .config-box .val { color: #9FE1CB; }
+}
+
+.info { font-size: 11px; color: var(--text2); line-height: 1.7; border-left: 2px solid var(--border2); padding-left: 10px; min-height: 28px; }
+.info strong { color: var(--text); }
+.info code { font-family: var(--mono); font-size: 10px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; }
+.info .src-c { color: #534AB7; }
+.info .snk-c { color: #0F6E56; }
+.info .warn  { color: #BA7517; }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+</style>
+</head>
+<body>
+<h1>Kafka Connect: source &amp; sink connectors</h1>
+<p class="subtitle">Four interactive tabs — architecture overview, source connector, sink connector, and end-to-end pipeline.</p>
+
+<div class="tabs">
+  <button class="tab on" onclick="showTab(0,this)">What is Connect?</button>
+  <button class="tab" onclick="showTab(1,this)">Source connector</button>
+  <button class="tab" onclick="showTab(2,this)">Sink connector</button>
+  <button class="tab" onclick="showTab(3,this)">End-to-end pipeline</button>
+</div>
+
+<!-- TAB 0 -->
+<div class="panel on" id="tab0">
+  <div class="arch">
+    <div class="arch-col">
+      <div class="col-lbl">External sources</div>
+      <div class="sys-box"><div class="sys-name">MySQL</div><div class="sys-sub">orders table</div></div>
+      <div class="sys-box"><div class="sys-name">PostgreSQL</div><div class="sys-sub">users table</div></div>
+      <div class="sys-box"><div class="sys-name">S3 / GCS</div><div class="sys-sub">log files</div></div>
+    </div>
+    <div style="flex:0;min-width:28px;display:flex;align-items:center;justify-content:center">
+      <svg width="28" height="80" viewBox="0 0 28 80"><defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></marker></defs><line x1="14" y1="4" x2="14" y2="70" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ah)"/></svg>
+    </div>
+    <div class="arch-col mid">
+      <div class="col-lbl">Kafka Connect cluster</div>
+      <div class="connect-box">
+        <div class="connect-title">Source connectors</div>
+        <div class="connector-chip">Debezium MySQL CDC</div>
+        <div class="connector-chip">JDBC Source</div>
+        <div class="connector-chip">S3 Source</div>
+        <div style="height:10px"></div>
+        <div class="connect-title" style="color:#085041">Sink connectors</div>
+        <div class="connector-chip sink">Elasticsearch Sink</div>
+        <div class="connector-chip sink">S3 Sink</div>
+        <div class="connector-chip sink">JDBC Sink</div>
+      </div>
+    </div>
+    <div style="flex:0;min-width:28px;display:flex;align-items:center;justify-content:center">
+      <svg width="28" height="80" viewBox="0 0 28 80"><defs><marker id="ah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></marker></defs><line x1="14" y1="4" x2="14" y2="70" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ah2)"/></svg>
+    </div>
+    <div class="arch-col">
+      <div class="col-lbl">Kafka topics</div>
+      <div class="topic-chip active">mysql.orders</div>
+      <div class="topic-chip active">pg.users</div>
+      <div class="topic-chip">s3.logs</div>
+    </div>
+    <div style="flex:0;min-width:28px;display:flex;align-items:center;justify-content:center">
+      <svg width="28" height="80" viewBox="0 0 28 80"><defs><marker id="ah3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round"/></marker></defs><line x1="14" y1="4" x2="14" y2="70" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#ah3)"/></svg>
+    </div>
+    <div class="arch-col">
+      <div class="col-lbl">External sinks</div>
+      <div class="sys-box"><div class="sys-name">Elasticsearch</div><div class="sys-sub">search index</div></div>
+      <div class="sys-box"><div class="sys-name">S3</div><div class="sys-sub">data lake</div></div>
+      <div class="sys-box"><div class="sys-name">PostgreSQL</div><div class="sys-sub">reporting DB</div></div>
+    </div>
+  </div>
+  <div class="info">Kafka Connect is a <strong>standalone runtime</strong> — you deploy connectors as JSON configs, not code. It handles retries, parallelism, offset tracking, and restarts automatically. <strong>Source connectors</strong> pull data into Kafka; <strong>sink connectors</strong> push data out.</div>
+</div>
+
+<!-- TAB 1 -->
+<div class="panel" id="tab1">
+  <div class="flow-area">
+    <div class="flow-title">JDBC Source connector — polling MySQL every 5s</div>
+    <div class="pipeline">
+      <div class="pipe-node src">MySQL<br><span style="font-size:9px;opacity:.7">orders table</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node connect">JDBC Source<br><span style="font-size:9px;opacity:.7">polls on interval</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node topic">mysql.orders<br><span style="font-size:9px;opacity:.7">Kafka topic</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Records flowing into topic:</div>
+    <div class="record-stream" id="src-stream"><span style="font-size:10px;color:var(--text3)">hit Simulate poll to start</span></div>
+  </div>
+  <div class="controls">
+    <button class="btn pri" onclick="simulatePoll()">Simulate poll</button>
+    <button class="btn" onclick="clearStream('src-stream')">Clear</button>
+  </div>
+  <div class="config-box" id="src-config"></div>
+  <div class="info" id="src-info">The JDBC Source connector runs a SELECT query on an interval, tracks the highest <strong>offset column</strong> (e.g. <code>updated_at</code> or <code>id</code>) it has seen, and only fetches new rows next time. No code — just a JSON config POSTed to the Connect REST API.</div>
+</div>
+
+<!-- TAB 2 -->
+<div class="panel" id="tab2">
+  <div class="flow-area">
+    <div class="flow-title">Elasticsearch Sink connector — indexing orders in real time</div>
+    <div class="pipeline">
+      <div class="pipe-node topic">mysql.orders<br><span style="font-size:9px;opacity:.7">Kafka topic</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node connect">ES Sink<br><span style="font-size:9px;opacity:.7">batches writes</span></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node sink-n">Elasticsearch<br><span style="font-size:9px;opacity:.7">orders index</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px">Records written to Elasticsearch:</div>
+    <div class="record-stream" id="sink-stream"><span style="font-size:10px;color:var(--text3)">hit Simulate consume to start</span></div>
+  </div>
+  <div class="controls">
+    <button class="btn pri" onclick="simulateSink()">Simulate consume</button>
+    <button class="btn" onclick="clearStream('sink-stream')">Clear</button>
+  </div>
+  <div class="config-box" id="sink-config"></div>
+  <div class="info">The sink connector subscribes to the topic as a consumer group, batches records, and writes them to Elasticsearch. It commits Kafka offsets only after the batch is successfully indexed — so a failed ES write automatically retries without losing data.</div>
+</div>
+
+<!-- TAB 3 -->
+<div class="panel" id="tab3">
+  <div class="flow-area">
+    <div class="flow-title">MySQL → Kafka → Elasticsearch (no application code)</div>
+    <div class="pipeline">
+      <div class="pipe-node src">MySQL INSERT</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node connect">JDBC Source</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node topic">mysql.orders</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node connect" style="background:#E1F5EE;border-color:#5DCAA5;color:#085041">ES Sink</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node sink-n">ES index</div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">MySQL rows</div>
+        <div class="record-stream" id="e2e-db" style="min-height:36px"><span style="font-size:10px;color:var(--text3)">empty</span></div>
+      </div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Kafka topic</div>
+        <div class="record-stream" id="e2e-topic" style="min-height:36px"><span style="font-size:10px;color:var(--text3)">empty</span></div>
+      </div>
+      <div style="flex:1;min-width:120px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Elasticsearch</div>
+        <div class="record-stream" id="e2e-es" style="min-height:36px"><span style="font-size:10px;color:var(--text3)">empty</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn pri" onclick="runE2E()">Insert row into MySQL</button>
+    <button class="btn" onclick="resetE2E()">Reset</button>
+  </div>
+  <div class="info" id="e2e-info">Click "Insert row" to watch data flow through the full pipeline automatically — no application code involved.</div>
+</div>
+
+<script>
+function showTab(i, btn) {
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('on', j===i));
+  document.querySelectorAll('.panel').forEach((p,j) => p.classList.toggle('on', j===i));
+}
+
+function renderConfig(elId, lines) {
+  const el = document.getElementById(elId);
+  el.innerHTML = lines.map(l => {
+    if (l.startsWith('#')) return `<span class="comment">${l}</span>`;
+    const ci = l.indexOf(':');
+    if (ci === -1) return l;
+    return `<span class="key">${l.slice(0, ci+1)}</span><span class="val">${l.slice(ci+1)}</span>`;
+  }).join('\n');
+}
+
+renderConfig('src-config', [
+  '# POST to http://localhost:8083/connectors',
+  '{',
+  '  "name": "mysql-orders-source",',
+  '  "config": {',
+  '    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",',
+  '    "connection.url":  "jdbc:mysql://mysql:3306/shop",',
+  '    "connection.user": "kafka",',
+  '    "connection.password": "secret",',
+  '    "table.whitelist":  "orders",',
+  '    "topic.prefix":     "mysql.",',
+  '    "mode":             "incrementing",',
+  '    "incrementing.column.name": "id",',
+  '    "poll.interval.ms": "5000"',
+  '  }',
+  '}',
+]);
+
+renderConfig('sink-config', [
+  '# POST to http://localhost:8083/connectors',
+  '{',
+  '  "name": "elasticsearch-orders-sink",',
+  '  "config": {',
+  '    "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",',
+  '    "connection.url":  "http://elasticsearch:9200",',
+  '    "topics":          "mysql.orders",',
+  '    "type.name":       "_doc",',
+  '    "key.ignore":      "false",',
+  '    "schema.ignore":   "true",',
+  '    "batch.size":      "100",',
+  '    "flush.timeout.ms":"10000"',
+  '  }',
+  '}',
+]);
+
+const SRC_ROWS = [
+  {id:'ord-201',item:'shoes',qty:2},
+  {id:'ord-202',item:'hat',  qty:1},
+  {id:'ord-203',item:'bag',  qty:3},
+  {id:'ord-204',item:'belt', qty:1},
+  {id:'ord-205',item:'cap',  qty:2},
+];
+let srcIdx = 0;
+
+function simulatePoll() {
+  const el = document.getElementById('src-stream');
+  const empty = el.querySelector('span'); if (empty) empty.remove();
+  const rows = SRC_ROWS.slice(srcIdx, srcIdx + 2);
+  rows.forEach(r => {
+    const d = document.createElement('div'); d.className = 'record db';
+    d.textContent = `${r.id} · ${r.item} · qty:${r.qty}`;
+    el.appendChild(d);
+  });
+  srcIdx = (srcIdx + 2) % SRC_ROWS.length;
+  document.getElementById('src-info').innerHTML =
+    `Polled MySQL → found <strong>${rows.length} new rows</strong> → published to <strong>mysql.orders</strong>. Next poll in 5s. Connector tracks last seen <code>id</code> = ${SRC_ROWS[(srcIdx + SRC_ROWS.length - 1) % SRC_ROWS.length].id}.`;
+}
+
+const SINK_ROWS = [
+  {id:'ord-201',score:0.98},{id:'ord-202',score:0.94},
+  {id:'ord-203',score:0.91},{id:'ord-204',score:0.87},{id:'ord-205',score:0.99},
+];
+let sinkIdx = 0;
+
+function simulateSink() {
+  const el = document.getElementById('sink-stream');
+  const empty = el.querySelector('span'); if (empty) empty.remove();
+  const r = SINK_ROWS[sinkIdx % SINK_ROWS.length]; sinkIdx++;
+  const d = document.createElement('div'); d.className = 'record es';
+  d.textContent = `indexed ${r.id} · _score:${r.score}`;
+  el.appendChild(d);
+}
+
+function clearStream(id) {
+  document.getElementById(id).innerHTML = '<span style="font-size:10px;color:var(--text3)">cleared</span>';
+}
+
+const E2E_ORDERS = [
+  {id:'ord-301',item:'jacket',qty:1},
+  {id:'ord-302',item:'boots', qty:2},
+  {id:'ord-303',item:'scarf', qty:3},
+];
+let e2eIdx = 0;
+
+function addRecord(elId, text, cls) {
+  const el = document.getElementById(elId);
+  const empty = el.querySelector('span'); if (empty) el.innerHTML = '';
+  const d = document.createElement('div'); d.className = 'record ' + cls; d.textContent = text;
+  el.appendChild(d);
+}
+
+function runE2E() {
+  const o = E2E_ORDERS[e2eIdx % E2E_ORDERS.length]; e2eIdx++;
+  const info = document.getElementById('e2e-info');
+  addRecord('e2e-db', `INSERT ${o.id} · ${o.item}`, 'db');
+  info.innerHTML = `<span class="src-c">MySQL row inserted</span> (${o.id}). JDBC Source connector will pick it up on next poll…`;
+  setTimeout(() => {
+    addRecord('e2e-topic', `${o.id} → mysql.orders`, 'topic');
+    info.innerHTML = `Row published to <strong>mysql.orders</strong> topic. Elasticsearch Sink connector consuming…`;
+  }, 900);
+  setTimeout(() => {
+    addRecord('e2e-es', `indexed ${o.id} · ${o.item}`, 'es');
+    info.innerHTML = `<span class="snk-c"><strong>Done.</strong></span> ${o.id} is now searchable in Elasticsearch. Zero application code — just two connector configs.`;
+  }, 1800);
+}
+
+function resetE2E() {
+  ['e2e-db','e2e-topic','e2e-es'].forEach(id => {
+    document.getElementById(id).innerHTML = '<span style="font-size:10px;color:var(--text3)">empty</span>';
+  });
+  document.getElementById('e2e-info').innerHTML = 'Click "Insert row" to watch data flow through the full pipeline automatically — no application code involved.';
+  e2eIdx = 0;
+}
+</script>
+</body>
+</html>

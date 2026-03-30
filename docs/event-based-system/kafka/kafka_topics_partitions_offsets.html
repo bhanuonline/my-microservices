@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kafka: topics, partitions &amp; offsets</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f4f0;
+    --bg3: #eeede9;
+    --text: #1a1a18;
+    --text2: #5a5a56;
+    --text3: #8a8a84;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252523;
+      --bg3: #2e2e2b;
+      --text: #e8e6de;
+      --text2: #a8a69e;
+      --text3: #6a6a64;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+    }
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 24px;
+    max-width: 760px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+  .topic-box {
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 20px;
+    background: var(--bg);
+  }
+  .topic-name {
+    font-size: 11px; font-weight: 500; color: var(--text3);
+    letter-spacing: .06em; margin-bottom: 16px; text-transform: uppercase;
+  }
+  .part-row { display: flex; align-items: flex-start; margin-bottom: 12px; gap: 10px; }
+  .part-meta { width: 96px; flex-shrink: 0; padding-top: 10px; }
+  .part-id { font-size: 12px; font-weight: 500; color: var(--text2); }
+  .part-cursor { font-size: 10px; color: #1D9E75; margin-top: 3px; min-height: 14px; }
+  .tape { display: flex; gap: 4px; flex-wrap: nowrap; padding-top: 18px; overflow: visible; flex: 1; }
+  .cell {
+    flex-shrink: 0; width: 54px; height: 44px; border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text2); position: relative;
+    transition: background .25s, border-color .25s, color .25s;
+  }
+  .cell .off { font-size: 14px; font-weight: 500; line-height: 1; }
+  .cell .key { font-size: 9px; opacity: .65; margin-top: 2px; }
+  .cell.read   { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+  .cell.unread { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+  @media (prefers-color-scheme: dark) {
+    .cell.read   { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+    .cell.unread { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+  }
+  .cell.new-flash { animation: flash .4s ease; }
+  @keyframes flash { 0%{opacity:.3} 100%{opacity:1} }
+  .cur-tri {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-top: 9px solid #1D9E75;
+  }
+  .cur-label {
+    position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: #1D9E75; white-space: nowrap; font-weight: 500;
+  }
+  .empty-tape { font-size: 11px; color: var(--text3); padding: 10px 0; }
+
+  .legend { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .leg-box { width: 13px; height: 13px; border-radius: 3px; border: 1px solid; }
+
+  .controls { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border2);
+    background: var(--bg2); color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .btn:hover { background: var(--bg3); }
+  .btn.pri { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+  .btn.pri:hover { background: #3C3489; }
+  select {
+    padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border2);
+    background: var(--bg2); color: var(--text); font-size: 12px; cursor: pointer;
+  }
+  .info-bar {
+    font-size: 11px; color: var(--text3); margin-top: 12px; min-height: 18px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<h1>Kafka: topics, partitions &amp; offsets</h1>
+<p class="subtitle">Interactive demo — produce messages, then consume them to see how offsets advance.</p>
+
+<div class="topic-box">
+  <div class="topic-name">Topic: orders</div>
+  <div id="parts"></div>
+  <div class="legend">
+    <div class="leg">
+      <div class="leg-box" style="background:#E1F5EE;border-color:#5DCAA5"></div>consumed
+    </div>
+    <div class="leg">
+      <div class="leg-box" style="background:#EEEDFE;border-color:#AFA9EC"></div>unconsumed
+    </div>
+    <div class="leg">
+      <span style="color:#1D9E75;font-size:13px">▼</span>&nbsp;consumer cursor
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="btn pri" onclick="produce()">+ Produce message</button>
+  <select id="psel">
+    <option value="-1">random partition</option>
+    <option value="0">partition 0</option>
+    <option value="1">partition 1</option>
+    <option value="2">partition 2</option>
+  </select>
+  <button class="btn" onclick="consume()">Consume next →</button>
+  <button class="btn" onclick="reset()">Reset</button>
+</div>
+<div class="info-bar" id="info">Try producing a message, then consuming it.</div>
+
+<script>
+const KEYS = ['ord-882','ord-114','usr-007','pay-521','shp-003','ord-299','usr-451','pay-017','shp-640','ord-773','usr-190','pay-888'];
+let ki = 3;
+function nk() { ki = (ki + 5) % KEYS.length; return KEYS[ki]; }
+
+let S = {
+  parts: [
+    { msgs: [{off:0,key:'ord-882'},{off:1,key:'ord-114'},{off:2,key:'ord-299'}], cursor: 1 },
+    { msgs: [{off:0,key:'usr-007'},{off:1,key:'pay-521'}], cursor: 0 },
+    { msgs: [{off:0,key:'shp-003'}], cursor: -1 },
+  ]
+};
+
+function render() {
+  const el = document.getElementById('parts');
+  el.innerHTML = '';
+  S.parts.forEach((p, pi) => {
+    const row = document.createElement('div');
+    row.className = 'part-row';
+
+    const meta = document.createElement('div');
+    meta.className = 'part-meta';
+    meta.innerHTML = `<div class="part-id">partition ${pi}</div>`;
+    if (pi === 0) {
+      const cl = document.createElement('div');
+      cl.className = 'part-cursor';
+      cl.textContent = p.cursor >= 0 ? `consumer @ ${p.cursor}` : 'consumer: none';
+      meta.appendChild(cl);
+    }
+    row.appendChild(meta);
+
+    const tape = document.createElement('div');
+    tape.className = 'tape';
+    const vis = p.msgs.slice(-8);
+    if (vis.length === 0) {
+      tape.innerHTML = '<span class="empty-tape">no messages yet</span>';
+    } else {
+      vis.forEach(m => {
+        const cell = document.createElement('div');
+        cell.className = 'cell ' + (m.off <= p.cursor ? 'read' : 'unread');
+        cell.innerHTML = `<span class="off">${m.off}</span><span class="key">${m.key}</span>`;
+        if (pi === 0 && m.off === p.cursor + 1 && p.cursor + 1 < p.msgs.length) {
+          const tri = document.createElement('div'); tri.className = 'cur-tri'; cell.appendChild(tri);
+          const lbl = document.createElement('div'); lbl.className = 'cur-label'; lbl.textContent = 'next'; cell.appendChild(lbl);
+        }
+        tape.appendChild(cell);
+      });
+    }
+    row.appendChild(tape);
+    el.appendChild(row);
+  });
+}
+
+function produce() {
+  const sel = parseInt(document.getElementById('psel').value);
+  const pi = sel === -1 ? Math.floor(Math.random() * 3) : sel;
+  const p = S.parts[pi];
+  const off = p.msgs.length;
+  const key = nk();
+  p.msgs.push({ off, key });
+  document.getElementById('info').textContent =
+    `Produced → partition ${pi}, offset ${off} (key: ${key}). Offsets always increase, never reuse.`;
+  render();
+  const tape = document.getElementById('parts').children[pi].querySelector('.tape');
+  const last = tape.lastElementChild;
+  if (last) last.classList.add('new-flash');
+}
+
+function consume() {
+  const p = S.parts[0];
+  const next = p.cursor + 1;
+  if (next < p.msgs.length) {
+    p.cursor = next;
+    document.getElementById('info').textContent =
+      `Consumed partition 0, offset ${next} (${p.msgs[next].key}). Consumer committed offset ${next}.`;
+  } else if (p.msgs.length === 0) {
+    document.getElementById('info').textContent = 'Partition 0 is empty. Produce some messages first.';
+  } else {
+    document.getElementById('info').textContent =
+      `Consumer is caught up on partition 0 — all ${p.msgs.length} messages read.`;
+  }
+  render();
+}
+
+function reset() {
+  S = {
+    parts: [
+      { msgs: [{off:0,key:'ord-882'},{off:1,key:'ord-114'},{off:2,key:'ord-299'}], cursor: 1 },
+      { msgs: [{off:0,key:'usr-007'},{off:1,key:'pay-521'}], cursor: 0 },
+      { msgs: [{off:0,key:'shp-003'}], cursor: -1 },
+    ]
+  };
+  ki = 3;
+  document.getElementById('info').textContent = 'Reset. Try producing and consuming messages.';
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

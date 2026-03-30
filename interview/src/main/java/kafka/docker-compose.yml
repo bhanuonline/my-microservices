@@ -1,0 +1,143 @@
+version: '3.8'
+
+# ──────────────────────────────────────────────
+#  Local Kafka development stack
+#  - Kafka 7.6.0 in KRaft mode (no ZooKeeper)
+#  - Redpanda Console for UI
+#
+#  Start:    docker compose up -d
+#  Stop:     docker compose down
+#  Wipe data: docker compose down -v
+# ──────────────────────────────────────────────
+
+networks:
+  kafka-net:
+    name: kafka-net
+    driver: bridge
+
+volumes:
+  kafka-data:
+    name: kafka-data
+
+services:
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    networks:
+      - kafka-net
+    ports:
+      - "9092:9092"   # host → Kafka (your Java app connects here)
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    environment:
+
+      # ── KRaft: this broker also acts as its own controller ──
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093   # node-id@host:controller-port
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # ── Listeners ──────────────────────────────────────────
+      # PLAINTEXT          → host machine (your Java app via localhost:9092)
+      # PLAINTEXT_INTERNAL → inter-container traffic (e.g. redpanda-console → kafka:29092)
+      # CONTROLLER         → internal KRaft controller communication (never exposed)
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+
+      # ── Cluster identity ────────────────────────────────────
+      # Must be a valid base64 UUID. Generate once and keep fixed.
+      # To regenerate: docker run --rm confluentinc/cp-kafka:7.6.0 kafka-storage random-uuid
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # ── Replication (set to 1 for single-broker local dev) ──
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # ── Misc ────────────────────────────────────────────────
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'   # set to false in production
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+  # ──────────────────────────────────────────────
+  # Redpanda Console (UI for Kafka)
+  # ──────────────────────────────────────────────
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: redpanda-console
+    networks:
+      - kafka-net
+    ports:
+      - "8080:8080"   # open http://localhost:8080 in your browser
+    depends_on:
+      - kafka
+    environment:
+      # Uses PLAINTEXT_INTERNAL — container-to-container traffic stays inside kafka-net
+      KAFKA_BROKERS: kafka:29092
+
+  # ──────────────────────────────────────────────
+  # AKHQ - Kafka UI alternative
+  # ──────────────────────────────────────────────
+  akhq:
+    image: tchiotludo/akhq:latest
+    container_name: akhq
+    networks:
+      - kafka-net
+    ports:
+      - "8090:8080"   # http://localhost:8090
+    depends_on:
+      - kafka
+    environment:
+
+      # Kafka connection
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            local-kafka:
+              properties:
+                bootstrap.servers: "kafka:29092"
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    container_name: kafdrop
+    networks:
+      - kafka-net
+    ports:
+      - "8081:9000"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+      JVM_OPTS: "-Xms32M -Xmx64M"   # trim the JVM heap for local dev
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.6.0
+    container_name: kafka-connect
+    networks:
+      - kafka-net
+    ports:
+      - "8083:8083"       # Connect REST API
+    depends_on:
+      - kafka
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: connect-cluster
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components
+    # Install connector plugins at startup
+    command:
+      - bash
+      - -c
+      - |
+        confluent-hub install --no-prompt debezium/debezium-connector-mysql:2.4.2
+        confluent-hub install --no-prompt confluentinc/kafka-connect-elasticsearch:14.0.12
+        /etc/confluent/docker/run

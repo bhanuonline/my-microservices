@@ -1,4 +1,12 @@
-package notification.integration;
+package notification.channel;
+
+import lombok.RequiredArgsConstructor;
+import notification.builder.BuildPipeline;
+import notification.core.NotificationContext;
+import notification.core.NotificationType;
+import notification.dispatch.OutboundDispatcher;
+import notification.routing.ChannelHandler;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

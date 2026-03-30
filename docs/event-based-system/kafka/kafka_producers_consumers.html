@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kafka: producers &amp; consumers</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeede9;
+  --text: #1a1a18; --text2: #5a5a56; --text3: #8a8a84;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+  --radius-md: 8px; --radius-lg: 12px;
+  --font: system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e6de; --text2: #a8a69e; --text3: #6a6a64;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+  }
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 860px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+.controls { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.btn {
+  padding: 6px 13px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text);
+  font-size: 12px; cursor: pointer;
+}
+.btn:hover { background: var(--bg3); }
+.btn.pri { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+.btn.pri:hover { background: #3C3489; }
+.btn.teal { background: #0F6E56; border-color: #0F6E56; color: #E1F5EE; }
+.btn.teal:hover { background: #085041; }
+select {
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text); font-size: 12px; cursor: pointer;
+}
+
+.stage { display: flex; gap: 0; align-items: stretch; margin-bottom: 16px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.col.prod { width: 148px; flex-shrink: 0; }
+.col.broker { flex: 1; margin: 0 16px; }
+.col.cons { width: 210px; flex-shrink: 0; }
+.col-hdr { font-size: 10px; font-weight: 500; letter-spacing: .06em; color: var(--text3); margin-bottom: 4px; text-align: center; text-transform: uppercase; }
+
+.box { border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; background: var(--bg2); }
+.prod-box { background: #EEEDFE; border-color: #AFA9EC; }
+.box-name { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.box-sub  { font-size: 10px; color: var(--text3); }
+
+.topic-box { border: 1px solid var(--border2); border-radius: 10px; padding: 12px; background: var(--bg); }
+.partition { margin-bottom: 8px; }
+.p-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.tape { display: flex; gap: 3px; flex-wrap: nowrap; min-height: 36px; align-items: center; }
+.cell {
+  width: 44px; height: 34px; border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 9px; color: var(--text2); flex-shrink: 0;
+  transition: all .25s; position: relative;
+}
+.cell .coff { font-size: 12px; font-weight: 500; line-height: 1; color: var(--text); }
+.cell .ckey { font-size: 8px; opacity: .6; margin-top: 1px; }
+.cell.unread { background: #EEEDFE; border-color: #AFA9EC; }
+.cell.unread .coff { color: #3C3489; }
+.cell.read   { background: #E1F5EE; border-color: #5DCAA5; }
+.cell.read .coff   { color: #085041; }
+@media (prefers-color-scheme: dark) {
+  .cell.unread { background: #26215C; border-color: #7F77DD; }
+  .cell.unread .coff { color: #CECBF6; }
+  .cell.read { background: #085041; border-color: #1D9E75; }
+  .cell.read .coff { color: #9FE1CB; }
+}
+.cell.flash { animation: cellpop .35s ease; }
+@keyframes cellpop { 0%{opacity:0;transform:scale(.85)} 100%{opacity:1;transform:scale(1)} }
+.cursor-wrap { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.cur-dot { width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid #1D9E75; }
+.cur-lbl { font-size: 8px; color: #1D9E75; white-space: nowrap; margin-bottom: 1px; font-weight: 500; }
+
+.cg-box { background: #E1F5EE; border: 1px solid #5DCAA5; border-radius: 10px; padding: 10px 12px; }
+.cg-name { font-size: 11px; font-weight: 500; color: #085041; margin-bottom: 6px; }
+.cg-member { font-size: 10px; color: #0F6E56; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.06); display: flex; justify-content: space-between; align-items: center; }
+.cg-member:last-child { border-bottom: none; }
+.cg-badge { font-size: 9px; background: #9FE1CB; color: #04342C; border-radius: 4px; padding: 1px 5px; }
+@media (prefers-color-scheme: dark) {
+  .cg-box { background: #04342C; border-color: #1D9E75; }
+  .cg-name { color: #9FE1CB; }
+  .cg-member { color: #5DCAA5; border-bottom-color: rgba(255,255,255,.06); }
+  .cg-badge { background: #085041; color: #9FE1CB; }
+}
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.log { font-size: 11px; color: var(--text2); line-height: 1.7; min-height: 50px; border-left: 2px solid var(--border2); padding-left: 10px; }
+.log .entry { animation: fadein .3s ease; }
+@keyframes fadein { from{opacity:0} to{opacity:1} }
+.log .p  { color: #534AB7; }
+.log .c  { color: #0F6E56; }
+.log .n  { color: var(--text3); }
+</style>
+</head>
+<body>
+<h1>Kafka: producers &amp; consumers</h1>
+<p class="subtitle">Produce events from order-service, then consume them via the notifications consumer group.</p>
+
+<div class="controls">
+  <button class="btn pri" onclick="produce()">+ Produce</button>
+  <select id="psel">
+    <option value="order-placed">event: order-placed</option>
+    <option value="payment-done">event: payment-done</option>
+    <option value="item-shipped">event: item-shipped</option>
+  </select>
+  <button class="btn teal" onclick="consumeOne()">Consume next →</button>
+  <button class="btn teal" onclick="consumeAll()">Consume all</button>
+  <button class="btn" onclick="resetAll()">Reset</button>
+</div>
+
+<div class="stage">
+  <div class="col prod">
+    <div class="col-hdr">Producer</div>
+    <div class="box prod-box">
+      <div class="box-name">order-service</div>
+      <div class="box-sub">publishes events</div>
+    </div>
+  </div>
+  <div class="col broker">
+    <div class="col-hdr">Kafka broker · topic: order-events</div>
+    <div class="topic-box" id="topic"></div>
+  </div>
+  <div class="col cons">
+    <div class="col-hdr">Consumers</div>
+    <div class="cg-box">
+      <div class="cg-name">group: notifications-group</div>
+      <div id="cgmembers"></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider"/>
+<div class="log" id="log"><span class="n">Events will appear here as you produce and consume.</span></div>
+
+<script>
+const EVENTS = {
+  'order-placed': { keys:['ord-10','ord-11','ord-12','ord-13'], vals:['qty:2','qty:1','qty:5','qty:3'] },
+  'payment-done': { keys:['pay-88','pay-89','pay-90'],          vals:['$42','$19','$130'] },
+  'item-shipped': { keys:['shp-55','shp-56','shp-57'],          vals:['FedEx','UPS','DHL'] },
+};
+let ei = {}; Object.keys(EVENTS).forEach(k => { ei[k] = 0; });
+
+const NP = 3;
+const CONSUMERS = ['email-worker','sms-worker','push-worker'];
+
+let state = { parts: Array.from({length: NP}, () => ({msgs:[], cursor:-1})) };
+
+function murmur2(s) {
+  let h = 0x9747b28c ^ s.length;
+  for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 0x5bd1e995); h ^= h >>> 13; }
+  h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+  return Math.abs(h);
+}
+
+function renderTopic() {
+  const el = document.getElementById('topic');
+  el.innerHTML = '';
+  state.parts.forEach((p, pi) => {
+    const pd = document.createElement('div'); pd.className = 'partition';
+    const lbl = document.createElement('div'); lbl.className = 'p-label'; lbl.textContent = 'partition ' + pi;
+    const tape = document.createElement('div'); tape.className = 'tape';
+    if (p.msgs.length === 0) {
+      tape.innerHTML = '<span style="font-size:10px;color:var(--text3)">empty</span>';
+    } else {
+      p.msgs.slice(-7).forEach((m, idx) => {
+        const absIdx = p.msgs.length > 7 ? p.msgs.length - 7 + idx : idx;
+        const cell = document.createElement('div');
+        cell.className = 'cell ' + (absIdx <= p.cursor ? 'read' : 'unread');
+        cell.innerHTML = `<span class="coff">${absIdx}</span><span class="ckey">${m.key}</span>`;
+        if (absIdx === p.cursor + 1 && p.cursor + 1 < p.msgs.length) {
+          cell.innerHTML += `<div class="cursor-wrap"><span class="cur-lbl">next</span><div class="cur-dot"></div></div>`;
+        }
+        tape.appendChild(cell);
+      });
+    }
+    pd.appendChild(lbl); pd.appendChild(tape);
+    el.appendChild(pd);
+  });
+}
+
+function renderCG() {
+  const el = document.getElementById('cgmembers');
+  el.innerHTML = '';
+  CONSUMERS.forEach((c, i) => {
+    const p = state.parts[i];
+    const lag = p ? Math.max(0, p.msgs.length - (p.cursor + 1)) : 0;
+    const d = document.createElement('div'); d.className = 'cg-member';
+    d.innerHTML = `<span>${c}</span><span class="cg-badge">P${i} · lag:${lag}</span>`;
+    el.appendChild(d);
+  });
+}
+
+function addLog(html) {
+  const log = document.getElementById('log');
+  if (log.querySelector('.n')) log.innerHTML = '';
+  const e = document.createElement('div'); e.className = 'entry'; e.innerHTML = html;
+  log.prepend(e);
+  const kids = [...log.children];
+  if (kids.length > 7) kids[kids.length - 1].remove();
+}
+
+function produce() {
+  const evType = document.getElementById('psel').value;
+  const ev = EVENTS[evType];
+  const idx = ei[evType] % ev.keys.length;
+  const key = ev.keys[idx], val = ev.vals[idx];
+  ei[evType]++;
+  const pi = murmur2(key) % NP;
+  const off = state.parts[pi].msgs.length;
+  state.parts[pi].msgs.push({key, val, evType});
+  renderTopic(); renderCG();
+  addLog(`<span class="p">order-service produced</span> → topic <strong>order-events</strong>, partition <strong>${pi}</strong>, offset <strong>${off}</strong> · key:<em>${key}</em> val:<em>${val}</em>`);
+}
+
+function consumeOne() {
+  for (let pi = 0; pi < NP; pi++) {
+    const p = state.parts[pi];
+    if (p.cursor + 1 < p.msgs.length) {
+      p.cursor++;
+      const m = p.msgs[p.cursor];
+      renderTopic(); renderCG();
+      addLog(`<span class="c">${CONSUMERS[pi]}</span> consumed partition <strong>${pi}</strong>, offset <strong>${p.cursor}</strong> · ${m.evType} · key:<em>${m.key}</em>`);
+      return;
+    }
+  }
+  addLog(`<span class="n">All caught up — no unconsumed messages.</span>`);
+  renderTopic(); renderCG();
+}
+
+function consumeAll() {
+  let any = false;
+  for (let pi = 0; pi < NP; pi++) {
+    const p = state.parts[pi];
+    while (p.cursor + 1 < p.msgs.length) {
+      p.cursor++; any = true;
+      const m = p.msgs[p.cursor];
+      addLog(`<span class="c">${CONSUMERS[pi]}</span> consumed P${pi}:${p.cursor} · ${m.evType} · ${m.key}`);
+    }
+  }
+  if (!any) addLog(`<span class="n">Nothing to consume.</span>`);
+  renderTopic(); renderCG();
+}
+
+function resetAll() {
+  state = { parts: Array.from({length: NP}, () => ({msgs:[], cursor:-1})) };
+  Object.keys(ei).forEach(k => { ei[k] = 0; });
+  document.getElementById('log').innerHTML = '<span class="n">Events will appear here as you produce and consume.</span>';
+  renderTopic(); renderCG();
+}
+
+renderTopic(); renderCG();
+</script>
+</body>
+</html>
