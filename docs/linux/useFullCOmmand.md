@@ -21,3 +21,26 @@ How to compare two file colordiff -y file1.txt file2.txt
         -x means match the whole line. prtialmatch 123abc123 , abc match here 
         -i means ignore case.
         -f <file> means:Instead of typing the search patterns on the command line, read them from this file — one pattern per line.
+
+
+## check date and server ip and location
+[loguser@AZ-GC-PRD-MAX-AE04 ~]$ date
+Fri Mar 20 10:29:10 +04 2026
+[loguser@AZ-GC-PRD-MAX-AE04 ~]$ date -u
+Fri Mar 20 06:29:17 UTC 2026
+[loguser@AZ-GC-PRD-MAX-AE04 ~]$ curl ifconfig.me
+20.58.1.220[loguser@AZ-GC-PRD-MAX-AE04 ~]$ curl ipinfo.io
+{
+"ip": "20.58.1.220",
+"city": "London",
+"region": "England",
+"country": "GB",
+"loc": "51.5085,-0.1257",
+"org": "AS8075 Microsoft Corporation",
+"postal": "E1W",
+"timezone": "Europe/London",
+"readme": "https://ipinfo.io/missingauth"
+}[loguser@AZ-GC-PRD-MAX-AE04 ~]$
+[loguser@AZ-GC-PRD-MAX-AE04 ~]$ hostname -f
+AZ-GC-PRD-MAX-AE04
+[loguser@AZ-GC-PRD-MAX-AE04 ~]$ 
