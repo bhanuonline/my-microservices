@@ -1,0 +1,45 @@
+version: '3.9'
+
+# Run everything locally with: docker compose up -d
+# Then start your Spring Boot app with ./start.sh
+
+services:
+
+  mysql:
+    image: mysql:8.2
+    container_name: fastapi-mysql
+    environment:
+      MYSQL_DATABASE: fastapi_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: fastapi
+      MYSQL_PASSWORD: fastapi
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql.cnf:/etc/mysql/conf.d/custom.cnf   # performance tuning below
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fastapi-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --save ""
+        --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mysql_data:

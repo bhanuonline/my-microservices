@@ -75,3 +75,11 @@ Spring : KafkaTemplate (producer) and @KafkaListener (consumer)
 # Write a Kafka producer and consumer in Java using kafka-clients
 
 # Explain Kafka Connect and how to use source and sink connectors
+
+# Kafka Connect
+
+# Explain Kafka message delivery guarantees: acks, retries, idempotency
+
+# What are the key Kafka producer and consumer configs for performance?
+
+# What is Kafka Streams and how does it differ from a regular consumer?

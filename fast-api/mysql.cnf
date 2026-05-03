@@ -1,0 +1,28 @@
+[mysqld]
+# ─── Connections ──────────────────────────────────────────────────────────────
+max_connections         = 200
+thread_cache_size       = 16          # Reuse threads instead of creating new ones
+
+# ─── InnoDB (storage engine) ──────────────────────────────────────────────────
+innodb_buffer_pool_size = 512M        # Cache data + indexes in memory — most important setting
+innodb_buffer_pool_instances = 4      # Parallel access to buffer pool
+innodb_log_file_size    = 128M        # Larger = fewer flushes = faster writes
+innodb_flush_log_at_trx_commit = 2   # 2 = flush every second (tiny risk, big speed gain)
+                                      # Use 1 for strict durability (banking etc.)
+innodb_flush_method     = O_DIRECT    # Bypass OS cache — avoids double buffering
+
+# ─── Query Cache (MySQL 8 removed it — these are alternatives) ────────────────
+# Use Redis (@Cacheable in Spring) instead — much faster and scalable
+
+# ─── Slow Query Logging (find your hot path bottlenecks) ─────────────────────
+slow_query_log          = 1
+slow_query_log_file     = /var/log/mysql/slow.log
+long_query_time         = 0.010       # Log queries taking more than 10ms
+log_queries_not_using_indexes = 1     # Log queries with no index — fix these!
+
+# ─── Temp Tables ──────────────────────────────────────────────────────────────
+tmp_table_size          = 64M
+max_heap_table_size     = 64M         # Keep temp tables in memory, not disk
+
+# ─── Network ──────────────────────────────────────────────────────────────────
+max_allowed_packet      = 16M

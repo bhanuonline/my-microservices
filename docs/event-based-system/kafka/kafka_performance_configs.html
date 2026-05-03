@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kafka: producer &amp; consumer performance configs</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeede9;
+  --text: #1a1a18; --text2: #5a5a56; --text3: #8a8a84;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e6de; --text2: #a8a69e; --text3: #6a6a64;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+  }
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 860px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text2);
+  font-size: 12px; cursor: pointer;
+}
+.tab.on { background: #534AB7; border-color: #534AB7; color: #EEEDFE; font-weight: 500; }
+.tab:hover:not(.on) { background: var(--bg3); }
+.panel { display: none; } .panel.on { display: block; }
+
+.section { margin-bottom: 16px; }
+.section-title {
+  font-size: 11px; font-weight: 500; color: var(--text);
+  margin-bottom: 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border2);
+}
+
+.cfg-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.cfg-row:last-child { border-bottom: none; }
+.cfg-left { flex: 1; min-width: 0; }
+.cfg-key  { font-family: var(--mono); font-size: 11px; font-weight: 500; color: #534AB7; margin-bottom: 2px; }
+.cfg-val  { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.cfg-desc { font-size: 11px; color: var(--text2); line-height: 1.5; }
+.cfg-right { flex-shrink: 0; text-align: right; }
+@media (prefers-color-scheme: dark) {
+  .cfg-key { color: #CECBF6; }
+}
+
+.impact { font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+.impact.high     { background: #E1F5EE; border: 1px solid #5DCAA5; color: #085041; }
+.impact.med      { background: #FAEEDA; border: 1px solid #EF9F27; color: #633806; }
+.impact.tradeoff { background: #EEEDFE; border: 1px solid #AFA9EC; color: #3C3489; }
+@media (prefers-color-scheme: dark) {
+  .impact.high     { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+  .impact.med      { background: #412402; border-color: #BA7517; color: #FAC775; }
+  .impact.tradeoff { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+}
+
+/* tuner */
+.tuner { border: 1px solid var(--border2); border-radius: 10px; padding: 16px; background: var(--bg2); margin-bottom: 14px; }
+.tuner-title { font-size: 11px; font-weight: 500; color: var(--text); margin-bottom: 14px; }
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.slider-lbl { font-size: 11px; color: var(--text2); min-width: 130px; flex-shrink: 0; }
+.slider-lbl code { font-family: var(--mono); font-size: 10px; color: #534AB7; }
+@media (prefers-color-scheme: dark) { .slider-lbl code { color: #CECBF6; } }
+input[type=range] { flex: 1; min-width: 80px; accent-color: #534AB7; }
+.slider-val { font-size: 11px; font-weight: 500; color: var(--text); min-width: 60px; text-align: right; font-family: var(--mono); }
+
+.meters { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+.meter { flex: 1; min-width: 120px; border: 1px solid var(--border2); border-radius: 8px; padding: 10px; background: var(--bg); }
+.meter-label { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+.meter-bar-wrap { height: 8px; background: var(--bg2); border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+.meter-bar { height: 100%; border-radius: 4px; transition: width .4s ease; }
+.meter-bar.thr  { background: #7F77DD; }
+.meter-bar.lat  { background: #E24B4A; }
+.meter-bar.safe { background: #1D9E75; }
+.meter-val  { font-size: 12px; font-weight: 500; color: var(--text); }
+.meter-unit { font-size: 9px; color: var(--text3); margin-left: 2px; }
+
+/* quick ref table */
+.cmp { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
+.cmp th { font-size: 10px; font-weight: 500; color: var(--text3); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border2); }
+.cmp td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+.cmp tr:last-child td { border-bottom: none; }
+.cmp td:first-child { font-family: var(--mono); font-size: 10px; color: var(--text); font-weight: 500; }
+.tag { font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 500; }
+.tag.thr  { background: #EEEDFE; color: #3C3489; border: 1px solid #AFA9EC; }
+.tag.lat  { background: #FCEBEB; color: #791F1F; border: 1px solid #F09595; }
+.tag.both { background: #FAEEDA; color: #633806; border: 1px solid #EF9F27; }
+@media (prefers-color-scheme: dark) {
+  .tag.thr  { background: #26215C; color: #CECBF6; border-color: #7F77DD; }
+  .tag.lat  { background: #501313; color: #F7C1C1; border-color: #E24B4A; }
+  .tag.both { background: #412402; color: #FAC775; border-color: #BA7517; }
+}
+
+.info { font-size: 11px; color: var(--text2); line-height: 1.7; border-left: 2px solid var(--border2); padding-left: 10px; min-height: 28px; margin-top: 10px; }
+.info strong { color: var(--text); }
+.info code { font-family: var(--mono); font-size: 10px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>Kafka: performance configs</h1>
+<p class="subtitle">Key producer and consumer configs — what they do, when to tune them, and how they trade off against each other.</p>
+
+<div class="tabs">
+  <button class="tab on" onclick="showTab(0,this)">Producer configs</button>
+  <button class="tab" onclick="showTab(1,this)">Consumer configs</button>
+  <button class="tab" onclick="showTab(2,this)">Interactive tuner</button>
+  <button class="tab" onclick="showTab(3,this)">Quick reference</button>
+</div>
+
+<!-- TAB 0: producer -->
+<div class="panel on" id="tab0">
+  <div class="section">
+    <div class="section-title">Throughput configs</div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">linger.ms</div>
+        <div class="cfg-val">default: 0 · recommended: 5–20</div>
+        <div class="cfg-desc">How long the producer waits before sending a batch. At 0, every message is sent immediately — tiny batches, high overhead. At 20ms, messages accumulate into larger batches. Higher = more throughput, slightly more latency.</div>
+      </div>
+      <div class="cfg-right"><span class="impact high">high impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">batch.size</div>
+        <div class="cfg-val">default: 16384 (16KB) · recommended: 32768–131072</div>
+        <div class="cfg-desc">Maximum bytes accumulated in a batch before sending. Larger batches = fewer network round trips = more throughput. Works together with linger.ms — whichever limit is hit first triggers the send.</div>
+      </div>
+      <div class="cfg-right"><span class="impact high">high impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">compression.type</div>
+        <div class="cfg-val">default: none · recommended: snappy or lz4</div>
+        <div class="cfg-desc">Compresses batches before sending. snappy = fast compression, good ratio. lz4 = fastest, slightly lower ratio. gzip = best ratio, slowest. Reduces network and disk usage significantly on text/JSON payloads.</div>
+      </div>
+      <div class="cfg-right"><span class="impact high">high impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">buffer.memory</div>
+        <div class="cfg-val">default: 33554432 (32MB) · recommended: 67108864 (64MB)</div>
+        <div class="cfg-desc">Total memory the producer uses to buffer records waiting to be sent. If your producer generates messages faster than the broker can accept, this buffer absorbs the burst. If it fills up, send() blocks.</div>
+      </div>
+      <div class="cfg-right"><span class="impact med">medium impact</span></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Latency configs</div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">max.in.flight.requests.per.connection</div>
+        <div class="cfg-val">default: 5 · keep at 5 with idempotence</div>
+        <div class="cfg-desc">How many unacknowledged sends can be in flight at once. Higher = more parallelism = more throughput. With enable.idempotence=true, 5 is safe and maintains ordering per partition.</div>
+      </div>
+      <div class="cfg-right"><span class="impact tradeoff">trade-off</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">request.timeout.ms</div>
+        <div class="cfg-val">default: 30000 (30s) · tune based on SLA</div>
+        <div class="cfg-desc">How long the producer waits for a broker response before considering a request failed. Reduce for fast-fail behaviour; increase for busy brokers under load.</div>
+      </div>
+      <div class="cfg-right"><span class="impact med">medium impact</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 1: consumer -->
+<div class="panel" id="tab1">
+  <div class="section">
+    <div class="section-title">Throughput configs</div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">fetch.min.bytes</div>
+        <div class="cfg-val">default: 1 · recommended: 1024–65536</div>
+        <div class="cfg-desc">Minimum bytes the broker accumulates before responding to a fetch request. At 1, the broker responds immediately even if only 1 byte is ready. Higher values mean fewer, larger fetches — better throughput at the cost of slightly more latency.</div>
+      </div>
+      <div class="cfg-right"><span class="impact high">high impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">fetch.max.wait.ms</div>
+        <div class="cfg-val">default: 500ms · tune with fetch.min.bytes</div>
+        <div class="cfg-desc">Maximum time the broker waits before responding even if fetch.min.bytes hasn't been reached. Acts as a safety valve — even a quiet topic will respond within this window. Increase to reduce fetch frequency.</div>
+      </div>
+      <div class="cfg-right"><span class="impact med">medium impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">max.poll.records</div>
+        <div class="cfg-val">default: 500 · tune based on processing time</div>
+        <div class="cfg-desc">Max records returned per poll() call. Higher = more records per batch = better throughput. But if processing one batch takes longer than max.poll.interval.ms, Kafka thinks the consumer is dead and triggers a rebalance. Set this based on how fast your processOrder() runs.</div>
+      </div>
+      <div class="cfg-right"><span class="impact high">high impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">fetch.max.bytes</div>
+        <div class="cfg-val">default: 52428800 (50MB)</div>
+        <div class="cfg-desc">Maximum data returned in a single fetch response. Increase if your messages are large or you want to fill poll() batches more aggressively. Must be larger than max.partition.fetch.bytes.</div>
+      </div>
+      <div class="cfg-right"><span class="impact med">medium impact</span></div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Stability configs</div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">max.poll.interval.ms</div>
+        <div class="cfg-val">default: 300000 (5min) · reduce if possible</div>
+        <div class="cfg-desc">Maximum time between poll() calls before Kafka considers the consumer dead and triggers a rebalance. If your processing logic is slow (DB writes, HTTP calls), increase this. Better fix: reduce max.poll.records so each batch finishes faster.</div>
+      </div>
+      <div class="cfg-right"><span class="impact tradeoff">trade-off</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">heartbeat.interval.ms</div>
+        <div class="cfg-val">default: 3000 · must be &lt; session.timeout.ms / 3</div>
+        <div class="cfg-desc">How often the consumer sends a heartbeat to the broker to prove it's alive. Lower = faster failure detection = faster rebalance when a consumer dies. Keep at 3000 unless you have a specific reason to change it.</div>
+      </div>
+      <div class="cfg-right"><span class="impact med">medium impact</span></div>
+    </div>
+    <div class="cfg-row">
+      <div class="cfg-left">
+        <div class="cfg-key">session.timeout.ms</div>
+        <div class="cfg-val">default: 45000 (45s) · recommended: 30000–60000</div>
+        <div class="cfg-desc">How long the broker waits without a heartbeat before declaring the consumer dead. Shorter = faster failover. Longer = more tolerance for GC pauses and slow processing. Must be within broker's group.min/max.session.timeout.ms range.</div>
+      </div>
+      <div class="cfg-right"><span class="impact tradeoff">trade-off</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: interactive tuner -->
+<div class="panel" id="tab2">
+  <div class="tuner">
+    <div class="tuner-title">Producer throughput tuner — drag to simulate impact</div>
+    <div class="slider-row">
+      <span class="slider-lbl"><code>linger.ms</code></span>
+      <input type="range" min="0" max="100" value="5" id="sl-linger" oninput="updateTuner()">
+      <span class="slider-val" id="val-linger">5 ms</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl"><code>batch.size</code></span>
+      <input type="range" min="1" max="10" value="3" id="sl-batch" oninput="updateTuner()">
+      <span class="slider-val" id="val-batch">32 KB</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl"><code>compression</code></span>
+      <input type="range" min="0" max="3" value="1" step="1" id="sl-comp" oninput="updateTuner()">
+      <span class="slider-val" id="val-comp">snappy</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-lbl"><code>max.in.flight</code></span>
+      <input type="range" min="1" max="10" value="5" id="sl-inflight" oninput="updateTuner()">
+      <span class="slider-val" id="val-inflight">5</span>
+    </div>
+    <div class="meters" id="meters"></div>
+  </div>
+  <div class="info" id="tuner-info">Adjust the sliders to see how each config affects throughput, latency, and safety.</div>
+</div>
+
+<!-- TAB 3: quick reference -->
+<div class="panel" id="tab3">
+  <table class="cmp">
+    <thead><tr><th>Config</th><th>Tune for</th><th>Low traffic default</th><th>High throughput</th><th>Low latency</th></tr></thead>
+    <tbody>
+      <tr><td>linger.ms</td><td><span class="tag thr">throughput</span></td><td>0</td><td>20</td><td>0</td></tr>
+      <tr><td>batch.size</td><td><span class="tag thr">throughput</span></td><td>16384</td><td>131072</td><td>16384</td></tr>
+      <tr><td>compression.type</td><td><span class="tag both">both</span></td><td>none</td><td>snappy</td><td>lz4</td></tr>
+      <tr><td>buffer.memory</td><td><span class="tag thr">throughput</span></td><td>32MB</td><td>64MB</td><td>32MB</td></tr>
+      <tr><td>max.in.flight</td><td><span class="tag both">both</span></td><td>5</td><td>5</td><td>1</td></tr>
+      <tr><td>fetch.min.bytes</td><td><span class="tag thr">throughput</span></td><td>1</td><td>65536</td><td>1</td></tr>
+      <tr><td>fetch.max.wait.ms</td><td><span class="tag lat">latency</span></td><td>500</td><td>500</td><td>100</td></tr>
+      <tr><td>max.poll.records</td><td><span class="tag thr">throughput</span></td><td>500</td><td>1000</td><td>100</td></tr>
+      <tr><td>heartbeat.interval.ms</td><td><span class="tag lat">latency</span></td><td>3000</td><td>3000</td><td>1000</td></tr>
+      <tr><td>session.timeout.ms</td><td><span class="tag lat">latency</span></td><td>45000</td><td>45000</td><td>15000</td></tr>
+    </tbody>
+  </table>
+  <div class="info"><strong>Golden rule:</strong> measure before tuning. Run your producer/consumer with default configs, record your baseline throughput and p99 latency, then change one config at a time and measure again. Never tune blindly.</div>
+</div>
+
+<script>
+function showTab(i, btn) {
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('on', j===i));
+  document.querySelectorAll('.panel').forEach((p,j) => p.classList.toggle('on', j===i));
+}
+
+const BATCH_LABELS = ['16 KB','32 KB','64 KB','96 KB','128 KB','160 KB','192 KB','224 KB','256 KB','320 KB','512 KB'];
+const COMP_LABELS  = ['none','snappy','lz4','gzip'];
+const COMP_RATIO   = [1, 0.55, 0.5, 0.35];
+
+function updateTuner() {
+  const linger   = parseInt(document.getElementById('sl-linger').value);
+  const batchIdx = parseInt(document.getElementById('sl-batch').value);
+  const compIdx  = parseInt(document.getElementById('sl-comp').value);
+  const inflight = parseInt(document.getElementById('sl-inflight').value);
+
+  document.getElementById('val-linger').textContent  = linger + ' ms';
+  document.getElementById('val-batch').textContent   = BATCH_LABELS[batchIdx];
+  document.getElementById('val-comp').textContent    = COMP_LABELS[compIdx];
+  document.getElementById('val-inflight').textContent = inflight;
+
+  const lingerScore  = Math.min(40, linger * 0.6);
+  const batchScore   = batchIdx * 4;
+  const compScore    = (1 - COMP_RATIO[compIdx]) * 30;
+  const inflightScore = Math.min(15, (inflight - 1) * 2);
+  const thr = Math.min(100, Math.round(20 + lingerScore + batchScore + compScore + inflightScore));
+  const latScore = Math.min(100, Math.round(10 + linger * 0.5 + batchIdx * 3 + (compIdx === 3 ? 20 : compIdx * 3)));
+  const safeScore = inflight <= 5 ? 90 : Math.max(40, 90 - (inflight - 5) * 10);
+
+  document.getElementById('meters').innerHTML = `
+    <div class="meter">
+      <div class="meter-label">Throughput</div>
+      <div class="meter-bar-wrap"><div class="meter-bar thr" style="width:${thr}%"></div></div>
+      <span class="meter-val">${thr}</span><span class="meter-unit">/ 100</span>
+    </div>
+    <div class="meter">
+      <div class="meter-label">Latency pressure</div>
+      <div class="meter-bar-wrap"><div class="meter-bar lat" style="width:${latScore}%"></div></div>
+      <span class="meter-val">${latScore}</span><span class="meter-unit">/ 100 (lower is better)</span>
+    </div>
+    <div class="meter">
+      <div class="meter-label">Ordering safety</div>
+      <div class="meter-bar-wrap"><div class="meter-bar safe" style="width:${safeScore}%"></div></div>
+      <span class="meter-val">${safeScore}</span><span class="meter-unit">/ 100</span>
+    </div>
+  `;
+
+  let msg = '';
+  if (linger === 0 && batchIdx < 2)
+    msg = 'Low linger + small batch = <strong>low throughput</strong>. Each message is sent alone — very wasteful. Increase linger.ms to at least 5.';
+  else if (thr > 80 && latScore < 40)
+    msg = '<strong>Great balance</strong> — high throughput with low latency pressure. Good for most production workloads.';
+  else if (thr > 80)
+    msg = '<strong>High throughput</strong> but latency is elevated. Fine for batch-style pipelines; reduce linger.ms if you need faster end-to-end delivery.';
+  else if (latScore < 20)
+    msg = '<strong>Very low latency</strong> but throughput is limited. Suitable for real-time alerting where every millisecond counts.';
+  else if (inflight > 5)
+    msg = '<span style="color:#BA7517">max.in.flight > 5 with idempotency disabled can cause <strong>out-of-order messages</strong></span>. Keep at 5 unless you have a specific reason.';
+  else
+    msg = 'Adjust the sliders — each config trades off throughput against latency.';
+
+  document.getElementById('tuner-info').innerHTML = msg;
+}
+updateTuner();
+</script>
+</body>
+</html>

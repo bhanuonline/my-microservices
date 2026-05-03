@@ -1,0 +1,98 @@
+server:
+  port: 8100
+  # Compress responses — reduces payload size by 60-80%
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
+  # Keep-alive for connection reuse (avoids TCP handshake on every request)
+  http2:
+    enabled: true
+
+spring:
+  application:
+    name: fast-api
+
+  # ─── Virtual Threads (Java 21) ───────────────────────────────────────────
+  # Write blocking code, get non-blocking performance
+  threads:
+    virtual:
+      enabled: true
+
+  # ─── Database ─────────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://localhost:3306/fastapi_db?useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:pass1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    # HikariCP — fastest connection pool in Java
+    hikari:
+      pool-name: FastAPI-Pool
+      maximum-pool-size: 20          # Rule: (cpu_cores * 2) + disk_spindles
+      minimum-idle: 5                # Keep 5 connections always ready
+      connection-timeout: 3000       # Fail fast — don't wait more than 3s
+      idle-timeout: 600000           # 10 min idle before closing
+      max-lifetime: 1800000          # 30 min max connection age
+      leak-detection-threshold: 2000 # Warn if connection held > 2s (helps catch bugs)
+      # Validate connections before using them
+      connection-test-query: SELECT 1
+
+  # ─── JPA ──────────────────────────────────────────────────────────────────
+  jpa:
+    hibernate:
+      ddl-auto: validate            # Never auto-create in prod — use Flyway/Liquibase
+    show-sql: false                 # NEVER true in prod — kills performance
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 50            # Batch inserts/updates for bulk ops
+          fetch_size: 100           # How many rows JDBC fetches at once
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false  # true only when debugging
+
+  # ─── Redis Cache ──────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms               # Fail fast if Redis is slow
+      lettuce:
+        pool:
+          max-active: 16            # Lettuce is thread-safe — keep this low
+          max-idle: 8
+          min-idle: 2
+          max-wait: 1000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000          # Default TTL: 5 minutes
+      cache-null-values: false      # Don't cache null — avoids stale data bugs
+
+# ─── Actuator / Metrics ───────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true  # Track p50, p95, p99 latency
+      percentiles:
+        http.server.requests: 0.5, 0.95, 0.99
+
+# ─── Logging ──────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: WARN
+    com.fastapi: INFO
+    org.hibernate.SQL: WARN        # OFF in prod, DEBUG only when needed
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
