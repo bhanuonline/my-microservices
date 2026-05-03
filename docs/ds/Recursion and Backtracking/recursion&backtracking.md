@@ -128,3 +128,34 @@ Backtracking → recursion + undo logic
 | Undo previous step | No                                | **Yes (must undo)**        |
 | Example            | Factorial, Fibonacci, Merge sort  | Sudoku, N-Queens           |
 | Stop early         | No                                | Often prunes invalid paths |
+
+# Merge Sort :
+Merge Sort is a divide-and-conquer sorting algorithm that splits the array into smaller parts, sorts them recursively, and then merges the sorted parts to produce the final sorted array.
+It has time complexity O(n log n) in all cases
+It is a stable sorting algorithm
+It requires extra space (not in-place)
+
+Divide : Split the array into two halves again and again until each part has one element
+Conquer :Sort each small part (recursively)
+Combine :Merge the sorted parts to form a fully sorted array
+
+**Why is merge sort stable?**
+Merge sort is stable because while merging two sorted halves, it preserves the relative order of equal elements.
+If two elements have the same value, the one that appeared first in the original array is placed first in the merged result.
+🔹 Why this happens
+During the merge step, we compare elements from left and right halves:
+If left[i] <= right[j], we pick the element from the left side
+This ensures that when values are equal, the left (earlier) element stays first
+
+🔹 Example
+Suppose we have:
+[ (2, A), (1, B), (2, C) ]
+
+After sorting:
+[ (1, B), (2, A), (2, C) ]
+
+👉 Notice:
+2(A) comes before 2(C) (same order as original)
+So, order is preserved → stable
+Q:Why is merge sort preferred for linked lists?
+A:No random access needed

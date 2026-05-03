@@ -27,6 +27,8 @@
         <module>client-app</module>
         <module>spring-security-apps</module>
         <module>config-server</module>
+        <module>algolia</module>
+        <module>fast-api</module>
     </modules>
 
     <parent>

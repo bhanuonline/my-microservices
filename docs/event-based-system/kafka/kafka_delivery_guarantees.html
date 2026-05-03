@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kafka: delivery guarantees — acks, retries, idempotency</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eeede9;
+  --text: #1a1a18; --text2: #5a5a56; --text3: #8a8a84;
+  --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+    --text: #e8e6de; --text2: #a8a69e; --text3: #6a6a64;
+    --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+  }
+}
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  padding: 32px 24px;
+  max-width: 860px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+h1 { font-size: 18px; font-weight: 500; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--bg2); color: var(--text2);
+  font-size: 12px; cursor: pointer;
+}
+.tab.on { background: #534AB7; border-color: #534AB7; color: #EEEDFE; font-weight: 500; }
+.tab:hover:not(.on) { background: var(--bg3); }
+.panel { display: none; } .panel.on { display: block; }
+
+.desc {
+  font-size: 12px; color: var(--text2); line-height: 1.6;
+  padding: 10px 14px; border-left: 3px solid var(--border2);
+  border-radius: 0 6px 6px 0; background: var(--bg2); margin-bottom: 14px;
+}
+.desc strong { color: var(--text); }
+.desc code { font-family: var(--mono); font-size: 10px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; }
+
+.scenario { border: 1px solid var(--border2); border-radius: 10px; padding: 14px; background: var(--bg2); margin-bottom: 12px; }
+.scenario-title { font-size: 11px; font-weight: 500; color: var(--text); margin-bottom: 12px; }
+
+.flow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.node { border-radius: 8px; border: 1px solid; padding: 8px 14px; font-size: 11px; font-weight: 500; text-align: center; min-width: 80px; transition: all .3s; }
+.node.producer { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+.node.broker   { background: var(--bg); border-color: var(--border2); color: var(--text); }
+.node.broker.acked { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+.node.broker.dead  { background: #FCEBEB; border-color: #F09595; color: #791F1F; border-style: dashed; }
+.node.replica  { background: var(--bg2); border-color: var(--border2); color: var(--text2); font-size: 10px; }
+.node.replica.synced { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+@media (prefers-color-scheme: dark) {
+  .node.producer { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+  .node.broker.acked { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+  .node.broker.dead  { background: #501313; border-color: #E24B4A; color: #F7C1C1; }
+  .node.replica.synced { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+}
+
+.arrow { font-size: 18px; color: var(--text3); flex-shrink: 0; transition: color .3s; }
+.arrow.ok   { color: #1D9E75; }
+.arrow.fail { color: #E24B4A; }
+.arrow.pending { color: #EF9F27; animation: blink .6s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.msg-bubble { font-size: 10px; padding: 3px 9px; border-radius: 12px; border: 1px solid; display: inline-block; animation: pop .3s ease; }
+@keyframes pop { 0%{opacity:0;transform:scale(.8)} 100%{opacity:1;transform:scale(1)} }
+.msg-bubble.sent  { background: #EEEDFE; border-color: #AFA9EC; color: #3C3489; }
+.msg-bubble.acked { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+.msg-bubble.lost  { background: #FCEBEB; border-color: #F09595; color: #791F1F; }
+.msg-bubble.dup   { background: #FAEEDA; border-color: #EF9F27; color: #633806; }
+@media (prefers-color-scheme: dark) {
+  .msg-bubble.sent  { background: #26215C; border-color: #7F77DD; color: #CECBF6; }
+  .msg-bubble.acked { background: #085041; border-color: #1D9E75; color: #9FE1CB; }
+  .msg-bubble.lost  { background: #501313; border-color: #E24B4A; color: #F7C1C1; }
+  .msg-bubble.dup   { background: #412402; border-color: #BA7517; color: #FAC775; }
+}
+
+.msg-log {
+  min-height: 56px; display: flex; gap: 4px; flex-wrap: wrap; align-items: flex-start;
+  padding: 8px; border: 1px dashed var(--border2); border-radius: 8px;
+  background: var(--bg); margin-bottom: 10px;
+}
+.log-lbl { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+
+.controls { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+.btn { padding: 6px 13px; border-radius: 8px; border: 1px solid var(--border2); background: var(--bg2); color: var(--text); font-size: 12px; cursor: pointer; }
+.btn:hover { background: var(--bg3); }
+.btn.pri { background: #534AB7; border-color: #534AB7; color: #EEEDFE; }
+.btn.pri:hover { background: #3C3489; }
+.btn.danger { background: #FCEBEB; border-color: #F09595; color: #791F1F; }
+.btn.danger:hover { background: #F7C1C1; }
+@media (prefers-color-scheme: dark) {
+  .btn.danger { background: #501313; border-color: #E24B4A; color: #F7C1C1; }
+}
+
+.info { font-size: 11px; color: var(--text2); line-height: 1.7; border-left: 2px solid var(--border2); padding-left: 10px; min-height: 28px; }
+.info strong { color: var(--text); }
+.info code { font-family: var(--mono); font-size: 10px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; }
+.info .ok   { color: #0F6E56; }
+.info .warn { color: #BA7517; }
+.info .err  { color: #A32D2D; }
+
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
+.cmp-table th { font-size: 10px; font-weight: 500; color: var(--text3); text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border2); }
+.cmp-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+.cmp-table tr:last-child td { border-bottom: none; }
+.cmp-table td:first-child { font-family: var(--mono); font-weight: 500; color: var(--text); }
+
+.pill { font-size: 9px; padding: 2px 7px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+.pill.fast  { background: #E1F5EE; color: #085041; border: 1px solid #5DCAA5; }
+.pill.med   { background: #FAEEDA; color: #633806; border: 1px solid #EF9F27; }
+.pill.slow  { background: #FCEBEB; color: #791F1F; border: 1px solid #F09595; }
+.pill.safe  { background: #E1F5EE; color: #085041; border: 1px solid #5DCAA5; }
+.pill.risky { background: #FCEBEB; color: #791F1F; border: 1px solid #F09595; }
+
+.seq-row { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.seq-lbl { font-size: 10px; color: var(--text2); min-width: 90px; }
+.seq-cell { width: 48px; height: 32px; border-radius: 6px; border: 1px solid; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; }
+.seq-cell.ok      { background: #E1F5EE; border-color: #5DCAA5; color: #085041; }
+.seq-cell.dup     { background: #FAEEDA; border-color: #EF9F27; color: #633806; }
+.seq-cell.dropped { background: var(--bg2); border-color: var(--border2); color: var(--text3); text-decoration: line-through; }
+</style>
+</head>
+<body>
+<h1>Kafka: delivery guarantees</h1>
+<p class="subtitle">acks, retries, and idempotency — interactive simulations for each.</p>
+
+<div class="tabs">
+  <button class="tab on" onclick="showTab(0,this)">acks</button>
+  <button class="tab" onclick="showTab(1,this)">retries</button>
+  <button class="tab" onclick="showTab(2,this)">idempotency</button>
+  <button class="tab" onclick="showTab(3,this)">best config</button>
+</div>
+
+<!-- TAB 0: acks -->
+<div class="panel on" id="tab0">
+  <div class="desc">When a producer sends a message, it can ask Kafka: <strong>"how many brokers need to confirm before you tell me it's safe?"</strong> That's <code>acks</code>. Three options — pick your trade-off between speed and safety.</div>
+  <table class="cmp-table">
+    <thead><tr><th>acks value</th><th>Who confirms</th><th>Speed</th><th>Safety</th><th>Use when</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>acks=0</td>
+        <td>Nobody. Producer doesn't wait at all.</td>
+        <td><span class="pill fast">fastest</span></td>
+        <td><span class="pill risky">can lose data</span></td>
+        <td>Metrics, logs — data loss is acceptable</td>
+      </tr>
+      <tr>
+        <td>acks=1</td>
+        <td>Only the leader broker confirms.</td>
+        <td><span class="pill med">medium</span></td>
+        <td><span class="pill med">leader crash = lost</span></td>
+        <td>Moderate risk tolerance</td>
+      </tr>
+      <tr>
+        <td>acks=all</td>
+        <td>Leader + all in-sync replicas confirm.</td>
+        <td><span class="pill slow">slowest</span></td>
+        <td><span class="pill safe">safest</span></td>
+        <td>Orders, payments — data loss is unacceptable</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="controls">
+    <button class="btn" onclick="simAck(0)">Simulate acks=0</button>
+    <button class="btn" onclick="simAck(1)">Simulate acks=1</button>
+    <button class="btn pri" onclick="simAck('all')">Simulate acks=all</button>
+    <button class="btn" onclick="resetAck()">Reset</button>
+  </div>
+  <div class="scenario">
+    <div class="flow" id="ack-flow">
+      <div class="node producer" id="ack-prod">Producer</div>
+      <div class="arrow" id="ack-arr1">→</div>
+      <div class="node broker" id="ack-leader">Leader</div>
+      <div class="arrow" id="ack-arr2">→</div>
+      <div class="node replica" id="ack-r1">Replica 1</div>
+      <div class="arrow" id="ack-arr3">→</div>
+      <div class="node replica" id="ack-r2">Replica 2</div>
+    </div>
+    <div class="log-lbl">Message status:</div>
+    <div class="msg-log" id="ack-log"><span style="font-size:10px;color:var(--text3)">run a simulation above</span></div>
+  </div>
+  <div class="info" id="ack-info">Choose an acks value above to see what gets confirmed and what risk you take.</div>
+</div>
+
+<!-- TAB 1: retries -->
+<div class="panel" id="tab1">
+  <div class="desc">When a send fails (network blip, leader election), should the producer try again? <strong>retries</strong> says how many times. But retries introduce a new problem: <strong>duplicates</strong>.</div>
+  <div class="controls">
+    <button class="btn pri" onclick="simRetry(false)">Send (broker crashes mid-flight)</button>
+    <button class="btn danger" onclick="simRetry(true)">Same — but no idempotency</button>
+    <button class="btn" onclick="resetRetry()">Reset</button>
+  </div>
+  <div class="scenario">
+    <div class="scenario-title">What arrives in the topic:</div>
+    <div class="flow">
+      <div class="node producer">Producer</div>
+      <div class="arrow" id="ret-arr">→</div>
+      <div class="node broker" id="ret-broker">Broker</div>
+    </div>
+    <div class="log-lbl">Messages in topic (what consumer sees):</div>
+    <div class="msg-log" id="ret-log"><span style="font-size:10px;color:var(--text3)">run a simulation above</span></div>
+  </div>
+  <div class="info" id="ret-info">A retry happens automatically when the broker doesn't respond in time. Without idempotency, the broker may have written the message before crashing — so the retry produces a duplicate.</div>
+</div>
+
+<!-- TAB 2: idempotency -->
+<div class="panel" id="tab2">
+  <div class="desc">Idempotency means <strong>sending the same message twice has the same result as sending it once</strong>. Kafka assigns each message a sequence number. If a duplicate arrives, the broker recognises it and silently drops it.</div>
+  <div class="scenario">
+    <div class="scenario-title">Without idempotency (enable.idempotence=false)</div>
+    <div class="seq-row">
+      <span class="seq-lbl">Producer sends:</span>
+      <div class="seq-cell ok">seq:1</div>
+      <div class="seq-cell ok">seq:1</div>
+      <span style="font-size:10px;color:var(--text3)">(retry after crash)</span>
+    </div>
+    <div class="seq-row">
+      <span class="seq-lbl">Broker stores:</span>
+      <div class="seq-cell ok">msg A</div>
+      <div class="seq-cell dup">msg A</div>
+      <span style="font-size:10px;color:#BA7517">duplicate!</span>
+    </div>
+  </div>
+  <div class="scenario" style="margin-top:10px">
+    <div class="scenario-title">With idempotency (enable.idempotence=true)</div>
+    <div class="seq-row">
+      <span class="seq-lbl">Producer sends:</span>
+      <div class="seq-cell ok">seq:1</div>
+      <div class="seq-cell ok">seq:1</div>
+      <span style="font-size:10px;color:var(--text3)">(retry after crash)</span>
+    </div>
+    <div class="seq-row">
+      <span class="seq-lbl">Broker stores:</span>
+      <div class="seq-cell ok">msg A</div>
+      <div class="seq-cell dropped">dup</div>
+      <span style="font-size:10px;color:#0F6E56">dropped safely</span>
+    </div>
+  </div>
+  <div class="info" style="margin-top:10px">Enabling idempotency is free — it adds a tiny sequence number to each message. <strong>Always enable it.</strong> It activates automatically when you set <code>acks=all</code> and <code>retries &gt; 0</code>.</div>
+</div>
+
+<!-- TAB 3: best config -->
+<div class="panel" id="tab3">
+  <div class="desc">These are the production-safe producer settings for critical data like orders and payments. Each config exists to close a specific failure gap.</div>
+  <div class="scenario">
+    <div style="font-family:var(--mono);font-size:11px;line-height:2;color:var(--text2)">
+<span style="color:var(--text3)">// Reliability</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"acks"</span>, <span style="color:#0F6E56">"all"</span>);                          <span style="color:var(--text3)">// wait for all ISR replicas</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"retries"</span>, <span style="color:#0F6E56">Integer.MAX_VALUE</span>);               <span style="color:var(--text3)">// retry forever</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"enable.idempotence"</span>, <span style="color:#0F6E56">true</span>);               <span style="color:var(--text3)">// no duplicates on retry</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"max.in.flight.requests.per.connection"</span>, <span style="color:#0F6E56">5</span>); <span style="color:var(--text3)">// safe with idempotence</span>
+<br><br><span style="color:var(--text3)">// Throughput</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"linger.ms"</span>, <span style="color:#0F6E56">5</span>);                          <span style="color:var(--text3)">// wait 5ms to batch messages</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"batch.size"</span>, <span style="color:#0F6E56">16384</span>);                      <span style="color:var(--text3)">// 16KB batch max</span>
+<br><span style="color:#534AB7">props.put</span>(<span style="color:#0F6E56">"compression.type"</span>, <span style="color:#0F6E56">"snappy"</span>);             <span style="color:var(--text3)">// compress batches</span>
+    </div>
+  </div>
+  <div class="scenario" style="margin-top:10px">
+    <div class="scenario-title">What each config protects against</div>
+    <table class="cmp-table">
+      <thead><tr><th>Config</th><th>Failure it prevents</th></tr></thead>
+      <tbody>
+        <tr><td>acks=all</td><td>Leader crashes after write but before replication — data gone</td></tr>
+        <tr><td>retries=MAX</td><td>Transient network failure drops the message permanently</td></tr>
+        <tr><td>enable.idempotence</td><td>Retry sends duplicate — consumer processes an order twice</td></tr>
+        <tr><td>linger.ms=5</td><td>Tiny batches waste network overhead on high-volume topics</td></tr>
+        <tr><td>compression.type</td><td>Large payloads slow throughput and increase broker disk usage</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="info"><strong>One shortcut:</strong> setting <code>enable.idempotence=true</code> automatically forces <code>acks=all</code> and <code>max.in.flight=5</code> — you get the safe defaults for free.</div>
+</div>
+
+<script>
+function showTab(i, btn) {
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('on', j===i));
+  document.querySelectorAll('.panel').forEach((p,j) => p.classList.toggle('on', j===i));
+}
+
+function addMsg(logId, text, cls) {
+  const log = document.getElementById(logId);
+  const empty = log.querySelector('span'); if (empty) empty.remove();
+  const d = document.createElement('div'); d.className = 'msg-bubble ' + cls; d.textContent = text;
+  log.appendChild(d);
+}
+function setInfo(id, html) { document.getElementById(id).innerHTML = html; }
+
+function resetNodes() {
+  document.getElementById('ack-leader').className = 'node broker';
+  document.getElementById('ack-r1').className = 'node replica';
+  document.getElementById('ack-r2').className = 'node replica';
+  document.getElementById('ack-arr1').className = 'arrow';
+  document.getElementById('ack-arr2').className = 'arrow';
+  document.getElementById('ack-arr3').className = 'arrow';
+  document.getElementById('ack-log').innerHTML = '<span style="font-size:10px;color:var(--text3)">run a simulation above</span>';
+}
+function resetAck() { resetNodes(); setInfo('ack-info', 'Choose an acks value above to see what gets confirmed and what risk you take.'); }
+
+function simAck(val) {
+  resetNodes();
+  const arr1 = document.getElementById('ack-arr1');
+  const arr2 = document.getElementById('ack-arr2');
+  const arr3 = document.getElementById('ack-arr3');
+  const leader = document.getElementById('ack-leader');
+  const r1 = document.getElementById('ack-r1');
+  const r2 = document.getElementById('ack-r2');
+
+  if (val === 0) {
+    arr1.className = 'arrow ok';
+    addMsg('ack-log', 'msg sent', 'sent');
+    addMsg('ack-log', 'no ack waited', 'lost');
+    setInfo('ack-info', '<span class="warn"><strong>acks=0:</strong></span> Producer fires the message and moves on immediately. If the broker is down, the message is silently lost. Fastest option — only use for data where loss is acceptable (metrics, click events).');
+  } else if (val === 1) {
+    arr1.className = 'arrow pending';
+    setTimeout(() => {
+      leader.className = 'node broker acked';
+      arr1.className = 'arrow ok';
+      addMsg('ack-log', 'leader confirmed', 'acked');
+      addMsg('ack-log', 'replicas: not yet', 'dup');
+      setInfo('ack-info', '<span class="warn"><strong>acks=1:</strong></span> Leader writes the message and sends an ack. But replicas haven\'t synced yet — if the leader crashes right now, the message is <strong>lost</strong>. Good balance for non-critical topics.');
+    }, 700);
+  } else {
+    arr1.className = 'arrow pending';
+    setTimeout(() => {
+      leader.className = 'node broker acked';
+      arr1.className = 'arrow ok';
+      arr2.className = 'arrow pending';
+      arr3.className = 'arrow pending';
+    }, 600);
+    setTimeout(() => {
+      r1.className = 'node replica synced';
+      r2.className = 'node replica synced';
+      arr2.className = 'arrow ok';
+      arr3.className = 'arrow ok';
+      addMsg('ack-log', 'leader confirmed', 'acked');
+      addMsg('ack-log', 'replica 1 synced', 'acked');
+      addMsg('ack-log', 'replica 2 synced', 'acked');
+      setInfo('ack-info', '<span class="ok"><strong>acks=all:</strong></span> Leader waits for all in-sync replicas to confirm before acking the producer. Even if the leader crashes immediately after, the data is safe on the replicas. Use this for orders, payments, anything critical.');
+    }, 1400);
+  }
+}
+
+function resetRetry() {
+  document.getElementById('ret-broker').className = 'node broker';
+  document.getElementById('ret-broker').textContent = 'Broker';
+  document.getElementById('ret-arr').className = 'arrow';
+  document.getElementById('ret-log').innerHTML = '<span style="font-size:10px;color:var(--text3)">run a simulation above</span>';
+  setInfo('ret-info', 'A retry happens automatically when the broker doesn\'t respond in time. Without idempotency, the broker may have written the message before crashing — so the retry produces a duplicate.');
+}
+
+function simRetry(noIdem) {
+  resetRetry();
+  const broker = document.getElementById('ret-broker');
+  const arr = document.getElementById('ret-arr');
+  arr.className = 'arrow pending';
+  setInfo('ret-info', 'Sending message… broker receives it and writes to disk…');
+  setTimeout(() => {
+    broker.className = 'node broker dead';
+    broker.textContent = 'Broker (crashed)';
+    arr.className = 'arrow fail';
+    setInfo('ret-info', '<span class="err">Broker crashed</span> after writing but before sending the ack back. Producer got no response — it doesn\'t know if the message was saved. So it retries…');
+  }, 800);
+  setTimeout(() => {
+    broker.className = 'node broker acked';
+    broker.textContent = 'Broker (back up)';
+    arr.className = 'arrow ok';
+    addMsg('ret-log', 'msg A (original)', 'acked');
+    if (noIdem) {
+      addMsg('ret-log', 'msg A (retry = DUPLICATE)', 'dup');
+      setInfo('ret-info', '<span class="err"><strong>Duplicate!</strong></span> The broker stored the message before crashing. The retry stored it again. Consumer now sees <strong>msg A twice</strong>. Without idempotency there\'s no way for the broker to know it\'s a duplicate.');
+    } else {
+      addMsg('ret-log', 'msg A retry → dropped (seq match)', 'acked');
+      setInfo('ret-info', '<span class="ok"><strong>Safe.</strong></span> With <code>enable.idempotence=true</code>, the producer stamps every message with a sequence number. The broker sees the same sequence number on retry and silently drops it. Consumer sees msg A exactly once.');
+    }
+  }, 2000);
+}
+</script>
+</body>
+</html>
