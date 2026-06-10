@@ -1,0 +1,357 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.app{padding:1.5rem 0;font-family:var(--font-sans)}
+.header h1{font-size:20px;font-weight:500;color:var(--color-text-primary)}
+.header p{font-size:13px;color:var(--color-text-secondary);margin-top:3px}
+.gbar-wrap{background:var(--color-background-secondary);border-radius:100px;height:8px;margin:0.75rem 0 0.25rem;overflow:hidden}
+.gbar-fill{height:100%;background:#7F77DD;border-radius:100px;transition:width 0.4s}
+.glabel{font-size:12px;color:var(--color-text-secondary)}
+.stats-row{display:flex;gap:8px;margin:0.85rem 0 1.1rem;flex-wrap:wrap}
+.chip{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:6px 12px;font-size:12px;color:var(--color-text-secondary)}
+.chip b{color:var(--color-text-primary);font-weight:500}
+.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1.1rem}
+.tab{padding:5px 13px;font-size:13px;border-radius:100px;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-primary);color:var(--color-text-secondary);cursor:pointer;transition:all 0.15s}
+.tab:hover{border-color:var(--color-border-primary);color:var(--color-text-primary)}
+.tab.active{background:#7F77DD;border-color:#7F77DD;color:#fff;font-weight:500}
+.tab.done{background:#E1F5EE;border-color:#1D9E75;color:#0F6E56}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:0.9rem 1.1rem}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.card-count{font-size:12px;color:var(--color-text-tertiary)}
+.wbar-wrap{background:var(--color-background-secondary);border-radius:100px;height:3px;margin-bottom:8px;overflow:hidden}
+.wbar-fill{height:100%;border-radius:100px;transition:width 0.3s}
+.topics{display:flex;flex-direction:column;gap:2px}
+.trow{border-radius:6px}
+.trow-main{display:flex;align-items:flex-start;gap:7px;padding:3px 4px;border-radius:6px}
+.trow-main:hover{background:var(--color-background-secondary)}
+input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;
+  width:15px;height:15px;min-width:15px;
+  border:1.5px solid #888;border-radius:3px;
+  background:var(--color-background-primary);
+  cursor:pointer;margin-top:2px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;transition:all 0.15s
+}
+input[type=checkbox]:checked{background:#7F77DD;border-color:#7F77DD}
+input[type=checkbox]:checked::after{
+  content:'✓';position:absolute;
+  color:#fff;font-size:10px;font-weight:700;
+  top:50%;left:50%;transform:translate(-50%,-52%)
+}
+.tlabel{font-size:12.5px;color:var(--color-text-primary);line-height:1.45;flex:1;cursor:pointer}
+.tlabel.done{color:var(--color-text-tertiary);text-decoration:line-through}
+.nb{font-size:9px;background:#FAEEDA;color:#854F0B;border-radius:100px;padding:1px 5px;margin-left:4px;font-weight:500;vertical-align:middle}
+.note-btn{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;font-size:13px;color:var(--color-text-tertiary);transition:all 0.15s;flex-shrink:0;line-height:1}
+.note-btn:hover{color:#7F77DD}
+.note-btn.has{color:#7F77DD}
+.note-area{display:none;padding:4px 4px 4px 24px}
+.note-area.open{display:block}
+.note-input{width:100%;font-size:12px;font-family:var(--font-sans);padding:6px 8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;background:var(--color-background-secondary);color:var(--color-text-primary);resize:none;min-height:52px;outline:none;line-height:1.5}
+.note-input:focus{border-color:#7F77DD}
+.note-input::placeholder{color:var(--color-text-tertiary)}
+.note-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:4px}
+.btn-save{font-size:11px;padding:3px 10px;border-radius:100px;border:0.5px solid #7F77DD;background:#7F77DD;color:#fff;cursor:pointer}
+.btn-clear{font-size:11px;padding:3px 10px;border-radius:100px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer}
+.saved-note{font-size:11.5px;color:var(--color-text-secondary);padding:3px 6px 4px 6px;margin:2px 4px 2px 24px;line-height:1.5;white-space:pre-wrap;border-left:2px solid #7F77DD;background:var(--color-background-secondary);border-radius:0 4px 4px 0}
+.ref-section{margin-top:1.5rem}
+.ref-title{font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:0.65rem}
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.ref-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.8rem 1rem}
+.ref-card-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11px;padding:2px 7px;border-radius:100px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);color:var(--color-text-secondary)}
+</style>
+
+<div class="app">
+<h2 class="sr-only">Java Spring Boot interview prep tracker with working checkboxes and notes</h2>
+<div class="header" style="margin-bottom:1.25rem">
+  <h1>Interview Prep Tracker</h1>
+  <p>Java / Spring Boot · June → October &nbsp;·&nbsp; <span style="color:#854F0B;font-size:12px">★ = newly added</span></p>
+  <div class="gbar-wrap"><div class="gbar-fill" id="gbar" style="width:0%"></div></div>
+  <div class="glabel" id="glabel">0 of 0 complete</div>
+</div>
+<div class="stats-row">
+  <div class="chip">Total: <b id="s-total">0</b></div>
+  <div class="chip">Done: <b id="s-done">0</b></div>
+  <div class="chip">Remaining: <b id="s-left">0</b></div>
+  <div class="chip">Notes: <b id="s-notes">0</b></div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="grid" id="content"></div>
+<div class="ref-section">
+  <div class="ref-title">Reference areas</div>
+  <div class="ref-grid">
+    <div class="ref-card">
+      <div class="ref-card-title">Leadership round</div>
+      <div class="tags"><span class="tag">Project architecture</span><span class="tag">Team mentoring</span><span class="tag">Code reviews</span><span class="tag">Production stories</span><span class="tag">Stakeholder mgmt</span><span class="tag">Conflict resolution</span><span class="tag">Estimation</span></div>
+    </div>
+    <div class="ref-card">
+      <div class="ref-card-title">Production scenarios</div>
+      <div class="tags"><span class="tag">Memory leak</span><span class="tag">High CPU</span><span class="tag">Slow API</span><span class="tag">Thread pool exhaustion</span><span class="tag">DB bottleneck</span><span class="tag">Kafka lag</span><span class="tag">Redis failure</span><span class="tag">GC issues</span></div>
+    </div>
+    <div class="ref-card">
+      <div class="ref-card-title">AI (optional)</div>
+      <div class="tags"><span class="tag">Python basics</span><span class="tag">LLM fundamentals</span><span class="tag">RAG</span><span class="tag">Vector databases</span><span class="tag">Spring AI</span><span class="tag">AI agents</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const N=true;
+const PLAN=[
+{month:"June",weeks:[
+  {title:"Week 1 — Core Java",color:"#7F77DD",topics:[
+    {t:"OOP"},{t:"SOLID principles"},{t:"String & String pool"},{t:"Collections framework"},
+    {t:"List / Set / Map"},{t:"HashMap internals"},{t:"LinkedHashMap & TreeMap"},
+    {t:"equals() and hashCode()"},
+    {t:"JVM architecture (JIT, bytecode, classloader)",n:N},
+    {t:"Heap & Stack memory model",n:N},
+    {t:"GC algorithms — G1, ZGC, Shenandoah",n:N},
+    {t:"GC tuning & heap dumps (jcmd, JFR, async-profiler)",n:N},
+    {t:"Exception handling best practices",n:N}
+  ]},
+  {title:"Week 2 — Java 8 → 21",color:"#1D9E75",topics:[
+    {t:"Lambda & method references"},{t:"Functional interfaces"},{t:"Stream API & Collectors"},
+    {t:"Optional"},{t:"Date Time API"},{t:"Records"},{t:"Sealed classes"},
+    {t:"Pattern matching"},{t:"Virtual threads"}
+  ]},
+  {title:"Week 3 — Multithreading",color:"#378ADD",topics:[
+    {t:"Thread lifecycle · Runnable · Callable"},{t:"Future & CompletableFuture"},
+    {t:"Synchronization & Volatile"},{t:"Atomic classes"},
+    {t:"ReentrantLock & ReadWriteLock"},
+    {t:"CountDownLatch · CyclicBarrier · Semaphore"},
+    {t:"ThreadLocal · ForkJoinPool"},
+    {t:"ExecutorService & ThreadPoolExecutor"},
+    {t:"Producer-consumer · Deadlock · Race condition"}
+  ]},
+  {title:"Week 4 — Design Patterns + Spring Core",color:"#D85A30",topics:[
+    {t:"Creational — Singleton, Factory, Builder",n:N},
+    {t:"Structural — Proxy, Decorator, Adapter",n:N},
+    {t:"Behavioural — Strategy, Observer, Template Method",n:N},
+    {t:"IoC & Dependency Injection"},{t:"Bean lifecycle & scope"},
+    {t:"AOP"},{t:"Transactions"},{t:"Spring Profiles"},{t:"Spring Events"}
+  ]}
+]},
+{month:"July",weeks:[
+  {title:"Week 1 — Spring Boot + REST API",color:"#7F77DD",topics:[
+    {t:"Auto-configuration"},{t:"Starter dependencies"},{t:"Embedded Tomcat"},
+    {t:"Actuator"},{t:"Logging"},{t:"Configuration properties"},
+    {t:"REST best practices & OpenAPI/Swagger",n:N},
+    {t:"API versioning strategies",n:N},
+    {t:"Error handling with @ControllerAdvice",n:N},
+    {t:"RestTemplate vs WebClient",n:N},
+    {t:"Idempotency in REST APIs",n:N}
+  ]},
+  {title:"Week 2 — JPA / Hibernate",color:"#1D9E75",topics:[
+    {t:"Entity lifecycle & mapping"},{t:"OneToOne · OneToMany · ManyToMany"},
+    {t:"FetchType & Cascade"},{t:"JPQL & native query"},
+    {t:"N+1 problem"},{t:"Locking & batch processing"},
+    {t:"Flyway & Liquibase migrations",n:N}
+  ]},
+  {title:"Week 3 — Database",color:"#378ADD",topics:[
+    {t:"SQL & joins"},{t:"Indexes"},{t:"Transactions & ACID"},
+    {t:"Isolation levels"},{t:"Deadlocks"},{t:"Query optimization"}
+  ]},
+  {title:"Week 4 — Testing + Spring Security",color:"#D85A30",topics:[
+    {t:"JUnit 5 fundamentals",n:N},{t:"Mockito — mocking, stubbing, verify",n:N},
+    {t:"@SpringBootTest & @WebMvcTest",n:N},{t:"Testcontainers",n:N},
+    {t:"Contract testing with Pact",n:N},{t:"TDD approach & test pyramids",n:N},
+    {t:"Authentication & authorization"},{t:"JWT"},{t:"OAuth2"},{t:"CORS & CSRF"}
+  ]}
+]},
+{month:"August",weeks:[
+  {title:"Week 1 — Microservices",color:"#7F77DD",topics:[
+    {t:"Service discovery"},{t:"API Gateway"},{t:"Config server"},
+    {t:"Feign Client"},{t:"Circuit breaker · Retry · Timeout · Bulkhead"},
+    {t:"Distributed tracing"},{t:"gRPC basics",n:N}
+  ]},
+  {title:"Week 2 — Kafka",color:"#1D9E75",topics:[
+    {t:"Producer & Consumer"},{t:"Topic · Partition · Offset"},
+    {t:"Consumer group & rebalancing"},{t:"Dead letter queue (DLQ)"},{t:"Idempotency"}
+  ]},
+  {title:"Week 3 — Redis + Reactive",color:"#378ADD",topics:[
+    {t:"Cache-aside pattern"},{t:"TTL & cache eviction"},
+    {t:"Distributed cache"},{t:"Cache warming"},
+    {t:"Project Reactor — Flux & Mono",n:N},{t:"Spring WebFlux",n:N},
+    {t:"Backpressure",n:N},{t:"Reactive vs imperative — when to choose",n:N}
+  ]},
+  {title:"Week 4 — Distributed Systems",color:"#D85A30",topics:[
+    {t:"CAP theorem"},{t:"Eventual consistency"},
+    {t:"Saga & Outbox patterns"},{t:"CQRS & Event sourcing"},{t:"Idempotency"}
+  ]}
+]},
+{month:"September",weeks:[
+  {title:"Week 1 — Architecture",color:"#7F77DD",topics:[
+    {t:"Monolith vs microservices"},{t:"Scalability & load balancing"},
+    {t:"Caching strategy"},{t:"API & database design"},
+    {t:"Event-driven architecture"},{t:"Multi-tenant architecture"}
+  ]},
+  {title:"Week 2 — System Design",color:"#1D9E75",topics:[
+    {t:"URL shortener"},{t:"Order management system"},
+    {t:"Payment system"},{t:"Inventory system"},{t:"Notification service"}
+  ]},
+  {title:"Week 3 — Docker & Kubernetes",color:"#378ADD",topics:[
+    {t:"Dockerfile · Images · Containers"},{t:"Docker Compose"},
+    {t:"Pods & Deployments"},{t:"Services · ConfigMaps · Ingress"}
+  ]},
+  {title:"Week 4 — AWS & Observability",color:"#D85A30",topics:[
+    {t:"EC2 · S3 · RDS"},{t:"Load balancer & auto scaling"},
+    {t:"CloudWatch · ELK"},{t:"Prometheus · Grafana · OpenTelemetry"}
+  ]}
+]},
+{month:"October",weeks:[
+  {title:"Week 1 — Java & Spring revision",color:"#7F77DD",topics:[
+    {t:"Java revision"},{t:"Spring revision"},{t:"JPA revision"}
+  ]},
+  {title:"Week 2 — Services revision",color:"#1D9E75",topics:[
+    {t:"Kafka revision"},{t:"Redis revision"},{t:"Microservices revision"}
+  ]},
+  {title:"Week 3 — Mock interviews",color:"#378ADD",topics:[
+    {t:"System design mocks"},{t:"Architecture discussions"}
+  ]},
+  {title:"Week 4 — Final prep",color:"#D85A30",topics:[
+    {t:"Resume review"},{t:"Leadership questions"},
+    {t:"Behavioral questions"},{t:"Final mock interviews"}
+  ]}
+]}
+];
+
+const KEY="jprep_v3";
+let state={checked:{},notes:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||"null");if(s)state=s;}catch(e){}
+if(!state.notes)state.notes={};
+let active=0;
+let openNote=null;
+
+function tk(mi,wi,ti){return mi+"_"+wi+"_"+ti;}
+function allKeys(){let a=[];PLAN.forEach((m,mi)=>m.weeks.forEach((w,wi)=>w.topics.forEach((_,ti)=>a.push(tk(mi,wi,ti)))));return a;}
+function monthKeys(mi){let a=[];PLAN[mi].weeks.forEach((w,wi)=>w.topics.forEach((_,ti)=>a.push(tk(mi,wi,ti))));return a;}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+function onCheck(k){
+  state.checked[k]=!state.checked[k];
+  save();renderStats();renderTabs();
+  const lbl=document.getElementById("lbl_"+k);
+  if(lbl){lbl.className="tlabel"+(state.checked[k]?" done":"");}
+  const cb=document.getElementById("cb_"+k);
+  if(cb){cb.checked=state.checked[k];}
+  updateWeekBar(k);
+}
+
+function updateWeekBar(k){
+  const parts=k.split("_");
+  const mi=parseInt(parts[0]),wi=parseInt(parts[1]);
+  const wkeys=PLAN[mi].weeks[wi].topics.map((_,ti)=>tk(mi,wi,ti));
+  const done=wkeys.filter(wk=>state.checked[wk]).length;
+  const pct=Math.round(done/wkeys.length*100);
+  const bar=document.getElementById("wbar_"+mi+"_"+wi);
+  const cnt=document.getElementById("cnt_"+mi+"_"+wi);
+  if(bar)bar.style.width=pct+"%";
+  if(cnt)cnt.textContent=done+"/"+wkeys.length;
+}
+
+function toggleNote(k){
+  openNote=openNote===k?null:k;
+  const area=document.getElementById("na_"+k);
+  if(area){area.className="note-area"+(openNote===k?" open":"");}
+  if(openNote===k){const inp=document.getElementById("ni_"+k);if(inp)inp.focus();}
+}
+
+function saveNote(k){
+  const el=document.getElementById("ni_"+k);
+  if(!el)return;
+  const v=el.value.trim();
+  if(v){state.notes[k]=v;}else{delete state.notes[k];}
+  openNote=null;
+  save();
+  const area=document.getElementById("na_"+k);
+  if(area)area.className="note-area";
+  const sn=document.getElementById("sn_"+k);
+  if(sn){sn.textContent=v;sn.style.display=v?"block":"none";}
+  const nb=document.getElementById("nbtn_"+k);
+  if(nb)nb.className="note-btn"+(v?" has":"");
+  document.getElementById("s-notes").textContent=Object.keys(state.notes).length;
+}
+
+function clearNote(k){
+  delete state.notes[k];
+  openNote=null;
+  save();
+  const area=document.getElementById("na_"+k);
+  if(area)area.className="note-area";
+  const sn=document.getElementById("sn_"+k);
+  if(sn)sn.style.display="none";
+  const nb=document.getElementById("nbtn_"+k);
+  if(nb)nb.className="note-btn";
+  document.getElementById("s-notes").textContent=Object.keys(state.notes).length;
+}
+
+function renderTabs(){
+  document.getElementById("tabs").innerHTML=PLAN.map((m,i)=>{
+    const keys=monthKeys(i);
+    const done=keys.filter(k=>state.checked[k]).length;
+    const full=done===keys.length&&keys.length>0;
+    const cls=i===active?"tab active":full?"tab done":"tab";
+    return `<button class="${cls}" onclick="setMonth(${i})">${m.month}</button>`;
+  }).join("");
+}
+
+function renderContent(){
+  const m=PLAN[active];
+  document.getElementById("content").innerHTML=m.weeks.map((w,wi)=>{
+    const total=w.topics.length;
+    const done=w.topics.filter((_,ti)=>state.checked[tk(active,wi,ti)]).length;
+    const pct=total?Math.round(done/total*100):0;
+    const rows=w.topics.map((tp,ti)=>{
+      const k=tk(active,wi,ti);
+      const on=!!state.checked[k];
+      const hasNote=!!state.notes[k];
+      const nb=tp.n?`<span class="nb">★</span>`:"";
+      const noteIcon=hasNote?"🗒️":"＋";
+      return `<div class="trow">
+        <div class="trow-main">
+          <input type="checkbox" id="cb_${k}" ${on?"checked":""} onchange="onCheck('${k}')">
+          <label class="tlabel${on?" done":""}" id="lbl_${k}" for="cb_${k}">${tp.t}${nb}</label>
+          <button class="note-btn${hasNote?" has":""}" id="nbtn_${k}" onclick="toggleNote('${k}')" title="${hasNote?'Edit note':'Add note'}">${noteIcon}</button>
+        </div>
+        <div class="note-area" id="na_${k}">
+          <textarea class="note-input" id="ni_${k}" placeholder="Key points, links, reminders...">${state.notes[k]||""}</textarea>
+          <div class="note-actions">
+            <button class="btn-clear" onclick="clearNote('${k}')">Clear</button>
+            <button class="btn-save" onclick="saveNote('${k}')">Save</button>
+          </div>
+        </div>
+        <div class="saved-note" id="sn_${k}" style="display:${hasNote?"block":"none"}">${(state.notes[k]||"").replace(/</g,"&lt;")}</div>
+      </div>`;
+    }).join("");
+    return `<div class="card">
+      <div class="card-head">
+        <span class="card-title">${w.title}</span>
+        <span class="card-count" id="cnt_${active}_${wi}">${done}/${total}</span>
+      </div>
+      <div class="wbar-wrap"><div class="wbar-fill" id="wbar_${active}_${wi}" style="width:${pct}%;background:${w.color}"></div></div>
+      <div class="topics">${rows}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderStats(){
+  const all=allKeys();
+  const done=all.filter(k=>state.checked[k]).length;
+  const pct=all.length?Math.round(done/all.length*100):0;
+  document.getElementById("gbar").style.width=pct+"%";
+  document.getElementById("glabel").textContent=done+" of "+all.length+" complete · "+pct+"%";
+  document.getElementById("s-total").textContent=all.length;
+  document.getElementById("s-done").textContent=done;
+  document.getElementById("s-left").textContent=all.length-done;
+  document.getElementById("s-notes").textContent=Object.keys(state.notes).length;
+}
+
+function render(){renderTabs();renderContent();renderStats();}
+function setMonth(i){active=i;openNote=null;render();}
+render();
+</script>
