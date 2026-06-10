@@ -29,6 +29,7 @@
         <module>config-server</module>
         <module>algolia</module>
         <module>fast-api</module>
+        <module>prepration</module>
     </modules>
 
     <parent>

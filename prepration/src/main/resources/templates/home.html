@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <title>Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+        }
+        .home-box {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #f44336;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+<div class="home-box">
+
+    <h2>✅ Welcome!</h2>
+
+    <!-- Shows logged in username -->
+    <p>Logged in as: <strong sec:authentication="name"></strong></p>
+
+    <!-- Logout — Spring Security handles POST /logout -->
+    <form th:action="@{/logout}" method="post">
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}"/>
+        <button type="submit"
+                style="padding:10px 20px; background:#f44336;
+                       color:white; border:none; border-radius:4px;
+                       cursor:pointer;">
+            Logout
+        </button>
+    </form>
+
+</div>
+</body>
+</html>
