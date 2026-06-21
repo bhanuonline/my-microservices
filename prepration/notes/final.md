@@ -438,4 +438,6 @@ Prefer composition over inheritance for flexibility and testability.
 
 # How is memory managed in Java?
 
+# Describe the Singleton pattern and provide an example of a thread-safe implementation in Java.
+
 
