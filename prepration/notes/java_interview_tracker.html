@@ -1,0 +1,332 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,system-ui);background:transparent;color:var(--color-text-primary,#111)}
+.app{padding:1.25rem 0}
+.hdr h1{font-size:19px;font-weight:500}
+.hdr p{font-size:12px;color:var(--color-text-secondary,#666);margin-top:3px}
+.pbar-wrap{background:var(--color-background-secondary,#f2f2f2);border-radius:100px;height:7px;margin:.6rem 0 .25rem;overflow:hidden}
+.pbar{height:100%;background:#7F77DD;border-radius:100px;transition:width .4s}
+.plbl{font-size:12px;color:var(--color-text-secondary,#666)}
+.chips{display:flex;gap:7px;margin:.75rem 0 1rem;flex-wrap:wrap}
+.chip{background:var(--color-background-secondary,#f2f2f2);border-radius:8px;padding:5px 11px;font-size:12px;color:var(--color-text-secondary,#666)}
+.chip b{color:var(--color-text-primary,#111);font-weight:500}
+.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.tab{padding:5px 13px;font-size:13px;border-radius:100px;border:.5px solid var(--color-border-tertiary,#ddd);background:var(--color-background-primary,#fff);color:var(--color-text-secondary,#666);cursor:pointer;transition:all .15s;font-family:inherit}
+.tab:hover{border-color:var(--color-border-primary,#aaa);color:var(--color-text-primary,#111)}
+.tab.act{background:#7F77DD;border-color:#7F77DD;color:#fff;font-weight:500}
+.tab.done{background:#E1F5EE;border-color:#1D9E75;color:#0F6E56}
+.ctab-wrap{position:relative;display:inline-flex}
+.tab-x{display:none;position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#e44;color:#fff;border:none;font-size:11px;line-height:16px;text-align:center;cursor:pointer;padding:0;font-family:inherit}
+.ctab-wrap:hover .tab-x{display:block}
+.add-btn{padding:5px 11px;font-size:13px;border-radius:100px;border:.5px dashed var(--color-border-tertiary,#ddd);background:none;color:var(--color-text-tertiary,#999);cursor:pointer;font-family:inherit;transition:all .15s}
+.add-btn:hover{border-color:#7F77DD;color:#7F77DD}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px}
+.card{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#ddd);border-radius:12px;padding:.85rem 1rem}
+.card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.card-ttl{font-size:13px;font-weight:500}
+.card-cnt{font-size:12px;color:var(--color-text-tertiary,#aaa)}
+.wbar-wrap{background:var(--color-background-secondary,#f2f2f2);border-radius:100px;height:3px;margin-bottom:7px;overflow:hidden}
+.wbar{height:100%;border-radius:100px;transition:width .3s}
+.rows{display:flex;flex-direction:column;gap:1px}
+.row{border-radius:6px}
+.row-main{display:flex;align-items:flex-start;gap:7px;padding:3px 4px;border-radius:6px;cursor:default}
+.row-main:hover{background:var(--color-background-secondary,#f2f2f2)}
+.cbx{appearance:none;-webkit-appearance:none;width:15px;height:15px;min-width:15px;border:1.5px solid #999;border-radius:3px;background:var(--color-background-primary,#fff);cursor:pointer;margin-top:2px;flex-shrink:0;position:relative;transition:all .15s}
+.cbx:checked{background:#7F77DD;border-color:#7F77DD}
+.cbx:checked::after{content:'✓';position:absolute;color:#fff;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-52%)}
+.lbl{font-size:12.5px;line-height:1.45;flex:1;cursor:pointer;color:var(--color-text-primary,#111)}
+.lbl.dn{color:var(--color-text-tertiary,#aaa);text-decoration:line-through}
+.star{font-size:9px;background:#FAEEDA;color:#854F0B;border-radius:100px;padding:1px 5px;margin-left:3px;font-weight:500;vertical-align:middle}
+.nbtn{background:none;border:none;cursor:pointer;padding:2px 5px;border-radius:4px;font-size:13px;color:var(--color-text-tertiary,#aaa);transition:all .15s;flex-shrink:0;font-family:inherit;line-height:1}
+.nbtn:hover,.nbtn.has{color:#7F77DD}
+.narea{display:none;padding:4px 4px 4px 22px}
+.narea.open{display:block}
+.ntxt{width:100%;font-size:12px;font-family:inherit;padding:5px 7px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;background:var(--color-background-secondary,#f2f2f2);color:var(--color-text-primary,#111);resize:none;min-height:48px;outline:none;line-height:1.5}
+.ntxt:focus{border-color:#7F77DD}
+.ntxt::placeholder{color:var(--color-text-tertiary,#aaa)}
+.nacts{display:flex;justify-content:flex-end;gap:6px;margin-top:3px}
+.bsave{font-size:11px;padding:3px 10px;border-radius:100px;border:.5px solid #7F77DD;background:#7F77DD;color:#fff;cursor:pointer;font-family:inherit}
+.bclear{font-size:11px;padding:3px 10px;border-radius:100px;border:.5px solid var(--color-border-tertiary,#ddd);background:none;color:var(--color-text-secondary,#666);cursor:pointer;font-family:inherit}
+.snote{font-size:11.5px;color:var(--color-text-secondary,#666);padding:3px 6px;margin:2px 4px 2px 22px;line-height:1.5;white-space:pre-wrap;border-left:2px solid #7F77DD;background:var(--color-background-secondary,#f2f2f2);border-radius:0 4px 4px 0}
+.add-row{display:flex;gap:6px;margin-top:9px}
+.txti{font-size:12px;font-family:inherit;padding:5px 8px;border:.5px solid var(--color-border-secondary,#ccc);border-radius:6px;background:var(--color-background-secondary,#f2f2f2);color:var(--color-text-primary,#111);outline:none;flex:1}
+.txti:focus{border-color:#7F77DD}
+.txti::placeholder{color:var(--color-text-tertiary,#aaa)}
+.del-tp{background:none;border:none;cursor:pointer;color:var(--color-text-tertiary,#aaa);font-size:15px;padding:1px 4px;border-radius:4px;line-height:1;flex-shrink:0;font-family:inherit;margin-top:1px}
+.del-tp:hover{color:#e44}
+.ref{margin-top:1.5rem}
+.ref-ttl{font-size:14px;font-weight:500;margin-bottom:.6rem}
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.ref-card{background:var(--color-background-secondary,#f2f2f2);border-radius:8px;padding:.75rem .9rem}
+.ref-card-ttl{font-size:11px;font-weight:500;color:var(--color-text-secondary,#666);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.tags{display:flex;flex-wrap:wrap;gap:4px}
+.tag{font-size:11px;padding:2px 7px;border-radius:100px;background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#ddd);color:var(--color-text-secondary,#666)}
+/* Modal - uses in-flow overlay, NOT fixed */
+.modal-wrap{display:none;position:absolute;inset:0;min-height:100%;background:rgba(0,0,0,.38);z-index:50;align-items:flex-start;justify-content:center;padding-top:60px}
+.modal-wrap.open{display:flex}
+.modal{background:var(--color-background-primary,#fff);border:.5px solid var(--color-border-tertiary,#ddd);border-radius:12px;padding:1.25rem 1.4rem;width:340px;max-width:90%}
+.modal h3{font-size:14px;font-weight:500;margin-bottom:1rem}
+.mfld{margin-bottom:10px}
+.mfld label{display:block;font-size:12px;color:var(--color-text-secondary,#666);margin-bottom:4px}
+.mfld .txti{width:100%}
+.mfld textarea.txti{resize:vertical;min-height:80px}
+.mhint{font-size:11px;color:var(--color-text-tertiary,#aaa);margin-top:3px}
+.macts{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+</style>
+<div style="position:relative" id="root">
+<div class="app">
+  <div class="hdr" style="margin-bottom:1.1rem">
+    <h1>Interview Prep Tracker</h1>
+    <p>Java / Spring Boot | June -> October  <span style="color:#854F0B">* = newly added</span></p>
+    <div class="pbar-wrap"><div class="pbar" id="gbar" style="width:0%"></div></div>
+    <div class="plbl" id="glbl">0 of 0 complete</div>
+  </div>
+  <div class="chips">
+    <div class="chip">Total: <b id="st">0</b></div>
+    <div class="chip">Done: <b id="sd">0</b></div>
+    <div class="chip">Left: <b id="sl">0</b></div>
+    <div class="chip">Notes: <b id="sn">0</b></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="content"></div>
+  <div class="ref">
+    <div class="ref-ttl">Reference areas</div>
+    <div class="ref-grid">
+      <div class="ref-card"><div class="ref-card-ttl">Leadership</div><div class="tags"><span class="tag">Architecture</span><span class="tag">Mentoring</span><span class="tag">Code reviews</span><span class="tag">Production stories</span><span class="tag">Stakeholder mgmt</span><span class="tag">Estimation</span></div></div>
+      <div class="ref-card"><div class="ref-card-ttl">Production scenarios</div><div class="tags"><span class="tag">Memory leak</span><span class="tag">High CPU</span><span class="tag">Slow API</span><span class="tag">Thread pool exhaustion</span><span class="tag">DB bottleneck</span><span class="tag">Kafka lag</span><span class="tag">GC issues</span></div></div>
+      <div class="ref-card"><div class="ref-card-ttl">AI (optional)</div><div class="tags"><span class="tag">LLM fundamentals</span><span class="tag">RAG</span><span class="tag">Vector DBs</span><span class="tag">Spring AI</span><span class="tag">AI agents</span></div></div>
+    </div>
+  </div>
+</div>
+<!-- inline modal, position:absolute inside #root which is position:relative -->
+<div class="modal-wrap" id="mwrap" onclick="bgClose(event)">
+  <div class="modal">
+    <h3>New custom tab</h3>
+    <div class="mfld"><label for="mname">Tab name</label><input class="txti" type="text" id="mname" maxlength="30" placeholder="e.g. My Focus Topics"></div>
+    <div class="mfld"><label for="mtopics">Topics (one per line, optional)</label><textarea class="txti" id="mtopics" placeholder="Spring Security deep dive&#10;Custom annotations&#10;..."></textarea><div class="mhint">You can add more topics later from the tab.</div></div>
+    <div class="macts">
+      <button class="bclear" onclick="closeModal()">Cancel</button>
+      <button class="bsave" onclick="doCreate()">Create tab</button>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const N=true;
+const PLAN=[
+{m:"June",wks:[
+  {t:"Week 1 - Core Java",c:"#7F77DD",tp:[{t:"OOP"},{t:"SOLID principles"},{t:"String & String pool"},{t:"Collections framework"},{t:"List / Set / Map"},{t:"HashMap internals"},{t:"LinkedHashMap & TreeMap"},{t:"equals() and hashCode()"},{t:"JVM architecture (JIT, bytecode, classloader)",n:N},{t:"Heap & Stack memory model",n:N},{t:"GC algorithms - G1, ZGC, Shenandoah",n:N},{t:"GC tuning & heap dumps",n:N},{t:"Exception handling best practices",n:N}]},
+  {t:"Week 2 - Java 8 -> 21",c:"#1D9E75",tp:[{t:"Lambda & method references"},{t:"Functional interfaces"},{t:"Stream API & Collectors"},{t:"Optional"},{t:"Date Time API"},{t:"Records"},{t:"Sealed classes"},{t:"Pattern matching"},{t:"Virtual threads"}]},
+  {t:"Week 3 - Multithreading",c:"#378ADD",tp:[{t:"Thread lifecycle · Runnable · Callable"},{t:"Future & CompletableFuture"},{t:"Synchronization & Volatile"},{t:"Atomic classes"},{t:"ReentrantLock & ReadWriteLock"},{t:"CountDownLatch · CyclicBarrier · Semaphore"},{t:"ThreadLocal · ForkJoinPool"},{t:"ExecutorService & ThreadPoolExecutor"},{t:"Producer-consumer · Deadlock · Race condition"}]},
+  {t:"Week 4 - Design Patterns + Spring Core",c:"#D85A30",tp:[{t:"Creational - Singleton, Factory, Builder",n:N},{t:"Structural - Proxy, Decorator, Adapter",n:N},{t:"Behavioural - Strategy, Observer, Template Method",n:N},{t:"IoC & Dependency Injection"},{t:"Bean lifecycle & scope"},{t:"AOP"},{t:"Transactions"},{t:"Spring Profiles"},{t:"Spring Events"}]}
+]},
+{m:"July",wks:[
+  {t:"Week 1 - Spring Boot + REST API",c:"#7F77DD",tp:[{t:"Auto-configuration"},{t:"Starter dependencies"},{t:"Embedded Tomcat"},{t:"Actuator"},{t:"Logging"},{t:"Configuration properties"},{t:"REST best practices & OpenAPI/Swagger",n:N},{t:"API versioning strategies",n:N},{t:"Error handling with @ControllerAdvice",n:N},{t:"RestTemplate vs WebClient",n:N},{t:"Idempotency in REST APIs",n:N}]},
+  {t:"Week 2 - JPA / Hibernate",c:"#1D9E75",tp:[{t:"Entity lifecycle & mapping"},{t:"OneToOne · OneToMany · ManyToMany"},{t:"FetchType & Cascade"},{t:"JPQL & native query"},{t:"N+1 problem"},{t:"Locking & batch processing"},{t:"Flyway & Liquibase migrations",n:N}]},
+  {t:"Week 3 - Database",c:"#378ADD",tp:[{t:"SQL & joins"},{t:"Indexes"},{t:"Transactions & ACID"},{t:"Isolation levels"},{t:"Deadlocks"},{t:"Query optimization"}]},
+  {t:"Week 4 - Testing + Spring Security",c:"#D85A30",tp:[{t:"JUnit 5 fundamentals",n:N},{t:"Mockito - mocking, stubbing, verify",n:N},{t:"@SpringBootTest & @WebMvcTest",n:N},{t:"Testcontainers",n:N},{t:"Contract testing with Pact",n:N},{t:"TDD approach & test pyramids",n:N},{t:"Authentication & authorization"},{t:"JWT"},{t:"OAuth2"},{t:"CORS & CSRF"}]}
+]},
+{m:"August",wks:[
+  {t:"Week 1 - Microservices",c:"#7F77DD",tp:[{t:"Service discovery"},{t:"API Gateway"},{t:"Config server"},{t:"Feign Client"},{t:"Circuit breaker · Retry · Timeout · Bulkhead"},{t:"Distributed tracing"},{t:"gRPC basics",n:N}]},
+  {t:"Week 2 - Kafka",c:"#1D9E75",tp:[{t:"Producer & Consumer"},{t:"Topic · Partition · Offset"},{t:"Consumer group & rebalancing"},{t:"Dead letter queue (DLQ)"},{t:"Idempotency"}]},
+  {t:"Week 3 - Redis + Reactive",c:"#378ADD",tp:[{t:"Cache-aside pattern"},{t:"TTL & cache eviction"},{t:"Distributed cache"},{t:"Cache warming"},{t:"Project Reactor - Flux & Mono",n:N},{t:"Spring WebFlux",n:N},{t:"Backpressure",n:N},{t:"Reactive vs imperative",n:N}]},
+  {t:"Week 4 - Distributed Systems",c:"#D85A30",tp:[{t:"CAP theorem"},{t:"Eventual consistency"},{t:"Saga & Outbox patterns"},{t:"CQRS & Event sourcing"},{t:"Idempotency"}]}
+]},
+{m:"September",wks:[
+  {t:"Week 1 - Architecture",c:"#7F77DD",tp:[{t:"Monolith vs microservices"},{t:"Scalability & load balancing"},{t:"Caching strategy"},{t:"API & database design"},{t:"Event-driven architecture"},{t:"Multi-tenant architecture"}]},
+  {t:"Week 2 - System Design",c:"#1D9E75",tp:[{t:"URL shortener"},{t:"Order management system"},{t:"Payment system"},{t:"Inventory system"},{t:"Notification service"}]},
+  {t:"Week 3 - Docker & Kubernetes",c:"#378ADD",tp:[{t:"Dockerfile · Images · Containers"},{t:"Docker Compose"},{t:"Pods & Deployments"},{t:"Services · ConfigMaps · Ingress"}]},
+  {t:"Week 4 - AWS & Observability",c:"#D85A30",tp:[{t:"EC2 · S3 · RDS"},{t:"Load balancer & auto scaling"},{t:"CloudWatch · ELK"},{t:"Prometheus · Grafana · OpenTelemetry"}]}
+]},
+{m:"October",wks:[
+  {t:"Week 1 - Java & Spring revision",c:"#7F77DD",tp:[{t:"Java revision"},{t:"Spring revision"},{t:"JPA revision"}]},
+  {t:"Week 2 - Services revision",c:"#1D9E75",tp:[{t:"Kafka revision"},{t:"Redis revision"},{t:"Microservices revision"}]},
+  {t:"Week 3 - Mock interviews",c:"#378ADD",tp:[{t:"System design mocks"},{t:"Architecture discussions"}]},
+  {t:"Week 4 - Final prep",c:"#D85A30",tp:[{t:"Resume review"},{t:"Leadership questions"},{t:"Behavioral questions"},{t:"Final mock interviews"}]}
+]}
+];
+
+const SK="jprep_v5";
+let S={chk:{},notes:{},tab:0,ctabs:[]};
+try{const r=JSON.parse(localStorage.getItem(SK)||"null");if(r){S.chk=r.chk||{};S.notes=r.notes||{};S.tab=r.tab||0;S.ctabs=Array.isArray(r.ctabs)?r.ctabs:[];}}catch(e){}
+let active=S.tab, openNote=null;
+
+function persist(){S.tab=active;try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}}
+
+function tk(mi,wi,ti){return mi+"_"+wi+"_"+ti;}
+function ck(ci,ti){return "c"+ci+"_"+ti;}
+function mkeys(mi){let a=[];PLAN[mi].wks.forEach((w,wi)=>w.tp.forEach((_,ti)=>a.push(tk(mi,wi,ti))));return a;}
+function ckeys(ci){return(S.ctabs[ci]||{topics:[]}).topics.map((_,ti)=>ck(ci,ti));}
+function allkeys(){
+  let a=[];
+  PLAN.forEach((_,mi)=>a=a.concat(mkeys(mi)));
+  S.ctabs.forEach((_,ci)=>a=a.concat(ckeys(ci)));
+  return a;
+}
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+function onChk(k){
+  S.chk[k]=!S.chk[k];
+  if(!S.chk[k])delete S.chk[k];
+  persist();
+  const cb=document.getElementById("cb_"+k);if(cb)cb.checked=!!S.chk[k];
+  const lb=document.getElementById("lb_"+k);if(lb)lb.className="lbl"+(S.chk[k]?" dn":"");
+  if(k.startsWith("c")){
+    const ci=parseInt(k.slice(1));
+    updCBar(ci);
+  } else {
+    const p=k.split("_"),mi=+p[0],wi=+p[1];
+    const wk=PLAN[mi].wks[wi].tp.map((_,ti)=>tk(mi,wi,ti));
+    const dn=wk.filter(x=>S.chk[x]).length;
+    const b=document.getElementById("wb_"+mi+"_"+wi),c2=document.getElementById("wc_"+mi+"_"+wi);
+    if(b)b.style.width=Math.round(dn/wk.length*100)+"%";
+    if(c2)c2.textContent=dn+"/"+wk.length;
+  }
+  renderStats();renderTabs();
+}
+function updCBar(ci){
+  const ks=ckeys(ci),dn=ks.filter(k=>S.chk[k]).length,pct=ks.length?Math.round(dn/ks.length*100):0;
+  const b=document.getElementById("cwb_"+ci),c2=document.getElementById("cwc_"+ci);
+  if(b)b.style.width=pct+"%";if(c2)c2.textContent=dn+"/"+ks.length;
+}
+
+function toggleNote(k){
+  openNote=openNote===k?null:k;
+  const a=document.getElementById("na_"+k);if(a)a.className="narea"+(openNote===k?" open":"");
+  if(openNote===k){const i=document.getElementById("ni_"+k);if(i)i.focus();}
+}
+function saveNote(k){
+  const el=document.getElementById("ni_"+k);if(!el)return;
+  const v=el.value.trim();
+  if(v)S.notes[k]=v;else delete S.notes[k];
+  openNote=null;persist();
+  const a=document.getElementById("na_"+k);if(a)a.className="narea";
+  const sn=document.getElementById("sn_"+k);if(sn){sn.textContent=v;sn.style.display=v?"block":"none";}
+  const nb=document.getElementById("nb_"+k);if(nb)nb.className="nbtn"+(v?" has":"");
+  document.getElementById("sn_stat").textContent=Object.keys(S.notes).length;
+}
+function clearNote(k){
+  delete S.notes[k];openNote=null;persist();
+  const a=document.getElementById("na_"+k);if(a)a.className="narea";
+  const sn=document.getElementById("sn_"+k);if(sn)sn.style.display="none";
+  const nb=document.getElementById("nb_"+k);if(nb)nb.className="nbtn";
+  document.getElementById("sn_stat").textContent=Object.keys(S.notes).length;
+}
+
+function rowHTML(k,label,isNew){
+  const on=!!S.chk[k],hasN=!!S.notes[k];
+  const safeN=esc(S.notes[k]||"");
+  return `<div class="row">
+  <div class="row-main">
+    <input class="cbx" type="checkbox" id="cb_${k}"${on?" checked":""} onchange="onChk('${k}')">
+    <label class="lbl${on?" dn":""}" id="lb_${k}" for="cb_${k}">${esc(label)}${isNew?'<span class="star">★</span>':""}</label>
+    <button class="nbtn${hasN?" has":""}" id="nb_${k}" onclick="toggleNote('${k}')" title="${hasN?"Edit note":"Add note"}">${hasN?"&#128221;":"+"}</button>
+  </div>
+  <div class="narea" id="na_${k}">
+    <textarea class="ntxt" id="ni_${k}" placeholder="Key points, links, reminders...">${safeN}</textarea>
+    <div class="nacts">
+      <button class="bclear" onclick="clearNote('${k}')">Clear</button>
+      <button class="bsave" onclick="saveNote('${k}')">Save</button>
+    </div>
+  </div>
+  <div class="snote" id="sn_${k}" style="display:${hasN?"block":"none"}">${safeN}</div>
+</div>`;
+}
+
+function renderTabs(){
+  const parts=PLAN.map((m,i)=>{
+    const ks=mkeys(i),dn=ks.filter(k=>S.chk[k]).length;
+    const full=dn===ks.length&&ks.length>0;
+    const cls=i===active?"tab act":full?"tab done":"tab";
+    return `<button class="${cls}" onclick="setTab(${i})">${m.m}</button>`;
+  });
+  S.ctabs.forEach((ct,ci)=>{
+    const idx=PLAN.length+ci;
+    const ks=ckeys(ci),dn=ks.filter(k=>S.chk[k]).length;
+    const full=dn===ks.length&&ks.length>0;
+    const cls=idx===active?"tab act":full?"tab done":"tab";
+    parts.push(`<span class="ctab-wrap"><button class="${cls}" onclick="setTab(${idx})">${esc(ct.name)}</button><button class="tab-x" onclick="delCTab(${ci})">×</button></span>`);
+  });
+  parts.push(`<button class="add-btn" onclick="openModal()">+ New tab</button>`);
+  document.getElementById("tabs").innerHTML=parts.join("");
+}
+
+function renderContent(){
+  if(active<PLAN.length) renderBuiltin(active);
+  else renderCustom(active-PLAN.length);
+}
+function renderBuiltin(mi){
+  document.getElementById("content").innerHTML=`<div class="grid">${PLAN[mi].wks.map((w,wi)=>{
+    const dn=w.tp.filter((_,ti)=>S.chk[tk(mi,wi,ti)]).length,tot=w.tp.length;
+    const pct=tot?Math.round(dn/tot*100):0;
+    return `<div class="card"><div class="card-hd"><span class="card-ttl">${esc(w.t)}</span><span class="card-cnt" id="wc_${mi}_${wi}">${dn}/${tot}</span></div><div class="wbar-wrap"><div class="wbar" id="wb_${mi}_${wi}" style="width:${pct}%;background:${w.c}"></div></div><div class="rows">${w.tp.map((tp,ti)=>rowHTML(tk(mi,wi,ti),tp.t,tp.n)).join("")}</div></div>`;
+  }).join("")}</div>`;
+}
+function renderCustom(ci){
+  const ct=S.ctabs[ci];if(!ct){document.getElementById("content").innerHTML="";return;}
+  const ks=ckeys(ci),dn=ks.filter(k=>S.chk[k]).length,tot=ct.topics.length;
+  const pct=tot?Math.round(dn/tot*100):0;
+  const rows=ct.topics.map((tp,ti)=>`<div style="display:flex;align-items:flex-start;gap:3px"><div style="flex:1">${rowHTML(ck(ci,ti),tp,false)}</div><button class="del-tp" onclick="delTopic(${ci},${ti})" title="Remove">×</button></div>`).join("");
+  document.getElementById("content").innerHTML=`<div class="grid"><div class="card" style="max-width:540px"><div class="card-hd"><span class="card-ttl">${esc(ct.name)}</span><span class="card-cnt" id="cwc_${ci}">${dn}/${tot}</span></div><div class="wbar-wrap"><div class="wbar" id="cwb_${ci}" style="width:${pct}%;background:#7F77DD"></div></div><div class="rows">${rows}</div><div class="add-row"><input class="txti" type="text" id="at_${ci}" placeholder="Add a topic…" onkeydown="if(event.key==='Enter')addTopic(${ci})"><button class="bsave" onclick="addTopic(${ci})">Add</button></div></div></div>`;
+}
+
+function renderStats(){
+  const all=allkeys(),dn=all.filter(k=>S.chk[k]).length,pct=all.length?Math.round(dn/all.length*100):0;
+  document.getElementById("gbar").style.width=pct+"%";
+  document.getElementById("glbl").textContent=dn+" of "+all.length+" complete · "+pct+"%";
+  document.getElementById("st").textContent=all.length;
+  document.getElementById("sd").textContent=dn;
+  document.getElementById("sl").textContent=all.length-dn;
+  document.getElementById("sn_stat").textContent=Object.keys(S.notes).length;
+}
+// patch stat id
+document.getElementById("sn").id="sn_stat";
+
+function render(){renderTabs();renderContent();renderStats();}
+function setTab(i){active=i;openNote=null;persist();render();}
+
+function openModal(){
+  document.getElementById("mname").value="";
+  document.getElementById("mtopics").value="";
+  document.getElementById("mwrap").className="modal-wrap open";
+  setTimeout(()=>document.getElementById("mname").focus(),50);
+}
+function closeModal(){document.getElementById("mwrap").className="modal-wrap";}
+function bgClose(e){if(e.target===document.getElementById("mwrap"))closeModal();}
+document.getElementById("mname").addEventListener("keydown",e=>{if(e.key==="Enter")doCreate();});
+function doCreate(){
+  const name=(document.getElementById("mname").value||"").trim();
+  if(!name){document.getElementById("mname").focus();return;}
+  const raw=document.getElementById("mtopics").value||"";
+  const topics=raw.split("\n").map(s=>s.trim()).filter(Boolean);
+  S.ctabs.push({name,topics});
+  closeModal();
+  active=PLAN.length+S.ctabs.length-1;
+  persist();render();
+}
+function delCTab(ci){
+  if(!confirm('Delete "'+S.ctabs[ci].name+'"?'))return;
+  ckeys(ci).forEach(k=>{delete S.chk[k];delete S.notes[k];});
+  S.ctabs.splice(ci,1);
+  if(active>=PLAN.length+S.ctabs.length)active=Math.max(0,PLAN.length+S.ctabs.length-1);
+  persist();render();
+}
+function addTopic(ci){
+  const inp=document.getElementById("at_"+ci);if(!inp)return;
+  const v=inp.value.trim();if(!v)return;
+  S.ctabs[ci].topics.push(v);inp.value="";
+  persist();renderContent();renderStats();renderTabs();
+  setTimeout(()=>{const el=document.getElementById("at_"+ci);if(el)el.focus();},20);
+}
+function delTopic(ci,ti){
+  for(let i=ti;i<S.ctabs[ci].topics.length;i++){delete S.chk[ck(ci,i)];delete S.notes[ck(ci,i)];}
+  S.ctabs[ci].topics.splice(ti,1);
+  persist();renderContent();renderStats();renderTabs();
+}
+render();
+</script>

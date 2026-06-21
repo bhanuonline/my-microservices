@@ -332,7 +332,7 @@ class OrderService {
     }
 }
 
-@SpringBootApplication
+//@SpringBootApplication
 public class JpaApps implements CommandLineRunner {
 
     @Autowired
