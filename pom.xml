@@ -30,6 +30,7 @@
         <module>algolia</module>
         <module>fast-api</module>
         <module>prepration</module>
+        <module>food-delivery</module>
     </modules>
 
     <parent>
