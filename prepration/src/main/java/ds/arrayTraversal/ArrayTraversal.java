@@ -20,10 +20,14 @@ public class ArrayTraversal {
         //secondLargestAndSmallestElement3(arr);
         //secondLargestAndSmallestElementBySelectionSort(arr);
         //mathOprationOnArray(arr);
-        frequencyCount(arr);
-        frequencyCountByJava8(arr);
+        //frequencyCount(arr);
+        //frequencyCountByJava8(arr);
+        findDuplicateNumber(arr);
 
 
+    }
+
+    private static void findDuplicateNumber(int[] arr) {
     }
 
     private static void frequencyCountByJava8(int[] arr) {
