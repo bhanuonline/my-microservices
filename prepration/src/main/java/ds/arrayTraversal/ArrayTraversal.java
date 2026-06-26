@@ -1,6 +1,8 @@
 package ds.arrayTraversal;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /*
 Use index when you also need to know where the maximum element is located.
@@ -9,18 +11,23 @@ if dont need index the use it for loop
  */
 public class ArrayTraversal {
     public static void main(String[] args) {
-        int[] arr={111,12,23,45,67,90,1,44,100,12};
-        findMaximumElement(arr);
-        findMinimumElement(arr);
-        otherApprochTofinNum(arr);
+        int[] arr={1,2,2,3,4,5,5,5,1,1};
+        //findMaximumElement(arr);
+        //findMinimumElement(arr);
+        //otherApprochTofindMinAndMinNum(arr);
 
-        secondLargestAndSmallestElement2(arr);
-        secondLargestAndSmallestElement3(arr);
-        secondLargestAndSmallestElement(arr);
-        mathOprationOnArray(arr);
+        //secondLargestAndSmallestElement2(arr);
+        //secondLargestAndSmallestElement3(arr);
+        //secondLargestAndSmallestElementBySelectionSort(arr);
+        //mathOprationOnArray(arr);
         frequencyCount(arr);
+        frequencyCountByJava8(arr);
 
 
+    }
+
+    private static void frequencyCountByJava8(int[] arr) {
+        Arrays.stream(arr).boxed().collect(Collectors.groupingBy(Function.identity(),Collectors.counting()));
     }
 
     public static List<Integer> findMultipleMissing(int[] arr, int n) {
@@ -69,7 +76,28 @@ public class ArrayTraversal {
         }
     }
     private static void frequencyCount(int[] arr) {
+        for (int i = 0; i < arr.length; i++) {
+            boolean alreadyCounted = false;
 
+            for (int k = 0; k < i; k++) {
+                if (arr[k] == arr[i]) {
+                    alreadyCounted = true;
+                    break;
+                }
+            }
+
+            if (alreadyCounted) {
+                continue;
+            }
+
+            int count=1;
+            for (int j = i+1; j < arr.length; j++) {
+                if(arr[j]==arr[i]){
+                    count++;
+                }
+            }
+            System.out.println("Count of "+arr[i]+":"+count);
+        }
     }
 
     private static void mathOprationOnArray(int[] arr) {
@@ -102,7 +130,7 @@ public class ArrayTraversal {
         System.out.println(k + "th Smallest = " + maxHeap.peek());
     }
 
-    private static void secondLargestAndSmallestElement(int[] arr) {
+    private static void secondLargestAndSmallestElementBySelectionSort(int[] arr) {
         int num=2;
        int n=arr.length;
         for (int i = 0; i < n-1; i++) {
@@ -152,7 +180,7 @@ public class ArrayTraversal {
         System.out.println("Second Smallest : " + secondSmallest);
     }
 
-    private static void otherApprochTofinNum(int[] arr) {
+    private static void otherApprochTofindMinAndMinNum(int[] arr) {
         int max = Arrays.stream(arr).max().getAsInt();
         int max1 = Arrays.stream(arr).max().orElseThrow();
 
