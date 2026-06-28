@@ -28,6 +28,7 @@ public class ArrayTraversal {
     }
 
     private static void findDuplicateNumber(int[] arr) {
+        Map<Integer, Long> frequency =Arrays.stream(arr).boxed().collect(Collectors.groupingBy(Function.identity(),Collectors.counting()));
     }
 
     private static void frequencyCountByJava8(int[] arr) {
@@ -105,7 +106,6 @@ public class ArrayTraversal {
     }
 
     private static void mathOprationOnArray(int[] arr) {
-
         Arrays.stream(arr).average().getAsDouble();
     }
 
