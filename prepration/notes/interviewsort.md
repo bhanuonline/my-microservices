@@ -8,7 +8,7 @@ Q. Why HashMap key usually String?
 Because immutable objects produce consistent hashCode.
 
 
-8. Describe the Singleton pattern and provide an example of a thread-safe implementation in Java.
+
 10. ow does the hashCode() method relate to the equals() method? What are the implications of overriding one but not the other?
 11. What is the purpose of the volatile keyword in Java? How does it relate to the happens-before relationship?
 12. Describe the Observer pattern and how it can be implemented using Java’s built-in classes.
