@@ -97,3 +97,34 @@ install 4 db using docker
 docker-compose up -d
 docker ps
 docker exec -it mysql-shard-1 mysql -uroot -proot urlshortener
+
+                Your Spring Boot App
+                        |
+        ---------------------------------
+        |        |        |            |
+        |        |        |            |
+     3311     3312      3313        3314
+        |        |        |            |
++---------+ +---------+ +---------+ +---------+
+|Shard 1  | |Shard 2  | |Shard 3  | |Shard 4  |
+| MySQL   | | MySQL   | | MySQL   | | MySQL   |
++---------+ +---------+ +---------+ +---------+
+
+step 2:
+docker exec -it mysql-shard-1 mysql -uroot -proot urlshortener -e "CREATE TABLE IF NOT EXISTS urls (short_code VARCHAR(10) PRIMARY KEY, long_url TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+
+docker exec -it mysql-shard-2 mysql -uroot -proot urlshortener -e "CREATE TABLE IF NOT EXISTS urls (short_code VARCHAR(10) PRIMARY KEY, long_url TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+
+docker exec -it mysql-shard-3 mysql -uroot -proot urlshortener -e "CREATE TABLE IF NOT EXISTS urls (short_code VARCHAR(10) PRIMARY KEY, long_url TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+
+docker exec -it mysql-shard-4 mysql -uroot -proot urlshortener -e "CREATE TABLE IF NOT EXISTS urls (short_code VARCHAR(10) PRIMARY KEY, long_url TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+
+docker exec -it mysql-shard-1 mysql -uroot -proot urlshortener -e "DESCRIBE urls;"
+
+testing :
+curl -X POST http://localhost:8080/api/urls \
+-H "Content-Type: application/json" \
+-d '{"longUrl": "https://example.com/some/very/long/path"}'
+curl -i http://localhost:8080/api/urls/ORZl76aemW
+Load test 
+brew install k6
