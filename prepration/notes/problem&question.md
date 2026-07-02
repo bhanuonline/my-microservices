@@ -91,3 +91,9 @@ Your Laptop
 │     ├── createShortUrl(longUrl) → generate ID → hash → pick shard → INSERT
 │     └── getLongUrl(shortCode)   → hash → pick shard → SELECT
 └── REST Controller (test endpoints)
+
+Step 1:
+install 4 db using docker
+docker-compose up -d
+docker ps
+docker exec -it mysql-shard-1 mysql -uroot -proot urlshortener
