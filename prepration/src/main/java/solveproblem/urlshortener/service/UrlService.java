@@ -2,6 +2,7 @@ package solveproblem.urlshortener.service;
 
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import solveproblem.urlshortener.sharding.ConsistentHashRing;
@@ -9,6 +10,7 @@ import solveproblem.urlshortener.sharding.SnowflakeIdGenerator;
 import solveproblem.urlshortener.util.Base62Encoder;
 
 import javax.sql.DataSource;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,13 +20,21 @@ public class UrlService {
     private final Map<String, DataSource> shardDataSources;
     private final ConsistentHashRing hashRing;
     private final SnowflakeIdGenerator idGenerator;
+    private final StringRedisTemplate redisTemplate;
+
+    // Cache entries expire after 24 hours as a safety net, even though
+    // long_url essentially never changes after creation.
+    private static final Duration CACHE_TTL = Duration.ofHours(24);
+    private static final String CACHE_KEY_PREFIX = "shorturl:";
 
     public UrlService(@Qualifier("shardDataSources") Map<String, DataSource> shardDataSources,
-                       ConsistentHashRing hashRing,
-                       SnowflakeIdGenerator idGenerator) {
+                      ConsistentHashRing hashRing,
+                      SnowflakeIdGenerator idGenerator,
+                      StringRedisTemplate redisTemplate) {
         this.shardDataSources = shardDataSources;
         this.hashRing = hashRing;
         this.idGenerator = idGenerator;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
@@ -32,7 +42,8 @@ public class UrlService {
      * 1. Generate a globally unique ID (Snowflake)
      * 2. Encode it to a short, URL-safe string (Base62)
      * 3. Determine which shard this short_code belongs to (consistent hashing)
-     * 4. Insert the row into that shard
+     * 4. Insert the row into that shard (source of truth)
+     * 5. Pre-populate the cache, since this URL is likely to be read soon
      */
     public String createShortUrl(String longUrl) {
         long id = idGenerator.generateId();
@@ -47,27 +58,47 @@ public class UrlService {
                 shortCode, longUrl
         );
 
-        System.out.printf("Created short_code=%s -> routed to %s%n", shortCode, shardId);
+        // Write-through: populate cache immediately so the very first read is fast
+        redisTemplate.opsForValue().set(CACHE_KEY_PREFIX + shortCode, longUrl, CACHE_TTL);
+
+        System.out.printf("Created short_code=%s -> routed to %s, cached%n", shortCode, shardId);
         return shortCode;
     }
 
     /**
      * Looks up the original long URL for a given short_code.
-     * Uses the SAME hashing logic to know which shard to query —
-     * this consistency is what makes routing work.
+     * Cache-aside pattern:
+     *   1. Check Redis first
+     *   2. If HIT -> return immediately, DB never touched
+     *   3. If MISS -> query the correct shard, then populate cache for next time
      */
     public Optional<String> getLongUrl(String shortCode) {
+        String cacheKey = CACHE_KEY_PREFIX + shortCode;
+
+        // 1. Check cache first
+        String cachedUrl = redisTemplate.opsForValue().get(cacheKey);
+        if (cachedUrl != null) {
+            System.out.printf("CACHE HIT for short_code=%s%n", shortCode);
+            return Optional.of(cachedUrl);
+        }
+
+        // 2. Cache miss -> fall back to the database
+        System.out.printf("CACHE MISS for short_code=%s -> querying DB%n", shortCode);
         String shardId = hashRing.getShardForKey(shortCode);
         DataSource dataSource = shardDataSources.get(shardId);
-
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
         try {
             String longUrl = jdbcTemplate.queryForObject(
                     "SELECT long_url FROM urls WHERE short_code = ?",
                     String.class,
                     shortCode
             );
-            System.out.printf("Looked up short_code=%s -> found on %s%n", shortCode, shardId);
+
+            // 3. Populate cache so subsequent reads are fast
+            redisTemplate.opsForValue().set(cacheKey, longUrl, CACHE_TTL);
+
+            System.out.printf("Looked up short_code=%s -> found on %s, cached for next time%n", shortCode, shardId);
             return Optional.ofNullable(longUrl);
         } catch (Exception e) {
             System.out.printf("short_code=%s not found on %s%n", shortCode, shardId);
