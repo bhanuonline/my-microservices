@@ -4,7 +4,7 @@ import { check } from 'k6';
 // ============================================================
 // SINGLE SOURCE OF TRUTH — change ONLY this value to adjust load.
 // ============================================================
-const TARGET_RATE = 15000;
+const TARGET_RATE = 200;
 const NUM_URLS_TO_SEED = 50; // how many real short codes to create before the read test
 
 export const options = {

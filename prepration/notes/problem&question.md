@@ -369,3 +369,9 @@ Re-run the read load test (`./run-read-test.sh`) and compare throughput/latency 
 5. **Local, single-machine testing has real limits** — shared CPU across app + load generator + multiple DBs produces bottlenecks that don't reflect real production behavior (separate dedicated machines per component).
 6. **Sharding ≠ solves CPU contention** — it solves data/throughput distribution across dedicated hardware.
 7. **Caching is essential for read-heavy systems** — especially when data is rarely updated after creation, as with short URLs.
+8. Phase 1: Close the loop on caching        (finish what you started)
+   Phase 2: Horizontal scaling (load balancer)
+   Phase 3: Observability (Prometheus + Grafana)
+   Phase 4: Resilience (circuit breakers, failure testing)
+   Phase 5: Async analytics (Kafka)
+   Phase 6: Broader concepts (rate limiting, replication, idempotency, CAP theorem)
