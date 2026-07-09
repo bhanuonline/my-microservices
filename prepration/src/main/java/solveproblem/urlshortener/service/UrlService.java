@@ -105,4 +105,27 @@ public class UrlService {
             return Optional.empty();
         }
     }
+
+    /**
+     * INTENTIONALLY BUGGY — for learning purposes.
+     * Updates the long_url in the database ONLY.
+     * Does NOT touch Redis. This will cause stale reads:
+     * the DB has the new value, but Redis keeps serving the OLD value
+     * until the TTL (24h) expires.
+     *
+     * We'll fix this once we've observed the bug.
+     */
+    public boolean updateLongUrlBuggy(String shortCode, String newLongUrl) {
+        String shardId = hashRing.getShardForKey(shortCode);
+        DataSource dataSource = shardDataSources.get(shardId);
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        int rowsUpdated = jdbcTemplate.update(
+                "UPDATE urls SET long_url = ? WHERE short_code = ?",
+                newLongUrl, shortCode
+        );
+
+        System.out.printf("[BUGGY UPDATE] short_code=%s -> DB updated on %s, Redis NOT touched (bug)%n", shortCode, shardId);
+        return rowsUpdated > 0;
+    }
 }
