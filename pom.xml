@@ -27,10 +27,11 @@
         <module>client-app</module>
         <module>spring-security-apps</module>
         <module>config-server</module>
-        <module>algolia</module>
-        <module>fast-api</module>
+
+
         <module>prepration</module>
         <module>food-delivery</module>
+        <module>angle-app</module>
     </modules>
 
     <parent>
@@ -95,6 +96,10 @@
             <artifactId>jakarta.servlet-api</artifactId>
             <version>6.0.0</version> <!-- matches Jakarta EE 10 -->
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
         </dependency>
     </dependencies>
 
