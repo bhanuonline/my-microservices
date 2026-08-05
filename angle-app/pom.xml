@@ -51,6 +51,12 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
+        <!--using Thymeleaf with Spring Security extras, you don't even need to pass the username from the controller.-->
+        <dependency>
+            <groupId>org.thymeleaf.extras</groupId>
+            <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+        </dependency>
+
         <!-- Web Jar -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

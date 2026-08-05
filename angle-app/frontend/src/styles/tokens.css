@@ -1,0 +1,20 @@
+:root {
+  --paper: #F6F8FB;
+  --panel: #EEF2F8;
+  --ink: #10182B;
+  --muted: #667085;
+  --line: #E1E7F0;
+  --white: #FFFFFF;
+  --green: #0E9F6E;
+  --green-deep: #0B7A55;
+  --amber: #F2B705;
+  --red: #E4483A;
+
+  --font-display: 'Fraunces', serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 43, 0.04), 0 1px 1px rgba(16, 24, 43, 0.03);
+  --shadow-md: 0 12px 32px -12px rgba(16, 24, 43, 0.18);
+  --shadow-lg: 0 24px 60px -20px rgba(16, 24, 43, 0.22);
+}

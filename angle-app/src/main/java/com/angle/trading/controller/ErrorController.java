@@ -1,0 +1,1 @@
+package com.angle.trading.controller;public class ErrorController {}

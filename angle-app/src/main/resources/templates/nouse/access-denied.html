@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access denied — Mini App</title>
+    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <div class="status-icon danger">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M9 9 L15 15 M15 9 L9 15" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h1>403 — Access denied</h1>
+        <p class="subtitle">
+            Signed in as <b th:text="${user}">alex</b>, but this account doesn't have the
+            <code class="mono">ADMIN</code> role this page requires.
+        </p>
+
+        <a th:href="@{/miniapp/welcome}" class="submit">Back to dashboard</a>
+    </div>
+</div>
+</body>
+</html>

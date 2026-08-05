@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit log — Mini App</title>
+    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+</head>
+<body class="shell">
+
+<header class="navbar">
+    <div class="navbar-brand"><span class="dot"></span>Mini App</div>
+    <nav class="navbar-links">
+        <a th:href="@{/miniapp/welcome}">Dashboard</a>
+        <a th:href="@{/miniapp/admin}" th:if="${isAdmin}">Admin</a>
+        <a th:href="@{/miniapp/audit-log}" class="active">Audit log</a>
+    </nav>
+    <div class="navbar-user">
+        <span class="who">Signed in as <b th:text="${user}">alex</b></span>
+        <a th:href="@{/miniapp/logout}" class="signout">Sign out</a>
+    </div>
+</header>
+
+<div class="shell-content">
+    <div class="page-head">
+        <span class="kicker">Security events</span>
+        <h1>Authentication log</h1>
+        <p>Every successful and failed login attempt, populated from an
+           <code class="mono">AuthenticationSuccessEvent</code> / <code class="mono">AuthenticationFailureBadCredentialsEvent</code> listener.</p>
+    </div>
+
+    <div class="table-card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Username</th>
+                    <th>IP address</th>
+                    <th>Result</th>
+                </tr>
+            </thead>
+            <tbody th:if="${events != null}">
+                <tr th:each="e : ${events}">
+                    <td class="mono" th:text="${e.timestamp}">2026-08-02 09:14:02</td>
+                    <td th:text="${e.username}">alex</td>
+                    <td class="mono" th:text="${e.ip}">10.0.0.14</td>
+                    <td>
+                        <span class="badge badge-success" th:if="${e.success}">Success</span>
+                        <span class="badge badge-fail" th:unless="${e.success}">Failed</span>
+                    </td>
+                </tr>
+            </tbody>
+
+            <!-- Static fallback rows for preview before ${events} is wired up -->
+            <tbody th:unless="${events != null}">
+                <tr>
+                    <td class="mono">2026-08-02 09:14:02</td>
+                    <td>alex</td>
+                    <td class="mono">10.0.0.14</td>
+                    <td><span class="badge badge-success">Success</span></td>
+                </tr>
+                <tr>
+                    <td class="mono">2026-08-02 09:12:41</td>
+                    <td>alex</td>
+                    <td class="mono">10.0.0.14</td>
+                    <td><span class="badge badge-fail">Failed</span></td>
+                </tr>
+                <tr>
+                    <td class="mono">2026-08-02 08:02:15</td>
+                    <td>admin</td>
+                    <td class="mono">10.0.0.9</td>
+                    <td><span class="badge badge-success">Success</span></td>
+                </tr>
+                <tr>
+                    <td class="mono">2026-07-29 16:47:38</td>
+                    <td>jordan</td>
+                    <td class="mono">203.0.113.4</td>
+                    <td><span class="badge badge-fail">Failed</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script th:src="@{/miniapp/app.js}"></script>
+</body>
+</html>

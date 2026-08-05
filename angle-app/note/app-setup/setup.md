@@ -44,3 +44,7 @@ The jar produced by `mvn package` lands at `target/angle-app-<version>.jar`, nam
 
 Generate the Maven Wrapper (Recommended)
 mvn wrapper:wrapper
+
+get static ip for app setup angle eone
+https://ifconfig.me/
+https://whatismyipaddress.com
