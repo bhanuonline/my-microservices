@@ -16,7 +16,7 @@ mvn clean compile
 mvn spring-boot:run
 ```
 
-App boots on `http://localhost:8080`. Look for `Started AngleAppApplication` in the logs.
+App boots on `http://localhost:9010`. Look for `Started AngleAppApplication` in the logs.
 
 **Package as a jar and run without Maven:**
 ```bash

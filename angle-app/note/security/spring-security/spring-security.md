@@ -98,6 +98,15 @@ Two words that sound similar but do different things.
 | **Example** | Verifying password | Checking role / permission |
 | **Happens** | Once, at login | On every protected request |
 
+Ex: 
+
+| Airport           | Spring Security         |
+| ----------------- | ----------------------- |
+| Airport Manager   | **FilterChainProxy**    |
+| Security Lane     | **SecurityFilterChain** |
+| Security Officers | **VirtualFilterChain**  |
+
+
 You almost always do **authentication first**, then **authorization** on each request.
 
 ---
@@ -779,3 +788,193 @@ Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 ## The one-line summary
 
 > **Spring Security is a filter chain that runs before your controllers to answer two questions: *who are you* (authentication) and *are you allowed* (authorization). It's auto-configured with safe-but-annoying defaults. Your `SecurityConfig` is how you replace those defaults with your own rules that match your app's actual URLs and users.**
+
+## Q:Why do we need multiple SecurityFilterChains?
+
+>  Different parts of an application often require different security policies. For example, a REST API may use JWT authentication, an admin portal may use OAuth2 with MFA, and a public website may allow anonymous access. Instead of applying the same filters to every request, Spring Security allows multiple SecurityFilterChains. FilterChainProxy evaluates each chain in order, selects the first one whose request matcher matches the incoming request, and executes only the filters configured for that chain
+## Q what is decide FilterChainProxy?
+>  FilterChainProxy decides which SecurityFilterChain to use by evaluating them one by one. @Order determines the sequence in which those chains are evaluated. FilterChainProxy does not sort or prioritize chains itself—it simply iterates over the ordered list provided by the Spring container.
+## Q: Why do we need @Order if FilterChainProxy already matches the request?
+> Because a single request can match more than one SecurityFilterChain. FilterChainProxy does not evaluate all matching chains and choose the most specific one. It simply iterates through the configured chains and selects the first matching chain. @Order determines that evaluation order, ensuring that more specific chains (like /admin/**) are checked before broader chains (like /**).
+
+## Q1: Why multiple chains — can't one handle everything?
+> Because different URL groups need completely different security rules that are hard to fit in one chain.
+  Example: browser pages need session + CSRF + form login. REST APIs need stateless + no CSRF + JWT. If you try to do both in ONE chain, you end up with tangled if URL starts with /api logic everywhere. Two chains = clean separation.
+
+## Q2: When do you need multiple? (example)
+
+    Most common scenario: Browser UI + REST API in the same app.
+    
+    @Bean @Order(1)
+    SecurityFilterChain apiChain(HttpSecurity http) {
+    http.securityMatcher("/api/**")     // ← only /api/* URLs
+    .csrf(c -> c.disable())
+    .sessionManagement(s -> s.sessionCreationPolicy(STATELESS))
+    .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+    .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
+    return http.build();
+    }
+    
+    @Bean @Order(2)
+    SecurityFilterChain webChain(HttpSecurity http) {
+    http.authorizeHttpRequests(a -> a
+    .requestMatchers("/auth/**").permitAll()
+    .anyRequest().authenticated())
+    .formLogin(f -> f.loginPage("/auth/login"));
+    return http.build();
+    }
+    
+    Other scenarios: admin console + public site, multi-tenant app, actuator endpoints with different auth.
+
+## Q3: Who picks which chain runs?
+
+    FilterChainProxy. For each incoming request:
+    - Goes through chains in @Order sequence (lowest number first)
+    - Checks the securityMatcher(...) on each chain
+    - First match wins — that chain runs, others are skipped
+
+    So /api/holdings → matches chain #1 → API chain runs. /dashboard → doesn't match #1 → matches #2 (no matcher = catch-all) → web chain runs.
+    Key rule: put the more specific chain first (lower @Order), the catch-all last.
+
+## Q:At startup app what happen ?
+
+    | Component             | Startup                    | Every Request                         |
+    | --------------------- | -------------------------- | ------------------------------------- |
+    | DelegatingFilterProxy | ✅ Created/registered       | ✅ `doFilter()` called                 |
+    | FilterChainProxy      | ✅ Created as a Spring bean | ✅ `doFilter()` called                 |
+    | SecurityFilterChain   | ✅ Built once               | ❌ Not rebuilt; only selected and used |
+    
+                        Startup
+                       │
+                       ▼
+    Create DelegatingFilterProxy      (Once)
+    
+    Create FilterChainProxy           (Once)
+    
+    Build SecurityFilterChains        (Once)
+    
+    --------------------------------------------
+    
+                 Every HTTP Request
+                       │
+                       ▼
+    DelegatingFilterProxy.doFilter()
+    
+                    ↓
+                    
+                    FilterChainProxy.doFilter()
+                    
+                    ↓
+                    
+                    Find Matching SecurityFilterChain
+                    
+                    ↓
+                    
+                    Execute Filters
+                    
+                    ↓
+                    
+                    DispatcherServlet
+
+## Q: Are DelegatingFilterProxy, FilterChainProxy, and SecurityFilterChain executed only during startup or on every request?
+
+    Configured at startup. Executed every request.
+
+    ┌───────────────────────┬───────────────────────────────────────────────────────────────┬────────────────────────────────────────────┐
+    │       Component       │                            Startup                            │               Every request                │
+    ├───────────────────────┼───────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
+    │ DelegatingFilterProxy │ Created once, registered with Tomcat                          │ doFilter() runs                            │
+    ├───────────────────────┼───────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
+    │ FilterChainProxy      │ Created once, holds the list of all SecurityFilterChain beans │ doFilter() runs — picks the matching chain │
+    ├───────────────────────┼───────────────────────────────────────────────────────────────┼────────────────────────────────────────────┤
+    │ SecurityFilterChain   │ Configured once (rules + filter list built)                   │ Its filters execute in order               │
+    └───────────────────────┴───────────────────────────────────────────────────────────────┴────────────────────────────────────────────┘
+    
+    SecurityFilterChain → Defines which security filters should be applied for a matching request.
+    FilterChainProxy → Selects the first matching SecurityFilterChain for the request.
+    VirtualFilterChain → Executes the filters in the selected SecurityFilterChain one by one.
+
+    So: beans built at startup, filter methods called on every incoming HTTP request.
+
+                        Request
+                           │
+                           ▼
+                  DelegatingFilterProxy
+                           │
+                           ▼
+                   FilterChainProxy
+                           │
+          Select matching SecurityFilterChain
+                           │
+                           ▼
+          SecurityFilterChain (Configuration)
+                           │
+            Contains List<Filter>
+                           │
+                           ▼
+                  VirtualFilterChain
+                           │
+           Executes filters one by one
+                           │
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                 ▼
+    SecurityContext   Authentication   Authorization
+    Filter             Filter           Filter
+
+## Q: Servlet Filter vs Spring Security Filter
+    
+    | Servlet Filter                                                           | Spring Security Filter                                                                    |
+    | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+    | Registered with Tomcat                                                   | Registered inside `SecurityFilterChain`                                                   |
+    | Runs as part of the servlet filter chain                                 | Runs inside Spring Security after `DelegatingFilterProxy`                                 |
+    | Implement `Filter`                                                       | Usually extend `OncePerRequestFilter`                                                     |
+    | Configured in `web.xml` (traditional) or `FilterRegistrationBean` (Boot) | Configured using `HttpSecurity.addFilterBefore()`, `addFilterAfter()`, or `addFilterAt()` |
+
+## Q : Spring Boot auto-registers any Filter?
+    Because Spring Boot auto-registers any Filter bean into Tomcat's servlet filter chain — not Spring Security's chain.
+    
+    Why it runs
+    
+    Your class has:
+    - @Component → Spring makes it a bean
+      - extends OncePerRequestFilter → which implements jakarta.servlet.Filter
+    
+    Spring Boot has a rule: any Filter bean in the context is automatically added to the servlet filter chain by Tomcat. It runs on every request, regardless of SecurityFilterChain config.
+    
+    Two filter chains exist (not the same thing)
+    
+    Request
+    │
+    ▼
+    Tomcat's Servlet Filter chain          ← LoggingFilter runs HERE (before Spring Security)
+    │
+    ▼
+    DelegatingFilterProxy
+    │
+    ▼
+    Spring Security's SecurityFilterChain  ← where CsrfFilter, LogoutFilter, etc. live
+    │
+    ▼
+    DispatcherServlet → Controller
+    
+    To disable auto-registration
+    
+    Option 1 — remove @Component.
+    
+    Option 2 — explicitly register and disable:
+    
+    @Bean
+    public FilterRegistrationBean<LoggingFilter> disableLoggingFilter(LoggingFilter filter) {
+    FilterRegistrationBean<LoggingFilter> bean = new FilterRegistrationBean<>(filter);
+    bean.setEnabled(false);
+    return bean;
+    }
+    
+    To scope it to specific URLs only
+    
+    @Bean
+    public FilterRegistrationBean<LoggingFilter> loggingFilter(LoggingFilter filter) {
+    FilterRegistrationBean<LoggingFilter> bean = new FilterRegistrationBean<>(filter);
+    bean.addUrlPatterns("/api/*");  // only for /api/*
+    return bean;
+    }
