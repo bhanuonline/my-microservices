@@ -1,0 +1,1 @@
+> Set Up Plan- ORB- Alligator- HA candle confirm with ORB and trend should be there- ORB breakout → strong candle → volume → Alligator → ADX → available room → entry## Good signal![img_1.png](img_1.png)2-![img_7.png](img_7.png)## Flase signal![img_2.png](img_2.png)2-![img_4.png](img_4.png)3-![img_5.png](img_5.png)## Reverse signal![img_3.png](img_3.png)
