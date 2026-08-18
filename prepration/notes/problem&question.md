@@ -375,3 +375,18 @@ Re-run the read load test (`./run-read-test.sh`) and compare throughput/latency 
    Phase 4: Resilience (circuit breakers, failure testing)
    Phase 5: Async analytics (Kafka)
    Phase 6: Broader concepts (rate limiting, replication, idempotency, CAP theorem)
+
+# Create
+curl -X POST http://localhost:8080/api/urls -H "Content-Type: application/json" -d '{"longUrl": "https://original-2.com"}'
+# note the shortCode, e.g. AbC456
+
+# Confirm original
+curl http://localhost:8080/api/urls/AbC456
+
+# Update using the FIXED endpoint
+curl -X PUT http://localhost:8080/api/urls/AbC456/fixed -H "Content-Type: application/json" -d '{"longUrl": "https://NEW-2.com"}'
+
+# Read again immediately
+curl http://localhost:8080/api/urls/AbC456
+
+### Phase 2: Horizontal Scaling (Load Balancer)

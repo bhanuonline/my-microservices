@@ -40,4 +40,34 @@ public class UrlController {
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "short_code not found")));
     }
+
+    // PUT /api/urls/{shortCode}  { "longUrl": "https://new-destination.com" }
+    // INTENTIONALLY BUGGY: updates DB only, leaves Redis stale.
+    @PutMapping("/{shortCode}")
+    public ResponseEntity<?> updateLongUrlBuggy(@PathVariable String shortCode, @RequestBody Map<String, String> body) {
+        String newLongUrl = body.get("longUrl");
+        if (newLongUrl == null || newLongUrl.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "longUrl is required"));
+        }
+        boolean updated = urlService.updateLongUrlBuggy(shortCode, newLongUrl);
+        if (!updated) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "short_code not found"));
+        }
+        return ResponseEntity.ok(Map.of("message", "Updated in DB. Try GET now — watch for stale cache."));
+    }
+
+    // PUT /api/urls/{shortCode}/fixed  { "longUrl": "https://new-destination.com" }
+    // FIXED: updates DB and Redis together, no staleness.
+    @PutMapping("/{shortCode}/fixed")
+    public ResponseEntity<?> updateLongUrlFixed(@PathVariable String shortCode, @RequestBody Map<String, String> body) {
+        String newLongUrl = body.get("longUrl");
+        if (newLongUrl == null || newLongUrl.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "longUrl is required"));
+        }
+        boolean updated = urlService.updateLongUrl(shortCode, newLongUrl);
+        if (!updated) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "short_code not found"));
+        }
+        return ResponseEntity.ok(Map.of("message", "Updated in DB AND Redis. GET will now return the new value immediately."));
+    }
 }
