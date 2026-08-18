@@ -1,4 +1,5 @@
 **Singleton Pattern**
+Singleton is used when there must be exactly one instance because multiple instances would cause incorrect behavior
 The Singleton pattern is a creational design pattern that ensures a class has only one instance throughout the application's lifecycle, while providing a global access point to that instance.
 Key Characteristics
 

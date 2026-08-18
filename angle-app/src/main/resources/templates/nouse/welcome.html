@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Mini App</title>
+    <link rel="stylesheet" th:href="@{/js/style.css}">
+</head>
+<body class="shell">
+
+<header class="navbar">
+    <div class="navbar-brand"><span class="dot"></span>Mini App</div>
+    <nav class="navbar-links">
+        <a th:href="@{/auth/welcome}" class="active">Dashboard</a>
+        <a th:href="@{/auth/admin}" th:if="${isAdmin}">Admin</a>
+        <a th:href="@{/auth/audit-log}">Audit log</a>
+    </nav>
+    <div class="navbar-user">
+        <span class="who">Signed in as <b th:text="${user}">alex</b></span>
+
+        <form th:action="@{/auth/logout}" method="post">
+            <button type="submit" class="signout">
+                Sign out
+            </button>
+        </form>
+    </div>
+</header>
+
+<div class="shell-content">
+    <div class="wrap card-lg" style="margin:0;">
+        <div class="card">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <h1 style="margin-bottom:0;">Welcome, <span th:text="${user}">User</span></h1>
+                <span class="badge badge-admin" th:if="${isAdmin}">ADMIN</span>
+                <span class="badge badge-user" th:unless="${isAdmin}">USER</span>
+            </div>
+            <p class="subtitle">You are signed in.</p>
+
+            <div class="info-grid">
+                <div class="info">
+                    <div class="info-label">Username</div>
+                    <div class="info-value" th:text="${user}">alex</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Current time</div>
+                    <div class="info-value mono" id="clock">--:--:--</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Auth method</div>
+                    <div class="info-value" th:text="${authMethod} ?: 'Form login'">Form login</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Session started</div>
+                    <div class="info-value mono" th:text="${sessionStart} ?: '--:--:--'">10:42:03</div>
+                </div>
+            </div>
+            <form th:action="@{/auth/logout}" method="post">
+                <button type="submit" class="submit logout">
+                    Sign out
+                </button>
+            </form>
+           <!-- <a th:href="@{/auth/logout}" class="submit logout">Sign out</a>-->
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

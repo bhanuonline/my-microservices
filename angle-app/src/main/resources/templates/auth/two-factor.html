@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify it's you — Meridian</title>
+    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <h1>Verify it's you</h1>
+        <p class="subtitle">Enter the 6-digit code we sent to your authenticator app.</p>
+
+        <div class="error" th:if="${error}" th:text="${error}">Incorrect code. Try again.</div>
+
+        <form th:action="@{/miniapp/2fa}" method="post" id="otpForm">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="code" id="otpValue">
+
+            <div class="otp-row">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
+            </div>
+
+            <div class="otp-meta">
+                Didn't get a code? <a href="#">Resend</a>
+            </div>
+
+            <button type="submit" class="submit">Verify</button>
+        </form>
+    </div>
+</div>
+
+<script th:src="@{/miniapp/app.js}"></script>
+</body>
+</html>

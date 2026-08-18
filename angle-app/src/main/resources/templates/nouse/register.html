@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create account — Mini App</title>
+    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <h1>Create your account</h1>
+        <p class="subtitle">Passwords are hashed with BCrypt before they ever touch the database.</p>
+
+        <div class="error" th:if="${error}" th:text="${error}">Username already taken.</div>
+
+        <form th:action="@{/miniapp/register}" method="post" id="registerForm">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+            <div class="field">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" th:value="${username}"
+                       required autofocus autocomplete="username">
+            </div>
+
+            <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" th:value="${email}"
+                       required autocomplete="email">
+            </div>
+
+            <div class="field">
+                <label for="password">Password</label>
+                <div class="password-wrap">
+                    <input type="password" id="password" name="password"
+                           required autocomplete="new-password" minlength="8">
+                    <button type="button" class="toggle" data-target="password">Show</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="confirmPassword">Confirm password</label>
+                <div class="password-wrap">
+                    <input type="password" id="confirmPassword" name="confirmPassword"
+                           required autocomplete="new-password" minlength="8">
+                    <button type="button" class="toggle" data-target="confirmPassword">Show</button>
+                </div>
+            </div>
+
+            <button type="submit" class="submit">Create account</button>
+        </form>
+
+        <div class="link-row">
+            Already have an account? <a th:href="@{/miniapp/login}">Sign in</a>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/miniapp/app.js}"></script>
+</body>
+</html>

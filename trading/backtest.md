@@ -1,0 +1,1 @@
+# 17Aug-21 AugMonthly HA candle > strong bulishWeekly HA candle > indecision → WAIT, green candle both side wicks , upper side more , down side less > selling presure# 18 Aug

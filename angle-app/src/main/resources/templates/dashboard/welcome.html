@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Meridian</title>
+    <link rel="stylesheet" th:href="@{/js/style.css}">
+</head>
+<body class="shell">
+
+<header class="navbar">
+    <div class="navbar-brand"><span class="dot"></span>Meridian</div>
+    <nav class="navbar-links">
+        <a th:href="@{/dashboard/welcome}" class="active">Dashboard</a>
+        <a th:href="@{/auth/admin}" th:if="${isAdmin}">Admin</a>
+        <a th:href="@{/auth/audit-log}">Audit log</a>
+    </nav>
+    <div class="navbar-user">
+        <div class="notif-wrap">
+            <button class="notif-bell" id="notifBell" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
+                <span class="notif-count" th:text="${notifCount} ?: (${isAdmin} ? '4' : '2')">2</span>
+            </button>
+            <div class="notif-panel" id="notifPanel">
+                <div class="notif-panel-title">Notifications</div>
+
+                <div class="notif-item" th:if="${isAdmin}">
+                    <svg class="danger" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                    <div>
+                        <div class="notif-text">Account locked: <b>jordan</b> (5 failed attempts)</div>
+                        <div class="notif-time">12 min ago</div>
+                    </div>
+                </div>
+                <div class="notif-item" th:if="${isAdmin}">
+                    <svg class="pro" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c0-3.5 2.8-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M17 8v6M20 11h-6" stroke-linecap="round"/></svg>
+                    <div>
+                        <div class="notif-text">New user registered: <b>sam</b></div>
+                        <div class="notif-time">1 hour ago</div>
+                    </div>
+                </div>
+
+                <div class="notif-item">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
+                    <div>
+                        <div class="notif-text">New sign-in from Chrome · Windows</div>
+                        <div class="notif-time">2 min ago</div>
+                    </div>
+                </div>
+                <div class="notif-item">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 4h4v4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <div>
+                        <div class="notif-text">Password changed successfully</div>
+                        <div class="notif-time">Yesterday</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <span class="who">Signed in as <b th:text="${user}">alex</b></span>
+        <form th:action="@{/auth/logout}" method="post">
+            <button type="submit" class="signout">
+                Sign out
+            </button>
+        </form>
+    </div>
+</header>
+
+<div class="shell-content">
+    <div class="wrap card-lg" style="margin:0;">
+        <div class="card">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <h1 style="margin-bottom:0;">Welcome, <span th:text="${user}">User</span></h1>
+                <span class="badge badge-admin" th:if="${isAdmin}">Admin</span>
+                <span class="badge badge-user" th:unless="${isAdmin}">User</span>
+            </div>
+            <p class="subtitle">You are signed in.</p>
+
+            <div class="warning-banner" th:if="${isAdmin}">
+                <span th:text="${lockedCount} ?: 2">2</span> accounts locked ·
+                <span th:text="${failedLogins} ?: 5">5</span> failed logins today
+            </div>
+
+            <div class="info-grid">
+                <div class="info">
+                    <div class="info-label">Username</div>
+                    <div class="info-value" th:text="${user}">alex</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Current time</div>
+                    <div class="info-value mono" id="clock">--:--:--</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Auth method</div>
+                    <div class="info-value" th:text="${authMethod} ?: 'Form login'">Form login</div>
+                </div>
+                <div class="info">
+                    <div class="info-label">Session started</div>
+                    <div class="info-value mono" th:text="${sessionStart} ?: '--:--:--'">10:42:03</div>
+                </div>
+            </div>
+
+            <label style="display:block; margin-bottom:8px;">Quick links</label>
+            <div class="quick-links" style="margin-bottom:24px;">
+                <a th:href="@{/auth/admin}" class="quick-link emph" th:if="${isAdmin}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L20 6 V12 C20 17 16.5 20.7 12 22 C7.5 20.7 4 17 4 12 V6 Z" stroke-linejoin="round"/></svg>
+                    Admin panel
+                </a>
+                <a th:href="@{/auth/audit-log}" class="quick-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>
+                    Audit log
+                </a>
+                <a href="#" class="quick-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+                    Settings
+                </a>
+            </div>
+
+            <form th:action="@{/auth/logout}" method="post">
+                <button type="submit" class="submit logout">
+                    Sign out
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
