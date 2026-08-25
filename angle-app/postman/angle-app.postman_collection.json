@@ -2,31 +2,36 @@
   "info": {
     "_postman_id": "a1c2d3e4-f5b6-7890-abcd-ef1234567890",
     "name": "AngleApp",
-    "description": "Full API surface for angle-app. Import the AngleApp Local environment before running any request.\n\nSecurity notes:\n- `/api/**` uses HTTP Basic (user: alex / demo123). Toggle collection auth or per-folder auth if security is on.\n- Web routes (dashboard, admin, auth) use session cookies. Log in via `/auth/login` first — Postman keeps the JSESSIONID cookie automatically.\n- Run with `spring.profiles.active=nosec` locally to skip auth entirely.",
+    "description": "Full API surface for angle-app — analysis, instruments, paper trading (replay + live NSE + live MCX), and auth.\n\nUsage: import both this collection AND the AngleApp Local environment; then top-right dropdown → select the environment.\n\nAuth: collection root uses HTTP Basic (alex/demo123). Auth/Home/Dashboard folders override to no-auth. Admin folder uses admin credentials. If you run with spring.profiles.active=nosec, set collection Auth to No Auth.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
     "type": "basic",
     "basic": [
-      {
-        "key": "username",
-        "value": "{{username}}",
-        "type": "string"
-      },
-      {
-        "key": "password",
-        "value": "{{password}}",
-        "type": "string"
-      }
+      { "key": "username", "value": "{{username}}", "type": "string" },
+      { "key": "password", "value": "{{password}}", "type": "string" }
     ]
   },
   "item": [
     {
-      "name": "Analysis",
-      "description": "Backtesting and candle-fetch endpoints.",
+      "name": "Analysis — Backtest & Strategies",
+      "description": "Backtest strategies against the bundled Nifty CSV.",
       "item": [
         {
-          "name": "Run backtest on Nifty CSV",
+          "name": "List available strategies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/strategies",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "strategies"]
+            },
+            "description": "Returns every registered strategy name — use one of these as ?strategy=..."
+          }
+        },
+        {
+          "name": "Backtest (default strategy)",
           "request": {
             "method": "GET",
             "header": [],
@@ -35,11 +40,227 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "analysis", "backtest"]
             },
-            "description": "Runs the default strategy (moving-average-crossover) on the local Nifty CSV file and returns a BacktestResult."
+            "description": "Runs the strategy configured as analysis.strategy.default-strategy."
           }
         },
         {
-          "name": "Get candles — Nifty 50 (index)",
+          "name": "Backtest — SMA crossover",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=moving-average-crossover",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "moving-average-crossover" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — RSI mean reversion",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=rsi-mean-reversion",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "rsi-mean-reversion" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — MACD crossover",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=macd-crossover",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "macd-crossover" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — OB retest (SMC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=ob-retest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "ob-retest" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — Sweep + FVG (SMC)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=sweep-fvg",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "sweep-fvg" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — Ensemble (tune minAgreement)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=ensemble&minAgreement={{minAgreement}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [
+                { "key": "strategy",     "value": "ensemble" },
+                { "key": "minAgreement", "value": "{{minAgreement}}", "description": "1..5 — override the configured default" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analysis — Analyst (buy/sell decision)",
+      "description": "One-shot analyst report combining every strategy's view + SMC context into a single recommendation.",
+      "item": [
+        {
+          "name": "Analyst (CSV — no broker needed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/analyst",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "analyst"]
+            }
+          }
+        },
+        {
+          "name": "Analyst — Live Nifty (NSE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/analyst?broker={{broker}}&exchange={{exchange}}&symbolToken={{nifty50Token}}&interval={{interval}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "analyst"],
+              "query": [
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchange}}" },
+                { "key": "symbolToken", "value": "{{nifty50Token}}" },
+                { "key": "interval",    "value": "{{interval}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Analyst — Live Reliance (NSE equity)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/analyst?broker={{broker}}&exchange={{exchange}}&symbolToken={{relianceToken}}&interval={{interval}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "analyst"],
+              "query": [
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchange}}" },
+                { "key": "symbolToken", "value": "{{relianceToken}}" },
+                { "key": "interval",    "value": "{{interval}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Analyst — Live Crude Oil (MCX)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/analyst?broker={{broker}}&exchange={{exchangeMcx}}&symbolToken={{crudeToken}}&interval={{intervalFive}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "analyst"],
+              "query": [
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchangeMcx}}" },
+                { "key": "symbolToken", "value": "{{crudeToken}}" },
+                { "key": "interval",    "value": "{{intervalFive}}", "description": "Crude works best on 5-min or higher" }
+              ]
+            },
+            "description": "Requires {{crudeToken}} to be populated first (Instruments → Futures — CRUDEOIL)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analysis — SMC pipeline",
+      "description": "Peek into swings, zones, and full market context — all on the CSV.",
+      "item": [
+        {
+          "name": "Structure (swings + BOS + CHoCH)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/structure",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "structure"]
+            }
+          }
+        },
+        {
+          "name": "Zones (OBs + FVGs + liquidity)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/zones",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "zones"]
+            }
+          }
+        },
+        {
+          "name": "Context (latest)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/context",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "context"]
+            },
+            "description": "Full snapshot of bias + zones + liquidity at the last candle in the CSV."
+          }
+        },
+        {
+          "name": "Context (as-of historical candle)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/context?asOfIndex=200",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "context"],
+              "query": [{ "key": "asOfIndex", "value": "200", "description": "Candle index for backtest replay" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analysis — Candles (live fetch)",
+      "description": "Fetch historical/live OHLCV candles from a broker. Requires Angel credentials.",
+      "item": [
+        {
+          "name": "Candles — Nifty 50 index (NSE)",
           "request": {
             "method": "GET",
             "header": [],
@@ -48,19 +269,18 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "analysis", "candles"],
               "query": [
-                { "key": "broker", "value": "{{broker}}" },
-                { "key": "exchange", "value": "{{exchange}}" },
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchange}}" },
                 { "key": "symbolToken", "value": "{{nifty50Token}}" },
-                { "key": "interval", "value": "{{interval}}" },
-                { "key": "from", "value": "{{fromDate}}" },
-                { "key": "to", "value": "{{toDate}}" }
+                { "key": "interval",    "value": "{{interval}}" },
+                { "key": "from",        "value": "{{fromDate}}" },
+                { "key": "to",          "value": "{{toDate}}" }
               ]
-            },
-            "description": "Daily candles for the Nifty 50 index. Volume will always be 0 for indices."
+            }
           }
         },
         {
-          "name": "Get candles — Reliance (equity)",
+          "name": "Candles — Reliance (NSE equity)",
           "request": {
             "method": "GET",
             "header": [],
@@ -69,19 +289,18 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "analysis", "candles"],
               "query": [
-                { "key": "broker", "value": "{{broker}}" },
-                { "key": "exchange", "value": "{{exchange}}" },
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchange}}" },
                 { "key": "symbolToken", "value": "{{relianceToken}}" },
-                { "key": "interval", "value": "{{interval}}" },
-                { "key": "from", "value": "{{fromDate}}" },
-                { "key": "to", "value": "{{toDate}}" }
+                { "key": "interval",    "value": "{{interval}}" },
+                { "key": "from",        "value": "{{fromDate}}" },
+                { "key": "to",          "value": "{{toDate}}" }
               ]
-            },
-            "description": "Daily candles for Reliance Industries (NSE)."
+            }
           }
         },
         {
-          "name": "Get candles — Nifty option (NFO)",
+          "name": "Candles — Nifty option (NFO)",
           "request": {
             "method": "GET",
             "header": [],
@@ -90,22 +309,41 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "analysis", "candles"],
               "query": [
-                { "key": "broker", "value": "{{broker}}" },
-                { "key": "exchange", "value": "{{exchangeFo}}" },
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchangeFo}}" },
                 { "key": "symbolToken", "value": "{{sampleOptionToken}}" },
-                { "key": "interval", "value": "{{interval}}" },
-                { "key": "from", "value": "{{fromDate}}" },
-                { "key": "to", "value": "{{toDate}}" }
+                { "key": "interval",    "value": "{{interval}}" },
+                { "key": "from",        "value": "{{fromDate}}" },
+                { "key": "to",          "value": "{{toDate}}" }
               ]
-            },
-            "description": "Daily candles for a Nifty option contract (option premium series). Uses NFO exchange segment."
+            }
+          }
+        },
+        {
+          "name": "Candles — Crude Oil (MCX)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/candles?broker={{broker}}&exchange={{exchangeMcx}}&symbolToken={{crudeToken}}&interval={{intervalFive}}&from={{fromDate}}&to={{toDate}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "candles"],
+              "query": [
+                { "key": "broker",      "value": "{{broker}}" },
+                { "key": "exchange",    "value": "{{exchangeMcx}}" },
+                { "key": "symbolToken", "value": "{{crudeToken}}" },
+                { "key": "interval",    "value": "{{intervalFive}}" },
+                { "key": "from",        "value": "{{fromDate}}" },
+                { "key": "to",          "value": "{{toDate}}" }
+              ]
+            }
           }
         }
       ]
     },
     {
       "name": "Instruments",
-      "description": "Scrip master lookups. First run should hit /refresh or wait for the initial async load to complete.",
+      "description": "Scrip master lookups. First-run: check Status; if count=0, hit Refresh.",
       "item": [
         {
           "name": "Status",
@@ -116,12 +354,11 @@
               "raw": "{{baseUrl}}/api/instruments/status",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "status"]
-            },
-            "description": "Returns { count } — number of instruments currently loaded. Non-zero means scrip master is ready."
+            }
           }
         },
         {
-          "name": "Refresh (force download)",
+          "name": "Refresh (force redownload)",
           "request": {
             "method": "POST",
             "header": [],
@@ -129,8 +366,7 @@
               "raw": "{{baseUrl}}/api/instruments/refresh",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "refresh"]
-            },
-            "description": "Force-downloads the latest scrip master from Angel and rebuilds the in-memory index. Ignores the local disk cache."
+            }
           }
         },
         {
@@ -139,14 +375,11 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/instruments/lookup?symbol=NIFTY15SEP2626000PE",
+              "raw": "{{baseUrl}}/api/instruments/lookup?symbol={{crudeSymbol}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "lookup"],
-              "query": [
-                { "key": "symbol", "value": "NIFTY15SEP2626000PE" }
-              ]
-            },
-            "description": "Look up a single instrument by its full symbol name."
+              "query": [{ "key": "symbol", "value": "{{crudeSymbol}}" }]
+            }
           }
         },
         {
@@ -158,15 +391,12 @@
               "raw": "{{baseUrl}}/api/instruments/lookup-by-token?token={{sampleOptionToken}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "lookup-by-token"],
-              "query": [
-                { "key": "token", "value": "{{sampleOptionToken}}" }
-              ]
-            },
-            "description": "Look up an instrument by its Angel numeric token."
+              "query": [{ "key": "token", "value": "{{sampleOptionToken}}" }]
+            }
           }
         },
         {
-          "name": "Find option",
+          "name": "Find option (NIFTY expiry+strike+CE/PE)",
           "request": {
             "method": "GET",
             "header": [],
@@ -176,16 +406,15 @@
               "path": ["api", "instruments", "option"],
               "query": [
                 { "key": "underlying", "value": "{{underlying}}" },
-                { "key": "expiry", "value": "{{optionExpiry}}" },
-                { "key": "strike", "value": "{{optionStrike}}" },
-                { "key": "type", "value": "{{optionType}}" }
+                { "key": "expiry",     "value": "{{optionExpiry}}" },
+                { "key": "strike",     "value": "{{optionStrike}}" },
+                { "key": "type",       "value": "{{optionType}}" }
               ]
-            },
-            "description": "Human-readable option lookup. Returns the Instrument (with token) matching underlying × expiry × strike × CE/PE."
+            }
           }
         },
         {
-          "name": "Available expiries",
+          "name": "Available expiries — NIFTY",
           "request": {
             "method": "GET",
             "header": [],
@@ -193,15 +422,12 @@
               "raw": "{{baseUrl}}/api/instruments/expiries?underlying={{underlying}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "expiries"],
-              "query": [
-                { "key": "underlying", "value": "{{underlying}}" }
-              ]
-            },
-            "description": "All available option expiries for an underlying (e.g. NIFTY, BANKNIFTY)."
+              "query": [{ "key": "underlying", "value": "{{underlying}}" }]
+            }
           }
         },
         {
-          "name": "Option chain",
+          "name": "Option chain — NIFTY",
           "request": {
             "method": "GET",
             "header": [],
@@ -211,14 +437,13 @@
               "path": ["api", "instruments", "option-chain"],
               "query": [
                 { "key": "underlying", "value": "{{underlying}}" },
-                { "key": "expiry", "value": "{{optionExpiry}}" }
+                { "key": "expiry",     "value": "{{optionExpiry}}" }
               ]
-            },
-            "description": "All CE + PE contracts for a specific underlying + expiry, sorted by strike then CE-before-PE."
+            }
           }
         },
         {
-          "name": "Futures",
+          "name": "Futures — NIFTY (NFO)",
           "request": {
             "method": "GET",
             "header": [],
@@ -226,11 +451,339 @@
               "raw": "{{baseUrl}}/api/instruments/futures?underlying={{underlying}}",
               "host": ["{{baseUrl}}"],
               "path": ["api", "instruments", "futures"],
-              "query": [
-                { "key": "underlying", "value": "{{underlying}}" }
-              ]
+              "query": [{ "key": "underlying", "value": "{{underlying}}" }]
+            }
+          }
+        },
+        {
+          "name": "Futures — CRUDEOIL (MCX) — find token here",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/instruments/futures?underlying={{underlyingMcx}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "instruments", "futures"],
+              "query": [{ "key": "underlying", "value": "{{underlyingMcx}}" }]
             },
-            "description": "All active future contracts for an underlying, sorted by expiry."
+            "description": "Response contains all live crude futures with their tokens.\nCopy the front-month `token` into env var `crudeToken`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paper Trading — Replay (bundled CSV)",
+      "description": "Session runs against the bundled Nifty CSV at replay speed. Works anywhere/anytime — no broker needed.",
+      "item": [
+        {
+          "name": "Start replay — Ensemble",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start replay — SMA crossover",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"moving-average-crossover\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start replay — RSI mean reversion",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"rsi-mean-reversion\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start replay — MACD crossover",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"macd-crossover\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start replay — OB retest",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ob-retest\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start replay — Sweep + FVG",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"sweep-fvg\",\n  \"sourceType\": \"replay-nifty-csv\",\n  \"candlesPerSecond\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paper Trading — Live NSE",
+      "description": "Live paper trading on NSE equity / indices. Session polls Angel every N seconds during market hours (9:15–15:30 IST).",
+      "item": [
+        {
+          "name": "Start live — Nifty 50 (Ensemble, 1-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{nifty50Token}}\",\n  \"exchange\": \"{{exchange}}\",\n  \"interval\": \"{{intervalMinute}}\",\n  \"warmupCandles\": 100,\n  \"pollIntervalSeconds\": 30\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Nifty 50 (Ensemble, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{nifty50Token}}\",\n  \"exchange\": \"{{exchange}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 100,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Bank Nifty (Ensemble, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{bankNiftyToken}}\",\n  \"exchange\": \"{{exchange}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 100,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Reliance (OB retest, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ob-retest\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{relianceToken}}\",\n  \"exchange\": \"{{exchange}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — HDFC Bank (Sweep+FVG, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"sweep-fvg\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{hdfcBankToken}}\",\n  \"exchange\": \"{{exchange}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paper Trading — Live MCX",
+      "description": "Live paper trading on MCX commodities. MCX trades 9:00 AM–11:30 PM IST — different from NSE.\n\nStep 1: use Instruments → Futures — CRUDEOIL to find the current front-month token.\nStep 2: paste that token into env var {{crudeToken}}.\nStep 3: run the appropriate request below.",
+      "item": [
+        {
+          "name": "Start live — Crude Oil (Ensemble, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{crudeToken}}\",\n  \"exchange\": \"{{exchangeMcx}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Crude Oil (OB retest, 15-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ob-retest\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{crudeToken}}\",\n  \"exchange\": \"{{exchangeMcx}}\",\n  \"interval\": \"FIFTEEN_MINUTE\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 120\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Gold (Ensemble, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{goldToken}}\",\n  \"exchange\": \"{{exchangeMcx}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Start live — Silver (Ensemble, 5-min)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"strategyName\": \"ensemble\",\n  \"sourceType\": \"angel-live\",\n  \"symbolToken\": \"{{silverToken}}\",\n  \"exchange\": \"{{exchangeMcx}}\",\n  \"interval\": \"{{intervalFive}}\",\n  \"warmupCandles\": 200,\n  \"pollIntervalSeconds\": 60\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paper Trading — Session management",
+      "description": "Monitor and control any running session. Set {{sessionId}} in the env after starting a session.",
+      "item": [
+        {
+          "name": "List all sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Get session snapshot (poll this)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions", "{{sessionId}}"]
+            },
+            "description": "Poll this to watch candle count, open position, trades, and net P&L in real time."
+          }
+        },
+        {
+          "name": "Stop session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paper/sessions/{{sessionId}}/stop",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paper", "sessions", "{{sessionId}}", "stop"]
+            },
+            "description": "Force-stops the session and closes any open position at the last candle's close price."
           }
         }
       ]
@@ -260,8 +813,7 @@
               "raw": "{{baseUrl}}/api/portfolio-series",
               "host": ["{{baseUrl}}"],
               "path": ["api", "portfolio-series"]
-            },
-            "description": "Time-series of portfolio value for charts."
+            }
           }
         },
         {
@@ -312,11 +864,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
           }
         },
         {
@@ -331,12 +879,7 @@
                 { "key": "password", "value": "{{password}}", "type": "text" }
               ]
             },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
-            },
-            "description": "Form-based login. Follow redirects off to see the 302 → /dashboard."
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
           }
         },
         {
@@ -344,58 +887,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
-            }
-          }
-        },
-        {
-          "name": "Register new user",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                { "key": "fullName", "value": "Test User", "type": "text" },
-                { "key": "username", "value": "test.user", "type": "text" },
-                { "key": "email", "value": "test@example.com", "type": "text" },
-                { "key": "phone", "value": "9999999999", "type": "text" },
-                { "key": "password", "value": "changeMe123", "type": "text" },
-                { "key": "confirmPassword", "value": "changeMe123", "type": "text" }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
-            }
-          }
-        },
-        {
-          "name": "Forgot password",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/auth/forgot-password",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "forgot-password"]
-            }
-          }
-        },
-        {
-          "name": "Profile page",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/auth/profile",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "profile"]
-            }
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
           }
         },
         {
@@ -403,19 +895,13 @@
           "request": {
             "method": "POST",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["logout"]
-            },
-            "description": "Ends the web session and deletes JSESSIONID cookie."
+            "url": { "raw": "{{baseUrl}}/logout", "host": ["{{baseUrl}}"], "path": ["logout"] }
           }
         }
       ]
     },
     {
       "name": "Dashboard",
-      "description": "Requires an authenticated session — hit Auth / Submit login first.",
       "auth": { "type": "noauth" },
       "item": [
         {
@@ -423,18 +909,13 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/dashboard",
-              "host": ["{{baseUrl}}"],
-              "path": ["dashboard"]
-            }
+            "url": { "raw": "{{baseUrl}}/dashboard", "host": ["{{baseUrl}}"], "path": ["dashboard"] }
           }
         }
       ]
     },
     {
       "name": "Admin",
-      "description": "ROLE_ADMIN required. Log in as admin/admin123 via Auth / Submit login first.",
       "auth": {
         "type": "basic",
         "basic": [
@@ -448,11 +929,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/admin",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin"]
-            }
+            "url": { "raw": "{{baseUrl}}/admin", "host": ["{{baseUrl}}"], "path": ["admin"] }
           }
         },
         {
@@ -460,18 +937,13 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/admin/audit-log",
-              "host": ["{{baseUrl}}"],
-              "path": ["admin", "audit-log"]
-            }
+            "url": { "raw": "{{baseUrl}}/admin/audit-log", "host": ["{{baseUrl}}"], "path": ["admin", "audit-log"] }
           }
         }
       ]
     },
     {
       "name": "Home",
-      "description": "Landing page.",
       "auth": { "type": "noauth" },
       "item": [
         {
@@ -479,11 +951,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/",
-              "host": ["{{baseUrl}}"],
-              "path": [""]
-            }
+            "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
           }
         }
       ]

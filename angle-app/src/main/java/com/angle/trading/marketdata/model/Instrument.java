@@ -84,11 +84,28 @@ public record Instrument(
         return lotsize == null || lotsize.isBlank() ? 1 : Integer.parseInt(lotsize);
     }
 
+    /**
+     * True for any options contract. Angel uses:
+     *   OPTIDX — index options (NIFTY, BANKNIFTY, ...)
+     *   OPTSTK — stock options
+     *   OPTCUR — currency options (USDINR, ...)
+     *   OPTFUT — options on futures (rare)
+     *   OPTBLN — options on commodity futures (crude, gold ...)
+     */
     public boolean isOption() {
-        return "OPTIDX".equals(instrumentType) || "OPTSTK".equals(instrumentType);
+        return instrumentType != null && instrumentType.startsWith("OPT");
     }
 
+    /**
+     * True for any futures contract. Angel uses:
+     *   FUTIDX — index futures (NIFTY, BANKNIFTY, ...)
+     *   FUTSTK — stock futures
+     *   FUTCOM — commodity futures (CRUDEOIL, GOLD, SILVER, ...)   ← MCX
+     *   FUTCUR — currency futures (USDINR, ...)                    ← CDS
+     *   FUTBAS — basis futures / other future types
+     *   FUTIRT — interest rate futures
+     */
     public boolean isFuture() {
-        return "FUTIDX".equals(instrumentType) || "FUTSTK".equals(instrumentType);
+        return instrumentType != null && instrumentType.startsWith("FUT");
     }
 }
