@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="AngleApp (nosec)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="angle-app" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.angle.trading.AngleAppApplication" />
+    <option name="ACTIVE_PROFILES" value="nosec" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
