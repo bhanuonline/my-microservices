@@ -102,6 +102,7 @@ Three reasons:
 1. **Security** — can't be subclassed to break invariants (e.g., a subclass that logs every string it sees)
 2. **Thread safety** — immutable objects are safe to share across threads without synchronization
 3. **String pool caching** — interning depends on the guarantee that a `String`'s value never changes
+4. String is final so that nobody can extend String and change its behavior. This helps Java guarantee String's immutability, security, and predictable behavior
 
 ### Q11. Can an abstract class be `final`?
 
@@ -259,6 +260,18 @@ Because lambdas may **outlive the method** that created them (e.g., passed to an
 ### Q29. Explain the JMM guarantees around `final` fields.
 
 The JVM guarantees that when a constructor finishes normally, any thread that later observes a reference to the object will see the correctly initialized `final` fields — **without** needing `volatile` or synchronization. This is called **safe publication via final fields** and only holds if `this` does not escape the constructor.
+
+> final solves:"After the object is created, will other threads see the correctly initialized value?"
+> volatile solves:"If one thread changes a variable, will other threads see the latest value?"
+
+ |                           | `final`                            | `volatile`                      |
+| ------------------------- | ---------------------------------- | ------------------------------- |
+| Can value change?         | ❌ No                               | ✅ Yes                           |
+| Main purpose              | Safe initialization                | Visibility of changes           |
+| Multiple threads          | Safe visibility after construction | Safe visibility of reads/writes |
+| Makes object thread-safe? | ❌ No                               | ❌ No                            |
+| Example                   | `final int age`                    | `volatile boolean running`      |
+
 
 ### Q30. How does `final` interact with serialization?
 
