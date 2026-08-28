@@ -1,0 +1,1 @@
+package com.angle.trading.test.finalvartest;interface Payment {    static void validate() {        System.out.println("Validation");    }}
