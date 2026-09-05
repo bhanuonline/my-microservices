@@ -1,9 +1,11 @@
 package com.angle.trading.paper;
 
+import com.angle.trading.alerts.AlertService;
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.paper.model.PaperPosition;
 import com.angle.trading.paper.model.SessionSnapshot;
 import com.angle.trading.paper.model.SessionStatus;
+import com.angle.trading.paper.persistence.PaperTradePersistenceService;
 import com.angle.trading.paper.source.CandleSource;
 import com.angle.trading.strategy.Strategy;
 import com.angle.trading.strategy.model.ExitReason;
@@ -48,6 +50,8 @@ public class PaperTradingSession {
     private final Strategy strategy;
     private final CandleSource source;
     private final PaperOrderBook book = new PaperOrderBook();
+    private final PaperTradePersistenceService persistence;  // nullable — persistence may be absent in tests
+    private final AlertService alerts;                        // nullable — alerts may be absent in tests
 
     private final List<Candle> candles = new ArrayList<>();
     private volatile SessionStatus status = SessionStatus.RUNNING;
@@ -55,10 +59,14 @@ public class PaperTradingSession {
     private volatile Instant lastCandleAt;
     private volatile TradeIntent lastIntent = TradeIntent.hold();
 
-    public PaperTradingSession(Strategy strategy, CandleSource source) {
+    public PaperTradingSession(Strategy strategy, CandleSource source,
+                                PaperTradePersistenceService persistence,
+                                AlertService alerts) {
         this.id = UUID.randomUUID().toString();
         this.strategy = strategy;
         this.source = source;
+        this.persistence = persistence;
+        this.alerts = alerts;
     }
 
     public void start() {
@@ -66,6 +74,7 @@ public class PaperTradingSession {
         source.start(this::processCandle, this::onSourceComplete);
         log.info("┌─ SESSION START [{}] strategy={} source={}",
                 shortId(), strategy.name(), source.name());
+        persist(persistence == null ? null : persistence::saveNewSession);
     }
 
     /** User-initiated stop. Force-closes any open position at the last candle's close. */
@@ -75,6 +84,8 @@ public class PaperTradingSession {
         forceCloseAtLastPrice(ExitReason.SIGNAL_EXIT);
         status = SessionStatus.STOPPED;
         log.info("└─ SESSION STOPPED [{}] {}", shortId(), summaryLine());
+        persist(persistence == null ? null : persistence::updateSession);
+        alertSessionEnd();
     }
 
     private synchronized void onSourceComplete() {
@@ -82,6 +93,8 @@ public class PaperTradingSession {
         forceCloseAtLastPrice(ExitReason.END_OF_SERIES);
         status = SessionStatus.COMPLETED;
         log.info("└─ SESSION COMPLETED [{}] {}", shortId(), summaryLine());
+        persist(persistence == null ? null : persistence::updateSession);
+        alertSessionEnd();
     }
 
     private void forceCloseAtLastPrice(ExitReason reason) {
@@ -89,6 +102,7 @@ public class PaperTradingSession {
         Candle last = candles.get(candles.size() - 1);
         Trade t = book.close(last.timestamp(), last.close(), reason);
         logClose(t);
+        persistTrade(t);
     }
 
     private synchronized void processCandle(Candle c) {
@@ -110,6 +124,7 @@ public class PaperTradingSession {
                 ExitReason reason = exitPriceIsStop(open, exitPrice) ? ExitReason.STOP : ExitReason.TARGET;
                 Trade t = book.close(c.timestamp(), exitPrice, reason);
                 logClose(t);
+                persistTrade(t);
             }
         }
 
@@ -124,6 +139,7 @@ public class PaperTradingSession {
             if (closeSignal) {
                 Trade t = book.close(c.timestamp(), c.close(), ExitReason.SIGNAL_EXIT);
                 logClose(t);
+                persistTrade(t);
             }
         }
 
@@ -151,6 +167,9 @@ public class PaperTradingSession {
                 fmt(pos.stop()),
                 fmt(pos.target()),
                 pos.rationale());
+        if (alerts != null) {
+            alerts.notifyTradeOpen(shortId(), strategy.name(), source.name(), pos);
+        }
     }
 
     private void logClose(Trade t) {
@@ -158,6 +177,15 @@ public class PaperTradingSession {
         String pnl = (t.pnl().signum() >= 0 ? "+" : "") + fmt(t.pnl());
         log.info("│  [{}] CLOSE {} @ {}  ({})  pnl={}",
                 shortId(), side, fmt(t.exitPrice()), t.exitReason(), pnl);
+        if (alerts != null) {
+            alerts.notifyTradeClose(shortId(), strategy.name(), source.name(), t);
+        }
+    }
+
+    private void alertSessionEnd() {
+        if (alerts == null) return;
+        alerts.notifySessionEnd(shortId(), strategy.name(), source.name(),
+                book.getTradeCount(), book.getWinners(), book.getLosers(), book.getNetPnl());
     }
 
     private String summaryLine() {
@@ -205,4 +233,18 @@ public class PaperTradingSession {
 
     public String getId()          { return id; }
     public SessionStatus getStatus() { return status; }
+
+    // ------------- Persistence helpers -------------
+
+    private void persist(java.util.function.Consumer<SessionSnapshot> sink) {
+        if (sink == null) return;
+        try { sink.accept(snapshot()); }
+        catch (Exception e) { log.warn("persist session state failed: {}", e.getMessage()); }
+    }
+
+    private void persistTrade(Trade t) {
+        if (persistence == null) return;
+        try { persistence.saveTrade(id, t); }
+        catch (Exception e) { log.warn("persist trade failed: {}", e.getMessage()); }
+    }
 }

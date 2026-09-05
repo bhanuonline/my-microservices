@@ -1,5 +1,6 @@
 package com.angle.trading.paper;
 
+import com.angle.trading.alerts.AlertService;
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
@@ -7,6 +8,7 @@ import com.angle.trading.marketdata.MarketDataService;
 import com.angle.trading.marketdata.NiftyFileLoader;
 import com.angle.trading.paper.model.CreateSessionRequest;
 import com.angle.trading.paper.model.SessionSnapshot;
+import com.angle.trading.paper.persistence.PaperTradePersistenceService;
 import com.angle.trading.paper.source.AngelHistoricalReplayCandleSource;
 import com.angle.trading.paper.source.AngelLiveCandleSource;
 import com.angle.trading.paper.source.CandleSource;
@@ -46,9 +48,11 @@ public class PaperTradingSessionManager {
     private static final Interval DEFAULT_INTERVAL_LIVE = Interval.ONE_MINUTE;
     private static final Interval DEFAULT_INTERVAL_HIST = Interval.ONE_DAY;
 
-    private final StrategyRegistry  strategyRegistry;
-    private final NiftyFileLoader   niftyFileLoader;
-    private final MarketDataService marketDataService;
+    private final StrategyRegistry             strategyRegistry;
+    private final NiftyFileLoader              niftyFileLoader;
+    private final MarketDataService            marketDataService;
+    private final PaperTradePersistenceService persistence;
+    private final AlertService                 alerts;
 
     private final Map<String, PaperTradingSession> sessions = new ConcurrentHashMap<>();
 
@@ -56,7 +60,7 @@ public class PaperTradingSessionManager {
         Strategy strategy = strategyRegistry.get(req.strategyName());
         CandleSource source = buildSource(req);
 
-        PaperTradingSession session = new PaperTradingSession(strategy, source);
+        PaperTradingSession session = new PaperTradingSession(strategy, source, persistence, alerts);
         sessions.put(session.getId(), session);
         session.start();
 
