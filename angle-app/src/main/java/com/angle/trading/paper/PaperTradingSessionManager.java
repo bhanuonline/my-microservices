@@ -7,6 +7,7 @@ import com.angle.trading.marketdata.MarketDataService;
 import com.angle.trading.marketdata.NiftyFileLoader;
 import com.angle.trading.paper.model.CreateSessionRequest;
 import com.angle.trading.paper.model.SessionSnapshot;
+import com.angle.trading.paper.source.AngelHistoricalReplayCandleSource;
 import com.angle.trading.paper.source.AngelLiveCandleSource;
 import com.angle.trading.paper.source.CandleSource;
 import com.angle.trading.paper.source.HistoricalReplayCandleSource;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,26 +25,26 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Owns all live paper-trading sessions.
  *
- * Sessions are held in an in-memory map keyed by session id. Server restart
- * wipes them — persistence is a Phase 3 concern per the plan doc.
- *
- * Two source types recognised:
- *   "replay-nifty-csv" — historical replay of the bundled Nifty CSV
- *   "angel-live"       — real-time Angel SmartAPI polling
+ * Three source types recognised:
+ *   "replay-nifty-csv"        — historical replay of the bundled Nifty CSV
+ *   "angel-live"              — real-time Angel SmartAPI polling
+ *   "angel-historical-replay" — Angel history for a date range, replayed at speed
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaperTradingSessionManager {
 
-    private static final String SOURCE_REPLAY_CSV = "replay-nifty-csv";
-    private static final String SOURCE_ANGEL_LIVE = "angel-live";
+    private static final String SOURCE_REPLAY_CSV       = "replay-nifty-csv";
+    private static final String SOURCE_ANGEL_LIVE       = "angel-live";
+    private static final String SOURCE_ANGEL_HISTORICAL = "angel-historical-replay";
 
     private static final int DEFAULT_CANDLES_PER_SECOND = 50;
     private static final int DEFAULT_WARMUP_CANDLES     = 100;
     private static final int DEFAULT_POLL_SECONDS       = 30;
     private static final Exchange DEFAULT_EXCHANGE      = Exchange.NSE;
-    private static final Interval DEFAULT_INTERVAL      = Interval.ONE_MINUTE;
+    private static final Interval DEFAULT_INTERVAL_LIVE = Interval.ONE_MINUTE;
+    private static final Interval DEFAULT_INTERVAL_HIST = Interval.ONE_DAY;
 
     private final StrategyRegistry  strategyRegistry;
     private final NiftyFileLoader   niftyFileLoader;
@@ -95,15 +97,29 @@ public class PaperTradingSessionManager {
             if (req.symbolToken() == null || req.symbolToken().isBlank()) {
                 throw new IllegalArgumentException("angel-live requires symbolToken");
             }
-            Exchange exchange = req.exchange() == null ? DEFAULT_EXCHANGE : req.exchange();
-            Interval interval = req.interval() == null ? DEFAULT_INTERVAL : req.interval();
+            Exchange exchange = req.exchange() == null ? DEFAULT_EXCHANGE       : req.exchange();
+            Interval interval = req.interval() == null ? DEFAULT_INTERVAL_LIVE  : req.interval();
             int warmup   = req.warmupCandles()       == null ? DEFAULT_WARMUP_CANDLES : req.warmupCandles();
             int pollSec  = req.pollIntervalSeconds() == null ? DEFAULT_POLL_SECONDS   : req.pollIntervalSeconds();
             return new AngelLiveCandleSource(marketDataService, exchange, req.symbolToken(),
                     interval, warmup, pollSec);
         }
 
+        if (SOURCE_ANGEL_HISTORICAL.equals(type)) {
+            if (req.symbolToken() == null || req.symbolToken().isBlank()) {
+                throw new IllegalArgumentException("angel-historical-replay requires symbolToken");
+            }
+            if (req.from() == null || req.to() == null) {
+                throw new IllegalArgumentException("angel-historical-replay requires from and to (YYYY-MM-DD)");
+            }
+            Exchange exchange = req.exchange() == null ? DEFAULT_EXCHANGE      : req.exchange();
+            Interval interval = req.interval() == null ? DEFAULT_INTERVAL_HIST : req.interval();
+            int cps = req.candlesPerSecond() == null ? DEFAULT_CANDLES_PER_SECOND : req.candlesPerSecond();
+            return new AngelHistoricalReplayCandleSource(marketDataService, exchange, req.symbolToken(),
+                    interval, req.from(), req.to(), cps);
+        }
+
         throw new IllegalArgumentException("Unknown sourceType: " + type
-                + ". Supported: [" + SOURCE_REPLAY_CSV + ", " + SOURCE_ANGEL_LIVE + "]");
+                + ". Supported: [" + SOURCE_REPLAY_CSV + ", " + SOURCE_ANGEL_LIVE + ", " + SOURCE_ANGEL_HISTORICAL + "]");
     }
 }
