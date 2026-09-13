@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Bias Dashboard</title>
+    <meta http-equiv="refresh" th:attr="content=${refreshSeconds}">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #0f1419; color: #e6e6e6; margin: 0; padding: 24px; line-height: 1.5; }
+        h1 { margin-top: 0; color: #fff; font-size: 24px; }
+        h2 { color: #7dd3fc; font-size: 15px; text-transform: uppercase;
+             letter-spacing: 0.5px; margin: 24px 0 12px; }
+        .meta { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 16px; margin-bottom: 20px; }
+        .card { background: #1e293b; border-radius: 8px; padding: 16px;
+                border: 1px solid #334155; }
+        .kv { display: flex; justify-content: space-between; padding: 4px 0;
+              border-bottom: 1px dotted #334155; font-size: 14px; }
+        .kv:last-child { border-bottom: none; }
+        .kv .k { color: #94a3b8; }
+        .kv .v { color: #f1f5f9; font-weight: 500; }
+        .bull { color: #4ade80; }
+        .bear { color: #f87171; }
+        .neutral { color: #94a3b8; }
+        .strong { background: #059669; padding: 6px 12px; border-radius: 4px; color: #fff; }
+        .weak { background: #6b7280; padding: 6px 12px; border-radius: 4px; color: #fff; }
+        .moderate { background: #eab308; padding: 6px 12px; border-radius: 4px; color: #000; }
+        .none { background: #374151; padding: 6px 12px; border-radius: 4px; color: #9ca3af; }
+        .rec-long { color: #4ade80; font-size: 22px; font-weight: 700; }
+        .rec-short { color: #f87171; font-size: 22px; font-weight: 700; }
+        .rec-notrade { color: #9ca3af; font-size: 22px; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #334155; }
+        th { color: #94a3b8; font-weight: 500; }
+        code { background: #0f1419; padding: 2px 6px; border-radius: 3px;
+               font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+        .score-cell { text-align: center; font-weight: 600; }
+        .score-pos { color: #4ade80; }
+        .score-neg { color: #f87171; }
+        .score-zero { color: #6b7280; }
+        .refresh-info { position: fixed; top: 16px; right: 24px; font-size: 11px;
+                        color: #64748b; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div class="refresh-info">
+    Auto-refresh: <span th:text="${refreshSeconds / 60}">15</span> min
+</div>
+
+<h1>
+    <span th:text="${sheet.symbol()}">Instrument</span> —
+    Bias Dashboard
+</h1>
+<div class="meta">
+    <span th:text="${sheet.exchange()}">NSE</span> ·
+    Token <code th:text="${sheet.symbolToken()}">99926000</code> ·
+    As of <span th:text="${sheet.asOf()}">2026-09-13T09:30:00Z</span>
+</div>
+
+<!-- ================= RECOMMENDATION (top) ================= -->
+<div class="card" th:with="rec=${sheet.consolidated()}">
+    <h2>Consolidated Bias</h2>
+    <div class="kv">
+        <span class="k">Recommendation</span>
+        <span th:switch="${rec.recommendation()}">
+            <span th:case="'LONG-ONLY'"  class="rec-long"    th:text="${rec.recommendation()}">LONG</span>
+            <span th:case="'SHORT-ONLY'" class="rec-short"   th:text="${rec.recommendation()}">SHORT</span>
+            <span th:case="*"            class="rec-notrade" th:text="${rec.recommendation()}">NO-TRADE</span>
+        </span>
+    </div>
+    <div class="kv">
+        <span class="k">Score</span>
+        <span class="v" th:text="${rec.totalScore()} + ' / ' + ${#lists.size(rec.dimensionScores())}">+5/7</span>
+    </div>
+    <div class="kv">
+        <span class="k">Strength</span>
+        <span>
+            <span th:switch="${rec.strength()}">
+                <span th:case="'STRONG'"   class="strong"   th:text="${rec.strength()}">STRONG</span>
+                <span th:case="'MODERATE'" class="moderate" th:text="${rec.strength()}">MODERATE</span>
+                <span th:case="'WEAK'"     class="weak"     th:text="${rec.strength()}">WEAK</span>
+                <span th:case="*"          class="none"     th:text="${rec.strength()}">NONE</span>
+            </span>
+        </span>
+    </div>
+    <div class="kv">
+        <span class="k">Confidence</span>
+        <span class="v" th:text="${rec.confidencePercent()} + '%'">71%</span>
+    </div>
+
+    <table style="margin-top: 12px;">
+        <thead>
+        <tr><th>Dimension</th><th class="score-cell">Score</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="e : ${rec.dimensionScores()}">
+            <td th:text="${e.key}">MultiTF</td>
+            <td class="score-cell"
+                th:classappend="${e.value > 0 ? 'score-pos' : (e.value < 0 ? 'score-neg' : 'score-zero')}"
+                th:text="${e.value > 0 ? '+' + e.value : e.value}">+1</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="grid">
+
+    <!-- ================= MARKET CONTEXT ================= -->
+    <div class="card" th:with="m=${sheet.marketContext()}">
+        <h2>1. Market Context</h2>
+        <div class="kv"><span class="k">Current</span>       <span class="v" th:text="${m.currentPrice()}   ?: '—'">24680</span></div>
+        <div class="kv"><span class="k">Prev Close</span>    <span class="v" th:text="${m.previousClose()}  ?: '—'">24600</span></div>
+        <div class="kv"><span class="k">Prev Day High</span> <span class="v" th:text="${m.previousDayHigh()}?: '—'">24720</span></div>
+        <div class="kv"><span class="k">Prev Day Low</span>  <span class="v" th:text="${m.previousDayLow()} ?: '—'">24450</span></div>
+        <div class="kv"><span class="k">Day Open</span>      <span class="v" th:text="${m.dayOpen()}        ?: '—'">24660</span></div>
+        <div class="kv"><span class="k">Gap</span>           <span class="v" th:text="(${m.gapPoints()} ?: '—') + ' (' + (${m.gapPercent()} ?: '—') + '%)'">+80 (0.32%)</span></div>
+        <div class="kv"><span class="k">India VIX</span>     <span class="v" th:text="${m.indiaVix()} ?: '— (not built)'">—</span></div>
+    </div>
+
+    <!-- ================= MULTI-TF BIAS ================= -->
+    <div class="card">
+        <h2>2. Multi-Timeframe Bias</h2>
+        <table>
+            <thead><tr><th>Timeframe</th><th>Bias</th><th>Confidence</th></tr></thead>
+            <tbody>
+            <tr th:each="t : ${sheet.multiTfBias()}">
+                <td th:text="${t.interval()}">1D</td>
+                <td th:switch="${#strings.toString(t.bias())}">
+                    <span th:case="'BULLISH'" class="bull">BULLISH</span>
+                    <span th:case="'BEARISH'" class="bear">BEARISH</span>
+                    <span th:case="*" class="neutral">—</span>
+                </td>
+                <td th:text="${t.analystConfidence()} ?: '—'">0.6</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ================= TREND FILTERS ================= -->
+    <div class="card" th:with="t=${sheet.trendFilters()}">
+        <h2>3. Trend Filters</h2>
+        <div class="kv"><span class="k">EMA 20</span>  <span class="v" th:text="${t.ema20()}  ?: '—'">24610</span></div>
+        <div class="kv"><span class="k">EMA 50</span>  <span class="v" th:text="${t.ema50()}  ?: '—'">24540</span></div>
+        <div class="kv"><span class="k">EMA 200</span> <span class="v" th:text="${t.ema200()} ?: '—'">24310</span></div>
+        <div class="kv">
+            <span class="k">EMA 20 &gt; EMA 50</span>
+            <span th:switch="${#strings.toString(t.ema20AboveEma50())}">
+                <span th:case="'true'"  class="bull">Bullish</span>
+                <span th:case="'false'" class="bear">Bearish</span>
+                <span th:case="*" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">Price &gt; EMA 200</span>
+            <span th:switch="${#strings.toString(t.priceAboveEma200())}">
+                <span th:case="'true'"  class="bull">Yes</span>
+                <span th:case="'false'" class="bear">No</span>
+                <span th:case="*" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv"><span class="k">VWAP</span> <span class="v" th:text="${t.vwap()} ?: '—'">24645</span></div>
+        <div class="kv">
+            <span class="k">Price &gt; VWAP</span>
+            <span th:switch="${#strings.toString(t.priceAboveVwap())}">
+                <span th:case="'true'"  class="bull">Yes</span>
+                <span th:case="'false'" class="bear">No</span>
+                <span th:case="*" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">ADX(14)</span>
+            <span class="v" th:text="(${t.adx14()} ?: '—') + '  ' + (${t.adxStrength()} ?: '')">28  STRONG</span>
+        </div>
+        <div class="kv"><span class="k">ATR(14)</span>
+            <span class="v" th:text="(${t.atr14()} ?: '—') + '  (' + (${t.atrPercentOfPrice()} ?: '—') + '%)'">105</span>
+        </div>
+        <div class="kv"><span class="k">RSI(14)</span> <span class="v" th:text="${t.rsi14()} ?: '—'">62</span></div>
+        <div class="kv">
+            <span class="k">MACD hist</span>
+            <span>
+                <span th:switch="${#strings.toString(t.macdBullish())}">
+                    <span th:case="'true'"  class="bull" th:text="${t.macdHistogram()}">+5.3</span>
+                    <span th:case="'false'" class="bear" th:text="${t.macdHistogram()}">-5.3</span>
+                    <span th:case="*" class="neutral">—</span>
+                </span>
+            </span>
+        </div>
+    </div>
+
+    <!-- ================= STRUCTURE ================= -->
+    <div class="card" th:with="s=${sheet.structure()}">
+        <h2>4. Market Structure (SMC)</h2>
+        <div class="kv">
+            <span class="k">Bias</span>
+            <span th:switch="${#strings.toString(s.bias())}">
+                <span th:case="'BULLISH'" class="bull">BULLISH</span>
+                <span th:case="'BEARISH'" class="bear">BEARISH</span>
+                <span th:case="*" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">Last event</span>
+            <span class="v" th:if="${s.lastEvent()}"
+                  th:text="${s.lastEvent().type()} + ' ' + ${s.lastEvent().direction()} + ' @ ' + ${s.lastEvent().brokenLevel()}">
+                BOS BULLISH @ 24600
+            </span>
+            <span class="neutral" th:unless="${s.lastEvent()}">—</span>
+        </div>
+        <div class="kv">
+            <span class="k">Latest swing high</span>
+            <span class="v" th:text="${s.latestSwingHigh() != null ? s.latestSwingHigh().price() : '—'}">24720</span>
+        </div>
+        <div class="kv">
+            <span class="k">Latest swing low</span>
+            <span class="v" th:text="${s.latestSwingLow() != null ? s.latestSwingLow().price() : '—'}">24450</span>
+        </div>
+    </div>
+
+    <!-- ================= ZONES ================= -->
+    <div class="card" th:with="z=${sheet.zones()}">
+        <h2>5. Zones & Liquidity</h2>
+        <div class="kv"><span class="k">Bullish OBs</span>
+            <span class="v" th:text="${#lists.size(z.activeBullishOBs())}">2</span></div>
+        <div class="kv"><span class="k">Bearish OBs</span>
+            <span class="v" th:text="${#lists.size(z.activeBearishOBs())}">0</span></div>
+        <div class="kv"><span class="k">Bullish FVGs</span>
+            <span class="v" th:text="${#lists.size(z.activeBullishFvgs())}">3</span></div>
+        <div class="kv"><span class="k">Bearish FVGs</span>
+            <span class="v" th:text="${#lists.size(z.activeBearishFvgs())}">1</span></div>
+        <div class="kv"><span class="k">BSL above</span>
+            <span class="v" th:text="${#strings.listJoin(z.unsweptBSL().![price()], ', ')}">24720, 24810</span></div>
+        <div class="kv"><span class="k">SSL below</span>
+            <span class="v" th:text="${#strings.listJoin(z.unsweptSSL().![price()], ', ')}">24450, 24380</span></div>
+        <div class="kv"><span class="k">Recent sweeps</span>
+            <span class="v" th:text="${#lists.size(z.recentSweeps())}">2</span></div>
+    </div>
+
+</div>
+
+<p style="color:#64748b; font-size:12px; margin-top:32px;">
+    Section 1.1 (Advance/Decline), pre-market cues, options context, and Bank Nifty parallel
+    are not yet fetched — will be added in later phases. See DAILY-BIAS-SHEET.md for manual fields.
+</p>
+
+</body>
+</html>
