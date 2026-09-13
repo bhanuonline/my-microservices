@@ -3796,110 +3796,911 @@ class LFUCache {
 
 ## Phase 9 — Thread-safe Maps Deep Dive
 
+The topics that separate senior Java developers. If you can walk through the Java 7 infinite-loop bug, explain why ConcurrentHashMap forbids nulls, and describe ForwardingNode's role in cooperative resize — you've mastered the concurrent Map landscape.
+
+---
+
 ### 9.1 Why HashMap breaks under concurrent use
-- Race examples: lost updates, duplicate inserts, wrong size
-- Bad outcomes: silent corruption, `ClassCastException` from mid-treeify state
-- No exception thrown in most cases — worst kind of bug
+
+If two threads touch a HashMap at the same time without external synchronization, **anything can happen**: lost data, wrong size, corrupt chains, infinite loops (in Java 7 — see 9.2), or `ClassCastException` from mid-treeify state (Java 8+). Usually **no exception is thrown** — silent corruption.
+
+#### A concrete race — two threads doing `put`
+
+`HashMap.put` is roughly:
+
+```java
+1. hash = hash(key)
+2. i = (n - 1) & hash                        // bucket index
+3. if (table[i] == null) table[i] = new Node(...)
+4. else walk chain, insert at tail if not found
+5. size++
+6. if (size > threshold) resize()
+```
+
+**Thread A** puts `(k1, v1)` and **Thread B** puts `(k2, v2)`, both hashing to bucket 5:
+
+```
+Time  Thread A                               Thread B
+────  ────────                               ────────
+t1    Read table[5] → null
+t2                                           Read table[5] → null   (same!)
+t3    Create nodeA(k1, v1)
+t4                                           Create nodeB(k2, v2)
+t5    table[5] = nodeA
+t6                                           table[5] = nodeB       ← nodeA lost
+t7    size++ (reads 5, writes 6)
+t8                                           size++ (reads 5, writes 6)  ← lost update
+```
+
+**Result:** `(k1, v1)` is completely lost. `size` is wrong. No exception.
+
+#### The full list of failure modes
+
+| Failure                            | What happens                                             |
+| ---------------------------------- | -------------------------------------------------------- |
+| **Lost updates**                   | Two puts into empty bucket → one entry silently dropped  |
+| **Wrong `size`**                   | Racing increments → count doesn't match reality          |
+| **Broken chain pointers**          | Partial writes → `next` points at wrong node             |
+| **Infinite loop (Java 7 only)**    | Concurrent resize creates a cycle → `get()` spins forever |
+| **`ClassCastException` (Java 8+)** | Mid-treeify race → cast Node ↔ TreeNode fails            |
+| **`ConcurrentModificationException`** | Iterator sees `modCount` change mid-iteration         |
+| **Memory visibility**              | Thread B never sees Thread A's writes (no `volatile`)    |
+
+**Key insight:** "thread-unsafe" doesn't mean "throws exception." It means "works most of the time, then silently corrupts state under load." That's the WORST kind of bug — it may take weeks to reproduce in production.
+
+---
 
 ### 9.2 The famous Java 7 infinite loop bug
-- Only in Java 7 (fixed in Java 8)
-- Scenario: two threads triggering resize at the same time
-- Old Java 7 rehashing used head-insertion → chain could form a cycle
-- Result: `get()` spins forever, CPU pegged at 100%
-- Historical famous production incident (search "HashMap infinite loop")
+
+**Legendary bug.** Search "HashMap infinite loop" — dozens of blog posts about production incidents where a single JVM core was pegged at 100% CPU forever.
+
+**Only in Java 7 and earlier.** Java 8+ eliminated this specific bug (though HashMap is still not thread-safe overall).
+
+#### Setup
+
+Java 7's `resize()` (per bucket) used **head insertion**:
+
+```java
+// Simplified Java 7 rehash logic
+Entry e = oldTable[i];
+while (e != null) {
+    Entry next = e.next;                          // 1. save next
+    int newIndex = indexFor(e.hash, newCapacity);
+    e.next = newTable[newIndex];                  // 2. point at existing head
+    newTable[newIndex] = e;                       // 3. become new head
+    e = next;                                     // 4. advance
+}
+```
+
+Head insertion **reverses** the chain order as entries are moved.
+
+#### The race (simplified)
+
+Start: `oldTable[0]` chain is `A → B → null`. Two threads both trigger `resize()` and create their own `newTable[4]`.
+
+```
+Step 1: Thread T1 enters resize().
+        Reads e = A, next = B.
+        Suspends here.
+
+Step 2: Thread T2 runs full resize().
+        In T2's newTable, bucket X ends up as:  B → A → null
+        (chain reversed because head insertion).
+        Critically, T2 mutated the shared A and B nodes:
+          - A.next was set to null (A became tail after reversal)
+          - B.next was set to A
+        T2's newTable becomes the shared table.
+
+Step 3: T1 resumes with STALE references e = A, next = B.
+        T1 does:  A.next = newTable[i]  (null or existing head)
+                  newTable[i] = A
+        T1 advances:  e = next = B (from T1's saved value)
+
+Step 4: T1 processes B.
+        Reads B.next → which now points to A (because T2 mutated it)
+        Saves next = A
+        Puts B at head, B.next = A (points at previous head A)
+        Advances: e = next = A
+
+Step 5: T1 processes A AGAIN.
+        Reads A.next (whatever it is)
+        Head-inserts A, so A.next = current head B
+        newTable[i] = A
+
+Now:    A.next = B
+        B.next = A
+        CYCLE!
+```
+
+**Result:** subsequent `get(k)` walks the chain and never terminates. The CPU core running that thread hits 100%.
+
+#### Why Java 8 fixed it
+
+Java 8 changed to **tail insertion** during rehash, AND uses the split-in-half optimization (Phase 3.7). The tail-insertion trick preserves chain order — no reversal, no chance of forming a cycle via the racing mechanism above.
+
+But **HashMap is still not thread-safe in Java 8+**. Other race conditions (lost updates, wrong size, mid-treeify class cast) can still happen. Java 8 just eliminated this specific infinite-loop failure mode.
+
+#### Interview soundbite
+
+> *"Java 7's HashMap used head insertion during rehash. Concurrent resizes could reverse chain order in a way that created cycles between nodes — subsequent gets would spin forever. Java 8 fixed this specifically by switching to tail insertion, but HashMap remains not thread-safe overall — use ConcurrentHashMap in concurrent contexts."*
+
+---
 
 ### 9.3 `Collections.synchronizedMap` wrapper
-- Every method wrapped in `synchronized(mutex)`:
-- Iteration still requires manual sync:
-- Verdict: legacy, coarse-grained, rarely the right answer
+
+```java
+Map<String, Integer> map = Collections.synchronizedMap(new HashMap<>());
+```
+
+Wraps every method in `synchronized (mutex)`. Only one thread at a time can do anything.
+
+**Comparison:**
+
+| Aspect                         | `synchronizedMap`               |
+| ------------------------------ | ------------------------------- |
+| Locking granularity            | Coarse — one lock for the whole map |
+| Concurrency                    | 1 (no parallelism)              |
+| `get` + `put` throughput       | Bottlenecked                    |
+| Iteration                      | **Requires manual sync** or CME |
+| Atomic compute methods         | Method-level sync, but no cross-method atomicity |
+
+**Iteration trap:**
+
+```java
+Map<String, Integer> sync = Collections.synchronizedMap(new HashMap<>());
+// WRONG — CME possible
+for (Map.Entry<String, Integer> e : sync.entrySet()) {
+    // another thread might modify → CME
+}
+
+// RIGHT
+synchronized (sync) {
+    for (Map.Entry<String, Integer> e : sync.entrySet()) {
+        // safe
+    }
+}
+```
+
+The `synchronized` wrapper synchronizes individual method calls, but the iterator holds `modCount` state across `next()` calls — any modification between iterator calls trips CME, even mods that went through the sync wrapper. Fix: sync the whole iteration block.
+
+**Verdict:**
+
+> **Legacy pattern. Almost strictly worse than ConcurrentHashMap.** Use it only if you're maintaining old code that depends on it. New code should always use ConcurrentHashMap.
+
+---
 
 ### 9.4 ConcurrentHashMap — Java 7 segments vs Java 8+ CAS + synchronized
-- **Java 7:** array of 16 `Segment`s (each a mini HashMap with its own lock). Concurrency = number of segments.
-- **Java 8+:** single table, per-bucket locking. First insert into empty bucket uses CAS (lock-free). Subsequent inserts synchronize on the bucket head.
-- Concurrency: as high as the number of buckets.
 
-### 9.5 ConcurrentHashMap internals (Node, TreeBin, ForwardingNode)
-- `Node<K,V>` — regular entry (immutable value reference; volatile next)
-- `TreeBin<K,V>` — wraps a red-black tree of `TreeNode`s (with a read/write lock)
-- `ForwardingNode<K,V>` — placeholder during resize; forwards to the new table
-- Resize is cooperative: any thread that finds a ForwardingNode helps migrate
+**The Java thread-safe map default.** Its architecture changed dramatically between Java 7 and Java 8+.
+
+#### Java 7 — segmented locking (`Segment[]`)
+
+Internal structure: an array of `Segment`s (default 16), each a mini HashMap with its own `ReentrantLock`.
+
+```
+ ConcurrentHashMap (Java 7)
+ ┌─────────────────────────────────────┐
+ │ Segment[16]                          │
+ │   Segment 0: [lock] + mini HashMap   │
+ │   Segment 1: [lock] + mini HashMap   │
+ │   ...                                │
+ │   Segment 15: [lock] + mini HashMap  │
+ └─────────────────────────────────────┘
+```
+
+- **Hash split:** top bits of hash → segment index; low bits → bucket within segment.
+- **`get`** is mostly lock-free (uses volatile reads on `Segment.table`).
+- **`put`/`remove`** acquires the segment's lock — but only that one segment, other segments remain accessible.
+- **Concurrency ceiling:** ~16 (fixed at construction). More threads → contention.
+
+Downsides:
+- Fixed concurrency level. Can't scale beyond it.
+- Extra memory (per-segment overhead).
+- `size()` was expensive — had to lock all segments.
+
+#### Java 8+ — per-bucket locking + CAS
+
+Threw out segments entirely. Went to a **single unified table** (same shape as HashMap) with **per-bucket locking**.
+
+```
+ ConcurrentHashMap (Java 8+)
+ ┌─────────────────────────────────────────┐
+ │ Node[N] table                            │
+ │   Bucket 0: [locked via CAS or sync]     │
+ │   Bucket 1: [locked via CAS or sync]     │
+ │   Bucket 2: [locked via CAS or sync]     │
+ │   ... (N buckets = N possible parallel writes) │
+ └─────────────────────────────────────────┘
+```
+
+- **Empty bucket insert:** CAS operation (fully lock-free). Fastest path.
+- **Non-empty bucket insert:** `synchronized (bucketHead)`. Only that bucket's chain is locked.
+- **`get`** is fully lock-free (volatile `Node.value` and `Node.next`).
+- **Concurrency:** as high as the number of buckets — potentially thousands of parallel writes.
+- **`size()`:** approximate via `LongAdder`-style counter cells. Reads a snapshot, not exact under contention.
+
+#### Comparison
+
+| Feature | Java 7 CHM (Segments) | Java 8+ CHM (Per-bucket) |
+| ------- | --------------------- | ------------------------ |
+| Structure | Array of Segments, each with lock | Single table, per-bucket locking |
+| Concurrency ceiling | 16 (default) | # of buckets (thousands) |
+| Empty-bucket insert | Segment lock | CAS (lock-free) |
+| Non-empty insert | Segment lock | Synchronized on bucket head |
+| `get` | Volatile reads (mostly lock-free) | Fully lock-free |
+| `size()` | Locks all segments | Approximate (LongAdder cells) |
+| Cooperative resize | No | Yes (ForwardingNode) |
+
+**Both versions:**
+- Null keys and values forbidden (throws NPE).
+- Iterators weakly consistent — no CME, but may or may not reflect concurrent modifications.
+- Atomic compute methods (`compute`, `merge`, `computeIfAbsent`) — true atomicity across threads.
+
+---
+
+### 9.5 ConcurrentHashMap internals — Node, TreeBin, ForwardingNode
+
+Java 8+ CHM uses three flavors of bucket entry, distinguished by `hash` value sign:
+
+#### `Node<K,V>` — the regular entry
+
+```java
+static class Node<K,V> {
+    final int hash;
+    final K key;
+    volatile V val;
+    volatile Node<K,V> next;
+    // ...
+}
+```
+
+- `volatile val` and `next` — ensures memory visibility across threads without locks.
+- `final hash` and `key` — never change after construction.
+- Chain like HashMap; but writes to a non-empty bucket sync on the bucket head.
+
+#### `TreeBin<K,V>` — wraps a red-black tree
+
+- Same treeification trigger as HashMap (chain > 8 in table ≥ 64).
+- But CHM doesn't put `TreeNode` directly in the bucket — it wraps in a `TreeBin` container.
+- Why? `TreeBin` has its own `ReadWriteLock`-like mechanism (`lockState` field) — many readers can walk the tree while writers are excluded.
+- Enables high-concurrency reads even on treeified buckets.
+
+#### `ForwardingNode<K,V>` — the resize placeholder
+
+**The most interesting internal.**
+
+When CHM resizes, it doesn't stop the world. Instead:
+1. Allocates a new (double-sized) table.
+2. Starts migrating buckets from old to new, one at a time.
+3. As each old bucket is migrated, replaces it with a `ForwardingNode` — a special sentinel that points to the new table.
+
+```java
+static final class ForwardingNode<K,V> extends Node<K,V> {
+    final Node<K,V>[] nextTable;   // pointer to the new table
+    // hash = MOVED (-1) — negative sentinel value
+}
+```
+
+**When other threads encounter a `ForwardingNode`:**
+
+- **For reads (`get`):** follow the forwarding pointer to look in the new table. Reads never wait.
+- **For writes:** **help migrate.** Grab an un-migrated bucket range, do the transfer, then continue with the intended write. **Cooperative resize.**
+
+**Result:** resize is spread across all threads that touch the map during the resize window. No single thread bears the O(n) cost alone. This is one of the smartest concurrent designs in the JDK.
+
+**Sentinel hash values used by CHM:**
+- `MOVED = -1` → ForwardingNode
+- `TREEBIN = -2` → TreeBin
+- `RESERVED = -3` → placeholder for `computeIfAbsent` in progress
+- Positive → regular Node
+
+Testing the hash sign is faster than `instanceof` checks in the hot path.
+
+---
 
 ### 9.6 ConcurrentSkipListMap — the sorted concurrent map
-- Skip-list based (probabilistic multi-level linked list)
-- Lock-free, sorted iteration
-- Use when you need thread-safety + sorted ordering
-- Cost: O(log n) operations vs CHM's O(1)
+
+Java's concurrent equivalent of `TreeMap`. Backed by a **skip list** (probabilistic multi-level linked list), not a red-black tree.
+
+#### Why skip list, not concurrent tree?
+
+- Concurrent balanced trees require complex locking for rebalancing → contention.
+- Skip lists are **inherently lock-free** — they only insert/delete nodes via CAS operations on `next` pointers. No rotations needed.
+
+#### How a skip list works
+
+Multi-level structure. Level 0 is the full linked list. Each node has a probability (usually 50%) of being promoted to higher levels.
+
+```
+ Level 3:  1 ────────────────────────────────▶ 15
+                                                │
+ Level 2:  1 ───────▶ 6 ─────────▶ 12 ────────▶ 15
+                                                │
+ Level 1:  1 ───▶ 3 ▶ 6 ─▶ 9 ────▶ 12 ▶ 14 ───▶ 15
+                                                │
+ Level 0:  1 ▶ 2 ▶ 3 ▶ 6 ▶ 8 ▶ 9 ▶ 12 ▶ 14 ─▶ 15
+```
+
+**Search:** start at top-left. Walk right until overshooting. Drop down. Repeat. Average O(log n).
+
+#### CSKM comparison
+
+| Feature                | ConcurrentSkipListMap | ConcurrentHashMap | TreeMap |
+| ---------------------- | --------------------- | ----------------- | ------- |
+| Thread safety          | ✅ Yes                 | ✅ Yes             | ❌ No    |
+| Sorted iteration       | ✅ Yes                 | ❌ No              | ✅ Yes   |
+| `get`/`put` complexity | O(log n)              | O(1) avg          | O(log n) |
+| NavigableMap API       | ✅ Yes                 | ❌ No              | ✅ Yes   |
+| Locking                | Lock-free (CAS)       | Per-bucket sync   | N/A     |
+
+**When to use ConcurrentSkipListMap:**
+- Need thread-safe map + sorted iteration.
+- Range queries (`headMap`, `tailMap`, `subMap`) in a concurrent context.
+- Concurrent alternative to `TreeMap`.
+
+**Trade-off vs CHM:** O(log n) instead of O(1). Only pick CSKM if you actually need sorted access — otherwise CHM wins on speed.
+
+---
 
 ### 9.7 Decision guide — which thread-safe map when
+
 ```
-Need thread-safe map?
-├── Sorted iteration required?
-│   └── Yes → ConcurrentSkipListMap
-├── Very read-heavy, rarely writes?
-│   └── CopyOnWriteArrayList-style pattern → immutable copies
-└── General use → ConcurrentHashMap
+Do multiple threads touch the map?
+├── NO  → HashMap (or LinkedHashMap / TreeMap / EnumMap per Phase 5)
+└── YES →
+    ├── Need sorted iteration or NavigableMap API?
+    │   └── YES → ConcurrentSkipListMap
+    ├── Almost-always-read, rare-writes (e.g., listener registry)?
+    │   └── YES → Consider immutable snapshots + AtomicReference<Map>
+    ├── Legacy code you can't refactor?
+    │   └── Collections.synchronizedMap(new HashMap<>())  ← last resort
+    └── Default →
+        └── ConcurrentHashMap
 ```
 
-### 9.8 Self-check
-1. What was the Java 7 infinite loop bug and what fixed it?
-2. What's the difference between Java 7 and Java 8+ ConcurrentHashMap architecture?
-3. What is a `ForwardingNode` and why does it exist?
-4. Why can't ConcurrentHashMap store null keys or values?
+**One-liner heuristics:**
+
+- **ConcurrentHashMap** — the default for concurrent map access. Fast, scalable, correct.
+- **ConcurrentSkipListMap** — CHM's sorted cousin. O(log n) tax for `NavigableMap` API.
+- **synchronizedMap** — legacy. Only if you're stuck with it.
+- **Hashtable** — dead. Never use in new code (Phase 5.1).
+
+**Advanced patterns for extreme concurrency:**
+- **`AtomicReference<Map>` + immutable copies** — great for read-heavy workloads with rare writes. Reads are trivially fast (no synchronization); writes copy-on-write.
+- **`Caffeine` library** — for sophisticated caches (bounded, expiring, refresh-on-access) with thread safety. Production standard for LRU/LFU caches.
+
+---
+
+### 9.8 Self-check (answer without looking)
+
+1. **What was the Java 7 infinite loop bug and what fixed it?**
+2. **What's the difference between Java 7 and Java 8+ ConcurrentHashMap architecture?**
+3. **What is a `ForwardingNode` and why does it exist?**
+4. **Why can't ConcurrentHashMap store null keys or values?**
+
+#### Answers
+
+1. **Java 7's HashMap used head insertion during rehash — chains were reversed as entries moved to the new table.** Under concurrent resize by two threads, the racing head-inserts could set two nodes' `next` pointers to point at each other, forming a cycle. Subsequent `get(k)` calls would walk the chain and never terminate → the JVM core hit 100% CPU forever. Legendary production incident that caught many companies. **Fixed in Java 8** by switching to tail insertion + the split-in-half rehash optimization (Phase 3.7). But HashMap is still not thread-safe in Java 8+ — the fix eliminated only this specific failure mode. Use ConcurrentHashMap for thread-safe access.
+
+2. **Java 7:** an array of ~16 `Segment`s, each a mini HashMap with its own `ReentrantLock`. Writes acquired one segment's lock; reads were mostly lock-free. Concurrency ceiling ~16, fixed at construction. **Java 8+:** single unified table (like HashMap) with **per-bucket** locking. Empty-bucket inserts use CAS (lock-free); non-empty inserts synchronize on the bucket head. `get` is fully lock-free. Concurrency = number of buckets (thousands, not 16). Also added ForwardingNode for cooperative resize and LongAdder-style counter cells for scalable `size()`.
+
+3. **A `ForwardingNode` is a special sentinel that CHM places in old-table buckets during resize.** It has `hash = MOVED (-1)` and points to the new table. When another thread encounters it: for reads, follow the forwarding pointer to look in the new table (never wait); for writes, **help migrate un-migrated buckets first**, then continue. This makes resize **cooperative** — the O(n) work is spread across all threads that touch the map during the resize window, so no single thread bears the cost alone. It's one of the smartest concurrent designs in the JDK.
+
+4. **Because `map.get(k)` returning null must unambiguously mean "not present."** If null were a valid value, distinguishing "not present" from "present with null value" would need a second `containsKey` lookup — which breaks atomicity guarantees in a concurrent context (another thread could modify between the two lookups). HashMap doesn't guarantee atomicity in the first place, so it can accept nulls (with the `containsKey` disambiguation caveat). CHM does guarantee atomicity, so it can't accept nulls without violating its own contract. Doug Lea (author of CHM) explicitly documented this design decision.
 
 ---
 
 ## Phase 10 — API Traps & Practical Gotchas
 
-### 10.1 `keySet` / `entrySet` / `values` are VIEWS
-- Not copies — modifying the returned collection modifies the map
-- `map.keySet().remove(k)` == `map.remove(k)`
-- Iterating and mutating simultaneously → CME
+The final phase — real-world bugs that show up in code review and production, not just interviews. Half of "senior" HashMap knowledge is knowing these API idioms cold.
+
+---
+
+### 10.1 `keySet` / `entrySet` / `values` are VIEWS, not copies
+
+These three methods return **live views** backed by the map. Modifying the view modifies the map — and vice versa.
+
+#### Modifying via keySet propagates to the map
+
+```java
+Map<String, Integer> map = new HashMap<>();
+map.put("a", 1);
+map.put("b", 2);
+map.put("c", 3);
+
+Set<String> keys = map.keySet();
+keys.remove("a");   // ALSO removes from map!
+
+System.out.println(map);   // {b=2, c=3}  — "a" is gone
+```
+
+#### The view reflects live map state
+
+```java
+Set<String> keys = map.keySet();
+map.put("d", 4);
+System.out.println(keys);   // [b, c, d]  — reflects the addition
+```
+
+#### But you can't add to `keySet`
+
+```java
+keys.add("e");   // UnsupportedOperationException
+```
+
+Adding a key without a value is meaningless — the map needs a `(key, value)` pair. Same for `values.add(x)`.
+
+#### `entrySet` mutations mutate the map too
+
+```java
+for (Map.Entry<String, Integer> e : map.entrySet()) {
+    e.setValue(e.getValue() * 2);   // updates the actual map entry
+}
+// Doubles every value in the map.
+```
+
+`setValue` on the entry object is a live mutation.
+
+#### Trap — mixing view iteration with map modification
+
+```java
+for (String k : map.keySet()) {
+    if (k.startsWith("a")) {
+        map.remove(k);   // CME — modified map during iteration
+    }
+}
+```
+
+Use `iterator.remove()` or `entrySet().removeIf(...)` instead (see 10.5).
+
+#### If you want a snapshot (independent copy)
+
+```java
+Set<String> snapshot = new HashSet<>(map.keySet());
+// snapshot is independent — changes to map don't affect it
+```
+
+Wrap in a new collection to break the view relationship.
+
+---
 
 ### 10.2 `getOrDefault` vs `computeIfAbsent`
-- `getOrDefault(k, default)` — returns default if absent; does NOT insert
-- `computeIfAbsent(k, key -> ...)` — computes AND inserts if absent
-- Common mistake: using `getOrDefault` when you meant to lazy-initialize
+
+**Both return the value if the key is present. The difference is what they do if the key is absent.**
+
+| Method | Absent behavior | Inserts? | Lazy? |
+| ------ | --------------- | -------- | ----- |
+| `getOrDefault(k, default)` | Returns `default` | ❌ No | ❌ Always evaluates `default` |
+| `computeIfAbsent(k, k -> ...)` | Computes AND inserts | ✅ Yes | ✅ Only evaluates function if absent |
+
+#### The classic bug — using `getOrDefault` when you meant to lazy-init
+
+```java
+// WRONG — thinks getOrDefault inserts a new list
+Map<String, List<Integer>> map = new HashMap<>();
+List<Integer> list = map.getOrDefault("k", new ArrayList<>());
+list.add(42);
+// If "k" wasn't in the map, the new list is NOT stored in the map!
+// map is still empty, and the list you just built floats away.
+
+// RIGHT
+List<Integer> list = map.computeIfAbsent("k", k -> new ArrayList<>());
+list.add(42);
+// The list IS in the map. Future computeIfAbsent calls return the same list.
+```
+
+#### The lazy-evaluation win
+
+```java
+// Wasteful — expensiveCall() runs EVERY time, even when "k" is already present
+Integer v = map.getOrDefault("k", expensiveCall());
+
+// Better — expensiveCall() only runs when "k" is absent
+Integer v = map.computeIfAbsent("k", k -> expensiveCall());
+```
+
+Rule of thumb: **if the default is a cheap literal (0, "", null), use `getOrDefault`. If it's a function call or object construction, use `computeIfAbsent`.**
+
+---
 
 ### 10.3 `merge()` — the underused power tool
-- Signature: `merge(k, value, BiFunction remappingFn)`
-- Perfect for frequency counting: `map.merge(word, 1, Integer::sum)`
-- Also for concatenation, max/min, etc.
+
+**Signature:** `merge(K key, V value, BiFunction<V, V, V> remappingFn)`.
+
+**Behavior:**
+- If `key` is absent (or mapped to null) → `put(key, value)`.
+- Otherwise → `put(key, remappingFn(oldValue, value))`.
+- If `remappingFn` returns null → `remove(key)`.
+
+One method, three behaviors. Enormously versatile.
+
+#### Frequency counting (the killer use case)
+
+```java
+Map<String, Integer> freq = new HashMap<>();
+for (String word : words) {
+    freq.merge(word, 1, Integer::sum);
+}
+// One line. Absent → put(word, 1). Present → put(word, oldCount + 1).
+```
+
+Compare with the pre-`merge` boilerplate:
+
+```java
+// Java 5 style — clunky
+Integer count = freq.get(word);
+if (count == null) count = 0;
+freq.put(word, count + 1);
+
+// Java 8 with getOrDefault — better but still not atomic-friendly
+freq.put(word, freq.getOrDefault(word, 0) + 1);
+
+// Java 8 merge — cleanest, atomic in ConcurrentHashMap
+freq.merge(word, 1, Integer::sum);
+```
+
+#### String concatenation
+
+```java
+Map<String, String> logs = new HashMap<>();
+logs.merge("user123", "loginAt=10:00\n", String::concat);
+logs.merge("user123", "clickAt=10:05\n", String::concat);
+// logs["user123"] = "loginAt=10:00\nclickAt=10:05\n"
+```
+
+#### Max / min per key
+
+```java
+Map<String, Integer> highScores = new HashMap<>();
+highScores.merge("alice", 850, Integer::max);
+highScores.merge("alice", 700, Integer::max);   // no change, 850 wins
+highScores.merge("alice", 920, Integer::max);   // updates to 920
+```
+
+#### The remove trick (return null from the function)
+
+```java
+map.merge(k, v, (oldV, newV) -> shouldKeep(oldV, newV) ? oldV : null);
+// If the lambda returns null, the entry is removed from the map.
+```
+
+---
 
 ### 10.4 `putIfAbsent` semantics
-- Puts value only if key absent; returns existing value (or null)
-- Different from `computeIfAbsent`: `putIfAbsent` always evaluates the value, `computeIfAbsent` computes lazily
-- Prefer `computeIfAbsent` when the value is expensive to build
+
+**Behavior:** puts the value only if the key is absent. Returns the OLD value (or null if the key was absent).
+
+```java
+Map<String, Integer> map = new HashMap<>();
+
+Integer prev = map.putIfAbsent("k", 42);
+// prev = null (key was absent). map now has {k=42}.
+
+prev = map.putIfAbsent("k", 99);
+// prev = 42 (existing value). map unchanged.
+```
+
+#### Difference from `computeIfAbsent`
+
+**Both** insert only if absent. Both return the (new or existing) value. Key difference: **evaluation timing.**
+
+- `putIfAbsent(k, expensiveCall())` — always evaluates `expensiveCall()`, even if `k` is already present (arg evaluated before method call).
+- `computeIfAbsent(k, key -> expensiveCall())` — only evaluates the lambda if `k` is absent.
+
+**Rule:**
+- Value is cheap (literal, precomputed) → `putIfAbsent`.
+- Value is expensive (function call, new object) → `computeIfAbsent`.
+
+#### Concurrency note
+
+In `ConcurrentHashMap`, `putIfAbsent` is atomic — no race between the "check if absent" and the "put." Same for `computeIfAbsent`, `merge`, `compute`, `computeIfPresent`. That's what makes CHM so much better than `synchronizedMap` for concurrent access — atomic compound operations you can't build safely from `get + put`.
+
+---
 
 ### 10.5 Safely removing during iteration
-- Wrong: `for (K k : map.keySet()) map.remove(k)` → CME
-- Right: `map.entrySet().removeIf(e -> ...)`
-- Or: use `iterator.remove()` explicitly
+
+Four correct patterns, one wrong pattern to avoid.
+
+#### ❌ WRONG — modifying via the map during for-each
+
+```java
+for (String k : map.keySet()) {
+    if (k.startsWith("temp_")) {
+        map.remove(k);   // ConcurrentModificationException
+    }
+}
+```
+
+`for-each` uses an iterator. Modifying the map bumps `modCount`. Next `iterator.next()` throws CME.
+
+#### ✅ Option 1 — Explicit iterator + `iterator.remove()`
+
+```java
+Iterator<Map.Entry<String, Integer>> it = map.entrySet().iterator();
+while (it.hasNext()) {
+    Map.Entry<String, Integer> e = it.next();
+    if (e.getKey().startsWith("temp_")) {
+        it.remove();
+    }
+}
+```
+
+Verbose but explicit. Fine when you need custom logic during removal.
+
+#### ✅ Option 2 — `entrySet().removeIf(...)` (Java 8+, cleanest)
+
+```java
+map.entrySet().removeIf(e -> e.getKey().startsWith("temp_"));
+```
+
+**Best for most cases.** One line, clear intent, no manual iterator handling.
+
+#### ✅ Option 3 — `keySet().removeIf(...)`
+
+```java
+map.keySet().removeIf(k -> k.startsWith("temp_"));
+```
+
+Same as option 2 when you only need to check keys.
+
+#### ✅ Option 4 — Collect keys first, then remove
+
+```java
+List<String> toRemove = map.keySet().stream()
+    .filter(k -> k.startsWith("temp_"))
+    .toList();
+toRemove.forEach(map::remove);
+```
+
+Slower (extra list allocation) but useful when the removal logic touches other maps or triggers side effects.
+
+**Verdict:** default to option 2 (`entrySet().removeIf`). Use option 1 for complex loops. Use option 4 for side-effect-heavy removal logic.
+
+---
 
 ### 10.6 Iteration order guarantees (or lack thereof)
-- `HashMap`: NO guaranteed order (may change between JVM versions)
-- `LinkedHashMap`: insertion order (or access order if configured)
-- `TreeMap`: natural key ordering (or custom Comparator)
+
+| Map                       | Iteration order                              |
+| ------------------------- | -------------------------------------------- |
+| `HashMap`                 | **UNPREDICTABLE.** May change between JVM versions. |
+| `LinkedHashMap`           | Insertion order (default) or access order (if configured) |
+| `TreeMap`                 | Natural key ordering (or custom `Comparator`) |
+| `ConcurrentHashMap`       | UNPREDICTABLE + weakly consistent            |
+| `EnumMap`                 | Natural enum declaration order               |
+| `Map.of()` / `Map.copyOf()` | **RANDOMIZED per JVM instance** (deliberate) |
+
+#### The trap
+
+**Never write code that depends on HashMap iteration order.** It has burned countless projects.
+
+Real-world example: between Java 7 and Java 8, HashMap's hash function changed (Java 8 added the XOR shift). Many maps' bucket layouts shifted. Tests that depended on iteration order — like:
+
+```java
+// Fragile test
+assertEquals("[b, a, c]", map.keySet().toString());
+```
+
+...broke silently when upgrading to Java 8, because HashMap's iteration order changed.
+
+`Map.of()`'s randomized order is a deliberate defense against this — it purposely varies iteration order between JVM instances to prevent code from depending on it.
+
+**Rule:** if iteration order matters, use `LinkedHashMap` (for insertion order) or `TreeMap` (for sorted order). Never rely on HashMap.
+
+---
 
 ### 10.7 Frequency map idioms
-- **Count occurrences:** `map.merge(word, 1, Integer::sum)`
-- **Lazy list init:** `map.computeIfAbsent(k, x -> new ArrayList<>()).add(v)`
-- **Increment counter:** compare with old `map.put(k, map.getOrDefault(k, 0) + 1)`
+
+The two idioms below cover **80% of real HashMap usage in Java code.** Master them.
+
+#### Counting occurrences
+
+Three ways, best-to-worst:
+
+```java
+// Best — merge (Java 8+)
+freq.merge(word, 1, Integer::sum);
+
+// OK — getOrDefault + put
+freq.put(word, freq.getOrDefault(word, 0) + 1);
+
+// Old-school — verbose
+Integer c = freq.get(word);
+if (c == null) c = 0;
+freq.put(word, c + 1);
+```
+
+`merge` is:
+- Most concise (one method call).
+- Atomic in ConcurrentHashMap (`getOrDefault + put` is a race).
+- Handles null-value case identically to "absent" case (the merging function is only called if a non-null value already exists).
+
+#### Lazy list/set init (grouping)
+
+```java
+// One line
+map.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+
+// Vs. the pre-Java-8 boilerplate
+List<V> list = map.get(key);
+if (list == null) {
+    list = new ArrayList<>();
+    map.put(key, list);
+}
+list.add(value);
+```
+
+Same pattern for sets:
+
+```java
+map.computeIfAbsent(key, k -> new HashSet<>()).add(value);
+```
+
+#### Combining both
+
+```java
+Map<String, Map<String, Integer>> nested = new HashMap<>();
+nested.computeIfAbsent(outerKey, k -> new HashMap<>())
+      .merge(innerKey, 1, Integer::sum);
+// Increments count at (outerKey, innerKey), creating inner map if needed.
+```
+
+Two-level counting in one expression.
+
+---
 
 ### 10.8 The `Map<K, List<V>>` multimap pattern
-- Java stdlib has no `Multimap` — use `Map<K, List<V>>`
-- Use `computeIfAbsent` to avoid null-check boilerplate
-- Alternative: Guava's `Multimap`
+
+Java's standard library has **no `Multimap`** class (unlike Guava). Idiomatic Java uses `Map<K, List<V>>` with `computeIfAbsent`.
+
+#### Building a multimap
+
+```java
+Map<String, List<Integer>> groups = new HashMap<>();
+
+groups.computeIfAbsent("even", k -> new ArrayList<>()).add(2);
+groups.computeIfAbsent("even", k -> new ArrayList<>()).add(4);
+groups.computeIfAbsent("even", k -> new ArrayList<>()).add(6);
+groups.computeIfAbsent("odd",  k -> new ArrayList<>()).add(1);
+groups.computeIfAbsent("odd",  k -> new ArrayList<>()).add(3);
+
+// groups = {even=[2, 4, 6], odd=[1, 3]}
+```
+
+#### Building from a stream (much cleaner)
+
+```java
+Map<String, List<Integer>> groups = Stream.of(1, 2, 3, 4, 5, 6)
+    .collect(Collectors.groupingBy(n -> n % 2 == 0 ? "even" : "odd"));
+// groups = {even=[2, 4, 6], odd=[1, 3, 5]}
+```
+
+`Collectors.groupingBy` is the idiomatic way when you have a stream source.
+
+#### With counting instead of listing
+
+```java
+Map<String, Long> counts = Stream.of("apple", "banana", "apple", "cherry", "banana", "banana")
+    .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+// {apple=2, banana=3, cherry=1}
+```
+
+Equivalent to `merge(k, 1, Integer::sum)` in a loop.
+
+#### Variants — set values (dedup) or count
+
+- `Map<K, Set<V>>` — deduplicated values per key. Use `new HashSet<>()` in `computeIfAbsent`.
+- `Map<K, Long>` (via `Collectors.counting()`) — just counts, no values kept.
+
+#### When to reach for Guava's Multimap
+
+- You need many convenience methods (`putAll`, `containsEntry`, cross-multimap operations).
+- You're already using Guava.
+- You want `SetMultimap`, `ListMultimap`, `SortedSetMultimap` as first-class types.
+
+For everything else, the Java-standard pattern above is fine.
+
+---
 
 ### 10.9 Sorting a HashMap
-- You can't sort a HashMap in place (unordered by design)
-- Sort the entries: `map.entrySet().stream().sorted(Map.Entry.comparingByValue())...`
-- To keep sorted permanently: copy into `TreeMap` (by key) or `LinkedHashMap` (by insertion of sorted stream)
 
-### 10.10 Self-check
-1. What's the difference between `getOrDefault` and `computeIfAbsent`?
-2. Why is `map.merge(word, 1, Integer::sum)` better than `map.put(word, map.getOrDefault(word, 0) + 1)`?
-3. What happens if you call `map.keySet().remove(k)`?
-4. How do you sort a HashMap by value?
+**You can't sort a HashMap in place — it's unordered by design.** Two approaches: sort the output, or copy into an ordered map.
+
+#### Approach 1 — sort entries with a stream (one-shot)
+
+```java
+Map<String, Integer> map = ...;
+
+// Sort by value ascending
+List<Map.Entry<String, Integer>> byValue = map.entrySet().stream()
+    .sorted(Map.Entry.comparingByValue())
+    .toList();
+
+// Sort by key
+List<Map.Entry<String, Integer>> byKey = map.entrySet().stream()
+    .sorted(Map.Entry.comparingByKey())
+    .toList();
+
+// Sort by value descending
+List<Map.Entry<String, Integer>> byValueDesc = map.entrySet().stream()
+    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+    .toList();
+```
+
+Result is a `List` — you iterate it in the sorted order. The original map is unchanged.
+
+#### Approach 2 — copy into an ordered map (permanent)
+
+Sort by key: `TreeMap` gives you sorted-by-key naturally:
+
+```java
+Map<String, Integer> sortedByKey = new TreeMap<>(map);
+// TreeMap wraps the input and re-inserts using natural key ordering.
+```
+
+Sort by value: collect into `LinkedHashMap` to preserve the sorted-insertion order:
+
+```java
+Map<String, Integer> sortedByValue = map.entrySet().stream()
+    .sorted(Map.Entry.comparingByValue())
+    .collect(Collectors.toMap(
+        Map.Entry::getKey,
+        Map.Entry::getValue,
+        (a, b) -> a,           // merge function (unused — no duplicate keys)
+        LinkedHashMap::new     // KEY: preserves insertion order
+    ));
+```
+
+**Trap:** if you use `HashMap::new` (or omit the map supplier) in the collector, iteration order goes back to unpredictable — your sort is lost. Always use `LinkedHashMap::new` when you need to preserve sort order.
+
+#### Common variants
+
+```java
+// Top K by value
+map.entrySet().stream()
+    .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+    .limit(k)
+    .toList();
+
+// Sort by value, break ties by key
+Comparator<Map.Entry<String, Integer>> cmp =
+    Map.Entry.<String, Integer>comparingByValue().thenComparing(Map.Entry.comparingByKey());
+```
+
+---
+
+### 10.10 Self-check (answer without looking)
+
+1. **What's the difference between `getOrDefault` and `computeIfAbsent`?**
+2. **Why is `map.merge(word, 1, Integer::sum)` better than `map.put(word, map.getOrDefault(word, 0) + 1)`?**
+3. **What happens if you call `map.keySet().remove(k)`?**
+4. **How do you sort a HashMap by value?**
+
+#### Answers
+
+1. **`getOrDefault(k, def)` returns `def` if the key is absent but does NOT insert anything.** The original map is unchanged. It also always evaluates `def` — even if the key is present. **`computeIfAbsent(k, k -> ...)` computes AND inserts a new value if the key is absent** (via the lambda), and returns the new (or existing) value. The lambda is evaluated *lazily* — only if the key is actually absent. **Rule:** use `getOrDefault` when the default is a cheap literal and you don't need to insert; use `computeIfAbsent` when the value is expensive to build OR when you want the new value stored in the map (e.g., lazy list init for `Map<K, List<V>>`).
+
+2. **Three reasons:** (a) **More concise** — one method call vs. `get` + `put`. (b) **Atomic in ConcurrentHashMap** — `getOrDefault + put` has a race window between the two operations (another thread could modify between them); `merge` is atomic. (c) **More general** — `merge` accepts any `BiFunction`, so the same pattern works for sums, concatenation, max/min, and even removal (return null). It's the single most important Java 8 map API to master for real-world code.
+
+3. **It removes `k` from the underlying map.** `keySet()` returns a live VIEW, not a snapshot copy. Any mutation propagates to the map. (But you can't `add` to `keySet` — that operation throws `UnsupportedOperationException`, because adding a key without a value would be meaningless.) Same behavior for `entrySet().remove()` and `values().remove()`. If you want a snapshot that doesn't affect the map, wrap in a new collection: `new HashSet<>(map.keySet())`.
+
+4. **Two approaches:**
+   - **Stream + sorted (one-shot):** `map.entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()`. Result is a `List<Map.Entry>` in sorted order; the map itself is unchanged.
+   - **Permanent (as an ordered map):** collect into a `LinkedHashMap` to preserve the sorted-insertion order:
+     ```java
+     map.entrySet().stream()
+        .sorted(Map.Entry.comparingByValue())
+        .collect(Collectors.toMap(
+            Map.Entry::getKey, Map.Entry::getValue,
+            (a, b) -> a, LinkedHashMap::new));
+     ```
+     **Trap:** if you use `HashMap::new` (or omit the map supplier), iteration order goes back to unpredictable and your sort is lost. Always `LinkedHashMap::new` for value-sorted results.
+   For sorting by **key** instead, just do `new TreeMap<>(map)` — TreeMap auto-sorts on insertion.
+
+---
+
+**🎯 Phase 10 complete — all 10 phases done.** The file is now a fully-fleshed HashMap deep-dive covering theory, JDK internals, hands-on implementation, 28 coding problems, 7+1 transferable techniques, ConcurrentHashMap architecture, and all the practical API traps.
+
+The remaining scaffolding sections (Quick-recall cheat sheet, Open questions) are intentionally left for you to fill in as your final consolidation exercise.
 
 ---
 
