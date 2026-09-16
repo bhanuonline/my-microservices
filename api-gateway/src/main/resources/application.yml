@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: api-gateway
+  main:
+    web-application-type: reactive     # gateway is reactive-only
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true                 # auto-create routes for every eureka service
+          lower-case-service-id: true
+      default-filters:
+        - TokenRelay                    # forward JWT to downstream services
+      routes:
+        - id: user-service
+          uri: lb://user-service        # lb:// = load-balance via Eureka
+          predicates:
+            - Path=/users/**
+          filters:
+            - StripPrefix=1             # /users/foo -> /foo when calling user-service
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/products/**
+          filters:
+            - StripPrefix=1
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/orders/**
+          filters:
+            - StripPrefix=1
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8095   # your auth-server (was pointing at Keycloak — wrong)
+
+server:
+  port: 8080                           # standard gateway port; clients hit :8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway   # /actuator/gateway/routes to inspect live routes
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
