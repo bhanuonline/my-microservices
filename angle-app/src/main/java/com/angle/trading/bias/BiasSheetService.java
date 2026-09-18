@@ -3,14 +3,16 @@ package com.angle.trading.bias;
 import com.angle.trading.analyst.AnalystService;
 import com.angle.trading.analyst.model.AnalystReport;
 import com.angle.trading.bias.model.BiasSheet;
+import com.angle.trading.bias.model.BreadthSection;
 import com.angle.trading.bias.model.ConsolidatedScore;
+import com.angle.trading.bias.model.CorrelatedSection;
 import com.angle.trading.bias.model.MarketContextSection;
 import com.angle.trading.bias.model.StructureSection;
 import com.angle.trading.bias.model.TimeframeBias;
 import com.angle.trading.bias.model.TrendFilters;
+import com.angle.trading.bias.model.VixSection;
 import com.angle.trading.bias.model.ZonesSection;
 import com.angle.trading.broker.model.Candle;
-import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
 import com.angle.trading.config.BiasProperties;
 import com.angle.trading.indicator.AverageDirectionalIndex;
@@ -41,16 +43,17 @@ import java.util.Map;
 /**
  * Assembles a full {@link BiasSheet} for one instrument.
  *
- * Data pipeline per instrument:
- *   1. Fetch candles for each configured timeframe
- *   2. Compute indicators on the intraday timeframe (EMA, VWAP, ADX, ATR, RSI, MACD)
+ * Pipeline per instrument:
+ *   1. Fetch candles for the intraday interval + each configured MTF interval
+ *   2. Compute indicators (EMA, VWAP, ADX, ATR, RSI, MACD)
  *   3. Ask AnalystService for the bias on each timeframe
  *   4. Ask MarketContextBuilder for SMC structure + zones
- *   5. Score everything → ConsolidatedScore
- *   6. Return BiasSheet snapshot
+ *   5. Fetch India VIX + correlated instrument (Bank Nifty)
+ *   6. Score everything → ConsolidatedScore
+ *   7. Return BiasSheet snapshot
  *
- * All external calls (Angel candles, Analyst) can throw — we log and
- * insert nulls into the sheet so the UI degrades gracefully.
+ * All external calls (Angel candles, Analyst, VIX, Correlated) can throw —
+ * we log and insert nulls into the sheet so the UI degrades gracefully.
  */
 @Slf4j
 @Service
@@ -65,6 +68,9 @@ public class BiasSheetService {
     private final MarketDataService marketDataService;
     private final AnalystService analystService;
     private final MarketContextBuilder marketContextBuilder;
+    private final VixService vixService;
+    private final CorrelatedService correlatedService;
+    private final BreadthService breadthService;
 
     public BiasSheet build(BiasProperties.Instrument cfg) {
         Instant asOf = Instant.now();
@@ -75,16 +81,19 @@ public class BiasSheetService {
         List<Candle> intraday = safeFetchCandles(cfg, cfg.getIntradayInterval(), from, to);
 
         MarketContextSection market   = buildMarketContext(intraday);
+        VixSection           vix      = vixService.fetchLatest();
+        BreadthSection       breadth  = breadthService.fetch();
         List<TimeframeBias>  multiTf  = buildMultiTfBias(cfg, from, to);
         TrendFilters         trend    = buildTrendFilters(intraday);
         MarketContext        smcCtx   = intraday.isEmpty() ? null : marketContextBuilder.build(intraday);
         StructureSection     structure = buildStructure(smcCtx);
         ZonesSection         zones    = buildZones(smcCtx);
-        ConsolidatedScore    score    = buildConsolidatedScore(multiTf, trend, structure);
+        CorrelatedSection    correlated = correlatedService.fetch(market.gapPercent());
+        ConsolidatedScore    score    = buildConsolidatedScore(multiTf, trend, structure, vix, correlated, breadth);
 
         return new BiasSheet(
                 asOf, cfg.getSymbol(), cfg.getSymbolToken(), cfg.getExchange().name(),
-                market, multiTf, trend, structure, zones, score
+                market, vix, breadth, multiTf, trend, structure, zones, correlated, score
         );
     }
 
@@ -102,7 +111,6 @@ public class BiasSheetService {
         Instant cutoff24 = latest.timestamp().minusSeconds(24 * 3600);
         Instant cutoff48 = latest.timestamp().minusSeconds(48 * 3600);
         BigDecimal openToday = null, dayHigh = null, dayLow = null;
-        Instant startOfDay = latest.timestamp().minusSeconds(6 * 3600 + 30 * 60);  // rough IST 9AM cutoff
         for (Candle c : candles) {
             if (c.timestamp().isAfter(cutoff24)) {
                 if (openToday == null) openToday = c.open();
@@ -119,7 +127,7 @@ public class BiasSheetService {
                 ? gap.divide(previousClose, MC).multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP)
                 : null;
         return new MarketContextSection(latest.close(), previousClose, pdh, pdl, openToday,
-                dayHigh, dayLow, gap, gapPct, /* indiaVix */ null);
+                dayHigh, dayLow, gap, gapPct, /* indiaVix legacy field */ null);
     }
 
     private List<TimeframeBias> buildMultiTfBias(BiasProperties.Instrument cfg, LocalDate from, LocalDate to) {
@@ -165,11 +173,11 @@ public class BiasSheetService {
 
         String adxStrength = null;
         if (adx != null) {
-            int i2 = adx.intValue();
-            if      (i2 < 20) adxStrength = "WEAK";
-            else if (i2 <= 25) adxStrength = "DEVELOPING";
-            else if (i2 <= 40) adxStrength = "STRONG";
-            else               adxStrength = "VERY_STRONG";
+            int a = adx.intValue();
+            if      (a < 20) adxStrength = "WEAK";
+            else if (a <= 25) adxStrength = "DEVELOPING";
+            else if (a <= 40) adxStrength = "STRONG";
+            else              adxStrength = "VERY_STRONG";
         }
 
         BigDecimal atrPct = (atr != null && price.signum() > 0)
@@ -219,18 +227,24 @@ public class BiasSheetService {
 
     private ConsolidatedScore buildConsolidatedScore(List<TimeframeBias> multiTf,
                                                      TrendFilters trend,
-                                                     StructureSection structure) {
+                                                     StructureSection structure,
+                                                     VixSection vix,
+                                                     CorrelatedSection correlated,
+                                                     BreadthSection breadth) {
         Map<String, Integer> scores = new LinkedHashMap<>();
-        scores.put("MultiTF",   scoreMultiTf(multiTf));
-        scores.put("EMA",       toScore(trend.ema20AboveEma50()));
-        scores.put("VWAP",      toScore(trend.priceAboveVwap()));
-        scores.put("ADX",       scoreAdx(trend));
-        scores.put("Structure", scoreStructure(structure));
-        scores.put("RSI",       toScore(trend.rsiBullish()));
-        scores.put("MACD",      toScore(trend.macdBullish()));
+        scores.put("MultiTF",    scoreMultiTf(multiTf));
+        scores.put("EMA",        toScore(trend.ema20AboveEma50()));
+        scores.put("VWAP",       toScore(trend.priceAboveVwap()));
+        scores.put("ADX",        scoreAdx(trend));
+        scores.put("Structure",  scoreStructure(structure));
+        scores.put("RSI",        toScore(trend.rsiBullish()));
+        scores.put("MACD",       toScore(trend.macdBullish()));
+        scores.put("Correlated", scoreCorrelated(correlated));
+        scores.put("VIX",        scoreVix(vix));
+        scores.put("Breadth",    scoreBreadth(breadth));
 
         int total = scores.values().stream().mapToInt(Integer::intValue).sum();
-        int maxPossible = scores.size();  // each contributes at most +1 magnitude
+        int maxPossible = scores.size();
 
         String strength;
         int abs = Math.abs(total);
@@ -263,7 +277,6 @@ public class BiasSheetService {
 
     private static int scoreAdx(TrendFilters t) {
         if (t.adxStrength() == null) return 0;
-        // ADX only tells strength — direction from EMA
         if (!"STRONG".equals(t.adxStrength()) && !"VERY_STRONG".equals(t.adxStrength())) return 0;
         if (t.ema20AboveEma50() == null) return 0;
         return t.ema20AboveEma50() ? 1 : -1;
@@ -272,6 +285,40 @@ public class BiasSheetService {
     private static int scoreStructure(StructureSection s) {
         if (s.bias() == null) return 0;
         return switch (s.bias()) { case BULLISH -> 1; case BEARISH -> -1; };
+    }
+
+    /**
+     * Correlated: confirm the main move if diverging=false + directionAgreement=true.
+     * Otherwise neutralize to 0 (divergence = don't add conviction).
+     */
+    private static int scoreCorrelated(CorrelatedSection c) {
+        if (c == null || c.dayChangePercent() == null) return 0;
+        if (c.diverging() || !c.directionAgreement()) return 0;
+        return c.dayChangePercent().signum();
+    }
+
+    /**
+     * VIX regime: elevated = subtract 1 from bullish conviction (risk-off filter).
+     * Calm/normal = no impact.
+     */
+    private static int scoreVix(VixSection v) {
+        if (v == null || v.regime() == null) return 0;
+        return "ELEVATED".equals(v.regime()) ? -1 : 0;
+    }
+
+    /**
+     * Breadth: broad participation → confirm direction; neutral → no impact.
+     *   STRONG_BULLISH / BULLISH → +1
+     *   STRONG_BEARISH / BEARISH → -1
+     *   NEUTRAL / null            → 0
+     */
+    private static int scoreBreadth(BreadthSection b) {
+        if (b == null || b.regime() == null) return 0;
+        return switch (b.regime()) {
+            case "STRONG_BULLISH", "BULLISH" -> 1;
+            case "STRONG_BEARISH", "BEARISH" -> -1;
+            default -> 0;
+        };
     }
 
     private static int toScore(Boolean bullish) {

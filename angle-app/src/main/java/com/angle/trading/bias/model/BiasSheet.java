@@ -19,9 +19,11 @@ public record BiasSheet(
         String   exchange,           // "NSE"
 
         MarketContextSection  marketContext,
-        List<TimeframeBias>   multiTfBias,
+        VixSection            vix,             // Phase 3 — India VIX
+        BreadthSection breadth, List<TimeframeBias>   multiTfBias,
         TrendFilters          trendFilters,
         StructureSection      structure,
         ZonesSection          zones,
+        CorrelatedSection     correlated,      // Phase 3 — Bank Nifty parallel
         ConsolidatedScore     consolidated
 ) {}

@@ -56,6 +56,15 @@ public class BiasProperties {
     /** What changes should fire an alert. */
     private ChangeAlerts changeAlerts = new ChangeAlerts();
 
+    /** India VIX symbol on Angel + thresholds. */
+    private Vix vix = new Vix();
+
+    /** Bank Nifty (or any other index) run in parallel for divergence checks. */
+    private Correlated correlated = new Correlated();
+
+    /** Advance/Decline breadth — number of stocks up vs down. */
+    private Breadth breadth = new Breadth();
+
     @Data
     public static class Instrument {
         private String   symbol;              // display name, e.g. "Nifty 50"
@@ -81,5 +90,66 @@ public class BiasProperties {
         private boolean onNewStructuralEvent = true;     // new BOS/CHoCH detected
         private boolean onNewSweep = true;               // new liquidity sweep
         private boolean onAdxCross = true;               // ADX crosses 25 threshold
+        private boolean onDivergence = true;             // Nifty vs Bank Nifty diverge
+        private boolean onVixSpike = true;               // VIX crosses spike threshold
+        private boolean onBreadthFlip = true;            // A/D ratio flips bull ↔ bear
+    }
+
+    /**
+     * India VIX config.
+     * Angel exposes India VIX as symbol token 99919011 on NSE.
+     * (Verify against your scrip master; some brokers use different tokens.)
+     */
+    @Data
+    public static class Vix {
+        private boolean enabled = true;
+        private String  symbolToken = "99919011";
+        private String  exchange    = "NSE";
+        /** VIX above this = "elevated volatility" — worth alerting on. */
+        private double  spikeThreshold = 18.0;
+        /** VIX below this = "very calm" — trending strategies favoured. */
+        private double  calmThreshold  = 13.0;
+    }
+
+    /**
+     * A parallel instrument to cross-check the main instrument's move.
+     * For Nifty, this is typically Bank Nifty (token 99926009).
+     * Divergence between the two = warning of fake move.
+     */
+    @Data
+    public static class Correlated {
+        private boolean enabled = true;
+        private String  symbol       = "Bank Nifty";
+        private String  broker       = "ANGEL";
+        private String  exchange     = "NSE";
+        private String  symbolToken  = "99926009";
+        /** Divergence percent-of-price above which we flag it. */
+        private double  divergencePercentThreshold = 0.15;
+    }
+
+    /**
+     * Advance/Decline breadth. Fetches LTP for each configured stock token,
+     * compares with previous close, counts advances vs declines.
+     *
+     * Angel batch quote endpoint accepts up to 50 tokens per call — Nifty 50
+     * fits in one call. For larger baskets (Nifty 200 etc.) the fetcher would
+     * need to page.
+     *
+     * Populate constituentTokens with the tokens of your breadth universe.
+     * If empty, the breadth section is skipped entirely.
+     */
+    @Data
+    public static class Breadth {
+        private boolean enabled = true;
+        private String  broker   = "ANGEL";
+        private String  exchange = "NSE";
+        /** Human-readable label shown on dashboard (e.g. "Nifty 50 breadth"). */
+        private String  label    = "Nifty 50 breadth";
+        /** NSE stock tokens making up the breadth universe. */
+        private List<String> constituentTokens = new ArrayList<>();
+        /** Advances / declines ratio at or above this = broad bullish. */
+        private double bullishRatio = 2.0;
+        /** Advances / declines ratio at or below this = broad bearish. */
+        private double bearishRatio = 0.5;
     }
 }

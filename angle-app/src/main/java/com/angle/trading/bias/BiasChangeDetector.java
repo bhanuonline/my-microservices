@@ -141,6 +141,41 @@ public class BiasChangeDetector {
                 }
             }
         }
+
+        // 6. VIX regime flip (CALM/NORMAL/ELEVATED)
+        if (triggers.isOnVixSpike() && prev.vix() != null && now.vix() != null) {
+            String pReg = prev.vix().regime();
+            String nReg = now.vix().regime();
+            if (pReg != null && nReg != null && !pReg.equals(nReg)) {
+                changes.add(String.format("VIX regime %s → %s (%s)",
+                        pReg, nReg,
+                        now.vix().value() == null ? "—" : now.vix().value().toPlainString()));
+            }
+        }
+
+        // 7. Correlated instrument divergence (was aligned, now diverging)
+        if (triggers.isOnDivergence() && prev.correlated() != null && now.correlated() != null) {
+            if (!prev.correlated().diverging() && now.correlated().diverging()) {
+                changes.add("Cross-market DIVERGENT — " + now.correlated().signal());
+            }
+        }
+
+        // 8. A/D breadth regime flip (BULLISH ↔ BEARISH)
+        if (triggers.isOnBreadthFlip() && prev.breadth() != null && now.breadth() != null) {
+            String pReg = prev.breadth().regime();
+            String nReg = now.breadth().regime();
+            if (pReg != null && nReg != null && !pReg.equals(nReg)) {
+                boolean pBull = pReg.startsWith("BULLISH") || pReg.equals("STRONG_BULLISH");
+                boolean pBear = pReg.startsWith("BEARISH") || pReg.equals("STRONG_BEARISH");
+                boolean nBull = nReg.startsWith("BULLISH") || nReg.equals("STRONG_BULLISH");
+                boolean nBear = nReg.startsWith("BEARISH") || nReg.equals("STRONG_BEARISH");
+                if ((pBull && nBear) || (pBear && nBull)) {
+                    changes.add(String.format("Breadth regime %s → %s (adv %d / dec %d)",
+                            pReg, nReg,
+                            now.breadth().advances(), now.breadth().declines()));
+                }
+            }
+        }
         return changes;
     }
 

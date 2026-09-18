@@ -117,7 +117,74 @@
         <div class="kv"><span class="k">Prev Day Low</span>  <span class="v" th:text="${m.previousDayLow()} ?: '—'">24450</span></div>
         <div class="kv"><span class="k">Day Open</span>      <span class="v" th:text="${m.dayOpen()}        ?: '—'">24660</span></div>
         <div class="kv"><span class="k">Gap</span>           <span class="v" th:text="(${m.gapPoints()} ?: '—') + ' (' + (${m.gapPercent()} ?: '—') + '%)'">+80 (0.32%)</span></div>
-        <div class="kv"><span class="k">India VIX</span>     <span class="v" th:text="${m.indiaVix()} ?: '— (not built)'">—</span></div>
+    </div>
+
+    <!-- ================= ADVANCE / DECLINE BREADTH ================= -->
+    <div class="card" th:with="b=${sheet.breadth()}" th:if="${b != null}">
+        <h2>1.1 <span th:text="${b.label()}">Nifty 50 breadth</span></h2>
+        <div class="kv">
+            <span class="k">Advances</span>
+            <span class="v bull" th:text="${b.advances()}">32</span>
+        </div>
+        <div class="kv">
+            <span class="k">Declines</span>
+            <span class="v bear" th:text="${b.declines()}">15</span>
+        </div>
+        <div class="kv">
+            <span class="k">Unchanged</span>
+            <span class="v neutral" th:text="${b.unchanged()}">3</span>
+        </div>
+        <div class="kv">
+            <span class="k">A/D ratio</span>
+            <span class="v" th:text="${b.ratio() != null ? #numbers.formatDecimal(b.ratio(), 1, 2) : '—'}">2.13</span>
+        </div>
+        <div class="kv">
+            <span class="k">Regime</span>
+            <span>
+                <span th:switch="${b.regime()}">
+                    <span th:case="'STRONG_BULLISH'" class="bull">STRONG BULLISH</span>
+                    <span th:case="'BULLISH'"        class="bull">BULLISH</span>
+                    <span th:case="'NEUTRAL'"        class="neutral">NEUTRAL</span>
+                    <span th:case="'BEARISH'"        class="bear">BEARISH</span>
+                    <span th:case="'STRONG_BEARISH'" class="bear">STRONG BEARISH</span>
+                    <span th:case="*"                class="neutral">—</span>
+                </span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">Signal</span>
+            <span class="v" th:text="${b.interpretation()}">Broad rally — 32 up vs 15 down</span>
+        </div>
+    </div>
+
+    <!-- ================= INDIA VIX ================= -->
+    <div class="card" th:with="v=${sheet.vix()}">
+        <h2>1.5 India VIX</h2>
+        <div class="kv">
+            <span class="k">Current</span>
+            <span class="v" th:text="${v.value()} ?: '—'">14.5</span>
+        </div>
+        <div class="kv">
+            <span class="k">Change</span>
+            <span>
+                <span th:if="${v.change() != null and v.change().signum() >= 0}" class="bull"
+                      th:text="'+' + ${v.change()} + ' (+' + ${v.changePct()} + '%)'">+0.30 (+2.1%)</span>
+                <span th:if="${v.change() != null and v.change().signum() < 0}" class="bear"
+                      th:text="${v.change()} + ' (' + ${v.changePct()} + '%)'">-0.30 (-2.1%)</span>
+                <span th:if="${v.change() == null}" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">Regime</span>
+            <span>
+                <span th:switch="${v.regime()}">
+                    <span th:case="'CALM'"     class="bull">CALM · trend friendly</span>
+                    <span th:case="'NORMAL'"   class="neutral">NORMAL</span>
+                    <span th:case="'ELEVATED'" class="bear">ELEVATED · risk-off</span>
+                    <span th:case="*"          class="neutral">—</span>
+                </span>
+            </span>
+        </div>
     </div>
 
     <!-- ================= MULTI-TF BIAS ================= -->
@@ -219,6 +286,38 @@
         </div>
     </div>
 
+    <!-- ================= CORRELATED (Bank Nifty) ================= -->
+    <div class="card" th:with="c=${sheet.correlated()}" th:if="${c != null}">
+        <h2>6. Cross-Market — <span th:text="${c.symbol()}">Bank Nifty</span></h2>
+        <div class="kv">
+            <span class="k">Current</span>
+            <span class="v" th:text="${c.currentPrice()} ?: '—'">51,200</span>
+        </div>
+        <div class="kv">
+            <span class="k">Day change</span>
+            <span>
+                <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() >= 0}" class="bull"
+                      th:text="'+' + ${c.dayChangePercent()} + '%'">+0.35%</span>
+                <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() < 0}" class="bear"
+                      th:text="${c.dayChangePercent()} + '%'">-0.35%</span>
+                <span th:if="${c.dayChangePercent() == null}" class="neutral">—</span>
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">vs main</span>
+            <span class="v" th:text="(${c.mainChangePercent()} ?: '—') + '% (Δ ' + (${c.divergencePercent()} ?: '—') + ')'">
+                +0.20% (Δ 0.15)
+            </span>
+        </div>
+        <div class="kv">
+            <span class="k">Signal</span>
+            <span th:switch="${c.diverging()}">
+                <span th:case="true"  class="bear" th:text="${c.signal()}">DIVERGENT</span>
+                <span th:case="*"     class="bull" th:text="${c.signal()}">CONFIRMED bullish</span>
+            </span>
+        </div>
+    </div>
+
     <!-- ================= ZONES ================= -->
     <div class="card" th:with="z=${sheet.zones()}">
         <h2>5. Zones & Liquidity</h2>
@@ -241,8 +340,8 @@
 </div>
 
 <p style="color:#64748b; font-size:12px; margin-top:32px;">
-    Section 1.1 (Advance/Decline), pre-market cues, options context, and Bank Nifty parallel
-    are not yet fetched — will be added in later phases. See DAILY-BIAS-SHEET.md for manual fields.
+    Section 1.1 (Advance/Decline), pre-market cues, and options context are not yet fetched —
+    coming in later phases. See DAILY-BIAS-SHEET.md for manual fields.
 </p>
 
 </body>

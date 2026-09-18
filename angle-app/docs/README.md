@@ -16,7 +16,8 @@ and pluggable trading strategies.
 
 ## Quick Links
 
-- **[FEATURES.md](FEATURES.md) — complete inventory of everything built** ⭐
+- **[HOW-TO-USE.md](HOW-TO-USE.md) — start-here quick guide** ⭐
+- **[FEATURES.md](FEATURES.md) — complete inventory of everything built**
 - [LIVE-TRADING-GUIDE.md](LIVE-TRADING-GUIDE.md) - End-to-end live paper trading with Angel
 - [ALERTS-GUIDE.md](ALERTS-GUIDE.md) - Telegram + WhatsApp alerts setup
 - [ONBOARDING.md](ONBOARDING.md) - 10-step tour for new developers
