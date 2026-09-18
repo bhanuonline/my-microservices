@@ -40,6 +40,7 @@ public class AngelHistoricalReplayCandleSource implements CandleSource {
     private final MarketDataService marketDataService;
     private final Exchange exchange;
     private final String symbolToken;
+    private final String humanName;
     private final Interval interval;
     private final LocalDate from;
     private final LocalDate to;
@@ -52,13 +53,15 @@ public class AngelHistoricalReplayCandleSource implements CandleSource {
                                              Exchange exchange, String symbolToken,
                                              Interval interval,
                                              LocalDate from, LocalDate to,
-                                             int candlesPerSecond) {
+                                             int candlesPerSecond,
+                                             String humanName) {
         if (from == null || to == null) throw new IllegalArgumentException("from/to required");
         if (from.isAfter(to)) throw new IllegalArgumentException("from must be <= to");
         if (candlesPerSecond <= 0) throw new IllegalArgumentException("candlesPerSecond must be > 0");
         this.marketDataService = marketDataService;
         this.exchange          = exchange;
         this.symbolToken       = symbolToken;
+        this.humanName         = humanName == null || humanName.isBlank() ? symbolToken : humanName;
         this.interval          = interval;
         this.from              = from;
         this.to                = to;
@@ -67,8 +70,8 @@ public class AngelHistoricalReplayCandleSource implements CandleSource {
 
     @Override
     public String name() {
-        return String.format("angel-historical-replay(%s:%s,%s,%s..%s,cps=%d)",
-                exchange, symbolToken, interval, from, to, candlesPerSecond);
+        return String.format("%s replay (%s:%s, %s, %s..%s, cps=%d)",
+                humanName, exchange, symbolToken, interval, from, to, candlesPerSecond);
     }
 
     @Override

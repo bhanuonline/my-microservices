@@ -57,6 +57,7 @@ public class AngelLiveCandleSource implements CandleSource {
     private final MarketDataService marketDataService;
     private final Exchange exchange;
     private final String symbolToken;
+    private final String humanName;     // human-readable name for logs / labels
     private final Interval interval;
     private final int warmupCandles;
     private final int pollIntervalSeconds;
@@ -68,12 +69,14 @@ public class AngelLiveCandleSource implements CandleSource {
     public AngelLiveCandleSource(MarketDataService marketDataService,
                                  Exchange exchange, String symbolToken,
                                  Interval interval, int warmupCandles,
-                                 int pollIntervalSeconds) {
+                                 int pollIntervalSeconds,
+                                 String humanName) {
         if (warmupCandles < 0) throw new IllegalArgumentException("warmupCandles must be >= 0");
         if (pollIntervalSeconds <= 0) throw new IllegalArgumentException("pollIntervalSeconds must be > 0");
         this.marketDataService   = marketDataService;
         this.exchange            = exchange;
         this.symbolToken         = symbolToken;
+        this.humanName           = humanName == null || humanName.isBlank() ? symbolToken : humanName;
         this.interval            = interval;
         this.warmupCandles       = warmupCandles;
         this.pollIntervalSeconds = pollIntervalSeconds;
@@ -81,8 +84,8 @@ public class AngelLiveCandleSource implements CandleSource {
 
     @Override
     public String name() {
-        return String.format("angel-live(%s:%s,%s,poll=%ds)",
-                exchange, symbolToken, interval, pollIntervalSeconds);
+        return String.format("%s (%s:%s, %s, poll=%ds)",
+                humanName, exchange, symbolToken, interval, pollIntervalSeconds);
     }
 
     @Override

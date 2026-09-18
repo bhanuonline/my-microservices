@@ -2,7 +2,11 @@ package com.angle.trading.controller;
 
 import com.angle.trading.bias.BiasSheetService;
 import com.angle.trading.bias.model.BiasSheet;
+import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.config.BiasProperties;
+import com.angle.trading.marketdata.InstrumentMasterService;
+import com.angle.trading.marketdata.InstrumentNameResolver;
+import com.angle.trading.marketdata.model.Instrument;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -29,6 +33,8 @@ public class BiasController {
 
     private final BiasSheetService biasSheetService;
     private final BiasProperties biasProperties;
+    private final InstrumentNameResolver instrumentNameResolver;
+    private final InstrumentMasterService instrumentMasterService;
 
     @GetMapping("/bias")
     public String dashboard(Model model) {
@@ -79,12 +85,26 @@ public class BiasController {
         return list.isEmpty() ? defaultInstrument() : list.get(0);
     }
 
+    /**
+     * Look up a configured instrument, or build one on the fly if the token
+     * isn't in config. Uses the scrip master to fill in the right exchange
+     * (so MCX / NFO / etc. work correctly) and InstrumentNameResolver for
+     * the human name.
+     */
     private BiasProperties.Instrument findByToken(String symbolToken) {
         return biasProperties.getInstruments().stream()
                 .filter(i -> symbolToken.equals(i.getSymbolToken()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No instrument configured with symbolToken=" + symbolToken));
+                .orElseGet(() -> {
+                    BiasProperties.Instrument adhoc = new BiasProperties.Instrument();
+                    adhoc.setSymbolToken(symbolToken);
+                    adhoc.setSymbol(instrumentNameResolver.resolve(symbolToken));
+                    // Pull correct exchange (NSE / NFO / MCX / CDS) from the scrip master
+                    instrumentMasterService.findByToken(symbolToken)
+                            .map(Instrument::exchange)
+                            .ifPresent(adhoc::setExchange);
+                    return adhoc;
+                });
     }
 
     /** Nifty 50 fallback when nothing is configured. */

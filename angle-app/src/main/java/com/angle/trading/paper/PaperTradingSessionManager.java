@@ -4,6 +4,7 @@ import com.angle.trading.alerts.AlertService;
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
+import com.angle.trading.marketdata.InstrumentNameResolver;
 import com.angle.trading.marketdata.MarketDataService;
 import com.angle.trading.marketdata.NiftyFileLoader;
 import com.angle.trading.paper.model.CreateSessionRequest;
@@ -53,6 +54,7 @@ public class PaperTradingSessionManager {
     private final MarketDataService            marketDataService;
     private final PaperTradePersistenceService persistence;
     private final AlertService                 alerts;
+    private final InstrumentNameResolver       instrumentNameResolver;
 
     private final Map<String, PaperTradingSession> sessions = new ConcurrentHashMap<>();
 
@@ -105,8 +107,9 @@ public class PaperTradingSessionManager {
             Interval interval = req.interval() == null ? DEFAULT_INTERVAL_LIVE  : req.interval();
             int warmup   = req.warmupCandles()       == null ? DEFAULT_WARMUP_CANDLES : req.warmupCandles();
             int pollSec  = req.pollIntervalSeconds() == null ? DEFAULT_POLL_SECONDS   : req.pollIntervalSeconds();
+            String human = instrumentNameResolver.resolve(req.symbolToken());
             return new AngelLiveCandleSource(marketDataService, exchange, req.symbolToken(),
-                    interval, warmup, pollSec);
+                    interval, warmup, pollSec, human);
         }
 
         if (SOURCE_ANGEL_HISTORICAL.equals(type)) {
@@ -119,8 +122,9 @@ public class PaperTradingSessionManager {
             Exchange exchange = req.exchange() == null ? DEFAULT_EXCHANGE      : req.exchange();
             Interval interval = req.interval() == null ? DEFAULT_INTERVAL_HIST : req.interval();
             int cps = req.candlesPerSecond() == null ? DEFAULT_CANDLES_PER_SECOND : req.candlesPerSecond();
+            String human = instrumentNameResolver.resolve(req.symbolToken());
             return new AngelHistoricalReplayCandleSource(marketDataService, exchange, req.symbolToken(),
-                    interval, req.from(), req.to(), cps);
+                    interval, req.from(), req.to(), cps, human);
         }
 
         throw new IllegalArgumentException("Unknown sourceType: " + type

@@ -14,6 +14,258 @@
   },
   "item": [
     {
+      "name": "Bias Dashboard",
+      "description": "Live daily-bias sheet — one URL per instrument.\n\nHTML page: /bias or /bias/{token}\nJSON API: /api/bias/sheet, /api/bias/sheet/{token}, /api/bias/all\n\nDefault instrument comes from bias.instruments[0] in properties. Ad-hoc tokens (not in config) work via /bias/{token} and pick up correct exchange from scrip master.",
+      "item": [
+        {
+          "name": "Dashboard (HTML) — default instrument",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bias",
+              "host": ["{{baseUrl}}"],
+              "path": ["bias"]
+            },
+            "description": "Open in browser — HTML page auto-refreshes every 15 min."
+          }
+        },
+        {
+          "name": "Dashboard (HTML) — Nifty 50",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bias/{{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bias", "{{nifty50Token}}"]
+            }
+          }
+        },
+        {
+          "name": "Dashboard (HTML) — Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bias/{{bankNiftyToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bias", "{{bankNiftyToken}}"]
+            }
+          }
+        },
+        {
+          "name": "Dashboard (HTML) — Crude Oil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/bias/{{crudeToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bias", "{{crudeToken}}"]
+            },
+            "description": "Requires {{crudeToken}} to be populated. Look up front-month via /api/instruments/futures?underlying=CRUDEOIL"
+          }
+        },
+        {
+          "name": "Sheet (JSON) — default instrument",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            }
+          }
+        },
+        {
+          "name": "Sheet (JSON) — Nifty 50",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet/{{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet", "{{nifty50Token}}"]
+            }
+          }
+        },
+        {
+          "name": "Sheet (JSON) — Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet/{{bankNiftyToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet", "{{bankNiftyToken}}"]
+            }
+          }
+        },
+        {
+          "name": "Sheet (JSON) — Reliance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet/{{relianceToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet", "{{relianceToken}}"]
+            }
+          }
+        },
+        {
+          "name": "Sheet (JSON) — Crude Oil",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet/{{crudeToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet", "{{crudeToken}}"]
+            }
+          }
+        },
+        {
+          "name": "All instruments (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "all"]
+            },
+            "description": "Returns bias sheet for every configured instrument in one call."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bias Dashboard — Section Extracts",
+      "description": "Same as the JSON sheet, but pre-tested against a specific section for quick review.\n\nAll requests use jq-style paths — Postman doesn't apply them automatically, but the URL returns the full sheet and Postman's response filter (top-right of the response body panel) lets you drill into $.marketContext, $.vix, etc.",
+      "item": [
+        {
+          "name": "Market context only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.marketContext"
+          }
+        },
+        {
+          "name": "India VIX only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.vix"
+          }
+        },
+        {
+          "name": "A/D breadth only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.breadth"
+          }
+        },
+        {
+          "name": "Multi-timeframe bias only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.multiTfBias"
+          }
+        },
+        {
+          "name": "Trend filters (EMA/VWAP/ADX/ATR/RSI/MACD)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.trendFilters"
+          }
+        },
+        {
+          "name": "Market structure (BOS/CHoCH)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.structure"
+          }
+        },
+        {
+          "name": "Zones (OB, FVG, liquidity)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.zones"
+          }
+        },
+        {
+          "name": "Cross-market (Bank Nifty vs main)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.correlated"
+          }
+        },
+        {
+          "name": "Consolidated recommendation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/sheet",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "sheet"]
+            },
+            "description": "Response body → filter: $.consolidated\n\nKey fields:\n- recommendation: LONG-ONLY / SHORT-ONLY / NO-TRADE\n- totalScore: sum across all dimensions\n- strength: STRONG / MODERATE / WEAK / NONE\n- confidencePercent: 0-100"
+          }
+        }
+      ]
+    },
+    {
       "name": "Analysis — Backtest & Strategies",
       "description": "Backtest strategies against the bundled Nifty CSV.",
       "item": [
