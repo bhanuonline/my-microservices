@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: order-service
+
+server:
+  port: 8083                     # was 8092 ? moving to 8083 to keep ports sequential
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      productClient:                        # matches @CircuitBreaker(name = "productClient")
+        register-health-indicator: true     # exposes state via /actuator/health
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10             # look at last 10 calls
+        minimum-number-of-calls: 5          # need at least 5 calls before deciding
+        failure-rate-threshold: 50          # if 50% failed ? trip to OPEN
+        wait-duration-in-open-state: 10s    # stay OPEN for 10s, then HALF-OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,circuitbreakerevents
+  health:
+    circuitbreakers:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+
+# Feign timeouts (defaults are too generous)
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 3000
+        read-timeout: 5000
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8095

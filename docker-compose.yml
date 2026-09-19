@@ -1,61 +1,244 @@
 version: '3.8'
+
 services:
+  # ---------- Databases ----------
   mysql-user:
     image: mysql:8
     container_name: mysql-user
     environment:
       MYSQL_DATABASE: userdb
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: pass1234
     ports:
       - "3307:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppass1234"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   mysql-product:
     image: mysql:8
     container_name: mysql-product
     environment:
       MYSQL_DATABASE: productdb
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: pass1234
     ports:
       - "3308:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppass1234"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  user-service:
-    build: ./user-service
+  mysql-auth:
+    image: mysql:8
+    container_name: mysql-auth
+    environment:
+      MYSQL_DATABASE: authdb
+      MYSQL_ROOT_PASSWORD: pass1234
     ports:
-      - "8081:8081"
-    depends_on:
-      - mysql-user
+      - "3309:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ppass1234"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
-  product-service:
-    build: ./product-service
-    ports:
-      - "8082:8082"
-    depends_on:
-      - mysql-product
-
-      #Kafka setting#
+  # ---------- Messaging ----------
   kafka:
     image: bitnami/kafka:latest
-    container_name: my-kafka
+    container_name: kafka
     ports:
-      - "9092:9092"  # Broker port for clients
+      - "9092:9092"
     environment:
-      # Basic Allow PLAINTEXT for Dev
       - ALLOW_PLAINTEXT_LISTENER=yes
-
-      # KRaft mode required variables:
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-
-      # Listeners (both broker & controller)
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
-      # External advertised listener
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+  # ---------- Observability ----------
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - backend
 
-      # Single-node quorum voters (nodeID@host:controller-port)
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@my-kafka:9093
+  # ---------- Core infrastructure ----------
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
-    # Useful volumes for persistence
-    volumes:
-      - kafka_data:/bitnami/kafka
+  # Pin issuer-uri so tokens are stamped the same whether hit from host or container.
+  # Host access: http://localhost:8095   → mapped to auth-server:8095 inside network.
+  # All *validators* MUST use the same issuer-uri to accept tokens.
+  auth-server:
+    build:
+      context: .
+      dockerfile: auth-server/Dockerfile
+    container_name: auth-server
+    ports:
+      - "8095:8095"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/authdb?useSSL=false
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8095/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  resource-server:
+    build:
+      context: .
+      dockerfile: resource-server/Dockerfile
+    container_name: resource-server
+    ports:
+      - "8096:8096"
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      auth-server:
+        condition: service_healthy
+    networks:
+      - backend
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      auth-server:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # ---------- Domain services ----------
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:9092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql-user:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - backend
+
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      mysql-product:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - backend
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - backend
+
+  notification:
+    build:
+      context: .
+      dockerfile: notification/Dockerfile
+    container_name: notification
+    environment:
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:9092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

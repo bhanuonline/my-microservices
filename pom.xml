@@ -7,31 +7,34 @@
     <artifactId>my-microservices</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-
     <modules>
+        <!-- Core microservices system -->
         <module>common-lib</module>
+        <module>eureka-server</module>
+        <module>config-server</module>
+        <module>api-gateway</module>
+        <module>auth-server</module>
+        <module>resource-server</module>
         <module>user-service</module>
         <module>product-service</module>
-        <module>api-gateway</module>
-        <module>eureka-server</module>
+        <module>order-service</module>
+        <module>paymentservice</module>
         <module>notification</module>
+
+        <!-- Side/practice projects — not part of the microservices system.
+             Uncomment individually if you want them to build with the reactor. -->
+        <!--
         <module>interview</module>
         <module>admin</module>
         <module>process</module>
-        <module>jwtAuthApp</module>
-        <module>paymentservice</module>
-        <module>order-service</module>
         <module>service</module>
-        <module>auth-server</module>
-        <module>resource-server</module>
-        <module>client-app</module>
-        <module>spring-security-apps</module>
-        <module>config-server</module>
-
-
         <module>prepration</module>
         <module>food-delivery</module>
         <module>angle-app</module>
+        <module>client-app</module>
+        <module>spring-security-apps</module>
+        <module>jwtAuthApp</module>
+        -->
     </modules>
 
     <parent>

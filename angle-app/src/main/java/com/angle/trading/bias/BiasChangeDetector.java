@@ -37,6 +37,7 @@ public class BiasChangeDetector {
     private final BiasProperties biasProperties;
     private final BiasSheetService biasSheetService;
     private final AlertService alertService;
+    private final BiasChangeHistory changeHistory;
 
     /** symbolToken → previous snapshot */
     private final Map<String, BiasSheet> lastSnapshot = new ConcurrentHashMap<>();
@@ -186,6 +187,7 @@ public class BiasChangeDetector {
                 .append(" (").append(current.consolidated().strength())
                 .append(", score ").append(current.consolidated().totalScore()).append(")");
         alertService.notifyError("bias-change:" + cfg.getSymbol(), text.toString());
+        changeHistory.record(cfg.getSymbol(), changes, current.consolidated().totalScore());
         log.info("Bias change alert fired for {}: {} changes", cfg.getSymbol(), changes.size());
     }
 }

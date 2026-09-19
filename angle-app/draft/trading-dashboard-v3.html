@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom — Consolidated Trading Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F6FB; --surface:#FFFFFF; --surface-2:#F8F8FD; --raise:#FFFFFF;
+  --border:#EAEBF5; --hair:#F0F1F8;
+  --ink:#171833; --muted:#6E7191; --faint:#A2A4C1;
+  --accent:#5646E8; --accent-2:#7C6FF0; --accent-soft:#EEEBFF;
+  --up:#12A879; --up-soft:#E7F8F1;
+  --down:#E5484D; --down-soft:#FDEAEB;
+  --amber:#D9820E; --amber-soft:#FCEEDB;
+  --shadow:0 1px 2px rgba(23,20,60,.05), 0 12px 28px -12px rgba(23,20,60,.10);
+  --shadow-sm:0 1px 2px rgba(23,20,60,.05);
+  --sw1-bg:#EEF0FF; --sw1-fg:#5646E8;
+  --sw2-bg:#E4FBF6; --sw2-fg:#0E9C8C;
+  --sw3-bg:#FFF1E4; --sw3-fg:#DE7C1F;
+  --sw4-bg:#FDEEF6; --sw4-fg:#D6469B;
+  --sw5-bg:#E9F3FF; --sw5-fg:#2F80ED;
+  --sw6-bg:#F4EEFF; --sw6-fg:#8B5CF6;
+}
+:root[data-theme="dark"]{
+  --bg:#0C0D14; --surface:#15161F; --surface-2:#191A25; --raise:#1B1C28;
+  --border:#262838; --hair:#20222F;
+  --ink:#F1F1FA; --muted:#9497B5; --faint:#5C5F7C;
+  --accent:#8577FF; --accent-2:#A99BFF; --accent-soft:rgba(133,119,255,.14);
+  --up:#31D39B; --up-soft:rgba(49,211,155,.13);
+  --down:#FF6B70; --down-soft:rgba(255,107,112,.13);
+  --amber:#F0A63E; --amber-soft:rgba(240,166,62,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -12px rgba(0,0,0,.5);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+  --sw1-bg:rgba(86,70,232,.18); --sw1-fg:#A99BFF;
+  --sw2-bg:rgba(14,156,140,.20); --sw2-fg:#4DD9C6;
+  --sw3-bg:rgba(222,124,31,.20); --sw3-fg:#F2A65C;
+  --sw4-bg:rgba(214,70,155,.20); --sw4-fg:#F27CC0;
+  --sw5-bg:rgba(47,128,237,.20); --sw5-fg:#7BB4FF;
+  --sw6-bg:rgba(139,92,246,.20); --sw6-fg:#B79CFF;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C0D14; --surface:#15161F; --surface-2:#191A25; --raise:#1B1C28;
+    --border:#262838; --hair:#20222F;
+    --ink:#F1F1FA; --muted:#9497B5; --faint:#5C5F7C;
+    --accent:#8577FF; --accent-2:#A99BFF; --accent-soft:rgba(133,119,255,.14);
+    --up:#31D39B; --up-soft:rgba(49,211,155,.13);
+    --down:#FF6B70; --down-soft:rgba(255,107,112,.13);
+    --amber:#F0A63E; --amber-soft:rgba(240,166,62,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -12px rgba(0,0,0,.5);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --sw1-bg:rgba(86,70,232,.18); --sw1-fg:#A99BFF;
+    --sw2-bg:rgba(14,156,140,.20); --sw2-fg:#4DD9C6;
+    --sw3-bg:rgba(222,124,31,.20); --sw3-fg:#F2A65C;
+    --sw4-bg:rgba(214,70,155,.20); --sw4-fg:#F27CC0;
+    --sw5-bg:rgba(47,128,237,.20); --sw5-fg:#7BB4FF;
+    --sw6-bg:rgba(139,92,246,.20); --sw6-fg:#B79CFF;
+  }
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.n{font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+svg.ic{width:18px;height:18px;flex:none}
+.arrow{width:11px;height:11px;flex:none}
+
+/* ── shell ──────────────────────────────── */
+.shell{display:grid; grid-template-columns:236px 1fr; min-height:100vh}
+
+/* ── sidebar ────────────────────────────── */
+.side{
+  border-right:1px solid var(--border); padding:22px 16px; display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh;
+}
+.brand{display:flex; align-items:center; gap:11px; padding:4px 10px 26px}
+.logo-mark{
+  width:34px; height:34px; border-radius:10px; flex:none;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:16px;
+}
+.brand-name{font-weight:800; font-size:17px; letter-spacing:-.01em}
+.brand-sub{font-size:10.5px; color:var(--faint); margin-top:1px}
+
+.navlist{display:flex; flex-direction:column; gap:3px}
+.navitem{
+  display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px;
+  font-size:13.5px; font-weight:500; color:var(--muted); text-align:left; width:100%;
+}
+.navitem:hover{background:var(--surface-2); color:var(--ink)}
+.navitem.active{background:var(--accent-soft); color:var(--accent)}
+.navitem svg{stroke:currentColor}
+
+.side-gap{flex:1}
+.brokers-mini{border-top:1px solid var(--border); padding-top:16px; margin-top:6px}
+.bm-title{font-size:11px; color:var(--faint); font-weight:600; padding:0 12px 10px; text-transform:none}
+.bm-row{display:flex; align-items:center; gap:9px; padding:7px 12px; border-radius:9px; font-size:12.5px}
+.bm-row:hover{background:var(--surface-2)}
+.bm-dot{width:7px; height:7px; border-radius:50%; flex:none}
+.bm-name{flex:1; color:var(--ink); font-weight:500}
+.bm-val{color:var(--faint); font-size:11.5px}
+
+/* ── main ───────────────────────────────── */
+.main{min-width:0}
+.topbar{
+  display:flex; align-items:center; gap:16px; padding:20px 32px;
+  border-bottom:1px solid var(--border); flex-wrap:wrap;
+}
+.greet-h{font-size:17px; font-weight:700; letter-spacing:-.01em}
+.greet-d{font-size:12px; color:var(--faint); margin-top:2px}
+.grow{flex:1}
+.search{
+  display:flex; align-items:center; gap:9px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:11px; padding:9px 14px; width:260px; max-width:40vw;
+}
+.search svg{stroke:var(--faint); flex:none}
+.search input{background:none; border:none; outline:none; font-size:13px; width:100%; color:var(--ink)}
+.search input::placeholder{color:var(--faint)}
+.icobtn{
+  width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; position:relative; background:var(--surface);
+}
+.icobtn:hover{background:var(--surface-2)}
+.icobtn svg{stroke:var(--muted)}
+.dot-badge{position:absolute; top:7px; right:8px; width:6px; height:6px; border-radius:50%; background:var(--down); box-shadow:0 0 0 2px var(--surface)}
+.themebtn{font-size:12.5px; padding:9px 15px; border-radius:10px; border:1px solid var(--border); color:var(--muted)}
+.themebtn:hover{color:var(--ink); background:var(--surface-2)}
+.avatar{
+  width:38px; height:38px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+  display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12.5px; flex:none;
+}
+
+.content{padding:28px 32px 60px; max-width:1280px}
+
+/* ── hero ───────────────────────────────── */
+.hero{
+  background:linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  border-radius:20px; padding:28px 30px 22px; color:#fff; box-shadow:var(--shadow);
+  position:relative; overflow:hidden;
+}
+.hero::after{
+  content:''; position:absolute; right:-60px; top:-80px; width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.14), transparent 70%);
+}
+.hero-top{display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap; position:relative}
+.hero-label{font-size:12.5px; color:rgba(255,255,255,.78); font-weight:500}
+.hero-fig{font-size:clamp(34px,4.6vw,50px); font-weight:800; letter-spacing:-.03em; margin-top:8px}
+.hero-chip{
+  display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.16);
+  padding:7px 13px 7px 10px; border-radius:999px; font-size:12.5px; font-weight:600; margin-top:14px;
+}
+.hero-chip .arrow{stroke:#fff}
+.hero-toggle{display:flex; gap:4px; background:rgba(255,255,255,.14); padding:3px; border-radius:10px}
+.hero-toggle button{padding:7px 13px; border-radius:8px; font-size:12px; font-weight:600; color:rgba(255,255,255,.8)}
+.hero-toggle button.on{background:rgba(255,255,255,.92); color:var(--accent)}
+.hero-chart{margin-top:22px; position:relative}
+.hero-chart svg{display:block; width:100%; height:86px; overflow:visible}
+
+/* ── stat row ───────────────────────────── */
+.stats3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:18px}
+.stat{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px 20px 18px; box-shadow:var(--shadow-sm)}
+.stat-top{display:flex; align-items:center; gap:10px}
+.stat-ic{width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:none}
+.stat-ic svg{width:16px;height:16px}
+.stat-k{font-size:12.5px; color:var(--muted); font-weight:500}
+.stat-v{font-size:24px; font-weight:800; letter-spacing:-.02em; margin-top:12px}
+.stat-s{font-size:11.5px; color:var(--faint); margin-top:5px}
+.mini-bar{height:5px; background:var(--hair); border-radius:3px; margin-top:11px; overflow:hidden}
+.mini-bar i{display:block; height:100%; background:var(--accent); border-radius:3px}
+
+/* ── mix row ────────────────────────────── */
+.mix{display:grid; grid-template-columns:1.15fr 1fr 1.05fr; gap:18px; margin-top:18px}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-sm)}
+.card-pad{padding:20px 22px 22px}
+.card-h{font-size:14px; font-weight:700; margin-bottom:16px; letter-spacing:-.005em}
+
+.br{margin-bottom:16px}
+.br:last-child{margin-bottom:0}
+.br-top{display:flex; align-items:center; gap:10px}
+.br-dot{width:9px; height:9px; border-radius:50%; flex:none}
+.br-name{flex:1; font-weight:600; font-size:13px}
+.br-val{font-weight:700; font-size:13px}
+.br-track{height:6px; background:var(--hair); border-radius:4px; margin-top:8px; overflow:hidden}
+.br-track i{display:block; height:100%; border-radius:4px; background:var(--accent)}
+.br-sub{display:flex; justify-content:space-between; font-size:11px; color:var(--faint); margin-top:6px}
+
+.ring-wrap{display:flex; align-items:center; gap:20px}
+.ring-mid{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center}
+.ring-mid b{font-size:16px; font-weight:800}
+.ring-mid span{font-size:9.5px; color:var(--faint); font-weight:600; margin-top:1px}
+.ring-c{position:relative; flex:none}
+.keys{display:flex; flex-direction:column; gap:12px; min-width:0}
+.key{display:flex; align-items:center; gap:9px; font-size:12.5px}
+.key i{width:9px;height:9px;border-radius:3px;flex:none}
+.key b{font-weight:600}
+.key span{display:block; color:var(--faint); font-size:11px; margin-top:1px}
+
+.sec{display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:12.5px}
+.sec:last-child{margin-bottom:0}
+.sec-n{width:92px; color:var(--muted); font-weight:500; flex:none}
+.sec-t{flex:1; height:6px; background:var(--hair); border-radius:4px}
+.sec-t i{display:block; height:100%; border-radius:4px; background:var(--accent-2)}
+.sec-p{width:32px; text-align:right; font-weight:600; font-size:11.5px}
+
+/* ── table section ──────────────────────── */
+.tsec{margin-top:30px}
+.thead-row{display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px}
+.seg{display:flex; gap:3px; background:var(--surface-2); border:1px solid var(--border); padding:3px; border-radius:11px}
+.seg button{padding:8px 16px; border-radius:8px; font-size:12.5px; font-weight:600; color:var(--muted)}
+.seg button.on{background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm)}
+.chips{display:flex; gap:7px; margin-left:auto; flex-wrap:wrap}
+.cp{font-size:12px; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--border); color:var(--muted); background:var(--surface)}
+.cp.on{border-color:var(--accent); color:var(--accent); background:var(--accent-soft)}
+.cp:hover{color:var(--ink)}
+
+.tcard{border:1px solid var(--border); border-radius:16px; background:var(--surface); overflow-x:auto; box-shadow:var(--shadow-sm)}
+table{width:100%; border-collapse:collapse; min-width:900px}
+thead th{
+  font-size:11px; font-weight:600; color:var(--faint); text-align:right;
+  padding:14px 18px; border-bottom:1px solid var(--border); white-space:nowrap;
+}
+thead th.l{text-align:left}
+tbody td{padding:13px 18px; border-bottom:1px solid var(--hair); text-align:right; white-space:nowrap; font-size:13px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-2)}
+td.l{text-align:left}
+.stk{display:flex; align-items:center; gap:11px}
+.av{width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex:none}
+.stk-name{font-weight:700; font-size:13px}
+.stk-sub{font-size:11px; color:var(--faint); margin-top:1px; font-weight:500}
+.rg{width:104px}
+.rg-t{position:relative; height:4px; background:var(--hair); border-radius:3px; margin:7px 0 5px}
+.rg-t b{position:absolute; top:-3px; width:3px; height:10px; background:var(--accent); border-radius:2px}
+.rg-e{display:flex; justify-content:space-between; font-size:9.5px; color:var(--faint)}
+.pill{display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; font-weight:700; font-size:12px}
+.pill.up{background:var(--up-soft); color:var(--up)}
+.pill.down{background:var(--down-soft); color:var(--down)}
+.pill .arrow{width:9px;height:9px}
+tfoot td{padding:15px 18px; font-size:12.5px; border-top:1px solid var(--border); text-align:right; background:var(--surface-2)}
+tfoot td.l{text-align:left; color:var(--muted); font-weight:500}
+.tag{font-size:10.5px; font-weight:700; padding:4px 10px; border-radius:999px}
+.tag.ok{color:var(--up); background:var(--up-soft)}
+.tag.no{color:var(--down); background:var(--down-soft)}
+.tag.wait{color:var(--amber); background:var(--amber-soft)}
+.empty{text-align:center; color:var(--faint); padding:44px; font-size:13px}
+
+/* ── bottom ─────────────────────────────── */
+.bottom{display:grid; grid-template-columns:0.9fr 1.1fr; gap:18px; margin-top:30px}
+.wl{display:flex; align-items:center; gap:12px; padding:12px 22px; border-top:1px solid var(--hair)}
+.wl-r{margin-left:auto; text-align:right}
+.wl-p{font-weight:700; font-size:13px}
+.wl-c{font-size:11px; margin-top:2px; font-weight:600}
+.al{display:flex; gap:13px; padding:14px 22px; border-top:1px solid var(--hair)}
+.al-ic{width:30px; height:30px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center}
+.al-ic svg{width:14px;height:14px}
+.al-t{font-size:13px; font-weight:700}
+.al-d{font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.5}
+.al-w{font-size:10.5px; color:var(--faint); white-space:nowrap; padding-top:2px; font-weight:600}
+
+.colo{margin-top:34px; font-size:11.5px; color:var(--faint); line-height:1.7}
+
+/* ── mobile bottom nav ──────────────────── */
+.bnav{display:none}
+
+@media (max-width:1080px){
+  .mix{grid-template-columns:1fr 1fr}
+  .mix .card:nth-child(3){grid-column:1 / -1}
+}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{display:none}
+  .content{padding:22px 18px 96px}
+  .topbar{padding:16px 18px}
+  .search{display:none}
+  .bnav{
+    display:flex; position:fixed; bottom:0; left:0; right:0; z-index:20;
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:8px 6px calc(8px + env(safe-area-inset-bottom)); gap:2px;
+    box-shadow:0 -6px 20px rgba(20,15,60,.06);
+  }
+  .bnav button{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:6px 2px; border-radius:12px; font-size:10px; font-weight:600; color:var(--faint);
+  }
+  .bnav button.active{color:var(--accent)}
+  .bnav svg{stroke:currentColor}
+}
+@media (max-width:680px){
+  .stats3{grid-template-columns:1fr}
+  .mix{grid-template-columns:1fr}
+  .mix .card:nth-child(3){grid-column:auto}
+  .bottom{grid-template-columns:1fr}
+  .hero-fig{font-size:38px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important; animation:none !important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="side">
+    <div class="brand">
+      <div class="logo-mark">b</div>
+      <div><div class="brand-name">Bloom</div><div class="brand-sub">3 brokers, one book</div></div>
+    </div>
+    <div class="navlist" id="sideNav"></div>
+    <div class="side-gap"></div>
+    <div class="brokers-mini">
+      <div class="bm-title">Brokers</div>
+      <div id="sideBrokers"></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="greet-h">Good afternoon</div>
+        <div class="greet-d n">Friday, 19 September · 13:42 IST</div>
+      </div>
+      <div class="grow"></div>
+      <label class="search">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search stocks, F&O, funds">
+      </label>
+      <button class="icobtn" aria-label="Notifications">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2.4 8 2.4 8H3.6S6 14 6 8"/><path d="M10.3 21a1.8 1.8 0 0 0 3.4 0"/></svg>
+        <span class="dot-badge"></span>
+      </button>
+      <button class="themebtn" id="tgl">Dark</button>
+      <div class="avatar">AC</div>
+    </div>
+
+    <div class="content">
+
+      <div class="hero">
+        <div class="hero-top">
+          <div>
+            <div class="hero-label">Total portfolio value</div>
+            <div class="hero-fig n">₹<span id="figN">48,62,322</span></div>
+            <div class="hero-chip">
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 15 10 9 14 13 20 6"/><polyline points="14 6 20 6 20 12"/></svg>
+              +₹62,480 · 1.30% today
+            </div>
+          </div>
+          <div class="hero-toggle">
+            <button class="on">Value</button>
+            <button>Returns</button>
+          </div>
+        </div>
+        <div class="hero-chart"><svg id="curve" viewBox="0 0 1000 86" preserveAspectRatio="none" role="img" aria-label="Book value through the session, rising from the morning open"></svg></div>
+      </div>
+
+      <div class="stats3">
+        <div class="stat">
+          <div class="stat-top">
+            <div class="stat-ic" style="background:var(--sw1-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sw1-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M16 6V4.6a1.6 1.6 0 0 0-1.6-1.6H5.6A2.6 2.6 0 0 0 3 5.6V8"/><circle cx="16.2" cy="13" r="1.3"/></svg></div>
+            <div class="stat-k">Invested value</div>
+          </div>
+          <div class="stat-v n">₹46,79,948</div>
+          <div class="stat-s">Across 10 holdings · 3 brokers</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top">
+            <div class="stat-ic" style="background:var(--up-soft)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/><polyline points="14 6 21 6 21 13"/></svg></div>
+            <div class="stat-k">Unrealised returns</div>
+          </div>
+          <div class="stat-v n up">+₹1,82,374</div>
+          <div class="stat-s">+4.70% on invested cost</div>
+        </div>
+        <div class="stat">
+          <div class="stat-top">
+            <div class="stat-ic" style="background:var(--sw3-bg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--sw3-fg)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v5.3c0 5-3 8.2-7 9.5-4-1.3-7-4.5-7-9.5V6l7-2.8Z"/></svg></div>
+            <div class="stat-k">Available margin</div>
+          </div>
+          <div class="stat-v n">₹3,94,000</div>
+          <div class="stat-s">51% of ₹8,04,000 limit used</div>
+          <div class="mini-bar"><i style="width:51%"></i></div>
+        </div>
+      </div>
+
+      <div class="mix">
+        <div class="card card-pad">
+          <div class="card-h">Where the money sits</div>
+          <div id="brokers"></div>
+        </div>
+        <div class="card card-pad">
+          <div class="card-h">What it's in</div>
+          <div class="ring-wrap">
+            <div class="ring-c">
+              <svg id="donut" width="108" height="108" viewBox="0 0 108 108" aria-hidden="true"></svg>
+              <div class="ring-mid"><b>₹48.6L</b><span>total</span></div>
+            </div>
+            <div class="keys" id="keys"></div>
+          </div>
+        </div>
+        <div class="card card-pad">
+          <div class="card-h">Sector weight</div>
+          <div id="sectors"></div>
+        </div>
+      </div>
+
+      <div class="tsec" id="tableSection">
+        <div class="thead-row">
+          <div class="seg" id="segTabs">
+            <button data-v="holdings" class="on">Holdings</button>
+            <button data-v="positions">Positions</button>
+            <button data-v="orders">Orders</button>
+          </div>
+          <div class="chips" id="chips">
+            <button class="cp on" data-a="all">All brokers</button>
+            <button class="cp" data-a="Zerodha">Zerodha</button>
+            <button class="cp" data-a="Upstox">Upstox</button>
+            <button class="cp" data-a="Dhan">Dhan</button>
+          </div>
+        </div>
+        <div class="tcard" id="tbl"></div>
+      </div>
+
+      <div class="bottom">
+        <div class="card" id="watchSection">
+          <div class="card-pad" style="padding-bottom:6px"><div class="card-h" style="margin-bottom:2px">Watching</div></div>
+          <div id="watch"></div>
+        </div>
+        <div class="card">
+          <div class="card-pad" style="padding-bottom:6px"><div class="card-h" style="margin-bottom:2px">Needs a decision</div></div>
+          <div id="alerts"></div>
+        </div>
+      </div>
+
+      <p class="colo">A design preview built with sample data — no quote here is live and no position is real.<br>Connected for real, each broker would sit behind its own read-only key, refreshed on a schedule you set.</p>
+    </div>
+  </div>
+</div>
+
+<nav class="bnav" id="bnav"></nav>
+
+<script>
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const inr = n => '₹' + Math.round(Math.abs(n)).toLocaleString('en-IN');
+const sgn = n => (n >= 0 ? '+' : '−') + inr(n);
+const cls = n => n >= 0 ? 'up' : 'down';
+const pc  = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(2) + '%';
+const dec = (v,d=2) => v.toLocaleString('en-IN',{minimumFractionDigits:d, maximumFractionDigits:d});
+const arrow = up => `<svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="${up? '6 15 12 9 18 15':'6 9 12 15 18 9'}"/></svg>`;
+const SW = ['sw1','sw2','sw3','sw4','sw5','sw6'];
+const swatch = s => { let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return SW[h%SW.length]; };
+const initials = s => s.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase();
+
+/* ── nav ─────────────────────────────────── */
+const navItems = [
+  {id:'dashboard', label:'Dashboard', icon:'<rect x="3" y="3" width="7.5" height="9" rx="2"/><rect x="13.5" y="3" width="7.5" height="5.5" rx="2"/><rect x="13.5" y="10.5" width="7.5" height="10.5" rx="2"/><rect x="3" y="14" width="7.5" height="7" rx="2"/>'},
+  {id:'holdings',  label:'Holdings',  icon:'<rect x="4" y="4" width="16" height="4" rx="1.4"/><rect x="4" y="10" width="16" height="4" rx="1.4"/><rect x="4" y="16" width="16" height="4" rx="1.4"/>'},
+  {id:'positions', label:'Positions', icon:'<polyline points="3 13 8 13 10 8 14 18 16 13 21 13"/>'},
+  {id:'orders',    label:'Orders',    icon:'<rect x="4.5" y="3" width="15" height="18" rx="2.2"/><line x1="8.5" y1="8.2" x2="15.5" y2="8.2"/><line x1="8.5" y1="12" x2="15.5" y2="12"/><line x1="8.5" y1="15.8" x2="13" y2="15.8"/>'},
+  {id:'watchlist', label:'Watchlist', icon:'<polygon points="12 3 14.5 9 21 9.6 16 14 17.5 20.5 12 17 6.5 20.5 8 14 3 9.6 9.5 9"/>'}
+];
+const svgIcon = (d,cls='') => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+
+document.getElementById('sideNav').innerHTML = navItems.map(it=>
+  `<button class="navitem" data-id="${it.id}">${svgIcon(it.icon)}<span>${it.label}</span></button>`).join('');
+document.getElementById('bnav').innerHTML = navItems.map(it=>
+  `<button data-id="${it.id}">${svgIcon(it.icon)}<span>${it.label}</span></button>`).join('');
+
+let activeNav = 'dashboard', view = 'holdings', acct = 'all';
+
+function syncNav(){
+  document.querySelectorAll('.navitem, .bnav button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.id===activeNav);
+  });
+}
+function handleNav(id){
+  activeNav = id; syncNav();
+  if(id==='dashboard'){ window.scrollTo({top:0, behavior:reduce?'auto':'smooth'}); return; }
+  if(id==='watchlist'){ document.getElementById('watchSection').scrollIntoView({behavior:reduce?'auto':'smooth', block:'center'}); return; }
+  view = id;
+  document.querySelectorAll('#segTabs button').forEach(b=>b.classList.toggle('on', b.dataset.v===view));
+  render();
+  document.getElementById('tableSection').scrollIntoView({behavior:reduce?'auto':'smooth', block:'start'});
+}
+document.querySelectorAll('.navitem, .bnav button').forEach(b=>b.addEventListener('click', ()=>handleNav(b.dataset.id)));
+
+/* ── hero curve + count-up ──────────────── */
+(function(){
+  const open=4799842, close=4862322, n=70;
+  let seed=20260919, p=[], v=open;
+  const rnd=()=>(seed=(seed*1103515245+12345)%2147483648)/2147483648;
+  for(let i=0;i<n;i++){ v += (close-open)/n + (rnd()-0.5)*6800*Math.sin(i/6); if(i>13&&i<22) v-=1900; p.push(v); }
+  p[0]=open; p[n-1]=close;
+  const mn=Math.min(...p,open)-5000, mx=Math.max(...p,open)+5000, r=mx-mn;
+  const X=i=>(i/(n-1))*1000, Y=y=>86-((y-mn)/r)*72-6;
+  const line=p.map((y,i)=>`${X(i).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
+  const yo=Y(open).toFixed(1), lx=X(n-1).toFixed(1), ly=Y(close).toFixed(1);
+  const svg=document.getElementById('curve');
+  svg.innerHTML=`<defs><linearGradient id="hw" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".30"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+    <polygon id="fl" points="0,${yo} ${line} 1000,${yo}" fill="url(#hw)" opacity="0"/>
+    <line x1="0" y1="${yo}" x2="1000" y2="${yo}" stroke="#fff" stroke-width="1" stroke-dasharray="2 6" opacity=".35" vector-effect="non-scaling-stroke"/>
+    <polyline id="ln" points="${line}" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${lx}" cy="${ly}" r="3.2" fill="#fff"/>`;
+  const ln=svg.querySelector('#ln'), fl=svg.querySelector('#fl');
+  if(reduce){ fl.style.opacity=1; }
+  else{
+    const L=ln.getTotalLength();
+    ln.style.strokeDasharray=L; ln.style.strokeDashoffset=L;
+    ln.animate([{strokeDashoffset:L},{strokeDashoffset:0}],{duration:1300,easing:'cubic-bezier(.32,.72,.3,1)',fill:'forwards'});
+    fl.animate([{opacity:0},{opacity:1}],{duration:800,delay:800,fill:'forwards'});
+  }
+  const el=document.getElementById('figN'), end=4862322, t0=performance.now(), dur=reduce?0:1200;
+  const step=t=>{const k=Math.min(1,(t-t0)/Math.max(dur,1)), e=1-Math.pow(1-k,3);
+    el.textContent=Math.round(end*(0.965+0.035*e)).toLocaleString('en-IN');
+    if(k<1) requestAnimationFrame(step);};
+  requestAnimationFrame(step);
+})();
+
+/* ── brokers ─────────────────────────────── */
+const brokers=[
+  {n:'Zerodha', v:1786126, d:+28940, w:'Equity · F&O', o:5, sw:'sw1'},
+  {n:'Dhan',    v:1437881, d:+18420, w:'Equity · Futures', o:4, sw:'sw2'},
+  {n:'Upstox',  v:1244315, d:+15120, w:'Equity · F&O', o:4, sw:'sw5'}
+];
+const bmx=Math.max(...brokers.map(b=>b.v));
+document.getElementById('brokers').innerHTML = brokers.map(b=>`
+  <div class="br">
+    <div class="br-top"><span class="br-dot" style="background:var(--${b.sw}-fg)"></span>
+      <span class="br-name">${b.n}</span><span class="br-val n">${inr(b.v)}</span></div>
+    <div class="br-track"><i style="width:${(b.v/bmx*100).toFixed(1)}%;background:var(--${b.sw}-fg)"></i></div>
+    <div class="br-sub"><span>${b.w} · ${b.o} open</span><span class="n ${cls(b.d)}">${sgn(b.d)}</span></div>
+  </div>`).join('');
+document.getElementById('sideBrokers').innerHTML = brokers.map(b=>`
+  <div class="bm-row"><span class="bm-dot" style="background:var(--${b.sw}-fg)"></span>
+    <span class="bm-name">${b.n}</span><span class="bm-val n">${(b.v/1000).toFixed(0)}K</span></div>`).join('');
+
+/* ── donut ───────────────────────────────── */
+const mix=[
+  {n:'Equity holdings', v:4058322, sw:'sw1', d:'10 names'},
+  {n:'F&O margin',      v:410000,  sw:'sw3', d:'5 contracts'},
+  {n:'Idle cash',       v:394000,  sw:'sw5', d:'Across 3 brokers'}
+];
+(function(){
+  const tot=mix.reduce((s,m)=>s+m.v,0), R=46, C=2*Math.PI*R, gap=3;
+  let off=0;
+  document.getElementById('donut').innerHTML = `<circle cx="54" cy="54" r="${R}" fill="none" stroke="var(--hair)" stroke-width="9"/>` +
+    mix.map(m=>{
+      const len=(m.v/tot)*C;
+      const seg=`<circle cx="54" cy="54" r="${R}" fill="none" stroke="var(--${m.sw}-fg)" stroke-width="9" stroke-linecap="round"
+        stroke-dasharray="${Math.max(0,len-gap).toFixed(2)} ${(C-len+gap).toFixed(2)}"
+        stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 54 54)"/>`;
+      off+=len; return seg;
+    }).join('');
+  document.getElementById('keys').innerHTML = mix.map(m=>`
+    <div class="key"><i style="background:var(--${m.sw}-fg)"></i>
+      <div><b>${m.n}</b><span class="n">${inr(m.v)} · ${(m.v/tot*100).toFixed(1)}%</span></div></div>`).join('');
+})();
+
+/* ── sectors ─────────────────────────────── */
+[['Financials',28],['Infotech',21],['Energy',13],['Automobile',11],['Infrastructure',10],['Pharma',9],['FMCG',8]]
+  .forEach(([n,p])=>{
+    document.getElementById('sectors').insertAdjacentHTML('beforeend',
+      `<div class="sec"><span class="sec-n">${n}</span>
+       <span class="sec-t"><i style="width:${(p/28*100).toFixed(0)}%"></i></span>
+       <span class="sec-p">${p}%</span></div>`);
+  });
+
+/* ── table data ──────────────────────────── */
+const holdings=[
+  {s:'RELIANCE',   e:'NSE · since Mar 24', a:'Zerodha', q:180, avg:2742.60, ltp:2913.40, dc:+1.12, lo:2884.10, hi:2926.80},
+  {s:'HDFCBANK',   e:'NSE · since Jan 24', a:'Zerodha', q:260, avg:1598.20, ltp:1704.55, dc:+0.94, lo:1688.00, hi:1711.20},
+  {s:'ICICIBANK',  e:'NSE · since Nov 23', a:'Dhan',    q:340, avg:1102.40, ltp:1238.90, dc:+1.46, lo:1220.55, hi:1243.10},
+  {s:'TATAMOTORS', e:'NSE · since Jun 24', a:'Zerodha', q:420, avg:942.10,  ltp:1014.75, dc:+2.08, lo:993.40,  hi:1019.60},
+  {s:'INFY',       e:'NSE · since Feb 24', a:'Upstox',  q:300, avg:1642.00, ltp:1571.25, dc:-0.86, lo:1566.40, hi:1589.90},
+  {s:'TCS',        e:'NSE · since Aug 23', a:'Zerodha', q:95,  avg:3880.00, ltp:4126.70, dc:+0.41, lo:4098.20, hi:4139.55},
+  {s:'LT',         e:'NSE · since May 24', a:'Upstox',  q:110, avg:3455.00, ltp:3602.15, dc:+0.68, lo:3576.00, hi:3612.40},
+  {s:'BHARTIARTL', e:'NSE · since Apr 24', a:'Upstox',  q:210, avg:1488.00, ltp:1622.40, dc:+0.33, lo:1611.80, hi:1628.00},
+  {s:'SUNPHARMA',  e:'NSE · since Jul 24', a:'Dhan',    q:200, avg:1712.50, ltp:1668.30, dc:-1.24, lo:1661.00, hi:1692.75},
+  {s:'ITC',        e:'NSE · since Dec 23', a:'Dhan',    q:700, avg:428.60,  ltp:441.85,  dc:+0.52, lo:438.90,  hi:443.60}
+];
+const positions=[
+  {s:'NIFTY 24500 CE',    e:'26 Sep · 2 lots',      a:'Zerodha', q:150,  avg:118.40,  ltp:143.65,  dc:+21.30, lo:112.05, hi:147.90},
+  {s:'RELIANCE FUT',      e:'24 Sep · 1 lot',       a:'Dhan',    q:500,  avg:2896.00, ltp:2915.50, dc:+1.09,  lo:2890.00,hi:2921.00},
+  {s:'INFY FUT',          e:'24 Sep · 1 lot short', a:'Zerodha', q:-400, avg:1588.00, ltp:1572.00, dc:-0.91,  lo:1568.50,hi:1591.20},
+  {s:'BANKNIFTY 52000 PE',e:'24 Sep · 1 lot',       a:'Upstox',  q:15,   avg:264.00,  ltp:211.30,  dc:-19.90, lo:206.40, hi:272.10},
+  {s:'TATASTEEL 175 CE',  e:'24 Sep · 3 lots',      a:'Upstox',  q:1275, avg:4.20,    ltp:5.85,    dc:+39.30, lo:3.95,   hi:6.10}
+];
+const orders=[
+  {t:'13:38', s:'TATAMOTORS',     a:'Zerodha', d:'Buy',  q:'120 / 120',  p:'1,012.40', y:'Limit',  st:'Executed', k:'ok'},
+  {t:'13:12', s:'NIFTY 24500 CE', a:'Zerodha', d:'Buy',  q:'150 / 150',  p:'118.40',   y:'Market', st:'Executed', k:'ok'},
+  {t:'12:47', s:'ICICIBANK',      a:'Dhan',    d:'Sell', q:'0 / 90',     p:'1,252.00', y:'Limit',  st:'Working',  k:'wait'},
+  {t:'11:26', s:'SUNPHARMA',      a:'Dhan',    d:'Buy',  q:'0 / 60',     p:'1,655.00', y:'Limit',  st:'Working',  k:'wait'},
+  {t:'10:04', s:'INFY FUT',       a:'Zerodha', d:'Sell', q:'400 / 400',  p:'1,588.00', y:'Limit',  st:'Executed', k:'ok'},
+  {t:'09:21', s:'HDFCBANK',       a:'Zerodha', d:'Buy',  q:'0 / 150',    p:'1,672.00', y:'Limit',  st:'Rejected', k:'no'}
+];
+
+function render(){
+  const host=document.getElementById('tbl');
+
+  if(view==='orders'){
+    const rows=orders.filter(o=>acct==='all'||o.a===acct);
+    host.innerHTML=`<table><thead><tr>
+      <th class="l">Time</th><th class="l">Instrument</th><th class="l">Broker</th>
+      <th class="l">Side</th><th>Filled</th><th>Price</th><th class="l">Type</th><th class="l">Status</th></tr></thead>
+      <tbody>${rows.map(o=>{const sw=swatch(o.s);return `<tr>
+        <td class="l n" style="color:var(--faint)">${o.t}</td>
+        <td class="l"><div class="stk"><div class="av" style="background:var(--${sw}-bg);color:var(--${sw}-fg)">${initials(o.s)}</div><span class="stk-name">${o.s}</span></div></td>
+        <td class="l" style="color:var(--muted)">${o.a}</td>
+        <td class="l ${o.d==='Buy'?'up':'down'}" style="font-weight:700">${o.d}</td>
+        <td>${o.q}</td><td class="n">${o.p}</td>
+        <td class="l" style="color:var(--muted)">${o.y}</td>
+        <td class="l"><span class="tag ${o.k}">${o.st}</span></td></tr>`;}).join('')
+      || `<tr><td colspan="8" class="empty">No orders on this account today.</td></tr>`}</tbody></table>`;
+    return;
+  }
+
+  const src = view==='holdings' ? holdings : positions;
+  const rows = src.filter(r=>acct==='all'||r.a===acct);
+  const val=r=>r.q*r.ltp, pl=r=>(r.ltp-r.avg)*r.q;
+  const tv=rows.reduce((s,r)=>s+Math.abs(val(r)),0);
+  const tp=rows.reduce((s,r)=>s+pl(r),0);
+  const td=rows.reduce((s,r)=>s+val(r)*r.dc/100,0);
+
+  host.innerHTML=`<table><thead><tr>
+    <th class="l">Instrument</th><th class="l">Broker</th>
+    <th>Qty</th><th>Average</th><th>Last</th>
+    <th class="l" style="text-align:center">Day range</th><th>Day</th>
+    <th>${view==='holdings'?'Unrealised':'Open'} P&amp;L</th><th>Weight</th></tr></thead>
+    <tbody>${rows.map(r=>{
+      const p=pl(r), sw=swatch(r.s);
+      return `<tr>
+        <td class="l"><div class="stk"><div class="av" style="background:var(--${sw}-bg);color:var(--${sw}-fg)">${initials(r.s)}</div>
+          <div><div class="stk-name">${r.s}</div><div class="stk-sub">${r.e}</div></div></div></td>
+        <td class="l" style="color:var(--muted)">${r.a}</td>
+        <td class="n">${r.q.toLocaleString('en-IN')}</td>
+        <td class="n" style="color:var(--faint)">${dec(r.avg)}</td>
+        <td class="n" style="font-weight:700">${dec(r.ltp)}</td>
+        <td class="rg"><div class="rg-t"><b style="left:calc(${Math.max(0,Math.min(100,(r.ltp-r.lo)/((r.hi-r.lo)||1)*100)).toFixed(1)}% - 1.5px)"></b></div>
+          <div class="rg-e n"><span>${dec(r.lo)}</span><span>${dec(r.hi)}</span></div></td>
+        <td><span class="pill ${cls(r.dc)}">${arrow(r.dc>=0)}${pc(r.dc)}</span></td>
+        <td><span class="pill ${cls(p)}">${arrow(p>=0)}${sgn(p)}</span></td>
+        <td class="n" style="color:var(--faint)">${(Math.abs(val(r))/tv*100).toFixed(1)}%</td></tr>`;
+    }).join('') || `<tr><td colspan="9" class="empty">Nothing open on this account.</td></tr>`}</tbody>
+    <tfoot><tr>
+      <td class="l" colspan="2">${rows.length} ${view==='holdings'?'holdings':'positions'}${acct==='all'?' across three brokers':' at '+acct}</td>
+      <td class="l" colspan="3" style="color:var(--muted)">Market value <b style="color:var(--ink)">${inr(tv)}</b></td>
+      <td></td><td class="n ${cls(td)}" style="font-weight:700">${sgn(td)}</td>
+      <td class="n ${cls(tp)}" style="font-weight:700">${sgn(tp)}</td><td style="color:var(--faint)">100%</td>
+    </tr></tfoot></table>`;
+}
+
+document.querySelectorAll('#segTabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#segTabs button').forEach(x=>x.classList.toggle('on', x===b));
+  view=b.dataset.v; activeNav=b.dataset.v; syncNav(); render();
+}));
+document.querySelectorAll('#chips .cp').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#chips .cp').forEach(x=>x.classList.toggle('on', x===b));
+  acct=b.dataset.a; render();
+}));
+syncNav(); render();
+
+/* ── watchlist ───────────────────────────── */
+document.getElementById('watch').innerHTML=[
+  {s:'MARUTI',   d:'Within 2% of its 52-week high', p:'12,418.60', c:+1.24},
+  {s:'HAL',      d:'Order win announced this morning', p:'4,684.30', c:+2.91},
+  {s:'DMART',    d:'Avenue Supermarts', p:'4,392.05', c:-0.62},
+  {s:'ADANIENT', d:'Adani Enterprises', p:'3,106.75', c:-1.38},
+  {s:'DIVISLAB', d:'Divi\u2019s Laboratories', p:'4,927.10', c:+0.44}
+].map(w=>{const sw=swatch(w.s);return `<div class="wl">
+    <div class="av" style="background:var(--${sw}-bg);color:var(--${sw}-fg)">${initials(w.s)}</div>
+    <div><div class="stk-name">${w.s}</div><div class="stk-sub">${w.d}</div></div>
+    <div class="wl-r"><div class="wl-p n">${w.p}</div><div class="wl-c n ${cls(w.c)}">${pc(w.c)}</div></div>
+  </div>`;}).join('');
+
+/* ── alerts ──────────────────────────────── */
+const alertIcons = {
+  amber:'<path d="M12 8v5"/><path d="M12 16.2h.01"/><circle cx="12" cy="12" r="9"/>',
+  down:'<circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>',
+  up:'<polyline points="7 13 10.5 16.5 17 9"/>',
+  accent:'<path d="M12 3v3.2M12 17.8V21M3 12h3.2M17.8 12H21"/><circle cx="12" cy="12" r="4.2"/>'
+};
+document.getElementById('alerts').innerHTML=[
+  {k:'amber', t:'The RELIANCE future expires in three days',
+   d:'Roll to October or square off before 15:00 on 24 Sep, or 500 shares land in your demat.', w:'now'},
+  {k:'down',  t:'A HDFCBANK buy was rejected at the open',
+   d:'The Zerodha account was ₹42,180 short when the order reached the exchange.', w:'09:21'},
+  {k:'up',    t:'HAL crossed your ₹4,650 mark',
+   d:'Trading at ₹4,684.30, up 2.91% on this morning\u2019s order announcement.', w:'11:08'},
+  {k:'accent', t:'Financials are 28% of the book',
+   d:'Past the 25% ceiling you set. Trimming 60 ICICIBANK brings it back under.', w:'12:30'}
+].map(a=>`<div class="al">
+    <div class="al-ic" style="background:var(--${a.k==='accent'?'accent-soft':a.k+'-soft'})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--${a.k==='accent'?'accent':a.k})" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${alertIcons[a.k]}</svg>
+    </div>
+    <div class="al-b" style="flex:1;min-width:0"><div class="al-t">${a.t}</div><div class="al-d">${a.d}</div></div>
+    <div class="al-w">${a.w}</div></div>`).join('');
+
+/* ── theme ───────────────────────────────── */
+const root=document.documentElement, tgl=document.getElementById('tgl');
+try{const s=localStorage.getItem('bloomTheme'); if(s) root.setAttribute('data-theme',s);}catch(e){}
+const sync=()=>tgl.textContent = root.getAttribute('data-theme')==='dark' ? 'Light' : 'Dark';
+sync();
+tgl.addEventListener('click',()=>{
+  const nx = root.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme',nx); sync();
+  try{localStorage.setItem('bloomTheme',nx);}catch(e){}
+});
+</script>
+</body>
+</html>

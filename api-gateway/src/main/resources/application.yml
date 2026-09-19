@@ -51,7 +51,15 @@ management:
     web:
       exposure:
         include: health,info,gateway   # /actuator/gateway/routes to inspect live routes
+  tracing:
+    sampling:
+      probability: 1.0                 # trace 100% of requests in dev
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
 
 logging:
   level:
     org.springframework.cloud.gateway: INFO
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"

@@ -1,8 +1,8 @@
 spring:
   application:
-    name: user-service          # ← this is what Eureka sees
+    name: user-service
   datasource:
-    url: jdbc:mysql://localhost:3306/userdb?useSSL=false
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/userdb?useSSL=false
     username: root
     password: pass1234
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -14,18 +14,18 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
-  port: 8081                    # ← ONE port, no more confusion
+  port: 8081
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
   instance:
@@ -36,7 +36,36 @@ management:
     web:
       exposure:
         include: health,info
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
 
 logging:
   level:
     org.hibernate.SQL: DEBUG
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+
+---
+# Profile: docker — overrides for running fully inside docker
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql-user:3306/userdb?useSSL=false
+  kafka:
+    bootstrap-servers: kafka:9092
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8095
