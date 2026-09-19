@@ -1,33 +1,48 @@
 package com.example.userservice.controller;
 
-import com.example.userservice.model.User;
+import com.example.userservice.dto.CreateUserRequest;
+import com.example.userservice.dto.UserMapper;
+import com.example.userservice.dto.UserResponse;
+import com.example.userservice.exception.UserNotFoundException;
 import com.example.userservice.repository.UserRepository;
+import com.example.userservice.service.UserRegistrationService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/users")
 public class UserController {
-    private final UserRepository userRepository;
 
-    public UserController(UserRepository userRepository) {
+    private final UserRepository userRepository;
+    private final UserRegistrationService registrationService;
+
+    public UserController(UserRepository userRepository,
+                          UserRegistrationService registrationService) {
         this.userRepository = userRepository;
+        this.registrationService = registrationService;
     }
 
-    @PostMapping("/register")
-    public User registerUser(@RequestBody User user) {
-        return userRepository.save(user);
+    @PostMapping
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody CreateUserRequest req) {
+        // Registration is transactional: user + outbox event commit together.
+        // A background OutboxRelay will publish the event to Kafka shortly after.
+        UserResponse resp = registrationService.register(req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(resp);
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponse> getAll() {
+        return userRepository.findAll().stream().map(UserMapper::toResponse).toList();
     }
 
     @GetMapping("/{id}")
-    public User getUserById(@PathVariable Long id) {
+    public UserResponse getById(@PathVariable Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .map(UserMapper::toResponse)
+                .orElseThrow(() -> new UserNotFoundException(id));
     }
 }

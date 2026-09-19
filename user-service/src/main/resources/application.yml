@@ -19,6 +19,18 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
+      bindings:
+        # Producer binding: <bean-or-bindingName>-out-0
+        # Matches StreamBridge.send("userRegistered-out-0", ...) in UserEventPublisher
+        userRegistered-out-0:
+          destination: user.registered
+          content-type: application/json
+
 server:
   port: 8081
 

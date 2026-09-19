@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: payment-service
+  cloud:
+    function:
+      definition: orderCreated;paymentCommand;refundCommand
+    stream:
+      # Cloud Stream retry (in-process, before DLQ kicks in)
+      default:
+        consumer:
+          max-attempts: 3                        # try up to 3 times
+          back-off-initial-interval: 500         # 500ms base delay
+          back-off-multiplier: 2.0               # 500ms → 1000ms → 2000ms
+          back-off-max-interval: 10000
+          # After all attempts fail, the message is passed to the binder's
+          # DLQ handler (Kafka binder — see kafka.default.consumer below).
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
+        # Defaults for every Kafka consumer in this app.
+        default:
+          consumer:
+            enableDlq: true                      # publish poison messages to <topic>.DLT
+            dlqName: ""                          # empty = default naming: <topic>.DLT
+            autoCommitOnError: true              # commit offset for failed msg (else infinite loop)
+            dlqPartitions: 1                     # single-partition DLQ is fine for demo
+      bindings:
+        # ---- Old choreography ----
+        orderCreated-in-0:
+          destination: order.created
+          group: payment-service
+          content-type: application/json
+        paymentCompleted-out-0:
+          destination: payment.completed
+          content-type: application/json
+        paymentFailed-out-0:
+          destination: payment.failed
+          content-type: application/json
+
+        # ---- Saga command handlers ----
+        paymentCommand-in-0:
+          destination: payment.commands
+          group: payment-service
+          content-type: application/json
+        refundCommand-in-0:
+          destination: payment.commands.refund
+          group: payment-service
+          content-type: application/json
+        paymentReply-out-0:
+          destination: payment.replies
+          content-type: application/json
+
+server:
+  port: 8091
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"

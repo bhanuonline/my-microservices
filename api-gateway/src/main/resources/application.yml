@@ -12,24 +12,20 @@ spring:
       default-filters:
         - TokenRelay                    # forward JWT to downstream services
       routes:
+        # Routes forward /api/v1/... as-is (no StripPrefix).
+        # Each service owns the /api/v1/<resource> path internally.
         - id: user-service
-          uri: lb://user-service        # lb:// = load-balance via Eureka
+          uri: lb://user-service
           predicates:
-            - Path=/users/**
-          filters:
-            - StripPrefix=1             # /users/foo -> /foo when calling user-service
+            - Path=/api/v1/users/**
         - id: product-service
           uri: lb://product-service
           predicates:
-            - Path=/products/**
-          filters:
-            - StripPrefix=1
+            - Path=/api/v1/products/**
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/orders/**
-          filters:
-            - StripPrefix=1
+            - Path=/api/v1/orders/**
   security:
     oauth2:
       resourceserver:

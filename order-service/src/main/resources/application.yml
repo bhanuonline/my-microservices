@@ -2,6 +2,78 @@ spring:
   application:
     name: order-service
 
+  # H2 in-memory: real JPA, zero infra. Data lost on restart — fine for dev/demo.
+  datasource:
+    url: jdbc:h2:mem:orderdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  cloud:
+    function:
+      # All consumer beans wired via Cloud Stream. Semicolon-separated.
+      # Old choreography consumers kept for reference.
+      definition: paymentCompleted;paymentFailed;paymentReply;notifyUserReply
+    stream:
+      # In-process retry: 3 attempts with exponential backoff.
+      # After that, Kafka binder routes to DLQ.
+      default:
+        consumer:
+          max-attempts: 3
+          back-off-initial-interval: 500
+          back-off-multiplier: 2.0
+          back-off-max-interval: 10000
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
+        default:
+          consumer:
+            enableDlq: true              # <topic>.DLT gets poison messages
+            autoCommitOnError: true      # advance past the poisoned offset
+            dlqPartitions: 1
+      bindings:
+        # ---- OLD choreography (still running in parallel) ----
+        orderCreated-out-0:
+          destination: order.created
+          content-type: application/json
+        paymentCompleted-in-0:
+          destination: payment.completed
+          group: order-service
+          content-type: application/json
+        paymentFailed-in-0:
+          destination: payment.failed
+          group: order-service
+          content-type: application/json
+
+        # ---- NEW saga orchestration ----
+        # Outbound commands (orchestrator → services)
+        paymentCommand-out-0:
+          destination: payment.commands
+          content-type: application/json
+        notifyUserCommand-out-0:
+          destination: notification.commands
+          content-type: application/json
+        refundCommand-out-0:
+          destination: payment.commands.refund
+          content-type: application/json
+
+        # Inbound replies (services → orchestrator)
+        paymentReply-in-0:
+          destination: payment.replies
+          group: order-service-saga
+          content-type: application/json
+        notifyUserReply-in-0:
+          destination: notification.replies
+          group: order-service-saga
+          content-type: application/json
+
 server:
   port: 8083                     # was 8092 ? moving to 8083 to keep ports sequential
 
@@ -17,21 +89,40 @@ eureka:
 resilience4j:
   circuitbreaker:
     instances:
-      productClient:                        # matches @CircuitBreaker(name = "productClient")
-        register-health-indicator: true     # exposes state via /actuator/health
+      productClient:
+        register-health-indicator: true
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 10             # look at last 10 calls
-        minimum-number-of-calls: 5          # need at least 5 calls before deciding
-        failure-rate-threshold: 50          # if 50% failed ? trip to OPEN
-        wait-duration-in-open-state: 10s    # stay OPEN for 10s, then HALF-OPEN
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+
+  retry:
+    instances:
+      productClient:
+        max-attempts: 3                    # total attempts (initial + 2 retries)
+        wait-duration: 200ms               # base delay between retries
+        enable-exponential-backoff: true   # 200ms, 400ms, 800ms, ...
+        exponential-backoff-multiplier: 2
+        # Only retry on transient network/downstream errors — NOT business exceptions.
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+
+  bulkhead:
+    instances:
+      productClient:
+        max-concurrent-calls: 10           # cap concurrent calls to product-service
+        max-wait-duration: 100ms           # if all slots busy, wait up to 100ms then fail
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,circuitbreakers,circuitbreakerevents
+        include: health,info,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads,bulkheadevents
   health:
     circuitbreakers:
       enabled: true
