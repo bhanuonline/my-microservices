@@ -1,0 +1,1 @@
+package notification.core.template;/** * A/B testing / feature-flag driven variant selection for templates. */public interface VariantResolver {    String resolveVariant(String templateId, TemplateContext ctx);}

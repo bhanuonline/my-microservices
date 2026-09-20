@@ -1,0 +1,1 @@
+package notification.integration.email;/** * Email-specific recipient wrapper. * TODO: extend when we need display name, locale, opt-out preferences. */public record EmailRecipient(String emailAddress, String displayName) {    public EmailRecipient(String emailAddress) {        this(emailAddress, null);    }}

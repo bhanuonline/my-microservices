@@ -1,0 +1,1 @@
+package notification.core.template;/** * Compiled template ready for rendering. * TODO: add rendering engine (Freemarker/Thymeleaf/Mustache). */public record Template(String id, String content) {}

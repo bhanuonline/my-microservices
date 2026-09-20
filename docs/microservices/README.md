@@ -6,6 +6,7 @@ Living doc for the study project. Filled in as debugging + verification progress
 
 | I want to... | Read |
 |---|---|
+| **Is everything running right now?** | Run `./status.sh` from project root |
 | Understand the whole system in 5 min | [00-architecture-overview.md](00-architecture-overview.md) |
 | Bring the stack up right now | [01-startup-runbook.md](01-startup-runbook.md) |
 | Know if a service is actually healthy | [02-verification-checklist.md](02-verification-checklist.md) |

@@ -1,0 +1,1 @@
+package notification.core;/** * A single delivery target — an email address, phone number, device token, etc. * TODO: split into per-channel subtypes if needed. */public record NotificationTarget(        NotificationType type,        String address       // email address / phone number / etc.) {}

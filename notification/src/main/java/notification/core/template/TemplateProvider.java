@@ -1,0 +1,1 @@
+package notification.core.template;import notification.core.NotificationType;import java.util.Optional;/** * Source of templates (filesystem, CMS, database, etc.). */public interface TemplateProvider {    //Template load(String templateId);    Optional<Template> find(NotificationType type, String language, String version, String variant);}

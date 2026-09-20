@@ -1,0 +1,1 @@
+package notification.core.feature;/** * Runtime feature flags (per-user, per-tenant, per-region). * TODO: back with Unleash / LaunchDarkly / config-server. */public interface FeatureFlagService {    boolean isEnabled(String flagKey);    boolean isEnabled(String flagKey, String contextKey);}

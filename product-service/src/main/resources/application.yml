@@ -1,8 +1,13 @@
 spring:
   application:
     name: product-service
+  cloud:
+    config:
+      enabled: false          # config-server not implemented yet
+  config:
+    import: "optional:configserver:"
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/productdb    # ← 3308 default
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/productdb?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: pass1234
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -66,9 +71,9 @@ spring:
     activate:
       on-profile: docker
   datasource:
-    url: jdbc:mysql://mysql-product:3306/productdb
+    url: jdbc:mysql://mysql-product:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
 
 eureka:
   client:

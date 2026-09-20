@@ -1,8 +1,15 @@
 spring:
   application:
     name: user-service
+  config:
+    import: "optional:configserver:"   # allow startup even if config-server absent
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8095
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/userdb?useSSL=false
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/userdb?useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: pass1234
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -20,6 +27,8 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
   cloud:
+    config:
+      enabled: false          # config-server not implemented yet — disable client check
     stream:
       kafka:
         binder:
@@ -68,16 +77,11 @@ spring:
     activate:
       on-profile: docker
   datasource:
-    url: jdbc:mysql://mysql-user:3306/userdb?useSSL=false
+    url: jdbc:mysql://mysql-user:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: kafka:29092
 
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server:8761/eureka/
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8095

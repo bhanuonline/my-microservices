@@ -1,6 +1,13 @@
 spring:
   application:
     name: order-service
+  config:
+    import: "optional:configserver:"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8095
 
   # H2 in-memory: real JPA, zero infra. Data lost on restart — fine for dev/demo.
   datasource:
@@ -17,6 +24,8 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
 
   cloud:
+    config:
+      enabled: false          # config-server not implemented yet
     function:
       # All consumer beans wired via Cloud Stream. Semicolon-separated.
       # Old choreography consumers kept for reference.
@@ -144,8 +153,3 @@ feign:
       default:
         connect-timeout: 3000
         read-timeout: 5000
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8095

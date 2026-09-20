@@ -1,0 +1,1 @@
+package notification.builder;import notification.core.NotificationContext;/** * A build step that only validates — never mutates the context. * TODO: throw a domain exception when invalid; keep validation cheap. */public interface ValidationStep extends BuildStep {    @Override    void execute(NotificationContext ctx);}
