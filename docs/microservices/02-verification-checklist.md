@@ -125,12 +125,28 @@ docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
 
 ## MySQL inspection
 
+### Container credentials — same for all 3
+
+| DB | Container name | Host port | User | Password | Database |
+|---|---|---|---|---|---|
+| user-service | `mysql-user` | **3307** | `root` | `pass1234` | `userdb` |
+| product-service | `mysql-product` | **3308** | `root` | `pass1234` | `productdb` |
+| auth-server | `mysql-auth` | **3309** | `root` | `pass1234` | `authdb` |
+
+Note: use **host ports** (3307/8/9) from your Mac. Inside the docker network, MySQL always runs on 3306.
+
+### Option A — docker exec (fastest, no install needed)
+
+Runs `mysql` CLI inside the container. You never leave your terminal.
+
 ```bash
 # Quick "does it respond?" check
 docker exec mysql-user mysql -uroot -ppass1234 -e "SHOW DATABASES;"
 
-# Interactive shell
+# Interactive shell (Ctrl+D or 'exit' to leave)
 docker exec -it mysql-user mysql -uroot -ppass1234 userdb
+docker exec -it mysql-product mysql -uroot -ppass1234 productdb
+docker exec -it mysql-auth mysql -uroot -ppass1234 authdb
 
 # One-shot query — outbox pattern
 docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
@@ -142,6 +158,66 @@ docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
 
 # Show tables in a database
 docker exec mysql-user mysql -uroot -ppass1234 userdb -e "SHOW TABLES;"
+```
+
+**Word by word:**
+- `docker exec` = run a command inside a running container
+- `-it` = interactive + TTY (needed for the mysql> prompt)
+- `mysql-user` = container name
+- `mysql -u... -p...` = the command to run inside
+- `userdb` = which database to `USE` on connect
+
+### Option B — Local `mysql` client on your Mac
+
+If you have `mysql` CLI installed (`brew install mysql-client`):
+
+```bash
+mysql -h 127.0.0.1 -P 3307 -uroot -ppass1234 userdb
+mysql -h 127.0.0.1 -P 3308 -uroot -ppass1234 productdb
+mysql -h 127.0.0.1 -P 3309 -uroot -ppass1234 authdb
+```
+
+### Option C — GUI tool (DBeaver / TablePlus / DataGrip / MySQL Workbench)
+
+Create a new MySQL connection with these settings:
+
+- **Host:** `localhost`
+- **Port:** `3307` (or 3308 / 3309)
+- **User:** `root`
+- **Password:** `pass1234`
+- **Database:** `userdb` (or productdb / authdb)
+
+**⚠️ Extra flags required** — same MySQL 8 auth issue we hit earlier. In the client's "Driver properties" / "Advanced" / "JDBC parameters" tab, add:
+
+```
+useSSL=false
+allowPublicKeyRetrieval=true
+```
+
+Otherwise you get `Public Key Retrieval is not allowed` when connecting.
+
+Test connection → Save. You get a browsable schema tree, query editor, table view.
+
+### Common quick queries
+
+```sql
+-- once inside the mysql> prompt:
+SHOW DATABASES;
+USE userdb;
+SHOW TABLES;
+DESCRIBE user;                  -- table structure
+SELECT * FROM user LIMIT 10;
+SELECT COUNT(*) FROM user;
+
+-- outbox status
+SELECT status, COUNT(*) FROM outbox_events GROUP BY status;
+
+-- see what's pending / stuck
+SELECT * FROM outbox_events WHERE status='PENDING' ORDER BY created_at LIMIT 20;
+
+-- exit
+exit
+-- (or Ctrl+D)
 ```
 
 ## Building + running Java services
