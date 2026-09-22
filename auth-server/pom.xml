@@ -64,7 +64,7 @@
         <id>debug</id>
         <properties>
             <spring-boot.run.jvmArguments>
-                -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5014
+                -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5007
             </spring-boot.run.jvmArguments>
         </properties>
     </profile>

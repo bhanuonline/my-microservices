@@ -1,12 +1,13 @@
 package com.example.productservice.controller;
 
-import com.example.productservice.model.ApiResponse;
+import com.example.productservice.dto.CreateProductRequest;
+import com.example.productservice.dto.ProductMapper;
+import com.example.productservice.dto.ProductResponse;
+import com.example.productservice.exception.ProductNotFoundException;
 import com.example.productservice.model.Product;
-import com.example.productservice.repository.ProductRepository;
 import com.example.productservice.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,48 +15,48 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/products")
+@RequestMapping("/api/v1/products")
 @Slf4j
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<Product>> addProduct(@Valid @RequestBody Product product) {
-        log.info("Creating product {}", product.getName());
-        Product created = productService.saveProduct(product);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Product created successfully", created,""));
+    public ProductController(ProductService productService) {
+        this.productService = productService;
     }
 
-    @PostMapping("/bulk")
-    public List<Product> addMultipleProducts(@RequestBody List<Product> products) {
-        log.debug("Received bulk insert request for {} products", products.size());
-        return productService.saveAllProducts(products);
+    @PostMapping
+    public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest req) {
+        log.info("Creating product {}", req.name());
+        Product saved = productService.saveProduct(ProductMapper.toEntity(req));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ProductMapper.toResponse(saved));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Product>>> getAll() {
-        log.debug("Fetching all products");
-        return ResponseEntity.ok(ApiResponse.success("All products retrieved", productService.getAllProducts(),""));
-    }
-
-    @GetMapping("/{id}/availability")
-    public ResponseEntity<String> checkProductAvailability(@PathVariable("id") Long productId) {
-        // In a real system -> Check from DB
-        log.debug("Checking availability for product ID: {}", productId);
-        if (productId == 1L) {
-            return ResponseEntity.ok("AVAILABLE");
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("NOT_AVAILABLE");
-        }
+    public List<ProductResponse> getAll() {
+        return productService.getAllProducts().stream()
+                .map(ProductMapper::toResponse)
+                .toList();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Product>> getById(@PathVariable Long id) {
-        log.debug("Fetching product {}", id);
-        Product product = productService.getProductById(id);
-        return ResponseEntity.ok(ApiResponse.success("Product fetched successfully", product,""));
+    public ProductResponse getById(@PathVariable Long id) {
+        Product p = productService.getProductById(id);
+        if (p == null) {
+            throw new ProductNotFoundException(id);
+        }
+        return ProductMapper.toResponse(p);
+    }
+
+    // Availability endpoint — order-service's Feign client hits this.
+    // Returns plain string ("AVAILABLE" / "NOT_AVAILABLE") for backward compatibility.
+    @GetMapping("/{id}/availability")
+    public ResponseEntity<String> checkAvailability(@PathVariable("id") Long productId) {
+        log.debug("Checking availability for product ID: {}", productId);
+        Product p = productService.getProductById(productId);
+        if (p != null && p.isActive() && p.getQuantityInStock() > 0) {
+            return ResponseEntity.ok("AVAILABLE");
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("NOT_AVAILABLE");
     }
 }

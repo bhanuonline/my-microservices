@@ -1,0 +1,1 @@
+package notification.dispatch.strategy;import notification.core.NotificationContext;/** * Send strategy — how we actually push the notification out. * Concrete strategies: individual (one recipient per call), batch (N per call). */public interface SendStrategy {    void send(NotificationContext ctx);}

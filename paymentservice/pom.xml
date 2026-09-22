@@ -10,17 +10,66 @@
     </parent>
 
     <artifactId>payment-service</artifactId>
+
     <dependencies>
+        <!-- Shared event contracts -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>common-lib</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Web (so actuator has an HTTP surface) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Kafka via Cloud Stream (consume OrderCreatedEvent) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-kafka</artifactId>
+        </dependency>
+
+        <!-- Register with Eureka so future service-to-service calls work -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+
+        <!-- Distributed tracing -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
+        </dependency>
+
+        <!-- Resilience — already declared but leaving for future @CircuitBreaker use -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
     </dependencies>
 
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+    <profiles>
+        <profile>
+            <id>debug</id>
+            <properties>
+                <spring-boot.run.jvmArguments>
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5012
+                </spring-boot.run.jvmArguments>
+            </properties>
+        </profile>
+    </profiles>
 </project>

@@ -1,0 +1,554 @@
+{
+  "info": {
+    "name": "my-microservices",
+    "description": "All endpoints built so far. Uses collection variables for host/port so you can flip between direct-hit and gateway-routed easily.\n\nFolders map to services. Actuator + debug endpoints in the last folder.\n\nCollection variables:\n- gateway     — http://localhost:8080\n- user_svc    — http://localhost:8081\n- product_svc — http://localhost:8082\n- order_svc   — http://localhost:8083\n- payment_svc — http://localhost:8091\n- auth_svc    — http://localhost:8095\n- resource_svc— http://localhost:8096\n- eureka      — http://localhost:8761\n- zipkin      — http://localhost:9411\n- jwt         — (paste a token after obtaining one)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gateway", "value": "http://localhost:8080" },
+    { "key": "user_svc", "value": "http://localhost:8081" },
+    { "key": "product_svc", "value": "http://localhost:8082" },
+    { "key": "order_svc", "value": "http://localhost:8083" },
+    { "key": "payment_svc", "value": "http://localhost:8091" },
+    { "key": "auth_svc", "value": "http://localhost:8095" },
+    { "key": "resource_svc", "value": "http://localhost:8096" },
+    { "key": "eureka", "value": "http://localhost:8761" },
+    { "key": "zipkin", "value": "http://localhost:9411" },
+    { "key": "jwt", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0 — Infrastructure & discovery",
+      "item": [
+        {
+          "name": "Eureka — dashboard (HTML)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{eureka}}", "host": ["{{eureka}}"] },
+            "description": "Netflix Eureka UI. All registered services listed under 'instances currently registered'."
+          }
+        },
+        {
+          "name": "Eureka — list registered apps (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{eureka}}/eureka/apps", "host": ["{{eureka}}"], "path": ["eureka", "apps"] }
+          }
+        },
+        {
+          "name": "Eureka — health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{eureka}}/actuator/health",
+              "host": ["{{eureka}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Zipkin — UI",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{zipkin}}", "host": ["{{zipkin}}"] },
+            "description": "Distributed tracing UI. After a request flows through the system, find its trace here."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1 — Auth-server",
+      "item": [
+        {
+          "name": "OIDC discovery — issuer metadata",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{auth_svc}}/.well-known/openid-configuration",
+              "host": ["{{auth_svc}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "Advertises supported flows, JWKS URI, token endpoint. Downstream services fetch JWKS from here to validate JWTs."
+          }
+        },
+        {
+          "name": "JWKS — public keys",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{auth_svc}}/oauth2/jwks",
+              "host": ["{{auth_svc}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Public key(s) used to verify JWT signatures. Every resource server (gateway, downstream services) fetches this on startup."
+          }
+        },
+        {
+          "name": "Token — client_credentials (AUTO-SAVES to {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Auto-save JWT to collection variable so other requests can use {{jwt}}",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt', json.access_token);",
+                  "    console.log('✓ JWT saved to collection variable {{jwt}} (expires in ' + json.expires_in + 's)');",
+                  "} else {",
+                  "    console.log('✗ Token request failed with', pm.response.code);",
+                  "    console.log(pm.response.text());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "m2m-client", "type": "string" },
+                { "key": "password", "value": "m2m-secret", "type": "string" }
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "read write", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{auth_svc}}/oauth2/token",
+              "host": ["{{auth_svc}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Get a JWT via client_credentials flow (machine-to-machine, no user login).\n\nUses m2m-client / m2m-secret registered in auth-server SecurityConfig.\n\nThe Tests script auto-saves access_token to collection variable {{jwt}}. All other requests using 'Authorization: Bearer {{jwt}}' will now work.\n\nJWT expires in ~5 min — just re-run this request when it expires."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 — User-service (direct)",
+      "item": [
+        {
+          "name": "Register user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Correlation-Id", "value": "postman-user-reg-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice\",\n  \"email\": \"alice@example.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{user_svc}}/api/v1/users",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Triggers: DB write + outbox row (same tx) → poller (~500ms) → user.registered topic → notification consumer.\nExpected: 201 with {id,name,email}. Password NOT in response."
+          }
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/api/v1/users",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "users"]
+            }
+          }
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/api/v1/users/1",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "users", "1"]
+            },
+            "description": "Change 1 to any existing id. Returns 404 (as ErrorResponse JSON with correlationId) if not found."
+          }
+        },
+        {
+          "name": "Validation error — missing email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bob\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": {
+              "raw": "{{user_svc}}/api/v1/users",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Expected: 400 with ErrorResponse — code=VALIDATION_FAILED, message='email: must not be blank'."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 — Product-service (direct)",
+      "item": [
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Widget\",\n  \"description\": \"A widget\",\n  \"price\": 9.99,\n  \"sku\": \"WGT-001\",\n  \"category\": \"gadgets\",\n  \"quantityInStock\": 100,\n  \"brand\": \"ACME\"\n}"
+            },
+            "url": {
+              "raw": "{{product_svc}}/api/v1/products",
+              "host": ["{{product_svc}}"],
+              "path": ["api", "v1", "products"]
+            }
+          }
+        },
+        {
+          "name": "List products (DIRECT :8082)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "level1-direct-list-{{$timestamp}}" }
+            ],
+            "url": {
+              "raw": "{{product_svc}}/api/v1/products",
+              "host": ["{{product_svc}}"],
+              "path": ["api", "v1", "products"]
+            },
+            "description": "Direct hit to product-service (bypasses gateway).\n\nHeader X-Correlation-Id lets you grep this specific request across logs. Value uses Postman's dynamic {{$timestamp}} so each click is unique."
+          }
+        },
+        {
+          "name": "List products VIA GATEWAY :8080 (Level 1 demo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "level1-demo-001" }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/products",
+              "host": ["{{gateway}}"],
+              "path": ["api", "v1", "products"]
+            },
+            "description": "★ LEVEL 1 GOLDEN PATH ★\n\nGoes through: gateway → Eureka discovery → product-service.\n\nWatch gateway + product-service logs for the same traceId AND correlationId=level1-demo-001. Same trace visible in Zipkin (http://localhost:9411)."
+          }
+        },
+        {
+          "name": "Get product by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "level1-get-1-{{$timestamp}}" }
+            ],
+            "url": {
+              "raw": "{{product_svc}}/api/v1/products/1",
+              "host": ["{{product_svc}}"],
+              "path": ["api", "v1", "products", "1"]
+            }
+          }
+        },
+        {
+          "name": "Check availability (used by order-service Feign)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Correlation-Id", "value": "check-avail-{{$timestamp}}" }
+            ],
+            "url": {
+              "raw": "{{product_svc}}/api/v1/products/1/availability",
+              "host": ["{{product_svc}}"],
+              "path": ["api", "v1", "products", "1", "availability"]
+            },
+            "description": "Returns plain string 'AVAILABLE' or 'NOT_AVAILABLE'. This is what order-service's Feign client calls."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 — Order-service (direct)",
+      "item": [
+        {
+          "name": "Create order — happy path (qty=2, amount=$19.98)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{order_svc}}/api/v1/orders",
+              "host": ["{{order_svc}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Triggers: product availability check (Feign + CB/retry/bulkhead) → save Order → start saga → payment command → payment reply (success, amount<$50) → notify command → notify reply → order = PAID.\nExpected: 201 with orderId, status=CREATED."
+          }
+        },
+        {
+          "name": "Create order — payment declined (qty=6, amount=$59.94 > $50)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 6\n}"
+            },
+            "url": {
+              "raw": "{{order_svc}}/api/v1/orders",
+              "host": ["{{order_svc}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Payment saga fails at first step. No compensation needed. Order goes to CANCELLED."
+          }
+        },
+        {
+          "name": "Get order by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{order_svc}}/api/v1/orders/REPLACE_WITH_ORDER_ID",
+              "host": ["{{order_svc}}"],
+              "path": ["api", "v1", "orders", "REPLACE_WITH_ORDER_ID"]
+            },
+            "description": "Replace path segment with orderId from create response. Poll to see status transition CREATED → PAID or CANCELLED."
+          }
+        },
+        {
+          "name": "Validation error — negative quantity",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": -1\n}"
+            },
+            "url": {
+              "raw": "{{order_svc}}/api/v1/orders",
+              "host": ["{{order_svc}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "description": "Expected: 400 VALIDATION_FAILED — 'quantity: must be greater than 0'."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5 — Through Gateway (JWT required)",
+      "item": [
+        {
+          "name": "List users via gateway (no JWT — expect 401)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway}}/api/v1/users",
+              "host": ["{{gateway}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Without Authorization header → gateway rejects with 401."
+          }
+        },
+        {
+          "name": "List users via gateway (with JWT)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": {
+              "raw": "{{gateway}}/api/v1/users",
+              "host": ["{{gateway}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Set {{jwt}} collection variable first (see Auth-server → Token). Gateway validates JWT, TokenRelay forwards it to user-service which also validates."
+          }
+        },
+        {
+          "name": "Create order via gateway (with JWT)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": ["{{gateway}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 — Actuator / debug",
+      "item": [
+        {
+          "name": "Gateway routes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway}}/actuator/gateway/routes",
+              "host": ["{{gateway}}"],
+              "path": ["actuator", "gateway", "routes"]
+            },
+            "description": "Live route table. Best debug tool when routing feels wrong."
+          }
+        },
+        {
+          "name": "Order — health (includes circuit breaker state)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{order_svc}}/actuator/health",
+              "host": ["{{order_svc}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Inspect JSON.components.circuitBreakers.productClient for CLOSED/OPEN/HALF_OPEN."
+          }
+        },
+        {
+          "name": "Order — circuit breaker events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{order_svc}}/actuator/circuitbreakerevents/productClient",
+              "host": ["{{order_svc}}"],
+              "path": ["actuator", "circuitbreakerevents", "productClient"]
+            },
+            "description": "Full event log: SUCCESS, ERROR, STATE_TRANSITION."
+          }
+        },
+        {
+          "name": "Order — retry events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{order_svc}}/actuator/retryevents/productClient",
+              "host": ["{{order_svc}}"],
+              "path": ["actuator", "retryevents", "productClient"]
+            }
+          }
+        },
+        {
+          "name": "Order — bulkhead events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{order_svc}}/actuator/bulkheadevents/productClient",
+              "host": ["{{order_svc}}"],
+              "path": ["actuator", "bulkheadevents", "productClient"]
+            }
+          }
+        },
+        {
+          "name": "All services — health rollup",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway}}/actuator/health",
+              "host": ["{{gateway}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 — Live config refresh (@RefreshScope demo)",
+      "item": [
+        {
+          "name": "1. GET demo greeting (BEFORE change)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/api/v1/demo/greeting",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "demo", "greeting"]
+            },
+            "description": "Step 1 of live-refresh demo. Returns the current value of demo.greeting from user-service/application.yml.\n\nExpected: whatever the yml currently says (initially: 'Hello from the ORIGINAL config')."
+          }
+        },
+        {
+          "name": "2. POST /actuator/refresh (after editing yml)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{user_svc}}/actuator/refresh",
+              "host": ["{{user_svc}}"],
+              "path": ["actuator", "refresh"]
+            },
+            "description": "Step 3 of live-refresh demo. After you edit demo.greeting in user-service/application.yml and save, POST here.\n\nExpected response body: JSON array of the property keys that changed, e.g. [\"demo.greeting\"].\n\nEmpty array [] = nothing detected as changed (file wasn't actually reloaded — check IDE auto-build or ./mvnw compile)."
+          }
+        },
+        {
+          "name": "3. GET demo greeting (AFTER refresh — new value)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/api/v1/demo/greeting",
+              "host": ["{{user_svc}}"],
+              "path": ["api", "v1", "demo", "greeting"]
+            },
+            "description": "Step 4 of live-refresh demo. Should return the NEW value from yml, without a service restart. Proves @RefreshScope is working."
+          }
+        },
+        {
+          "name": "Env peek — see all resolved properties",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/actuator/env/demo.greeting",
+              "host": ["{{user_svc}}"],
+              "path": ["actuator", "env", "demo.greeting"]
+            },
+            "description": "Actuator lets you inspect any property's currently-resolved value AND its source (which yml file / env var it came from).\n\nUseful when you're confused why a property has an unexpected value."
+          }
+        },
+        {
+          "name": "Configprops — all @ConfigurationProperties beans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{user_svc}}/actuator/configprops",
+              "host": ["{{user_svc}}"],
+              "path": ["actuator", "configprops"]
+            },
+            "description": "Lists every @ConfigurationProperties bean and its current values. Broader view than /env — you see the object graph, not individual keys."
+          }
+        },
+        {
+          "name": "Log level — change on the fly (no restart, no @RefreshScope needed)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"configuredLevel\": \"DEBUG\"\n}"
+            },
+            "url": {
+              "raw": "{{user_svc}}/actuator/loggers/com.example.userservice",
+              "host": ["{{user_svc}}"],
+              "path": ["actuator", "loggers", "com.example.userservice"]
+            },
+            "description": "Bonus: change log levels at runtime — no config change, no restart, no @RefreshScope needed. This uses actuator's /loggers endpoint.\n\nReplace com.example.userservice with any logger name. Set 'configuredLevel' to null to reset to default.\n\nNOTE: you need 'loggers' in management.endpoints.web.exposure.include (already added when you exposed refresh)."
+          }
+        }
+      ]
+    }
+  ]
+}

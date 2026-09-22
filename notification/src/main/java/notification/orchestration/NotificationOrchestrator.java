@@ -1,0 +1,1 @@
+package notification.orchestration;import notification.core.NotificationContext;/** * Top-level entry point — routes a NotificationContext to the correct channel. */public interface NotificationOrchestrator {    void orchestrate(NotificationContext ctx);}

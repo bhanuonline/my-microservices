@@ -24,11 +24,30 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-stream</artifactId>
-            <version>3.2.7</version>
+            <!-- version managed by spring-cloud-dependencies BOM (2023.0.3 → 4.1.x) -->
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-stream-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>2.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- for @Valid in the controller -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
     </dependencies>
 
@@ -46,7 +65,7 @@
             <id>debug</id>
             <properties>
                 <spring-boot.run.jvmArguments>
-                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5007
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5013
                 </spring-boot.run.jvmArguments>
             </properties>
         </profile>

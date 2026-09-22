@@ -1,16 +1,44 @@
 spring:
-#  kafka:
-#    bootstrap-servers: localhost:9092
-#    producer:
-#      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-#      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  application:
+    name: notification
   cloud:
+    function:
+      definition: userRegistered;notifyUserCommand
     stream:
       kafka:
         binder:
-          brokers: localhost:9092
+          brokers: ${KAFKA_BROKERS:localhost:9092}
       bindings:
-        userRegistrationInput:
-          destination: user-registration       # Same topic name as producer
-          group: notification-user  # Consumer group name
+        # ---- User event flow (existing) ----
+        userRegistered-in-0:
+          destination: user.registered
+          group: notification-service
           content-type: application/json
+
+        # ---- Saga command handler ----
+        notifyUserCommand-in-0:
+          destination: notification.commands
+          group: notification-service
+          content-type: application/json
+        notifyUserReply-out-0:
+          destination: notification.replies
+          content-type: application/json
+
+server:
+  port: 8090
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"

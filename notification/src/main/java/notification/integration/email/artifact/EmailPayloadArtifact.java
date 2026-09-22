@@ -1,0 +1,1 @@
+package notification.integration.email.artifact;import notification.integration.email.model.EmailPayload;/** * Persisted snapshot of a payload — useful for auditing / replaying / debugging. * TODO: back with DB or object storage. */public record EmailPayloadArtifact(        String artifactId,        EmailPayload payload,        long capturedAt) {}

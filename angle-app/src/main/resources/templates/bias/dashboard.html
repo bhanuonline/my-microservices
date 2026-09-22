@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${sheet.symbol()} + ' — AngleApp Bias'">AngleApp Bias</title>
+    <meta th:if="${refreshSeconds > 0}" http-equiv="refresh" th:attr="content=${refreshSeconds}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+:root[data-theme="light"]{
+  --bg:#F5F6FB; --surface:#FFFFFF; --surface-2:#F8F8FD; --border:#EAEBF5; --hair:#F0F1F8;
+  --ink:#171833; --muted:#6E7191; --faint:#A2A4C1;
+  --accent:#5646E8; --accent-2:#7C6FF0; --accent-soft:#EEEBFF;
+  --up:#12A879; --up-soft:#E7F8F1;
+  --down:#E5484D; --down-soft:#FDEAEB;
+  --amber:#D9820E; --amber-soft:#FCEEDB;
+  --shadow:0 1px 2px rgba(23,20,60,.05), 0 12px 28px -12px rgba(23,20,60,.10);
+  --shadow-sm:0 1px 2px rgba(23,20,60,.05);
+}
+:root[data-theme="dark"]{
+  --bg:#0C0D14; --surface:#15161F; --surface-2:#191A25; --border:#262838; --hair:#20222F;
+  --ink:#F1F1FA; --muted:#9497B5; --faint:#5C5F7C;
+  --accent:#8577FF; --accent-2:#A99BFF; --accent-soft:rgba(133,119,255,.14);
+  --up:#31D39B; --up-soft:rgba(49,211,155,.13);
+  --down:#FF6B70; --down-soft:rgba(255,107,112,.13);
+  --amber:#F0A63E; --amber-soft:rgba(240,166,62,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 12px 28px -12px rgba(0,0,0,.5);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.n{font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)} .faint{color:var(--faint)}
+a{color:inherit; text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+
+.shell{display:grid; grid-template-columns:236px 1fr; min-height:100vh}
+
+.side{
+  border-right:1px solid var(--border); padding:22px 16px; display:flex; flex-direction:column;
+  position:sticky; top:0; height:100vh; background:var(--surface);
+}
+.brand{display:flex; align-items:center; gap:11px; padding:4px 10px 26px}
+.logo-mark{
+  width:34px; height:34px; border-radius:10px; flex:none;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:16px;
+}
+.brand-name{font-weight:800; font-size:17px; letter-spacing:-.01em}
+.brand-sub{font-size:10.5px; color:var(--faint); margin-top:1px}
+.navlist{display:flex; flex-direction:column; gap:3px}
+.navitem{
+  display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px;
+  font-size:13.5px; font-weight:500; color:var(--muted);
+}
+.navitem:hover{background:var(--surface-2); color:var(--ink)}
+.navitem.active{background:var(--accent-soft); color:var(--accent)}
+.side-gap{flex:1}
+.side-section-title{font-size:11px; color:var(--faint); font-weight:600; padding:16px 12px 8px;
+                    text-transform:uppercase; letter-spacing:.5px; border-top:1px solid var(--border); margin-top:6px}
+.side-inst{display:flex; align-items:center; gap:9px; padding:8px 12px; border-radius:9px; font-size:12.5px; color:var(--muted)}
+.side-inst:hover{background:var(--surface-2); color:var(--ink)}
+.side-inst.active{color:var(--accent); background:var(--accent-soft)}
+.side-inst-dot{width:7px; height:7px; border-radius:50%; flex:none; background:var(--muted)}
+.side-inst.up  .side-inst-dot{background:var(--up)}
+.side-inst.down .side-inst-dot{background:var(--down)}
+.side-inst-name{flex:1; font-weight:500}
+.side-inst-val{font-size:11px; color:var(--faint); font-family:'SF Mono',Menlo,monospace}
+
+.main{min-width:0}
+.topbar{
+  display:flex; align-items:center; gap:16px; padding:20px 32px;
+  border-bottom:1px solid var(--border); flex-wrap:wrap; background:var(--surface);
+}
+.greet-h{font-size:17px; font-weight:700; letter-spacing:-.01em}
+.greet-d{font-size:12px; color:var(--faint); margin-top:2px}
+.grow{flex:1}
+.icobtn{
+  width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; background:var(--surface);
+}
+.icobtn:hover{background:var(--surface-2)}
+.icobtn svg{stroke:var(--muted); width:18px; height:18px}
+.themebtn{font-size:12.5px; padding:9px 15px; border-radius:10px; border:1px solid var(--border); color:var(--muted)}
+.themebtn:hover{color:var(--ink); background:var(--surface-2)}
+.refresh-info{font-size:11px; color:var(--faint); text-align:right; line-height:1.4}
+
+.content{padding:24px 32px 60px; max-width:1400px}
+
+.tickers{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px}
+.ticker{
+  background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:14px 16px; box-shadow:var(--shadow-sm); transition:transform .15s, border-color .15s;
+  display:block;
+}
+.ticker:hover{transform:translateY(-1px); border-color:var(--accent)}
+.ticker.active{border-color:var(--accent); background:var(--accent-soft)}
+.ticker-name{font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.4px}
+.ticker-price{font-size:20px; font-weight:800; letter-spacing:-.02em; margin-top:6px}
+.ticker-meta{display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:11.5px; font-weight:600}
+.ticker-chg{padding:2px 8px; border-radius:999px; background:var(--hair)}
+.ticker-chg.up{background:var(--up-soft); color:var(--up)}
+.ticker-chg.down{background:var(--down-soft); color:var(--down)}
+.ticker-rec{color:var(--faint); font-weight:600}
+.ticker-rec.long{color:var(--up)}
+.ticker-rec.short{color:var(--down)}
+
+.hero{
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-radius:20px; padding:26px 30px; color:#fff; box-shadow:var(--shadow);
+  position:relative; overflow:hidden; margin-bottom:24px;
+}
+.hero::after{
+  content:''; position:absolute; right:-60px; top:-80px; width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.14), transparent 70%);
+}
+.hero-top{display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; position:relative}
+.hero-label{font-size:12.5px; color:rgba(255,255,255,.78); font-weight:500}
+.hero-instr{font-size:22px; font-weight:700; margin-top:2px}
+.hero-price{font-size:clamp(30px,3.8vw,42px); font-weight:800; letter-spacing:-.02em; margin-top:12px}
+.hero-rec{font-size:clamp(28px,4vw,44px); font-weight:800; letter-spacing:-.03em; margin-top:16px; line-height:1}
+.hero-meta{display:flex; gap:20px; margin-top:14px; font-size:13px; flex-wrap:wrap}
+.hero-meta div{opacity:.92}
+.hero-meta b{font-weight:700}
+.hero-dims{display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; position:relative}
+.dim{background:rgba(255,255,255,.15); padding:6px 12px; border-radius:999px; font-size:11.5px; font-weight:600;
+     display:flex; align-items:center; gap:6px}
+.dim-name{opacity:.85}
+.dim-pips{letter-spacing:1px}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:16px; margin-bottom:24px}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; box-shadow:var(--shadow-sm)}
+.card-h{font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px}
+.kv{display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px dotted var(--hair); font-size:13.5px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--muted)}
+.kv .v{color:var(--ink); font-weight:600}
+.badge{display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700}
+.badge.up{background:var(--up-soft); color:var(--up)}
+.badge.down{background:var(--down-soft); color:var(--down)}
+.badge.amber{background:var(--amber-soft); color:var(--amber)}
+.badge.neutral{background:var(--hair); color:var(--muted)}
+
+.mtf-row{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px dotted var(--hair); font-size:13px}
+.mtf-row:last-child{border-bottom:none}
+.mtf-tf{width:58px; color:var(--muted); font-weight:600; font-size:12px}
+.mtf-bias{flex:1; font-weight:700; font-size:12.5px}
+.mtf-conf{font-size:11.5px; color:var(--faint); font-family:'SF Mono',Menlo,monospace}
+
+.chg-item{padding:10px 0; border-bottom:1px dotted var(--hair)}
+.chg-item:last-child{border-bottom:none}
+.chg-head{display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px}
+.chg-head b{font-weight:700}
+.chg-list{margin:0; padding-left:18px; font-size:12.5px; color:var(--ink)}
+.chg-list li{margin:2px 0}
+.chg-empty{text-align:center; color:var(--faint); padding:20px; font-size:12px}
+
+.sess-item{padding:12px 0; border-bottom:1px dotted var(--hair)}
+.sess-item:last-child{border-bottom:none}
+.sess-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px}
+.sess-name{font-weight:700; font-size:13px}
+.sess-status{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px}
+.sess-status.running{background:var(--up-soft); color:var(--up)}
+.sess-status.stopped{background:var(--down-soft); color:var(--down)}
+.sess-status.completed{background:var(--hair); color:var(--muted)}
+.sess-src{font-size:11px; color:var(--faint); margin-bottom:6px}
+.sess-stats{display:flex; gap:16px; font-size:11.5px; color:var(--muted); flex-wrap:wrap}
+.sess-stats b{color:var(--ink)}
+
+.foot{color:var(--faint); font-size:11.5px; margin-top:26px; line-height:1.6}
+
+/* ── changed-cell flash ─────────────────── */
+@keyframes flashChange {
+  0%   { background: rgba(240,166,62,.35); box-shadow: 0 0 0 3px rgba(240,166,62,.35); }
+  60%  { background: rgba(240,166,62,.20); box-shadow: 0 0 0 3px rgba(240,166,62,.15); }
+  100% { background: transparent;           box-shadow: 0 0 0 3px transparent; }
+}
+.changed {
+  animation: flashChange 4s ease-out;
+  border-radius: 6px;
+}
+.change-note {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--accent);
+  color: var(--accent); padding: 10px 18px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow);
+  z-index: 100; opacity: 0; transition: opacity .3s;
+}
+.change-note.show { opacity: 1; }
+.change-note b { color: var(--ink); margin-left: 4px }
+
+/* ── historical mode banner + picker ────── */
+.hist-banner{
+  display:flex; align-items:center; gap:12px; padding:12px 20px; margin-bottom:20px; flex-wrap:wrap;
+  background:var(--amber-soft); border:1px solid var(--amber); border-radius:12px;
+  color:var(--amber); font-size:13px; font-weight:600;
+}
+.hist-banner .hist-when{color:var(--ink); font-family:'SF Mono',Menlo,monospace; font-weight:700}
+.hist-banner .grow{flex:1}
+.hist-banner .hist-btn{
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700;
+  background:var(--amber); color:#fff; cursor:pointer; text-decoration:none;
+}
+.hist-banner .hist-btn:hover{opacity:.9}
+.hist-picker{
+  display:flex; align-items:center; gap:10px; padding:12px 18px; margin-bottom:16px;
+  background:var(--surface-2); border:1px dashed var(--border); border-radius:10px;
+  font-size:12px; color:var(--muted); flex-wrap:wrap;
+}
+.hist-picker label{font-weight:600}
+.hist-picker input[type=datetime-local]{
+  background:var(--surface); color:var(--ink); border:1px solid var(--border);
+  padding:6px 10px; border-radius:8px; font-size:12.5px; font-family:inherit;
+}
+.hist-picker button{
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:600;
+  background:var(--accent); color:#fff; cursor:pointer;
+}
+.hist-picker button:hover{opacity:.9}
+.hist-picker .hint{color:var(--faint); font-size:11.5px}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{display:none}
+  .content{padding:20px 16px 60px}
+  .topbar{padding:16px}
+  .hero{padding:22px}
+}
+    </style>
+</head>
+<body th:attr="data-current-token=${currentToken}">
+<div class="shell">
+
+    <aside class="side">
+        <div class="brand">
+            <div class="logo-mark">A</div>
+            <div>
+                <div class="brand-name">AngleApp</div>
+                <div class="brand-sub">personal trading</div>
+            </div>
+        </div>
+
+        <div class="navlist">
+            <a class="navitem active" th:href="@{/bias}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                <span>Bias</span>
+            </a>
+            <a class="navitem" th:href="@{/api/paper/sessions}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 13 8 13 10 8 14 18 16 13 21 13"/></svg>
+                <span>Sessions</span>
+            </a>
+            <a class="navitem" th:href="@{/api/reports/today}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+                <span>Today's Report</span>
+            </a>
+            <a class="navitem" th:href="@{/api/paper/history}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="14"/></svg>
+                <span>History</span>
+            </a>
+            <a class="navitem" th:href="@{/api/instruments/status}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+                <span>Instruments</span>
+            </a>
+        </div>
+
+        <div class="side-gap"></div>
+
+        <div class="side-section-title">Instruments</div>
+        <a th:each="t : ${tickers}"
+           th:href="@{'/bias/' + ${t.symbolToken}}"
+           th:class="'side-inst ' + (${t.symbolToken == currentToken} ? 'active ' : '') +
+                      (${t.changePercent != null and t.changePercent.signum() >= 0} ? 'up' : 'down')">
+            <span class="side-inst-dot"></span>
+            <span class="side-inst-name" th:text="${t.symbol}">Nifty 50</span>
+            <span class="side-inst-val n"
+                  th:text="${t.changePercent != null ? (t.changePercent.signum() >= 0 ? '+' : '') + t.changePercent + '%' : '—'}">+0.32%</span>
+        </a>
+    </aside>
+
+    <div class="main">
+        <div class="topbar">
+            <div>
+                <div class="greet-h">Bias Dashboard</div>
+                <div class="greet-d n" th:text="${sheet.asOf()}">2026-09-19T13:42Z</div>
+            </div>
+            <div class="grow"></div>
+            <div class="refresh-info">
+                Auto-refresh<br>
+                <b><span th:text="${refreshSeconds / 60}">15</span> min</b>
+            </div>
+            <button class="icobtn" onclick="location.reload()" aria-label="Refresh now" title="Refresh now">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+            </button>
+            <button class="themebtn" id="themeBtn">Light</button>
+        </div>
+
+        <div class="content">
+
+            <!-- Historical banner (only when ?asOf= is set) -->
+            <div th:if="${historical}" class="hist-banner">
+                <span>⏱ HISTORICAL SNAPSHOT</span>
+                <span class="hist-when" th:text="${asOfDisplay} + ' IST'">2026-09-19T10:30 IST</span>
+                <span class="grow"></span>
+                <a th:href="@{'/bias/' + ${currentToken}}" class="hist-btn">← Back to live</a>
+            </div>
+
+            <!-- Historical picker (only in LIVE mode, tucked at top) -->
+            <div th:unless="${historical}" class="hist-picker">
+                <label>Review a past moment:</label>
+                <input type="datetime-local" id="asOfInput">
+                <button id="asOfGo">View that snapshot</button>
+                <span class="hint">Bias, indicators &amp; zones as of the chosen time.</span>
+            </div>
+
+            <div class="tickers">
+                <a th:each="t : ${tickers}"
+                   th:href="@{'/bias/' + ${t.symbolToken}}"
+                   th:class="'ticker' + (${t.symbolToken == currentToken} ? ' active' : '')"
+                   th:title="${t.exchange} + ' · ' + ${t.symbolToken}">
+                    <div class="ticker-name" th:text="${t.symbol}">Nifty 50</div>
+                    <div class="ticker-price n" th:text="${t.price != null ? t.price : '—'}">24,680</div>
+                    <div class="ticker-meta">
+                        <span th:if="${t.changePercent != null}"
+                              th:class="'ticker-chg n ' + (${t.changePercent.signum() >= 0} ? 'up' : 'down')"
+                              th:text="(${t.changePercent.signum() >= 0} ? '▲ +' : '▼ ') + ${t.changePercent} + '%'">▲ +0.32%</span>
+                        <span th:unless="${t.changePercent != null}" class="ticker-chg">—</span>
+                        <span th:switch="${t.recommendation}">
+                            <span th:case="'LONG-ONLY'"  class="ticker-rec long"
+                                  th:text="'LONG · ' + (${t.score >= 0} ? '+' : '') + ${t.score}">LONG · +5</span>
+                            <span th:case="'SHORT-ONLY'" class="ticker-rec short"
+                                  th:text="'SHORT · ' + ${t.score}">SHORT · -4</span>
+                            <span th:case="*" class="ticker-rec" th:text="${t.recommendation ?: '—'}">HOLD</span>
+                        </span>
+                    </div>
+                </a>
+            </div>
+
+            <div class="hero" th:with="rec=${sheet.consolidated()}, m=${sheet.marketContext()}">
+                <div class="hero-top">
+                    <div>
+                        <div class="hero-label">Current recommendation for</div>
+                        <div class="hero-instr" th:text="${sheet.symbol()}">Nifty 50</div>
+                        <div class="hero-price n" th:if="${m.currentPrice() != null}"
+                             th:text="${m.currentPrice()}">24,680.75</div>
+                        <div class="hero-rec" th:text="${rec.recommendation()}"
+                             th:attr="data-track='hero.recommendation'">LONG-ONLY</div>
+                        <div class="hero-meta n">
+                            <div>Score <b th:text="(${rec.totalScore() >= 0} ? '+' : '') + ${rec.totalScore()}"
+                                          th:attr="data-track='hero.score'">+5</b> / <b th:text="${#lists.size(rec.dimensionScores())}">10</b></div>
+                            <div>Strength <b th:text="${rec.strength()}"
+                                             th:attr="data-track='hero.strength'">MODERATE</b></div>
+                            <div>Confidence <b th:text="${rec.confidencePercent()} + '%'"
+                                               th:attr="data-track='hero.confidence'">65%</b></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-dims">
+                    <span th:each="e : ${rec.dimensionScores()}" class="dim"
+                          th:with="v=${e.value}">
+                        <span class="dim-name" th:text="${e.key}">MultiTF</span>
+                        <span class="dim-pips" th:text="${v > 0 ? '●●●' : (v < 0 ? '○○○' : '○●○')}">●●●</span>
+                        <span th:text="${v > 0 ? '+' + v : v}">+1</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-h">Multi-Timeframe Bias</div>
+                    <div class="mtf-row" th:each="t : ${sheet.multiTfBias()}">
+                        <div class="mtf-tf" th:text="${t.interval()}">1D</div>
+                        <div class="mtf-bias" th:switch="${#strings.toString(t.bias())}"
+                             th:attr="data-track='mtf.' + ${t.interval()}">
+                            <span th:case="'BULLISH'" class="badge up">BULLISH</span>
+                            <span th:case="'BEARISH'" class="badge down">BEARISH</span>
+                            <span th:case="*" class="badge neutral">—</span>
+                        </div>
+                        <div class="mtf-conf" th:text="${t.analystConfidence()} ?: '—'">0.60</div>
+                    </div>
+                </div>
+
+                <div class="card" th:with="m=${sheet.marketContext()}">
+                    <div class="card-h">Market Context</div>
+                    <div class="kv"><span class="k">Current</span>       <span class="v n" th:text="${m.currentPrice()} ?: '—'" th:attr="data-track='mc.current'">24,680</span></div>
+                    <div class="kv"><span class="k">Prev Close</span>    <span class="v n" th:text="${m.previousClose()} ?: '—'">24,600</span></div>
+                    <div class="kv"><span class="k">Prev Day High</span> <span class="v n" th:text="${m.previousDayHigh()} ?: '—'">24,720</span></div>
+                    <div class="kv"><span class="k">Prev Day Low</span>  <span class="v n" th:text="${m.previousDayLow()} ?: '—'">24,450</span></div>
+                    <div class="kv"><span class="k">Day Open</span>      <span class="v n" th:text="${m.dayOpen()} ?: '—'">24,660</span></div>
+                    <div class="kv"><span class="k">Gap</span>
+                        <span class="v n" th:text="(${m.gapPoints()} ?: '—') + ' (' + (${m.gapPercent()} ?: '—') + '%)'"
+                              th:attr="data-track='mc.gap'">+80 (+0.32%)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card" th:with="t=${sheet.trendFilters()}">
+                    <div class="card-h">Trend Filters</div>
+                    <div class="kv"><span class="k">EMA 20</span>  <span class="v n" th:text="${t.ema20()} ?: '—'">24,610</span></div>
+                    <div class="kv"><span class="k">EMA 50</span>  <span class="v n" th:text="${t.ema50()} ?: '—'">24,540</span></div>
+                    <div class="kv"><span class="k">EMA 200</span> <span class="v n" th:text="${t.ema200()} ?: '—'">24,310</span></div>
+                    <div class="kv">
+                        <span class="k">EMA 20 &gt; 50</span>
+                        <span th:switch="${#strings.toString(t.ema20AboveEma50())}" th:attr="data-track='trend.ema20-vs-50'">
+                            <span th:case="'true'"  class="badge up">Bullish</span>
+                            <span th:case="'false'" class="badge down">Bearish</span>
+                            <span th:case="*" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                    <div class="kv"><span class="k">VWAP</span> <span class="v n" th:text="${t.vwap()} ?: '—'">24,645</span></div>
+                    <div class="kv">
+                        <span class="k">Price &gt; VWAP</span>
+                        <span th:switch="${#strings.toString(t.priceAboveVwap())}" th:attr="data-track='trend.above-vwap'">
+                            <span th:case="'true'"  class="badge up">Yes</span>
+                            <span th:case="'false'" class="badge down">No</span>
+                            <span th:case="*" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                    <div class="kv"><span class="k">ADX(14)</span>
+                        <span class="v n" th:text="(${t.adx14()} ?: '—') + '  ' + (${t.adxStrength()} ?: '')"
+                              th:attr="data-track='trend.adx'">28 STRONG</span>
+                    </div>
+                    <div class="kv"><span class="k">ATR(14)</span>
+                        <span class="v n" th:text="(${t.atr14()} ?: '—') + '  (' + (${t.atrPercentOfPrice()} ?: '—') + '%)'">105 (0.43%)</span>
+                    </div>
+                    <div class="kv"><span class="k">RSI(14)</span> <span class="v n" th:text="${t.rsi14()} ?: '—'" th:attr="data-track='trend.rsi'">62</span></div>
+                    <div class="kv"><span class="k">MACD hist</span>
+                        <span th:attr="data-track='trend.macd'">
+                            <span th:if="${t.macdBullish() != null and t.macdBullish()}" class="badge up" th:text="${t.macdHistogram()}">+5.3</span>
+                            <span th:if="${t.macdBullish() != null and !t.macdBullish()}" class="badge down" th:text="${t.macdHistogram()}">-5.3</span>
+                            <span th:if="${t.macdBullish() == null}" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card" th:with="s=${sheet.structure()}">
+                    <div class="card-h">Market Structure (SMC)</div>
+                    <div class="kv">
+                        <span class="k">Bias</span>
+                        <span th:switch="${#strings.toString(s.bias())}" th:attr="data-track='smc.bias'">
+                            <span th:case="'BULLISH'" class="badge up">BULLISH</span>
+                            <span th:case="'BEARISH'" class="badge down">BEARISH</span>
+                            <span th:case="*" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                    <div class="kv">
+                        <span class="k">Last event</span>
+                        <span class="v" th:if="${s.lastEvent()}"
+                              th:text="${s.lastEvent().type()} + ' ' + ${s.lastEvent().direction()} + ' @ ' + ${s.lastEvent().brokenLevel()}"
+                              th:attr="data-track='smc.last-event'">
+                            BOS BULLISH @ 24600
+                        </span>
+                        <span class="badge neutral" th:unless="${s.lastEvent()}" th:attr="data-track='smc.last-event'">—</span>
+                    </div>
+                    <div class="kv"><span class="k">Swing high</span>
+                        <span class="v n" th:text="${s.latestSwingHigh() != null ? s.latestSwingHigh().price() : '—'}">24,720</span></div>
+                    <div class="kv"><span class="k">Swing low</span>
+                        <span class="v n" th:text="${s.latestSwingLow() != null ? s.latestSwingLow().price() : '—'}">24,450</span></div>
+                </div>
+
+                <div class="card" th:with="z=${sheet.zones()}">
+                    <div class="card-h">Zones &amp; Liquidity</div>
+                    <div class="kv"><span class="k">Bullish OBs</span>  <span class="v n" th:text="${#lists.size(z.activeBullishOBs())}">2</span></div>
+                    <div class="kv"><span class="k">Bearish OBs</span>  <span class="v n" th:text="${#lists.size(z.activeBearishOBs())}">0</span></div>
+                    <div class="kv"><span class="k">Bullish FVGs</span> <span class="v n" th:text="${#lists.size(z.activeBullishFvgs())}">3</span></div>
+                    <div class="kv"><span class="k">Bearish FVGs</span> <span class="v n" th:text="${#lists.size(z.activeBearishFvgs())}">1</span></div>
+                    <div class="kv"><span class="k">BSL above</span>
+                        <span class="v n" th:text="${#strings.listJoin(z.unsweptBSL().![price()], ', ')}">24720, 24810</span></div>
+                    <div class="kv"><span class="k">SSL below</span>
+                        <span class="v n" th:text="${#strings.listJoin(z.unsweptSSL().![price()], ', ')}">24450, 24380</span></div>
+                    <div class="kv"><span class="k">Recent sweeps</span> <span class="v n" th:text="${#lists.size(z.recentSweeps())}">2</span></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card" th:with="v=${sheet.vix()}">
+                    <div class="card-h">India VIX</div>
+                    <div class="kv"><span class="k">Current</span> <span class="v n" th:text="${v.value()} ?: '—'" th:attr="data-track='vix.value'">14.5</span></div>
+                    <div class="kv">
+                        <span class="k">Change</span>
+                        <span>
+                            <span th:if="${v.change() != null and v.change().signum() >= 0}" class="badge down"
+                                  th:text="'+' + ${v.change()} + ' (+' + ${v.changePct()} + '%)'">+0.30 (+2.1%)</span>
+                            <span th:if="${v.change() != null and v.change().signum() < 0}" class="badge up"
+                                  th:text="${v.change()} + ' (' + ${v.changePct()} + '%)'">-0.30 (-2.1%)</span>
+                            <span th:if="${v.change() == null}" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                    <div class="kv">
+                        <span class="k">Regime</span>
+                        <span th:switch="${v.regime()}" th:attr="data-track='vix.regime'">
+                            <span th:case="'CALM'"     class="badge up">CALM</span>
+                            <span th:case="'NORMAL'"   class="badge neutral">NORMAL</span>
+                            <span th:case="'ELEVATED'" class="badge amber">ELEVATED</span>
+                            <span th:case="*"          class="badge neutral">—</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="card" th:with="b=${sheet.breadth()}">
+                    <div class="card-h" th:text="${b != null ? b.label() : 'Advance / Decline'}">Nifty 50 Breadth</div>
+                    <div th:if="${b == null}" class="chg-empty">Not configured</div>
+                    <div th:if="${b != null}">
+                        <div class="kv"><span class="k">Advances</span>  <span class="v n up"   th:text="${b.advances()}" th:attr="data-track='breadth.adv'">32</span></div>
+                        <div class="kv"><span class="k">Declines</span>  <span class="v n down" th:text="${b.declines()}" th:attr="data-track='breadth.dec'">15</span></div>
+                        <div class="kv"><span class="k">Unchanged</span> <span class="v n"      th:text="${b.unchanged()}">3</span></div>
+                        <div class="kv"><span class="k">A/D ratio</span>
+                            <span class="v n" th:text="${b.ratio() != null ? #numbers.formatDecimal(b.ratio(), 1, 2) : '—'}"
+                                  th:attr="data-track='breadth.ratio'">2.13</span></div>
+                        <div class="kv">
+                            <span class="k">Regime</span>
+                            <span th:switch="${b.regime()}" th:attr="data-track='breadth.regime'">
+                                <span th:case="'STRONG_BULLISH'" class="badge up">STRONG BULLISH</span>
+                                <span th:case="'BULLISH'"        class="badge up">BULLISH</span>
+                                <span th:case="'NEUTRAL'"        class="badge neutral">NEUTRAL</span>
+                                <span th:case="'BEARISH'"        class="badge down">BEARISH</span>
+                                <span th:case="'STRONG_BEARISH'" class="badge down">STRONG BEARISH</span>
+                                <span th:case="*" class="badge neutral">—</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" th:with="c=${sheet.correlated()}" th:if="${c != null}">
+                    <div class="card-h" th:text="'Cross-Market — ' + ${c.symbol()}">Cross-Market</div>
+                    <div class="kv"><span class="k">Current</span>    <span class="v n" th:text="${c.currentPrice()} ?: '—'" th:attr="data-track='cross.current'">51,200</span></div>
+                    <div class="kv">
+                        <span class="k">Day change</span>
+                        <span th:attr="data-track='cross.day-change'">
+                            <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() >= 0}" class="badge up"
+                                  th:text="'+' + ${c.dayChangePercent()} + '%'">+0.35%</span>
+                            <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() < 0}" class="badge down"
+                                  th:text="${c.dayChangePercent()} + '%'">-0.35%</span>
+                            <span th:if="${c.dayChangePercent() == null}" class="badge neutral">—</span>
+                        </span>
+                    </div>
+                    <div class="kv"><span class="k">vs main</span>
+                        <span class="v n" th:text="(${c.mainChangePercent()} ?: '—') + '% · Δ ' + (${c.divergencePercent()} ?: '—')">+0.20% Δ 0.15</span>
+                    </div>
+                    <div class="kv">
+                        <span class="k">Signal</span>
+                        <span th:switch="${c.diverging()}" th:attr="data-track='cross.signal'">
+                            <span th:case="true"  class="badge down" th:text="${c.signal()}">DIVERGENT</span>
+                            <span th:case="*"     class="badge up" th:text="${c.signal()}">CONFIRMED</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+                <div class="card">
+                    <div class="card-h">What Changed (last snapshots)</div>
+                    <div th:if="${#lists.isEmpty(recentChanges)}" class="chg-empty">
+                        No bias changes recorded yet.<br>
+                        <span class="faint">Changes appear here whenever the background detector fires an alert.</span>
+                    </div>
+                    <div th:each="e : ${recentChanges}" class="chg-item">
+                        <div class="chg-head">
+                            <b th:text="${e.symbol()}">Nifty 50</b>
+                            <span class="faint n" th:text="${e.at()}">2026-09-19T10:30Z</span>
+                        </div>
+                        <ul class="chg-list">
+                            <li th:each="c : ${e.changes()}" th:text="${c}">Score jumped +3 → +5</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">Active Paper Sessions</div>
+                    <div th:if="${#lists.isEmpty(activeSessions)}" class="chg-empty">
+                        No paper sessions running.<br>
+                        <span class="faint">Start one via <code>POST /api/paper/sessions</code></span>
+                    </div>
+                    <div th:each="s : ${activeSessions}" class="sess-item">
+                        <div class="sess-head">
+                            <span class="sess-name" th:text="${s.strategyName()}">ensemble</span>
+                            <span th:class="'sess-status ' + ${#strings.toLowerCase(s.status())}"
+                                  th:text="${s.status()}">RUNNING</span>
+                        </div>
+                        <div class="sess-src" th:text="${s.sourceName()}">Nifty 50 (NSE:99926000, FIVE_MINUTE)</div>
+                        <div class="sess-stats">
+                            <span>candles <b th:text="${s.candleCount()}">120</b></span>
+                            <span>trades <b th:text="${s.totalTrades()}">3</b></span>
+                            <span>wins <b class="up" th:text="${s.winners()}">2</b></span>
+                            <span>losses <b class="down" th:text="${s.losers()}">1</b></span>
+                            <span>net
+                                <b th:class="'n ' + (${s.netPnl() != null and s.netPnl().signum() >= 0} ? 'up' : 'down')"
+                                   th:text="${s.netPnl() != null ? (s.netPnl().signum() >= 0 ? '+' : '') + s.netPnl() : '—'}">+150</b>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <p class="foot">
+                Pre-market cues (GIFT Nifty, Dow) and options context (PCR, Max Pain) are not yet fetched — coming
+                in later phases. See <a th:href="@{/api/bias/sheet}" style="color:var(--accent)">raw JSON</a>
+                or the <a th:href="@{/api/bias/all}" style="color:var(--accent)">all-instrument feed</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ── historical picker (live mode only) ─ */
+    (function () {
+        const input = document.getElementById('asOfInput');
+        const btn = document.getElementById('asOfGo');
+        if (!input || !btn) return;
+        // Default to 1 hour ago
+        const d = new Date(Date.now() - 60 * 60 * 1000);
+        // Format to yyyy-MM-ddTHH:mm (what datetime-local expects, local time)
+        const pad = n => String(n).padStart(2, '0');
+        input.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+                    + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        btn.addEventListener('click', () => {
+            if (!input.value) return;
+            // Preserve current path (e.g. /bias or /bias/{token})
+            const url = new URL(window.location.href);
+            // Append :00 seconds if missing so backend parser accepts it
+            let v = input.value;
+            if (v.length === 16) v += ':00';
+            url.searchParams.set('asOf', v);
+            window.location.href = url.toString();
+        });
+    })();
+
+    /* ── theme toggle ─────────────────────── */
+    const root = document.documentElement, tgl = document.getElementById('themeBtn');
+    try { const s = localStorage.getItem('angleTheme'); if (s) root.setAttribute('data-theme', s); } catch (e) {}
+    const sync = () => tgl.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    sync();
+    tgl.addEventListener('click', () => {
+        const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next); sync();
+        try { localStorage.setItem('angleTheme', next); } catch (e) {}
+    });
+
+    /* ── change highlighter ───────────────── */
+    // Compares current cell values with the last snapshot in sessionStorage.
+    // Cells whose text changed get a yellow flash + a summary pill at the bottom.
+    (function () {
+        const KEY_PREFIX = 'bias-snapshot:';
+        // Namespace by symbol token so each instrument gets its own snapshot.
+        const currentToken = document.body.getAttribute('data-current-token') || 'default';
+        const KEY = KEY_PREFIX + currentToken;
+
+        // Collect current values keyed by data-track.
+        const cells = document.querySelectorAll('[data-track]');
+        const current = {};
+        cells.forEach(el => {
+            current[el.dataset.track] = (el.innerText || '').trim().replace(/\s+/g, ' ');
+        });
+
+        let previous = null;
+        try { previous = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) {}
+
+        // Save new snapshot for the next refresh.
+        try { sessionStorage.setItem(KEY, JSON.stringify(current)); } catch (e) {}
+
+        if (!previous) return; // First-ever load: nothing to compare.
+
+        // Diff + flash.
+        const changed = [];
+        cells.forEach(el => {
+            const key = el.dataset.track;
+            if (previous[key] !== undefined && previous[key] !== current[key]) {
+                el.classList.add('changed');
+                changed.push({ key, from: previous[key], to: current[key] });
+                // Remove class after animation so it can retrigger next time.
+                setTimeout(() => el.classList.remove('changed'), 4200);
+            }
+        });
+
+        if (changed.length > 0) {
+            const note = document.createElement('div');
+            note.className = 'change-note';
+            note.innerHTML = '⚡ Changed since last refresh: <b>' + changed.length + '</b>';
+            document.body.appendChild(note);
+            requestAnimationFrame(() => note.classList.add('show'));
+            setTimeout(() => note.classList.remove('show'), 5000);
+            setTimeout(() => note.remove(), 5500);
+            console.log('[bias] changed cells:', changed);
+        }
+    })();
+</script>
+</body>
+</html>

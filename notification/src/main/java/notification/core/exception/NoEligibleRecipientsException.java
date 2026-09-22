@@ -1,0 +1,1 @@
+package notification.core.exception;public class NoEligibleRecipientsException extends RuntimeException {    public NoEligibleRecipientsException(String message) {        super(message);    }}

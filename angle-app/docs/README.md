@@ -16,6 +16,11 @@ and pluggable trading strategies.
 
 ## Quick Links
 
+- **[HOW-TO-USE.md](HOW-TO-USE.md) — start-here quick guide** ⭐
+- **[FEATURES.md](FEATURES.md) — complete inventory of everything built**
+- [LIVE-TRADING-GUIDE.md](LIVE-TRADING-GUIDE.md) - End-to-end live paper trading with Angel
+- [ALERTS-GUIDE.md](ALERTS-GUIDE.md) - Telegram + WhatsApp alerts setup
+- [ONBOARDING.md](ONBOARDING.md) - 10-step tour for new developers
 - [SETUP.md](SETUP.md) - How to run the app locally
 - [CONFIGURATION.md](CONFIGURATION.md) - Application properties reference
 - [API.md](API.md) - REST endpoint reference
@@ -23,6 +28,9 @@ and pluggable trading strategies.
 - [BROKER-INTEGRATION.md](BROKER-INTEGRATION.md) - How brokers plug in
 - [STRATEGY-GUIDE.md](STRATEGY-GUIDE.md) - Writing your own strategy
 - [BACKTESTING.md](BACKTESTING.md) - Running backtests
+- [SMC-LIQUIDITY-PLAN.md](SMC-LIQUIDITY-PLAN.md) - SMC pipeline design
+- [DESIGN-PATTERNS-IN-USE.md](DESIGN-PATTERNS-IN-USE.md) - Every pattern in the code
+- [FLOW-DIAGRAM.md](FLOW-DIAGRAM.md) - Visual flows (Mermaid diagrams)
 
 ## Tech Stack
 

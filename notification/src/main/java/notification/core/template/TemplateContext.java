@@ -1,0 +1,1 @@
+package notification.core.template;import java.util.Map;/** * Variables passed to a Template at render time. */public record TemplateContext(Map<String, Object> variables) {}

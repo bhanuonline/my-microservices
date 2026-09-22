@@ -52,7 +52,9 @@ public class PaperAutostartService {
                         cfg.getExchange(),
                         cfg.getInterval(),
                         cfg.getWarmupCandles(),
-                        cfg.getPollIntervalSeconds()
+                        cfg.getPollIntervalSeconds(),
+                        null,   // from — historical replay only, not needed for autostart yet
+                        null    // to
                 );
                 SessionSnapshot snap = manager.create(req);
                 log.info("Auto-start #{} OK — sessionId={} strategy={} source={}",

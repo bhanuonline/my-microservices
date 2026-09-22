@@ -1,0 +1,1 @@
+package notification.core.template;/** * Higher-level template access — may cache, may resolve variants, etc. */public interface TemplateRepository {    Template findById(String templateId);}

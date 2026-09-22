@@ -63,7 +63,22 @@
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
 
+        <!-- Distributed tracing -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
+        </dependency>
 
+        <!-- Structured JSON logs -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -90,7 +105,7 @@
             <id>debug</id>
             <properties>
                 <spring-boot.run.jvmArguments>
-                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5012
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5008
                 </spring-boot.run.jvmArguments>
             </properties>
         </profile>
