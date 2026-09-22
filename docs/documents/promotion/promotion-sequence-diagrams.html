@@ -1,0 +1,455 @@
+<title>Promotion Engine — Sequence Diagrams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:1200px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.15rem;font-weight:700;margin:2.8rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.8rem 0 0.4rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+
+  .diagram-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1rem 0;overflow-x:auto;}
+  .diagram-box pre.mermaid{margin:0;font-size:0.8rem;}
+
+  .co{border-radius:5px;padding:0.65rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .co-b{background:var(--blue-bg);border:1px solid var(--blue-border);}
+  .co-b strong{color:var(--blue);}
+  .co-g{background:var(--green-bg);border:1px solid var(--green-border);}
+  .co-g strong{color:var(--green);}
+  .co-o{background:var(--orange-bg);border:1px solid var(--orange-border);}
+  .co-o strong{color:var(--orange);}
+  .co-p{background:var(--purple-bg);border:1px solid var(--purple-border);}
+  .co-p strong{color:var(--purple);}
+
+  .legend{display:flex;flex-wrap:wrap;gap:0.75rem;margin:0.75rem 0;font-size:0.75rem;}
+  .legend-item{display:flex;align-items:center;gap:0.3rem;}
+  .legend-dot{width:10px;height:10px;border-radius:50%;}
+
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dataTheme = document.documentElement.getAttribute('data-theme');
+    const useDark = dataTheme === 'dark' || (dataTheme !== 'light' && isDark);
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: useDark ? 'dark' : 'default',
+      sequence: {
+        actorMargin: 30,
+        messageFontSize: 12,
+        noteFontSize: 11,
+        actorFontSize: 12,
+        useMaxWidth: false,
+        wrap: true,
+        width: 180
+      },
+      themeVariables: useDark ? {
+        background: '#1a1d24',
+        primaryColor: '#2d4a6e',
+        primaryTextColor: '#dfe1e6',
+        primaryBorderColor: '#4a5568',
+        lineColor: '#4a5568',
+        secondaryColor: '#25202e',
+        tertiaryColor: '#182a22',
+        noteBkgColor: '#2a2218',
+        noteTextColor: '#dfe1e6',
+        noteBorderColor: '#6e5530',
+        actorBkg: '#1a2536',
+        actorBorder: '#4a5568',
+        actorTextColor: '#dfe1e6',
+        signalColor: '#dfe1e6',
+        signalTextColor: '#dfe1e6',
+        activationBkgColor: '#2d4a6e',
+        activationBorderColor: '#6aaceb'
+      } : {}
+    });
+  });
+</script>
+
+<h1>Promotion Engine — Sequence Diagrams</h1>
+<p class="subtitle">Visual flow diagrams showing how a promotion runs end-to-end, and how customisation patterns work. Open in browser for interactive rendering.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>Diagram 1 — Complete End-to-End Flow (cashback_10 example)</h2>
+<p>This traces a cashback promotion from the moment a business user creates it, through publishing, cart calculation, Drools evaluation, and the customer seeing the result.</p>
+
+<h3>1A. Rule Creation & Publishing (design-time)</h3>
+
+<div class="co co-b"><strong>What's happening:</strong> A business user creates the promotion in Backoffice. When they click "Publish", the system compiles the JSON conditions+actions into Drools DRL code.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    actor BU as Business User
+    participant BO as Backoffice UI
+    participant PSR as PromotionSourceRule
+    participant CT as Condition Translators
+    participant AT as CashbackAction Translator
+    participant DR as DroolsRule
+    participant RBP as RuleBasedPromotion
+
+    rect rgb(232, 240, 248)
+    Note over BU,RBP: STEP 1 — Create the Rule
+    BU->>BO: Pick template "shukranpay_cashback_promotion"
+    BU->>BO: Set conditions: concepts=MAX,SPLASH + categories=women-tops + cart total>=400 AED
+    BU->>BO: Set action: cashback=20 AED, expiry=90 days, redeemable=MAX,SPLASH,CENTREPOINT
+    BO->>PSR: Save PromotionSourceRule(code="cashback_10")
+    Note over PSR: status = UNPUBLISHED<br/>conditions = JSON string<br/>actions = JSON string
+    end
+
+    rect rgb(240, 235, 245)
+    Note over BU,RBP: STEP 2 — Publish (Compile to Drools)
+    BU->>BO: Click "Publish"
+    BO->>CT: Compile condition: y_qualifying_categories
+    CT-->>BO: Drools IR: ProductRAO.categories CONTAINS "women-tops"
+    BO->>CT: Compile condition: lmg_qualifying_concepts
+    CT-->>BO: Drools IR: LMGConceptRAO.code IN [MAX, SPLASH]
+    BO->>CT: Compile condition: y_cart_total
+    CT-->>BO: Drools IR: CartRAO.total >= 400
+
+    BO->>AT: Compile action: y_cashback
+    Note over AT: pushConditionParameters():<br/>copies y_cart_total_value=400<br/>into action params
+    AT-->>BO: RuleIrExecutableAction → bean "ruleCashbackAction"
+
+    BO->>DR: Create DroolsRule(code="cashback_10", ruleContent=DRL)
+    BO->>RBP: Auto-create RuleBasedPromotion(code="cashback_10")
+    DR-->>RBP: Link: droolsRule ↔ promotion
+    Note over PSR: status = PUBLISHED
+    end
+</pre>
+</div>
+
+<h3>1B. Runtime — Cart Calculation to Drools Evaluation</h3>
+
+<div class="co co-g"><strong>What's happening:</strong> A customer adds items to cart. The cart calculation chain triggers promotion evaluation, RAO facts are built, and Drools fires the matching rules.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    actor CU as Customer
+    participant Cart as CartModel
+    participant LCS as LMGCommerce<br/>CartCalcStrategy
+    participant CS as CalculationService
+    participant PES as DefaultPromotion<br/>EngineService
+    participant CRES as CommerceRule<br/>EngineService
+    participant PRES as LMGPlatformRule<br/>EngineService
+
+    rect rgb(230, 245, 239)
+    Note over CU,PRES: STEP 3 — Cart Calculation Triggers
+    CU->>Cart: Add 3 MAX items (175 AED each)
+    Cart->>LCS: calculateCart(parameter)
+    Note over LCS: Check DELAY flag? → No<br/>Check additionalCostOnly? → No
+    LCS->>CS: calculate(cartModel)
+    Note over CS: Line totals: 3 × 175 = 525 AED
+    CS-->>LCS: Cart subtotal = 525 AED
+    LCS->>PES: updatePromotions(promoGroups, cart)
+    end
+
+    rect rgb(228, 245, 245)
+    Note over CU,PRES: STEP 5 — Load & Fire Rules
+    PES->>CRES: evaluate(cart, promoGroups)
+    CRES->>PRES: addRules(kieBase, kfs)
+    Note over PRES: fetchActiveRules():<br/>WHERE active=true<br/>AND currentVersion=true<br/>AND promoGroup IN configured
+    PRES-->>CRES: Active rules loaded (incl. cashback_10)
+    Note over CRES: Create KIE Session<br/>Insert ALL facts<br/>fireAllRules()
+    end
+</pre>
+</div>
+
+<h3>1C. Runtime — RAO Fact Building (Step 4)</h3>
+
+<div class="co co-o"><strong>What's happening:</strong> Before Drools fires, the system converts the cart into lightweight RAO objects — the "facts" that Drools rules match against.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    participant Cart as CartModel
+    participant CP as LMGCart<br/>RAOProvider
+    participant CRP as LMGCart<br/>RaoPopulator
+    participant PRP as LMGProduct<br/>RaoPopulator
+    participant OERP as LMGOrderEntry<br/>RaoPopulator
+    participant DEV as LMGDevice<br/>RAOProvider
+    participant DWM as Drools Working<br/>Memory
+
+    rect rgb(253, 243, 228)
+    Note over Cart,DWM: STEP 4 — Build Facts (RAO Population)
+    Cart->>CP: expandFactModel(cartModel)
+
+    CP->>CRP: populate(cartModel, cartRAO)
+    Note over CRP: Sets: code, currency, total=525<br/>Groups entries by concept<br/>MAX subtotal = 525 AED<br/>→ LMGConceptCartTotalRAO(MAX, 525)
+    CRP-->>CP: CartRAO with conceptTotals + paymentInfo
+
+    loop For each OrderEntry (×3)
+        CP->>OERP: populate(entryModel, entryRAO)
+        Note over OERP: Adds ALL base products +<br/>variants to products list
+        OERP-->>CP: OrderEntryRAO
+
+        CP->>PRP: populate(productModel, productRAO)
+        Note over PRP: Sets categories (full hierarchy)<br/>Sets concept → LMGConceptRAO(MAX)<br/>Sets brand → LMGBrandRAO(NIKE)
+        PRP-->>CP: ProductRAO with concept + brand
+    end
+
+    Cart->>DEV: expandFactModel(cartModel)
+    Note over DEV: UiExperienceService<br/>→ LMGDeviceRAO(DESKTOP)
+
+    CP->>DWM: Insert: CartRAO
+    CP->>DWM: Insert: OrderEntryRAO × 3
+    CP->>DWM: Insert: ProductRAO × 3
+    CP->>DWM: Insert: CategoryRAO × N
+    CP->>DWM: Insert: LMGConceptRAO(MAX)
+    CP->>DWM: Insert: LMGConceptCartTotalRAO(MAX=525)
+    CP->>DWM: Insert: UserRAO + UserGroupRAOs
+    DEV->>DWM: Insert: LMGDeviceRAO(DESKTOP)
+    end
+</pre>
+</div>
+
+<h3>1D. Runtime — Drools Fires → RAO Action → Strategy Persists → Customer Sees</h3>
+
+<div class="co co-p"><strong>What's happening:</strong> Drools matches cashback_10, the RAO action builds a CashbackRAO, the strategy saves it to the database, and the customer sees the result.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    participant DRL as Drools Engine
+    participant EA as LMGRuleExecutable<br/>Action (try-catch)
+    participant RAO as LMGRuleCashback<br/>RAOAction
+    participant Utils as LMGRaoUtils
+    participant MAP as promotionAction<br/>StrategiesMapping
+    participant STR as LMGCashback<br/>ActionStrategy
+    participant DB as Database
+    participant SF as Storefront
+
+    rect rgb(253, 234, 234)
+    Note over DRL,SF: STEP 5+6 — Drools Fires Rule & RAO Action
+    Note over DRL: Rule cashback_10 evaluating:<br/>✓ concept = MAX<br/>✓ category = women-tops<br/>✓ cart total 525 >= 400<br/>ALL CONDITIONS MET → FIRE!
+    DRL->>EA: executeAction(context, params)
+    Note over EA: try-catch wrapper:<br/>if this fails, other promos continue
+    EA->>RAO: performAction(context, params)
+    Note over RAO: Read params:<br/>cashback_value=20<br/>y_cart_total_value=400<br/>(pushed by translator!)
+    RAO->>Utils: getEligibleCartAmountForCartLevelPromo()
+    Utils-->>RAO: eligible = 525 AED
+    Note over RAO: 525 >= 400 → threshold met ✓
+    Note over RAO: Build LMGCashbackRAO:<br/>value=20, expiry=90 days<br/>redeemable=[MAX,SPLASH,CP]
+    RAO-->>DRL: LMGCashbackRAO added to CartRAO.actions
+    Note over RAO: Consume 3 order entries<br/>(prevents double-counting)
+    end
+
+    rect rgb(248, 234, 243)
+    Note over DRL,SF: STEP 7 — Strategy Persists to Database
+    DRL-->>MAP: Drools done → process results
+    MAP->>MAP: Lookup: defaultRuleLMGCashbackRAOAction<br/>→ defaultCashbackActionStrategy
+    MAP->>STR: apply(cashbackRAO)
+    STR->>DB: Create PromotionResultModel(certainty=1.0)
+    STR->>DB: Create RuleBasedCashbackActionModel
+    Note over STR: Serialize to JSON:<br/>{"cashbackValue":20,<br/>"orderThresholdValue":400,<br/>"redeemableConcepts":[...],<br/>"expiryInDays":90}
+    STR->>DB: Save: result + action + order
+    end
+
+    rect rgb(230, 245, 239)
+    Note over DRL,SF: STEP 8 — Customer Sees Result
+    SF->>DB: Read order.getPromotionResults()
+    DB-->>SF: PromotionResult → cashback_10
+    Note over SF: isCashbackPromotion? ✓<br/>Read cashbackAttributesJson<br/>Display: "Get 20 AED cashback!"
+    Note over SF: Cart total stays 525 AED<br/>(cashback is informational,<br/>not a discount)
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>Diagram 2 — Customisation Pattern: Adding a New Condition</h2>
+
+<p>This shows the 6-file pattern for adding a custom condition, using <code>lmg_qualifying_concepts</code> as the example.</p>
+
+<div class="co co-b"><strong>What's happening:</strong> The 6 files you create/modify and how they connect at build-time (compilation) and runtime (evaluation).</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    participant BX as beans.xml
+    participant POP as LMGProduct<br/>RaoPopulator
+    participant PROV as LMGCart<br/>RAOProvider
+    participant IMP as ImpEx Definition
+    participant TRAN as ConceptCondition<br/>Translator
+    participant SPR as Spring XML
+    participant DRL as Drools Engine
+
+    rect rgb(232, 240, 248)
+    Note over BX,DRL: FILE 1 — beans.xml: Define RAO
+    Note over BX: Define LMGConceptRAO<br/>with "code" property<br/><br/>Extend ProductRAO to add<br/>"concept" property
+    BX-->>POP: Generated: LMGConceptRAO.java
+    end
+
+    rect rgb(230, 245, 239)
+    Note over BX,DRL: FILE 2 — RAO Populator: Fill data
+    Note over POP: Extends ProductRaoPopulator<br/><br/>populate(source, target):<br/>  super.populate()<br/>  target.setConcept(<br/>    convertConcept(<br/>      baseProduct.getConcept()))
+    end
+
+    rect rgb(253, 243, 228)
+    Note over BX,DRL: FILE 3 — RAO Provider: Add to Drools facts
+    Note over PROV: Extends DefaultCartRAOProvider<br/><br/>expandRAO() adds option:<br/>EXPAND_CONCEPT_BRAND<br/>  → extracts productRAO.getConcept()<br/>  → inserts LMGConceptRAO as<br/>     separate Drools fact
+    end
+
+    rect rgb(240, 235, 245)
+    Note over BX,DRL: FILE 4 — Condition Translator: Compile to Drools IR
+    Note over TRAN: implements RuleConditionTranslator<br/><br/>translate():<br/>  Read "concepts" param from UI<br/>  Build 4-step join chain:<br/>  CartRAO → entries →<br/>  OrderEntryRAO → products →<br/>  ProductRAO → concept →<br/>  LMGConceptRAO.code IN [list]
+    end
+
+    rect rgb(253, 234, 234)
+    Note over BX,DRL: FILE 5 — ImpEx: Register condition
+    Note over IMP: RuleConditionDefinition:<br/>  id = lmg_qualifying_concepts<br/>  translatorId = ruleQualifying<br/>    ConceptsConditionTranslator<br/><br/>RuleConditionDefinitionParameter:<br/>  id = concepts<br/>  type = List(ItemType(LMGConcept))
+    end
+
+    rect rgb(248, 234, 243)
+    Note over BX,DRL: FILE 6 — Spring XML: Wire everything
+    Note over SPR: 1. Translator bean + alias<br/>2. conditionResolutionStrategies<br/>   map entry<br/>3. Value mapper bean +<br/>   definition for<br/>   ItemType(LMGConcept)
+    end
+
+    rect rgb(228, 245, 245)
+    Note over BX,DRL: RUNTIME FLOW
+    POP->>PROV: ProductRAO has concept field set
+    PROV->>DRL: LMGConceptRAO inserted as fact
+    Note over DRL: Rule condition matches:<br/>LMGConceptRAO.code IN [MAX, SPLASH]
+    DRL-->>DRL: Condition satisfied ✓
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>Diagram 3 — Customisation Pattern: Adding a New Action (Tier 1)</h2>
+
+<p>This shows the 7-file pattern for adding a fully custom action, using <code>y_cashback</code> as the example.</p>
+
+<div class="co co-g"><strong>What's happening:</strong> The 7 files you create/modify and the runtime chain: Translator → Executable Action → RAO Action → Strategy → Database.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    participant BX as beans.xml
+    participant IX as items.xml
+    participant IMP as ImpEx Definition
+    participant SPR as Spring XML
+    participant TRAN as CashbackAction<br/>Translator
+    participant EXEC as LMGRuleExecutable<br/>Action
+    participant RAOA as LMGRuleCashback<br/>RAOAction
+    participant STRAT as LMGCashback<br/>ActionStrategy
+    participant DB as Database
+
+    rect rgb(232, 240, 248)
+    Note over BX,DB: FILES 1-2: Define data types
+    Note over BX: FILE 1 — beans.xml:<br/>LMGCashbackRAO extends<br/>AbstractRuleActionRAO<br/>(cashbackValue, threshold,<br/>expiry, redeemableConcepts)
+    Note over IX: FILE 2 — items.xml:<br/>RuleBasedCashbackAction extends<br/>AbstractRuleBasedPromotionAction<br/>(cashbackAttributesJson: CLOB)
+    end
+
+    rect rgb(253, 234, 234)
+    Note over BX,DB: FILES 3-4: ImpEx + Spring wiring
+    Note over IMP: FILE 3 — ImpEx:<br/>RuleActionDefinition<br/>  id=y_cashback<br/>  translatorId=ruleCashback<br/>    ActionTranslator<br/>  translatorParameters=<br/>    actionId→ruleCashbackAction
+    Note over SPR: FILE 4 — Spring XML:<br/>1. Translator bean<br/>2. Executable action bean<br/>3. RAO action bean<br/>4. Strategy bean<br/>5. promotionActionStrategies<br/>   Mapping entry<br/>6. actionStrategies list entry
+    end
+
+    rect rgb(240, 235, 245)
+    Note over BX,DB: COMPILE TIME (Publish)
+    TRAN->>TRAN: translate(): compile action params
+    Note over TRAN: FILE 5 — Translator:<br/>pushConditionParameters()<br/>copies y_cart_total_value=400<br/>into action params
+    TRAN-->>EXEC: RuleIrExecutableAction<br/>bean="ruleCashbackAction"
+    end
+
+    rect rgb(253, 243, 228)
+    Note over BX,DB: RUNTIME (Drools fires)
+    Note over EXEC: FILE 6 — Executable Action:<br/>try-catch wrapper
+    EXEC->>RAOA: performAction(context, params)
+    Note over RAOA: FILE 7 — RAO Action:<br/>1. Read params (value=20,<br/>   threshold=400 from translator)<br/>2. Get eligible entries<br/>3. Calculate eligible amount=525<br/>4. Check 525>=400 ✓<br/>5. Build LMGCashbackRAO<br/>6. Add to cart + result<br/>7. Consume entries
+    RAOA-->>EXEC: LMGCashbackRAO created
+    end
+
+    rect rgb(230, 245, 239)
+    Note over BX,DB: RUNTIME (After Drools)
+    Note over STRAT: Strategy (from mapping):<br/>defaultRuleLMGCashbackRAOAction<br/>→ defaultCashbackActionStrategy
+    STRAT->>DB: Create PromotionResultModel
+    STRAT->>DB: Create RuleBasedCashbackActionModel
+    Note over STRAT: Serialize attributes → JSON
+    STRAT->>DB: modelService.saveAll()
+    end
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>Diagram 4 — Simplified Overview (Interview Quick-Draw)</h2>
+
+<p>A compact version you can sketch on a whiteboard in 2 minutes during an interview.</p>
+
+<div class="co co-o"><strong>Interview tip:</strong> Draw this on the whiteboard while talking. Start from the left, draw each box, explain as you go. The interviewer will be impressed that you know the exact class names.</div>
+
+<div class="diagram-box">
+<pre class="mermaid">
+sequenceDiagram
+    actor BU as Business User
+    actor CU as Customer
+    participant BO as Backoffice
+    participant TRANS as Translators
+    participant CART as Cart Calculation
+    participant RAO as RAO Providers<br/>+ Populators
+    participant DRL as Drools Engine
+    participant ACT as RAO Action
+    participant STR as Action Strategy
+    participant DB as Database
+    participant UI as Storefront
+
+    BU->>BO: Create rule (conditions + actions as JSON)
+    BO->>TRANS: Publish → compile JSON to Drools DRL
+    Note over TRANS: Condition translators → IR conditions<br/>Action translators → IR actions
+
+    CU->>CART: Add item to cart
+    CART->>CART: CalculationService (line totals)
+    CART->>RAO: updatePromotions()
+    RAO->>DRL: Convert cart → RAO facts<br/>(Cart, Products, Concepts, Brands...)
+
+    DRL->>DRL: Insert facts + fire all rules
+    DRL->>ACT: Rule matched → execute action
+    ACT->>ACT: Build result RAO (e.g. CashbackRAO)
+    ACT->>ACT: Consume entries
+
+    ACT-->>STR: promotionActionStrategiesMapping lookup
+    STR->>DB: Create PromotionResult + ActionModel
+    STR->>DB: Save to database
+
+    UI->>DB: Read PromotionResults
+    DB-->>UI: cashback_10 → "Get 20 AED cashback!"
+    UI-->>CU: Display promotion message
+</pre>
+</div>

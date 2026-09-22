@@ -1,0 +1,433 @@
+<title>Promotion Engine — Interview Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+    --pink:#b44d8b;--pink-bg:#f8eaf3;--pink-border:#d6a3c4;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.65;padding:2rem 1.5rem;max-width:1000px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.6rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul,ol{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  li{margin-bottom:0.3rem;} li strong{color:var(--text);}
+  code{font-family:'IBM Plex Mono',monospace;font-size:0.76rem;background:var(--surface-alt);padding:0.1rem 0.35rem;border-radius:3px;}
+
+  .q{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1.25rem;border-left:4px solid var(--blue);}
+  .q-title{font-weight:700;font-size:0.9rem;color:var(--blue);margin-bottom:0.6rem;}
+  .q-short{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:5px;padding:0.7rem 1rem;margin-bottom:0.7rem;font-size:0.82rem;color:var(--text);}
+  .q-short strong{color:var(--blue);}
+  .q-detail{font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem;}
+
+  .q-g{border-left-color:var(--green);} .q-g .q-title{color:var(--green);}
+  .q-g .q-short{background:var(--green-bg);border-color:var(--green-border);} .q-g .q-short strong{color:var(--green);}
+  .q-o{border-left-color:var(--orange);} .q-o .q-title{color:var(--orange);}
+  .q-o .q-short{background:var(--orange-bg);border-color:var(--orange-border);} .q-o .q-short strong{color:var(--orange);}
+  .q-p{border-left-color:var(--purple);} .q-p .q-title{color:var(--purple);}
+  .q-p .q-short{background:var(--purple-bg);border-color:var(--purple-border);} .q-p .q-short strong{color:var(--purple);}
+  .q-r{border-left-color:var(--red);} .q-r .q-title{color:var(--red);}
+  .q-r .q-short{background:var(--red-bg);border-color:var(--red-border);} .q-r .q-short strong{color:var(--red);}
+  .q-t{border-left-color:var(--teal);} .q-t .q-title{color:var(--teal);}
+  .q-t .q-short{background:var(--teal-bg);border-color:var(--teal-border);} .q-t .q-short strong{color:var(--teal);}
+  .q-pk{border-left-color:var(--pink);} .q-pk .q-title{color:var(--pink);}
+  .q-pk .q-short{background:var(--pink-bg);border-color:var(--pink-border);} .q-pk .q-short strong{color:var(--pink);}
+
+  .tip{background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:5px;padding:0.65rem 1rem;font-size:0.78rem;margin:0.75rem 0;color:var(--text);}
+  .tip strong{color:var(--orange);}
+
+  .hier{font-family:'IBM Plex Mono',monospace;font-size:0.73rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.9rem 1.1rem;margin:0.75rem 0;line-height:1.75;white-space:pre-wrap;overflow-x:auto;}
+  .hier .hb{color:var(--blue);font-weight:600;} .hier .hg{color:var(--green);font-weight:600;}
+  .hier .ho{color:var(--orange);font-weight:600;} .hier .hp{color:var(--purple);font-weight:600;}
+  .hier .hr{color:var(--red);font-weight:600;} .hier .ht{color:var(--teal);font-weight:600;}
+  .hier .hpk{color:var(--pink);font-weight:600;} .hier .hm{color:var(--text-muted);}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  .tbl{overflow-x:auto;}
+
+  .section-label{display:inline-block;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;margin-bottom:0.5rem;}
+  .sl-b{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
+  .sl-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+  .sl-o{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);}
+  .sl-r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}}
+</style>
+
+<h1>Promotion Engine — Interview Guide</h1>
+<p class="subtitle">Exact answers to give in an interview. Blue box = your 30-second answer. Details below = if they ask follow-up. Read the blue boxes first — that's all you need to memorize.</p>
+
+<div class="tip"><strong>Interview tip:</strong> Always start with the short answer (blue box), then offer to go deeper. Don't dump everything at once. Say: "At a high level, it works like this... Would you like me to walk through the detailed flow?"</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 1 — "How does the Promotion Engine work?"</h2>
+
+<!-- Q1 -->
+<div class="q">
+  <div class="q-title">Q: What is the Hybris Promotion Engine? How does it work?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> The Hybris Promotion Engine is a rule-based system built on top of Drools. Business users create promotion rules in Backoffice with conditions (IF) and actions (THEN). When a customer modifies their cart, the engine converts the cart data into simple Java objects called RAOs, feeds them into Drools, evaluates all active rules, and applies the matching promotions — like discounts, free gifts, or cashback — to the cart.
+  </div>
+  <div class="q-detail">
+    <p><strong>If they ask for more detail, walk through the flow:</strong></p>
+    <ol>
+      <li><strong>Create:</strong> Business user creates a PromotionSourceRule in Backoffice — picks conditions (categories, cart total, concepts) and actions (% discount, cashback, free gift)</li>
+      <li><strong>Publish:</strong> System compiles the rule into Drools DRL code using translators. A DroolsRule and RuleBasedPromotion are created</li>
+      <li><strong>Cart event:</strong> Customer adds/updates cart → cart calculation triggers → <code>promotionsService.updatePromotions()</code> is called</li>
+      <li><strong>Build facts:</strong> RAO providers + populators convert the cart, products, customer into RAO objects (Drools facts)</li>
+      <li><strong>Fire rules:</strong> Drools inserts all facts, fires matching rules</li>
+      <li><strong>RAO action:</strong> Inside Drools, the matched rule's action creates an in-memory RAO (e.g., DiscountRAO, CashbackRAO)</li>
+      <li><strong>Strategy persists:</strong> After Drools finishes, the action strategy converts the RAO into a database model (PromotionResult + action model) and saves it</li>
+      <li><strong>Customer sees:</strong> Storefront reads the PromotionResult and displays the discount/cashback message</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Q2 -->
+<div class="q q-g">
+  <div class="q-title">Q: What is the architecture / how many layers?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> It's a 4-layer architecture. <strong>Layer 1</strong> (ruleengine) is the generic Drools engine — KIE modules, bases, sessions, and DroolsRule. <strong>Layer 2</strong> (ruleengineservices) provides generic rule building blocks — SourceRule, conditions, actions, definitions, templates. <strong>Layer 3</strong> (promotionengineservices) is the promotion-specific layer — PromotionSourceRule, RuleBasedPromotion, 5 action types, PromotionResult. <strong>Layer 4</strong> is our custom extension — all LMG-specific conditions, actions, and customizations. We never modify Layers 1-3; we only extend in Layer 4.
+  </div>
+  <div class="hier"><span class="hb">Layer 1: ruleengine</span>           <span class="hm">— Generic Drools engine (KIE Module → Base → Session → DroolsRule)</span>
+<span class="hg">Layer 2: ruleengineservices</span>    <span class="hm">— Generic rule building blocks (SourceRule, definitions, templates)</span>
+<span class="ho">Layer 3: promotionengineservices</span> <span class="hm">— Promotion-specific (PromotionSourceRule, RuleBasedPromotion, actions, results)</span>
+<span class="hr">Layer 4: landmarkshopscore</span>     <span class="hm">— LMG custom (concepts, brands, cashback, vouchers, BOGO, etc.)</span></div>
+</div>
+
+<!-- Q3 -->
+<div class="q q-o">
+  <div class="q-title">Q: What is a RAO? Why does Hybris use RAOs?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> RAO stands for <strong>Rule Applicable Object</strong>. It's a simple POJO that carries data into the Drools engine. Hybris uses RAOs instead of passing full Hybris models into Drools because models are heavy (lazy-loaded, database-backed, with JaLo layer). RAOs are lightweight, serializable, and contain only the fields Drools needs. This keeps the rule engine fast and decoupled from the persistence layer.
+  </div>
+  <p><strong>Common RAOs:</strong> CartRAO, OrderEntryRAO, ProductRAO, UserRAO, CategoryRAO, DiscountRAO. Custom: LMGConceptRAO, LMGBrandRAO, LMGCashbackRAO, LMGDeviceRAO.</p>
+</div>
+
+<!-- Q4 -->
+<div class="q q-p">
+  <div class="q-title">Q: What triggers promotion evaluation? When does it run?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Promotion evaluation is triggered by <strong>cart calculation</strong>. Any cart modification (add item, update quantity, remove item, apply voucher) triggers <code>CommerceCartCalculationStrategy.calculateCart()</code>. This first calculates line totals via CalculationService, then calls <code>promotionsService.updatePromotions()</code> which triggers the full Drools evaluation. In our project, we customized this with a <strong>delayed calculation flag</strong> and an <strong>additional-cost-only optimization</strong> that skips promotion re-evaluation when only delivery cost changes.
+  </div>
+  <div class="hier"><span class="hm">Customer modifies cart</span>
+  → <span class="hp">DefaultLMGCommerceCartCalculationStrategy</span>.calculateCart()
+    → check delay flag? check additionalCostOnly?
+    → <span class="hb">CalculationService</span>.calculate(cart)     <span class="hm">← line totals</span>
+    → <span class="hg">promotionsService</span>.updatePromotions()    <span class="hm">← Drools evaluation</span>
+    → afterCalculate hooks</div>
+</div>
+
+<!-- Q5 -->
+<div class="q q-t">
+  <div class="q-title">Q: What is the difference between a PromotionSourceRule and a RuleBasedPromotion?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> A <strong>PromotionSourceRule</strong> is what the business user creates and edits in Backoffice — it stores conditions and actions as JSON strings, has a status lifecycle (UNPUBLISHED → PUBLISHED → MODIFIED → ARCHIVED), and belongs to a rule group. A <strong>RuleBasedPromotion</strong> is the compiled, runtime version — it's auto-created when you publish the source rule and is linked to a DroolsRule. The source rule is for editing; the RuleBasedPromotion is what the engine actually evaluates. There's always a 1:1 relationship between them.
+  </div>
+</div>
+
+<!-- Q6 -->
+<div class="q q-r">
+  <div class="q-title">Q: Walk me through a complete promotion flow end-to-end</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Let me walk you through a cashback promotion as an example. A business user creates a rule in Backoffice: "If cart has MAX or SPLASH products in women-tops category and cart total >= 400 AED, give 20 AED Shukran Pay cashback." Here's what happens step by step...
+  </div>
+  <div class="hier"><span class="hb">Step 1: CREATE</span> — Business user picks cashback template, fills conditions + actions → saved as PromotionSourceRule with JSON
+
+<span class="hp">Step 2: PUBLISH</span> — Condition translators compile each condition into Drools syntax
+  Action translator compiles action, <span class="hr">pushes condition params into action params</span>
+  → DroolsRule created (DRL code) + RuleBasedPromotion auto-created
+  → Status: UNPUBLISHED → PUBLISHED
+
+<span class="hg">Step 3: CART CALC</span> — Customer adds 3 MAX items (525 AED)
+  → LMGCommerceCartCalculationStrategy → CalculationService → promotionsService.updatePromotions()
+
+<span class="ht">Step 4: BUILD FACTS</span> — RAO providers convert cart → facts:
+  CartRAO, OrderEntryRAO×3, ProductRAO×3, LMGConceptRAO (MAX),
+  LMGConceptCartTotalRAO (MAX=525), UserRAO, CategoryRAOs
+
+<span class="ho">Step 5: FIRE RULES</span> — Drools inserts facts, fires all active rules
+  cashback_10: concept=MAX ✓, category=women-tops ✓, total 525>=400 ✓ → <span class="ho">FIRE!</span>
+
+<span class="hr">Step 6: RAO ACTION</span> — DefaultLMGRuleCashbackRAOAction.performAction()
+  Reads threshold from pushed condition params, checks 525>=400 ✓
+  Builds LMGCashbackRAO (value=20, concepts=[MAX,SPLASH,CENTREPOINT], expiry=90 days)
+  Adds to cart, consumes entries
+
+<span class="hpk">Step 7: PERSIST</span> — DefaultLMGCashbackActionStrategy.apply()
+  Creates PromotionResult + RuleBasedCashbackActionModel
+  Serializes cashback attributes to JSON → saves to DB
+
+<span class="hg">Step 8: DISPLAY</span> — Storefront reads PromotionResult → shows "Get 20 AED cashback!"
+  After order: JSON sent to Shukran Pay for actual cashback credit</div>
+</div>
+
+<!-- Q7 -->
+<div class="q q-pk">
+  <div class="q-title">Q: What is the promotionActionStrategiesMapping?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> It's a Spring-configured <strong>Map&lt;String, Strategy&gt;</strong> that connects RAO Action beans to their corresponding Action Strategy beans. After Drools finishes and produces RAO results, the system iterates through each action, looks up its RAO action bean name in this map, finds the matching strategy, and calls <code>strategy.apply()</code> to persist the result. For example, <code>defaultRuleLMGCashbackRAOAction → defaultCashbackActionStrategy</code>. In our project, this map has 30+ entries — both OOB and custom.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 2 — "How do you customise it?"</h2>
+
+<!-- Q8 -->
+<div class="q q-g">
+  <div class="q-title">Q: How do you customise the promotion engine? What are the extension points?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> There are 7 main extension points, all in our custom extension layer — we never modify OOB code. (1) <strong>New conditions</strong> — teach the engine a new check (e.g., "is customer on mobile?"). (2) <strong>New actions</strong> — teach a new reward (e.g., cashback). (3) <strong>Enrich facts</strong> — add more data for rules to see (e.g., brand, concept on products). (4) <strong>Entry selection</strong> — control which items get the discount. (5) <strong>Cart calculation</strong> — control when promotions run. (6) <strong>Result handling</strong> — customize what happens with results. (7) <strong>Spring alias override</strong> — replace any OOB bean with yours.
+  </div>
+  <p><strong>Key principle:</strong> Everything is done via <code>&lt;alias&gt;</code> in Spring XML. You create your class extending the OOB class, override the method you need, and alias your bean over the OOB bean name. The rest of the system automatically picks up your version.</p>
+</div>
+
+<!-- Q9 -->
+<div class="q">
+  <div class="q-title">Q: How do you add a new custom condition?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Adding a custom condition follows a <strong>6-file pattern</strong>. You define the RAO in beans.xml, create a populator to fill it from Hybris models, update or create a provider to insert it into Drools facts, write a condition translator that compiles UI parameters into Drools IR conditions, register the condition in ImpEx with its parameters, and wire everything in Spring XML.
+  </div>
+  <div class="q-detail">
+    <p><strong>Example: "Qualifying Concepts" condition</strong> — lets business users restrict promotions to specific concepts like MAX, SPLASH:</p>
+    <ol>
+      <li><strong>beans.xml:</strong> Define <code>LMGConceptRAO</code> with a <code>code</code> field, and add <code>concept</code> property to the existing <code>ProductRAO</code></li>
+      <li><strong>Populator:</strong> <code>LMGProductRaoPopulator</code> extends OOB <code>ProductRaoPopulator</code> — after calling super, sets <code>target.setConcept()</code> from the base product's concept</li>
+      <li><strong>Provider:</strong> <code>DefaultLMGCartRAOProvider</code> adds an <code>EXPAND_CONCEPT_BRAND</code> option that extracts concept RAOs from products and inserts them as separate Drools facts</li>
+      <li><strong>Translator:</strong> <code>LMGRuleQualifyingConceptsConditionTranslator</code> builds a 4-step join chain: <code>CartRAO → entries → OrderEntryRAO → products → ProductRAO → concept → LMGConceptRAO.code IN [selected concepts]</code></li>
+      <li><strong>ImpEx:</strong> Registers <code>lmg_qualifying_concepts</code> with parameter <code>concepts</code> of type <code>List(ItemType(LMGConcept))</code></li>
+      <li><strong>Spring XML:</strong> Wire the translator bean, add to conditionResolutionStrategies map, register the value mapper</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Q10 -->
+<div class="q q-g">
+  <div class="q-title">Q: How do you add a new custom action?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> There are <strong>3 tiers</strong>. Tier 1 is fully custom — new model, new RAO, new strategy — 7 files. Tier 2 reuses an OOB strategy but writes a custom RAO action — 4 files. Tier 3 just overrides the OOB RAO action via Spring alias — 2 files. For a fully custom action like cashback, you define the RAO in beans.xml, the persistent model in items.xml, write a translator, a RAO action (runs inside Drools), a strategy (persists to database), register in ImpEx, and wire in Spring XML including adding to the <code>promotionActionStrategiesMapping</code>.
+  </div>
+  <div class="q-detail">
+    <p><strong>Example: Cashback action (Tier 1)</strong></p>
+    <ol>
+      <li><strong>beans.xml:</strong> <code>LMGCashbackRAO</code> extending <code>AbstractRuleActionRAO</code> — carries cashbackValue, threshold, expiry, redeemable concepts</li>
+      <li><strong>items.xml:</strong> <code>RuleBasedCashbackAction</code> extending <code>AbstractRuleBasedPromotionAction</code> — stores <code>cashbackAttributesJson</code> as a CLOB</li>
+      <li><strong>Translator:</strong> Pushes condition parameters into action parameters so the RAO action can read the cart total threshold at runtime</li>
+      <li><strong>RAO Action:</strong> Checks threshold, calculates eligible amount, builds <code>LMGCashbackRAO</code>, adds to cart, consumes entries</li>
+      <li><strong>Strategy:</strong> Creates PromotionResult + RuleBasedCashbackActionModel, serializes attributes to JSON, saves to database</li>
+      <li><strong>ImpEx + Spring:</strong> Register action definition, wire all beans, add to promotionActionStrategiesMapping + actionStrategies list</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Q11 -->
+<div class="q q-o">
+  <div class="q-title">Q: How do you add custom data/facts for rules to use?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Two patterns. <strong>Pattern A</strong> — extend an existing populator via Spring alias. For example, we extended <code>ProductRaoPopulator</code> to add concept and brand to every ProductRAO. You call <code>super.populate()</code> then set your custom fields. <strong>Pattern B</strong> — create an entirely new RAO provider. For example, we created <code>DefaultLMGDeviceRAOProvider</code> that reads the current device type (mobile/desktop) and creates an <code>LMGDeviceRAO</code> fact. New providers are registered in the <code>orderPromotionRaoProviders</code> Spring map. If your parameter uses a custom type, you also need a value mapper to convert between the model and its string representation.
+  </div>
+</div>
+
+<!-- Q12 -->
+<div class="q q-p">
+  <div class="q-title">Q: What is a condition translator? What does it produce?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> A condition translator converts the UI parameters that a business user configured in Backoffice into <strong>Drools Intermediate Representation (IR) conditions</strong>. It implements the <code>RuleConditionTranslator</code> interface with a single <code>translate()</code> method. The output is a tree of <code>RuleIr*Condition</code> objects — attribute conditions, relation conditions, grouped with AND/OR operators. These IR objects are later compiled into actual DRL (Drools Rule Language) syntax. The translator is the bridge between "business user clicks a dropdown" and "Drools evaluates a rule."
+  </div>
+</div>
+
+<!-- Q13 -->
+<div class="q q-r">
+  <div class="q-title">Q: What is the difference between a RAO Action and an Action Strategy?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> They run at different times with different purposes. The <strong>RAO Action</strong> runs <strong>inside Drools</strong> during rule firing — it's the "then" part of the rule. It creates in-memory RAO objects (like DiscountRAO or CashbackRAO) but does NOT touch the database. The <strong>Action Strategy</strong> runs <strong>after Drools finishes</strong> — it takes the in-memory RAO results and persists them to the Hybris database as PromotionResult + Action models. Think of it as: RAO Action = decide what to give, Strategy = actually give it and record it.
+  </div>
+  <div class="tbl">
+  <table>
+    <tr><th></th><th>RAO Action</th><th>Action Strategy</th></tr>
+    <tr><td>When</td><td>Inside Drools (rule firing)</td><td>After Drools completes</td></tr>
+    <tr><td>Input</td><td>Action parameters + Drools facts</td><td>RAO result from Drools</td></tr>
+    <tr><td>Output</td><td>In-memory RAO (e.g., LMGCashbackRAO)</td><td>Database model (e.g., RuleBasedCashbackActionModel)</td></tr>
+    <tr><td>DB access</td><td>None</td><td>Yes — creates + saves models</td></tr>
+    <tr><td>Example</td><td>DefaultLMGRuleCashbackRAOAction</td><td>DefaultLMGCashbackActionStrategy</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- Q14 -->
+<div class="q q-t">
+  <div class="q-title">Q: How does Spring alias override work in Hybris customisation?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> It's the core technique for Hybris customisation. You create your class that extends the OOB class, override only the methods you need to change, and register it with a Spring <code>&lt;alias&gt;</code> that redirects the OOB bean name to your bean. The rest of the system — every class that injects the OOB bean by name — automatically gets your version instead. For example, <code>&lt;alias alias="cartRaoPopulator" name="defaultLMGCartRaoPopulator"/&gt;</code> makes every class that asks for "cartRaoPopulator" get LMG's version. You set <code>parent="defaultCartRaoPopulator"</code> so your bean inherits all OOB properties and you only override what you need.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 3 — Deep follow-up questions</h2>
+
+<div class="q q-pk">
+  <div class="q-title">Q: What custom conditions have you implemented?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> We have 5 custom conditions: (1) <strong>Qualifying Concepts</strong> — restricts to store brands like MAX, SPLASH, CENTREPOINT. (2) <strong>Qualifying Brands</strong> — restricts to product brands like NIKE, ADIDAS. (3) <strong>Qualifying Devices</strong> — desktop vs mobile vs tablet. (4) <strong>Concept Cart Total</strong> — per-concept spend threshold (e.g., spend 400 AED on MAX products specifically). (5) <strong>Qualifying Card BINs</strong> — matches card BIN prefixes for bank-specific offers.
+  </div>
+</div>
+
+<div class="q">
+  <div class="q-title">Q: What custom actions have you implemented?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> We have 3 fully custom action types with their own database models: <strong>Cashback</strong> (Shukran Pay cashback with threshold, expiry, redeemable concepts — stored as JSON), <strong>Voucher</strong> (give a voucher code on qualifying purchase), and <strong>Free Shipping</strong>. Beyond that, we have 10+ custom RAO actions that use OOB strategies — threshold-based discounts, BOGO, cross-category discounts, card-based discounts, RPM fixed pricing, and order-threshold free gifts.
+  </div>
+</div>
+
+<div class="q q-g">
+  <div class="q-title">Q: How does the cashback action translator push condition params?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> The cashback translator overrides the <code>translate()</code> method and calls a custom <code>pushConditionParameters()</code> method. This iterates over ALL conditions in the rule, extracts every parameter, and copies them into the action's parameter map with keys like <code>y_cart_total_value</code>. This is necessary because in Drools, the action can only see its own parameters — not the condition values. So the translator "pushes" condition data (like the cart total threshold of 400 AED) into the action params at compile time. At runtime, the RAO action reads <code>y_cart_total_value</code> to know the threshold.
+  </div>
+</div>
+
+<div class="q q-o">
+  <div class="q-title">Q: What is the entry selection strategy? What custom ones did you add?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> The entry selection strategy determines which cart entries are "consumed" by a promotion when not all items qualify equally. OOB provides DEFAULT and CHEAPEST. We added <strong>COSTLIEST</strong> — sorts entries by descending price so the most expensive items are consumed first. And <strong>PROFITABLE</strong> — a sophisticated BOGO-aware strategy that maximizes customer benefit by making the most expensive items the "free" ones in Buy X Get Y scenarios.
+  </div>
+</div>
+
+<div class="q q-p">
+  <div class="q-title">Q: What is the rule status lifecycle?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> <strong>UNPUBLISHED</strong> (just created, not active) → <strong>PUBLISHED</strong> (compiled to Drools, active and evaluating) → <strong>MODIFIED</strong> (business user edited it after publishing — the old compiled version still runs until re-published) → <strong>ARCHIVED</strong> (deactivated, no longer evaluates). You can go from MODIFIED back to PUBLISHED by clicking Publish again.
+  </div>
+</div>
+
+<div class="q q-r">
+  <div class="q-title">Q: How do you prevent one failing promotion from killing all others?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> We created <code>DefaultLMGRuleExecutableAction</code> — a wrapper around the OOB <code>DefaultRuleExecutableAction</code> that wraps the <code>executeAction()</code> call in a try-catch. If one promotion throws an exception, the error is logged but execution continues for all other promotions. OOB Hybris would let one failure crash the entire Drools evaluation session.
+  </div>
+</div>
+
+<div class="q q-t">
+  <div class="q-title">Q: How do you handle per-concept cart totals?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> We created <code>LMGConceptCartTotalRAO</code> — a custom RAO that holds a concept + its subtotal. The <code>LMGCartRaoPopulator</code> groups all cart entries by their product's concept, sums <code>basePrice × quantity</code> per concept, and creates a list of these RAOs on the CartRAO. The <code>DefaultLMGCartRAOProvider</code> then expands these into individual Drools facts. This lets us write rules like "spend 400 AED on MAX products" — the condition checks <code>LMGConceptCartTotalRAO.concept=MAX AND cartTotal >= 400</code>.
+  </div>
+</div>
+
+<div class="q q-pk">
+  <div class="q-title">Q: What interceptors/validators did you customize?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Two interceptors and two validators. <strong>PromotionRulePrepareInterceptor</strong> — we extended it to copy promotionType, browseUrl, and badge from the source rule to the RuleBasedPromotion, and to detect brand-level vs concept-level promotions by parsing conditions. <strong>SourceRuleValidateInterceptor</strong> — we added validation for invalid characters in rule codes and badge code validation. We also created <strong>RuleParameterCardBinsValidator</strong> (ensures BINs are numeric, 1-6 chars) and <strong>RuleParameterStrDateFormatValidator</strong> (ensures date strings are dd/MM/yyyy).
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 4 — Scenario-based questions</h2>
+
+<div class="q q-g">
+  <div class="q-title">Q: Business wants a new promotion — "10% off for customers using a Mashreq bank card." How would you implement it?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> This needs two things: a <strong>card BIN condition</strong> (already exists — <code>lmg_qualifying_card_bins</code>) and a <strong>percentage discount action</strong> (OOB exists). So no new code needed — the business user creates a rule in Backoffice with condition <code>lmg_qualifying_card_bins</code> = [Mashreq BIN prefixes] and action = <code>order_percentage_discount</code> = 10%. The card BIN condition works because <code>LMGCardBinRAOProvider</code> creates progressive prefix RAOs from the customer's card, and the condition translator checks if any prefix matches the configured BINs.
+  </div>
+  <div class="tip"><strong>This is a great answer</strong> because it shows you know when NOT to write code — you reuse existing conditions and actions.</div>
+</div>
+
+<div class="q q-o">
+  <div class="q-title">Q: Business wants "Buy 2 shirts, get the most expensive one free." How?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Use the BOGO action with the <strong>PROFITABLE entry selection strategy</strong>. Configure: condition = qualifying category "shirts", qualifying quantity = 2. Action = partner product percentage discount = 100% (free), target quantity = 1, selection strategy = PROFITABLE. The PROFITABLE strategy sorts entries by descending price, then picks the most expensive shirt as the "free" one — maximizing customer benefit. The <code>DefaultLMGRulePartnerOrderEntryPercentageDiscountRAOAction</code> handles the Drools logic, and <code>lmgOrderEntryAdjustActionStrategy</code> persists the discount.
+  </div>
+</div>
+
+<div class="q q-r">
+  <div class="q-title">Q: Business wants "Show 20 AED cashback on cart, but only credit it after order." How?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> That's exactly how our cashback promotion works. The <code>DefaultLMGCashbackActionStrategy</code> creates a <code>RuleBasedCashbackActionModel</code> with all cashback attributes serialized as JSON — but it does NOT create a DiscountValue on the order. The cart total stays unchanged. The storefront reads the PromotionResult, detects it's a cashback type via <code>isCashbackPromotion()</code>, and shows the cashback message. After order placement, the cashback JSON is sent to downstream systems (Shukran Pay) for actual credit. So cashback is <strong>informational at cart time, transactional post-order</strong>.
+  </div>
+</div>
+
+<div class="q q-p">
+  <div class="q-title">Q: Promotions are slow. How would you optimize?</div>
+  <div class="q-short">
+    <strong>Answer:</strong> Several approaches: (1) Use our <strong>DELAY_FULL_CART_CALCULATION</strong> flag for batch operations — set it before multiple cart changes, clear it after, so promotions evaluate once instead of per-change. (2) Use <strong>onlyAdditionalCostCalculation</strong> during checkout steps that only change delivery/payment — skips full promotion re-evaluation. (3) Reduce the number of active rules by archiving expired ones. (4) Optimize RAO providers — the <code>DefaultLMGPlatformRuleEngineService</code> already filters to only load active rules for configured promotion groups, not all rules. (5) Keep Drools conditions simple — complex join chains in translators generate expensive DRL.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 5 — Quick-fire answers</h2>
+
+<div class="tbl">
+<table>
+  <tr><th>Question</th><th>One-line answer</th></tr>
+  <tr><td>Where are conditions/actions stored?</td><td>As JSON strings in the <code>conditions</code> and <code>actions</code> columns of PromotionSourceRule</td></tr>
+  <tr><td>What rule engine does Hybris use?</td><td>Drools (JBoss Rules) — KIE (Knowledge Is Everything) framework</td></tr>
+  <tr><td>Where is the DRL code stored?</td><td>In the <code>ruleContent</code> attribute of DroolsRule — a compiled text string</td></tr>
+  <tr><td>What is a RuleGroup?</td><td>Groups promotion rules (orderPromotionRuleGroup, productPromotionRuleGroup, cashBackPromotionRuleGroup) — controls priority and exclusivity</td></tr>
+  <tr><td>What is maxAllowedRuns?</td><td>How many times a rule can fire per evaluation session — usually 1 for promotions</td></tr>
+  <tr><td>How do you scope promotions to a website?</td><td>Via promotionGroup on the PromotionSourceRule — each website has a promotion group</td></tr>
+  <tr><td>What is certainty on PromotionResult?</td><td>1.0 = fully applied (fired), 0.5 = potential (message shown but not applied yet)</td></tr>
+  <tr><td>How do you prevent double-discounting?</td><td>Entry consumption — when a rule fires, it "consumes" the order entries, marking them used so other rules skip them</td></tr>
+  <tr><td>What is a value mapper?</td><td>Converts between a Hybris model (LMGConceptModel) and its string code for rule parameter persistence</td></tr>
+  <tr><td>Where do custom conditions live in code?</td><td><code>landmarkshopscore/src/.../definitions/conditions/</code></td></tr>
+  <tr><td>Where do custom actions live in code?</td><td><code>landmarkshopscore/src/.../rule/evaluation/actions/impl/</code> (RAO action) and <code>.../rule/strategies/</code> (strategy)</td></tr>
+  <tr><td>How many PromotionType values exist?</td><td>22 in the LMG enum — PFP, PP, BOGO, OTFV, OTFG, CCS, Cashback, FreeShipping, Staff, Loyalty, RPM, etc.</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Part 6 — Key class names to remember</h2>
+
+<p>Interviewers are impressed when you can name specific classes. Here are the ones worth memorizing:</p>
+
+<div class="tbl">
+<table>
+  <tr><th>Area</th><th>Class to remember</th><th>One-line role</th></tr>
+  <tr><td>Cart trigger</td><td><code>DefaultLMGCommerceCartCalculationStrategy</code></td><td>Entry point — decides whether to calculate, then delegates</td></tr>
+  <tr><td>Promotion service</td><td><code>DefaultPromotionEngineService</code></td><td>Orchestrates the entire Drools evaluation</td></tr>
+  <tr><td>Fact building</td><td><code>DefaultLMGCartRAOProvider</code></td><td>Converts cart model → all RAO facts for Drools</td></tr>
+  <tr><td>Rule loading</td><td><code>DefaultLMGPlatformRuleEngineService</code></td><td>Loads only active rules for configured promotion groups</td></tr>
+  <tr><td>Condition</td><td><code>LMGRuleQualifyingConceptsConditionTranslator</code></td><td>Compiles concept condition → Drools IR</td></tr>
+  <tr><td>Action (inside Drools)</td><td><code>DefaultLMGRuleCashbackRAOAction</code></td><td>Builds LMGCashbackRAO inside Drools</td></tr>
+  <tr><td>Action (persist)</td><td><code>DefaultLMGCashbackActionStrategy</code></td><td>Saves cashback to DB as JSON</td></tr>
+  <tr><td>Error wrapper</td><td><code>DefaultLMGRuleExecutableAction</code></td><td>Try-catch wrapper — one promo failure doesn't kill others</td></tr>
+  <tr><td>Result service</td><td><code>DefaultLMGPromotionEngineResultService</code></td><td>Promotion type detection + parameter extraction</td></tr>
+  <tr><td>Utility</td><td><code>LMGRaoUtils</code></td><td>Available quantity tracking + eligible amount calculation</td></tr>
+</table>
+</div>
+
+<div class="tip"><strong>Final tip:</strong> In the interview, always connect back to real business impact. Don't just say "we added a concept condition" — say "we added a concept condition so business users can create promotions scoped to specific store brands like MAX or SPLASH without developer involvement. This reduced promotion setup time from days to minutes."</div>

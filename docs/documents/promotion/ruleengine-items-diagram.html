@@ -1,0 +1,722 @@
+<title>Rule Engine Items</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-alt: #eceef2;
+    --text: #1b1e25;
+    --text-muted: #6b7280;
+    --border: #d1d5db;
+    --abstract-color: #8b95a5;
+    --abstract-bg: #f0f1f4;
+    --abstract-border: #c5c9d2;
+    --concrete-color: #2d5a8e;
+    --concrete-bg: #e9f0f8;
+    --concrete-border: #a3bdd6;
+    --relation-color: #e07a2f;
+    --attr-bg: #f8f9fa;
+    --arrow: #8b95a5;
+    --highlight: #2d5a8e;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111318;
+      --surface: #1a1d24;
+      --surface-alt: #23262e;
+      --text: #dfe1e6;
+      --text-muted: #7d8590;
+      --border: #30343d;
+      --abstract-color: #7d8590;
+      --abstract-bg: #1e2129;
+      --abstract-border: #3a3e48;
+      --concrete-color: #6aaceb;
+      --concrete-bg: #1a2536;
+      --concrete-border: #2d4a6e;
+      --relation-color: #e8a04a;
+      --attr-bg: #1e2129;
+      --arrow: #555c6a;
+      --highlight: #6aaceb;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111318;
+    --surface: #1a1d24;
+    --surface-alt: #23262e;
+    --text: #dfe1e6;
+    --text-muted: #7d8590;
+    --border: #30343d;
+    --abstract-color: #7d8590;
+    --abstract-bg: #1e2129;
+    --abstract-border: #3a3e48;
+    --concrete-color: #6aaceb;
+    --concrete-bg: #1a2536;
+    --concrete-border: #2d4a6e;
+    --relation-color: #e8a04a;
+    --attr-bg: #1e2129;
+    --arrow: #555c6a;
+    --highlight: #6aaceb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    line-height: 1.5;
+    padding: 2rem 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+  .subtitle { color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1.5rem; }
+
+  .legend {
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    margin-bottom: 2rem; padding: 0.6rem 1rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 5px; font-size: 0.75rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; }
+
+  .diagram-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .diagram {
+    position: relative;
+    min-width: 820px;
+    min-height: 720px;
+  }
+
+  .model {
+    position: absolute;
+    background: var(--surface);
+    border: 1.5px solid var(--concrete-border);
+    border-radius: 6px;
+    width: 230px;
+    overflow: hidden;
+  }
+
+  .model.abstract { border-color: var(--abstract-border); border-style: dashed; }
+
+  .model-header {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .model.abstract .model-header { background: var(--abstract-bg); color: var(--abstract-color); }
+  .model:not(.abstract) .model-header { background: var(--concrete-bg); color: var(--concrete-color); }
+
+  .model-header .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    opacity: 0.7; display: block; margin-bottom: 0.1rem;
+  }
+
+  .model-attrs {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  .model-attrs .attr {
+    display: flex; align-items: baseline; gap: 0.35rem;
+    padding: 0.15rem 0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .model-attrs .attr-name { color: var(--text); font-weight: 500; }
+  .model-attrs .attr-type { color: var(--text-muted); font-size: 0.65rem; }
+
+  .model-desc {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--attr-bg);
+    border-top: 1px solid var(--border);
+  }
+
+  svg.arrows {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  .arrow-line { stroke: var(--arrow); stroke-width: 1.5; fill: none; }
+  .arrow-line.relation { stroke: var(--relation-color); stroke-dasharray: 6 3; }
+  .arrow-head { fill: var(--arrow); }
+  .arrow-head.relation { fill: var(--relation-color); }
+
+  .arrow-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    fill: var(--relation-color);
+    font-weight: 500;
+  }
+
+  .inherit-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    fill: var(--arrow);
+    font-weight: 500;
+  }
+
+  .analogy {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    font-size: 0.8125rem;
+  }
+
+  .analogy h3 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .analogy-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.25rem 1rem;
+    font-size: 0.8125rem;
+    align-items: center;
+  }
+
+  .analogy-grid .model-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--concrete-color);
+  }
+  .analogy-grid .eq { color: var(--text-muted); text-align: center; }
+  .analogy-grid .meaning { color: var(--text); }
+
+  .flow-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .flow-section h3 { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .flow-step {
+    background: var(--concrete-bg);
+    border: 1px solid var(--concrete-border);
+    color: var(--concrete-color);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .flow-arrow { color: var(--text-muted); font-size: 1rem; }
+
+  h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.75rem;
+  }
+
+  .kie-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+  }
+
+  .kie-term {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .kie-abbr {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--concrete-color);
+  }
+
+  .kie-full {
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+
+  .kie-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+
+  .kie-grid {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+    align-items: baseline;
+  }
+
+  .kie-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  .kie-name strong { color: var(--concrete-color); font-weight: 600; }
+  .kie-eq { color: var(--text-muted); }
+  .kie-meaning { color: var(--text); }
+  .kie-meaning strong { font-weight: 600; }
+
+  .analogy {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-top: 1rem;
+  }
+
+  .tv-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .tv-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-alt);
+    border-radius: 5px;
+  }
+
+  .tv-icon { font-size: 1.25rem; flex-shrink: 0; width: 2rem; text-align: center; }
+
+  .tv-content {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.8125rem;
+  }
+
+  .tv-content .model-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: var(--concrete-color);
+    min-width: 140px;
+  }
+
+  .tv-eq { color: var(--text-muted); }
+  .tv-meaning { color: var(--text); }
+
+  .tv-connector {
+    text-align: center;
+    color: var(--connector, var(--border));
+    font-size: 0.875rem;
+    line-height: 1;
+    padding: 0.1rem 0;
+    padding-left: 1rem;
+  }
+
+  .real-example {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-top: 1rem;
+  }
+
+  .example-chain {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .example-box {
+    background: var(--concrete-bg);
+    border: 1.5px solid var(--concrete-border);
+    border-radius: 6px;
+    padding: 0.75rem 1.25rem;
+    text-align: center;
+    min-width: 280px;
+  }
+
+  .example-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--concrete-color);
+    margin-bottom: 0.15rem;
+  }
+
+  .example-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .example-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+  }
+
+  .example-arrow {
+    color: var(--concrete-color);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.15rem 0;
+  }
+
+  .example-footnote {
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-top: 0.75rem;
+  }
+
+  .example-footnote strong { color: var(--concrete-color); }
+
+  .flow-note {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1.25rem 0.75rem; }
+    .legend { flex-direction: column; gap: 0.4rem; }
+    .kie-grid { grid-template-columns: 1fr; gap: 0.4rem; }
+    .kie-eq { display: none; }
+    .tv-content { flex-direction: column; gap: 0.15rem; }
+    .tv-content .model-name { min-width: auto; }
+    .flow-steps { flex-direction: column; align-items: flex-start; }
+    .flow-arrow { transform: rotate(90deg); }
+    .example-box { min-width: auto; width: 100%; }
+  }
+</style>
+
+<h1>Rule Engine — items.xml Data Model</h1>
+<p class="subtitle">ruleengine extension — SAP's generic rule execution infrastructure</p>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:var(--abstract-bg);border-color:var(--abstract-border);border-style:dashed;"></div>
+    Abstract (never created directly)
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:var(--concrete-bg);border-color:var(--concrete-border);"></div>
+    Concrete (actual database records)
+  </div>
+  <div class="legend-item">
+    <svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="var(--arrow)" stroke-width="1.5"/></svg>
+    Inheritance (extends)
+  </div>
+  <div class="legend-item">
+    <svg width="30" height="10"><line x1="0" y1="5" x2="30" y2="5" stroke="var(--relation-color)" stroke-width="1.5" stroke-dasharray="6 3"/></svg>
+    Relation (has-many / has-one)
+  </div>
+</div>
+
+<div class="diagram-container">
+<div class="diagram">
+  <svg class="arrows" viewBox="0 0 820 720" preserveAspectRatio="xMinYMin meet">
+    <defs>
+      <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" class="arrow-head"/>
+      </marker>
+      <marker id="ah-rel" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0, 8 3, 0 6" class="arrow-head relation"/>
+      </marker>
+      <marker id="ah-inherit" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+        <polygon points="0 0, 10 4, 0 8" fill="none" stroke="var(--arrow)" stroke-width="1.5"/>
+      </marker>
+    </defs>
+
+    <!-- Inheritance: DroolsRule → AbstractRuleEngineRule -->
+    <line x1="115" y1="200" x2="115" y2="160" class="arrow-line" marker-end="url(#ah-inherit)"/>
+    <text x="125" y="183" class="inherit-label">extends</text>
+
+    <!-- Inheritance: DroolsKIEModule → AbstractRulesModule -->
+    <line x1="460" y1="200" x2="460" y2="160" class="arrow-line" marker-end="url(#ah-inherit)"/>
+    <text x="470" y="183" class="inherit-label">extends</text>
+
+    <!-- Inheritance: DroolsRuleEngineContext → AbstractRuleEngineContext -->
+    <line x1="690" y1="460" x2="690" y2="420" class="arrow-line" marker-end="url(#ah-inherit)"/>
+    <text x="700" y="443" class="inherit-label">extends</text>
+
+    <!-- Relation: DroolsKIEModule → DroolsKIEBase (one-to-many) -->
+    <path d="M460 340 L460 380 L400 380 L400 410" class="arrow-line relation" marker-end="url(#ah-rel)"/>
+    <text x="410" y="375" class="arrow-label">1 → many (kieBases)</text>
+
+    <!-- Relation: DroolsKIEBase → DroolsKIESession (one-to-many) -->
+    <path d="M340 540 L340 570 L400 570 L400 600" class="arrow-line relation" marker-end="url(#ah-rel)"/>
+    <text x="350" y="565" class="arrow-label">1 → many (kieSessions)</text>
+
+    <!-- Relation: DroolsKIEBase → DroolsRule (one-to-many) -->
+    <path d="M235 490 L170 490 L170 400 L115 400 L115 375" class="arrow-line relation" marker-end="url(#ah-rel)"/>
+    <text x="60" y="480" class="arrow-label">1 → many (rules)</text>
+
+    <!-- Relation: DroolsRuleEngineContext → DroolsKIESession -->
+    <path d="M580 530 L530 530 L530 640 L520 640" class="arrow-line relation" marker-end="url(#ah-rel)"/>
+    <text x="535" y="590" class="arrow-label">has kieSession</text>
+
+  </svg>
+
+  <!-- AbstractRuleEngineRule (abstract) -->
+  <div class="model abstract" style="top:20px; left:0px;">
+    <div class="model-header">
+      <span class="tag">abstract</span>
+      AbstractRuleEngineRule
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">code</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">active</span> <span class="attr-type">Boolean</span></div>
+      <div class="attr"><span class="attr-name">ruleContent</span> <span class="attr-type">String (CLOB)</span></div>
+      <div class="attr"><span class="attr-name">ruleType</span> <span class="attr-type">RuleType enum</span></div>
+      <div class="attr"><span class="attr-name">version</span> <span class="attr-type">Long</span></div>
+      <div class="attr"><span class="attr-name">currentVersion</span> <span class="attr-type">Boolean</span></div>
+      <div class="attr"><span class="attr-name">checksum</span> <span class="attr-type">String</span></div>
+    </div>
+    <div class="model-desc">Base fields every rule has</div>
+  </div>
+
+  <!-- DroolsRule -->
+  <div class="model" style="top:200px; left:0px;">
+    <div class="model-header">
+      <span class="tag">concrete — table: EngineRules</span>
+      DroolsRule
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">rulePackage</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">globals</span> <span class="attr-type">Map&lt;String,String&gt;</span></div>
+    </div>
+    <div class="model-desc">One compiled Drools rule. The .drl content is in ruleContent (inherited). Auto-generated from PromotionSourceRule.</div>
+  </div>
+
+  <!-- AbstractRulesModule (abstract) -->
+  <div class="model abstract" style="top:20px; left:345px;">
+    <div class="model-header">
+      <span class="tag">abstract</span>
+      AbstractRulesModule
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">name</span> <span class="attr-type">String (unique)</span></div>
+      <div class="attr"><span class="attr-name">ruleType</span> <span class="attr-type">RuleType enum</span></div>
+      <div class="attr"><span class="attr-name">active</span> <span class="attr-type">Boolean</span></div>
+      <div class="attr"><span class="attr-name">version</span> <span class="attr-type">Long</span></div>
+    </div>
+    <div class="model-desc">Base fields every module has</div>
+  </div>
+
+  <!-- DroolsKIEModule -->
+  <div class="model" style="top:200px; left:345px;">
+    <div class="model-header">
+      <span class="tag">concrete — table: RulesModule</span>
+      DroolsKIEModule
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">mvnGroupId</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">mvnArtifactId</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">mvnVersion</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">defaultKIEBase</span> <span class="attr-type">→ DroolsKIEBase</span></div>
+    </div>
+    <div class="model-desc">Top-level container. Groups everything. Identified by Maven coordinates. One per rule module (e.g. promotion-module).</div>
+  </div>
+
+  <!-- DroolsKIEBase -->
+  <div class="model" style="top:410px; left:235px;">
+    <div class="model-header">
+      <span class="tag">concrete — table: DroolsKIEBase</span>
+      DroolsKIEBase
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">name</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">equalityBehavior</span> <span class="attr-type">EQUALITY | IDENTITY</span></div>
+      <div class="attr"><span class="attr-name">eventProcessingMode</span> <span class="attr-type">STREAM | CLOUD</span></div>
+      <div class="attr"><span class="attr-name">defaultKIESession</span> <span class="attr-type">→ DroolsKIESession</span></div>
+    </div>
+    <div class="model-desc">Groups rules + configures how facts are compared and processed. One module can have multiple bases.</div>
+  </div>
+
+  <!-- DroolsKIESession -->
+  <div class="model" style="top:600px; left:270px;">
+    <div class="model-header">
+      <span class="tag">concrete — table: DroolsKIESession</span>
+      DroolsKIESession
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">name</span> <span class="attr-type">String</span></div>
+      <div class="attr"><span class="attr-name">sessionType</span> <span class="attr-type">STATEFUL | STATELESS</span></div>
+    </div>
+    <div class="model-desc">The runtime that actually fires rules. STATELESS = no memory between runs (used for promotions).</div>
+  </div>
+
+  <!-- AbstractRuleEngineContext (abstract) -->
+  <div class="model abstract" style="top:310px; left:580px;">
+    <div class="model-header">
+      <span class="tag">abstract</span>
+      AbstractRuleEngineContext
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">name</span> <span class="attr-type">String (unique)</span></div>
+    </div>
+    <div class="model-desc">Base context type</div>
+  </div>
+
+  <!-- DroolsRuleEngineContext -->
+  <div class="model" style="top:460px; left:580px;">
+    <div class="model-header">
+      <span class="tag">concrete — table: RuleEngineContext</span>
+      DroolsRuleEngineContext
+    </div>
+    <div class="model-attrs">
+      <div class="attr"><span class="attr-name">kieSession</span> <span class="attr-type">→ DroolsKIESession</span></div>
+      <div class="attr"><span class="attr-name">ruleFiringLimit</span> <span class="attr-type">Long</span></div>
+    </div>
+    <div class="model-desc">Entry point for rule execution. Points to which session to use + safety limit on how many rules can fire.</div>
+  </div>
+
+</div>
+</div>
+
+<div class="kie-section">
+  <h2>What does KIE mean?</h2>
+  <div class="kie-explain">
+    <div class="kie-term">
+      <span class="kie-abbr">KIE</span>
+      <span class="kie-full">= Knowledge Is Everything</span>
+    </div>
+    <p class="kie-desc">It's just the name of the Drools project. They put "KIE" in front of normal words. So:</p>
+    <div class="kie-grid">
+      <span class="kie-name">KIE<strong>Module</strong></span> <span class="kie-eq">=</span> <span class="kie-meaning">Rule <strong>Module</strong> (container)</span>
+      <span class="kie-name">KIE<strong>Base</strong></span> <span class="kie-eq">=</span> <span class="kie-meaning">Rule <strong>Base</strong> (group of rules)</span>
+      <span class="kie-name">KIE<strong>Session</strong></span> <span class="kie-eq">=</span> <span class="kie-meaning">Rule <strong>Session</strong> (runtime)</span>
+    </div>
+  </div>
+</div>
+
+<div class="analogy">
+  <h2>How to remember — TV analogy</h2>
+  <div class="tv-visual">
+    <div class="tv-row">
+      <div class="tv-icon">&#128250;</div>
+      <div class="tv-content">
+        <span class="model-name">KIEModule</span>
+        <span class="tv-eq">=</span>
+        <span class="tv-meaning">The TV set — the whole thing. You have one.</span>
+      </div>
+    </div>
+    <div class="tv-connector">&#9474;</div>
+    <div class="tv-row">
+      <div class="tv-icon">&#128218;</div>
+      <div class="tv-content">
+        <span class="model-name">KIEBase</span>
+        <span class="tv-eq">=</span>
+        <span class="tv-meaning">A channel package — Sports, Movies, News. Groups related channels (rules).</span>
+      </div>
+    </div>
+    <div class="tv-connector">&#9474;</div>
+    <div class="tv-row">
+      <div class="tv-icon">&#9654;&#65039;</div>
+      <div class="tv-content">
+        <span class="model-name">KIESession</span>
+        <span class="tv-eq">=</span>
+        <span class="tv-meaning">Turning the TV ON — the act of actually watching/running.</span>
+      </div>
+    </div>
+    <div class="tv-connector">&#9474;</div>
+    <div class="tv-row">
+      <div class="tv-icon">&#128220;</div>
+      <div class="tv-content">
+        <span class="model-name">DroolsRule</span>
+        <span class="tv-eq">=</span>
+        <span class="tv-meaning">A single channel — one individual rule.</span>
+      </div>
+    </div>
+    <div class="tv-connector">&#9474;</div>
+    <div class="tv-row">
+      <div class="tv-icon">&#127383;</div>
+      <div class="tv-content">
+        <span class="model-name">RuleEngineContext</span>
+        <span class="tv-eq">=</span>
+        <span class="tv-meaning">The remote control — entry point, controls which session + safety limit.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="real-example">
+  <h2>In your Hybris system (real setup)</h2>
+  <div class="example-chain">
+    <div class="example-box">
+      <div class="example-label">1 KIEModule</div>
+      <div class="example-value">"promotions-module"</div>
+    </div>
+    <div class="example-arrow">&#9660;</div>
+    <div class="example-box">
+      <div class="example-label">1 KIEBase</div>
+      <div class="example-value">"promotions-base"</div>
+      <div class="example-note">All promotion rules grouped here</div>
+    </div>
+    <div class="example-arrow">&#9660;</div>
+    <div class="example-box">
+      <div class="example-label">1 KIESession</div>
+      <div class="example-value">"promotions-session" (STATELESS)</div>
+      <div class="example-note">Runs fresh each time — no memory between carts</div>
+    </div>
+    <div class="example-arrow">&#9660;</div>
+    <div class="example-box">
+      <div class="example-label">500+ DroolsRules</div>
+      <div class="example-value">One per active promotion</div>
+      <div class="example-note">Auto-generated from PromotionSourceRule</div>
+    </div>
+  </div>
+  <p class="example-footnote">For promotions it's a simple <strong>1 → 1 → 1 → many</strong> chain, not a complex tree.</p>
+</div>
+
+<div class="flow-section">
+  <h2>Runtime flow</h2>
+  <div class="flow-steps">
+    <span class="flow-step">Context</span>
+    <span class="flow-arrow">&#8594;</span>
+    <span class="flow-step">Session</span>
+    <span class="flow-arrow">&#8594;</span>
+    <span class="flow-step">Base</span>
+    <span class="flow-arrow">&#8594;</span>
+    <span class="flow-step">Rules[]</span>
+    <span class="flow-arrow">&#8594;</span>
+    <span class="flow-step">Fire matching rules</span>
+  </div>
+  <p class="flow-note">Code calls Context → Context picks Session → Session loads Base → Base has Rules → FIRE!</p>
+</div>

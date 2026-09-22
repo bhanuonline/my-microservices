@@ -1,0 +1,2758 @@
+<title>Hybris Items & Types</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #FAFAF8;
+    --bg-surface: #F2F1ED;
+    --bg-surface-alt: #E8E6E1;
+    --text: #1C1B19;
+    --text-secondary: #5C5A54;
+    --text-tertiary: #8A877F;
+    --accent: #2D5F2E;
+    --accent-light: #E6F0E6;
+    --border: #D8D5CE;
+    --border-light: #E8E6E1;
+    --code-bg: #F5F4F0;
+    --tag-atomic: #7B5EA7;
+    --tag-atomic-bg: #F3EFF8;
+    --tag-collection: #2E6B8A;
+    --tag-collection-bg: #EBF4F8;
+    --tag-enum: #9E6B23;
+    --tag-enum-bg: #FBF4E8;
+    --tag-map: #6B3A5E;
+    --tag-map-bg: #F8EDF5;
+    --tag-relation: #8A4B3A;
+    --tag-relation-bg: #FBF0ED;
+    --tag-item: #2D5F2E;
+    --tag-item-bg: #E6F0E6;
+    --tag-meta: #4A5568;
+    --tag-meta-bg: #EDF0F4;
+    --shadow-sm: 0 1px 2px rgba(28,27,25,0.06);
+    --shadow-md: 0 2px 8px rgba(28,27,25,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1A1918;
+      --bg-surface: #242320;
+      --bg-surface-alt: #2E2D29;
+      --text: #E8E6E1;
+      --text-secondary: #A8A49C;
+      --text-tertiary: #7A776F;
+      --accent: #6BBF6D;
+      --accent-light: #1E2E1E;
+      --border: #3A3832;
+      --border-light: #2E2D29;
+      --code-bg: #22211E;
+      --tag-atomic: #B99ADE;
+      --tag-atomic-bg: #2A2238;
+      --tag-collection: #6BBAD8;
+      --tag-collection-bg: #1C2C38;
+      --tag-enum: #D4A44A;
+      --tag-enum-bg: #302818;
+      --tag-map: #C98AB8;
+      --tag-map-bg: #301E2C;
+      --tag-relation: #D4826A;
+      --tag-relation-bg: #30201A;
+      --tag-item: #6BBF6D;
+      --tag-item-bg: #1E2E1E;
+      --tag-meta: #94A3B8;
+      --tag-meta-bg: #1E2430;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1A1918;
+    --bg-surface: #242320;
+    --bg-surface-alt: #2E2D29;
+    --text: #E8E6E1;
+    --text-secondary: #A8A49C;
+    --text-tertiary: #7A776F;
+    --accent: #6BBF6D;
+    --accent-light: #1E2E1E;
+    --border: #3A3832;
+    --border-light: #2E2D29;
+    --code-bg: #22211E;
+    --tag-atomic: #B99ADE;
+    --tag-atomic-bg: #2A2238;
+    --tag-collection: #6BBAD8;
+    --tag-collection-bg: #1C2C38;
+    --tag-enum: #D4A44A;
+    --tag-enum-bg: #302818;
+    --tag-map: #C98AB8;
+    --tag-map-bg: #301E2C;
+    --tag-relation: #D4826A;
+    --tag-relation-bg: #30201A;
+    --tag-item: #6BBF6D;
+    --tag-item-bg: #1E2E1E;
+    --tag-meta: #94A3B8;
+    --tag-meta-bg: #1E2430;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+  }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header {
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  header h1 {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  header .subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 16px;
+  }
+
+  header .file-path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: var(--code-bg);
+    padding: 4px 10px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  nav.toc {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 48px;
+  }
+  nav.toc h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-tertiary);
+    margin: 0 0 12px;
+  }
+  nav.toc ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px 24px;
+  }
+  nav.toc li { font-size: 14px; }
+  nav.toc a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  nav.toc a:hover { text-decoration: underline; }
+
+  section { margin-bottom: 56px; }
+
+  h2.section-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-light);
+    letter-spacing: -0.01em;
+  }
+
+  .section-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 20px;
+    max-width: 680px;
+    line-height: 1.65;
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .tag-atomic { color: var(--tag-atomic); background: var(--tag-atomic-bg); }
+  .tag-collection { color: var(--tag-collection); background: var(--tag-collection-bg); }
+  .tag-enum { color: var(--tag-enum); background: var(--tag-enum-bg); }
+  .tag-map { color: var(--tag-map); background: var(--tag-map-bg); }
+  .tag-relation { color: var(--tag-relation); background: var(--tag-relation-bg); }
+  .tag-item { color: var(--tag-item); background: var(--tag-item-bg); }
+  .tag-meta { color: var(--tag-meta); background: var(--tag-meta-bg); }
+
+  .hierarchy-diagram {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 20px 0 32px;
+    overflow-x: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre;
+  }
+  .hierarchy-diagram .node {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .hierarchy-diagram .abstract {
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+  .hierarchy-diagram .branch { color: var(--text-tertiary); }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 16px;
+    transition: box-shadow 0.15s ease;
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
+
+  .card h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 4px;
+  }
+
+  .card .purpose {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+    line-height: 1.5;
+  }
+
+  .card .attrs {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.7;
+  }
+  .card .attrs strong {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  details.detail-block {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  details.detail-block summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+    list-style: none;
+  }
+  details.detail-block summary::-webkit-details-marker { display: none; }
+  details.detail-block summary::before {
+    content: '\25B6';
+    font-size: 10px;
+    color: var(--text-tertiary);
+    transition: transform 0.15s ease;
+  }
+  details.detail-block[open] summary::before { transform: rotate(90deg); }
+  details.detail-block summary:hover { background: var(--bg-surface-alt); }
+  details.detail-block[open] summary { border-bottom-color: var(--border-light); }
+
+  details.detail-block summary h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+    flex: 1;
+  }
+  details.detail-block summary .extends {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+
+  .detail-body { padding: 16px; }
+  .detail-body p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  .attr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .attr-table-wrap { overflow-x: auto; }
+
+  .attr-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    text-align: left;
+    padding: 6px 12px 6px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .attr-table td {
+    padding: 7px 12px 7px 0;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+    color: var(--text);
+  }
+  .attr-table tr:last-child td { border-bottom: none; }
+  .attr-table .attr-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .attr-table .attr-type {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .attr-table .attr-note {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .modifier-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--bg-surface-alt);
+    color: var(--text-tertiary);
+    margin-right: 3px;
+    white-space: nowrap;
+  }
+  .modifier-badge.req { background: var(--accent-light); color: var(--accent); }
+
+  .relation-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .relation-card h3 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 8px;
+  }
+  .relation-visual {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .relation-visual .entity {
+    background: var(--tag-item-bg);
+    color: var(--tag-item);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .relation-visual .arrow { color: var(--text-tertiary); font-size: 16px; }
+  .relation-visual .cardinality {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+  .relation-note {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .xml-note {
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+  }
+  .xml-note code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: var(--bg-surface-alt);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    background: var(--accent-light);
+    border-radius: 0 6px 6px 0;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 600px) {
+    .page { padding: 24px 16px 60px; }
+    header h1 { font-size: 22px; }
+    .card-grid { grid-template-columns: 1fr; }
+    nav.toc ol { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page">
+
+<header>
+  <h1>Hybris Items &amp; Types Reference</h1>
+  <p class="subtitle">Complete guide — from core platform types to custom LandmarkShops patterns, with interview prep.</p>
+  <span class="file-path">bin/platform/ext/core/resources/core-items.xml + landmarkshopscore-items.xml</span>
+</header>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#xml-structure">XML Structure</a></li>
+    <li><a href="#loading-order">Type Loading Order</a></li>
+    <li><a href="#atomictypes">Atomic Types</a></li>
+    <li><a href="#collectiontypes">Collection Types</a></li>
+    <li><a href="#enumtypes">Enum Types</a></li>
+    <li><a href="#maptypes">Map Types</a></li>
+    <li><a href="#relations">Relations</a></li>
+    <li><a href="#collection-vs-relation">Collection vs Relation</a></li>
+    <li><a href="#base-hierarchy">Base Item Hierarchy</a></li>
+    <li><a href="#meta-types">Meta Types</a></li>
+    <li><a href="#user-types">User &amp; Security</a></li>
+    <li><a href="#order-types">Order &amp; Commerce</a></li>
+    <li><a href="#c2l-types">C2L (Country/Language)</a></li>
+    <li><a href="#media-types">Media</a></li>
+    <li><a href="#product-types">Product</a></li>
+    <li><a href="#modifiers">Modifier Reference</a></li>
+    <li><a href="#persistence">Persistence Types</a></li>
+    <li><a href="#indexes">Index Reference</a></li>
+    <li><a href="#lmg-itemtype">LMG: ItemType Patterns</a></li>
+    <li><a href="#lmg-enum">LMG: Enum Patterns</a></li>
+    <li><a href="#lmg-relations">LMG: Relation Patterns</a></li>
+    <li><a href="#property-vs-dynamic">Property vs Dynamic Deep Dive</a></li>
+    <li><a href="#dynamic-vs-service">Dynamic vs Service/Utility</a></li>
+    <li><a href="#lmg-deployment">Deployment &amp; Typecodes</a></li>
+    <li><a href="#interview">Interview Questions</a></li>
+    <li><a href="#cheatsheet">Cheat Sheet</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<section id="xml-structure">
+  <h2 class="section-title">XML Structure</h2>
+  <p class="section-desc">The root <code>&lt;items&gt;</code> element contains six top-level sections. Each defines a different kind of type in the Hybris type system.</p>
+
+  <div class="xml-note">
+    <strong>File layout:</strong><br>
+    <code>&lt;items&gt;</code><br>
+    &nbsp;&nbsp;<code>&lt;atomictypes&gt;</code> — Java primitives and value objects registered as Hybris types<br>
+    &nbsp;&nbsp;<code>&lt;collectiontypes&gt;</code> — Typed lists, sets, and collections of other types<br>
+    &nbsp;&nbsp;<code>&lt;enumtypes&gt;</code> — Fixed or extensible sets of named values<br>
+    &nbsp;&nbsp;<code>&lt;maptypes&gt;</code> — Key-value maps, primarily used for localization<br>
+    &nbsp;&nbsp;<code>&lt;relations&gt;</code> — Links between ItemTypes (1:n and n:m)<br>
+    &nbsp;&nbsp;<code>&lt;itemtypes&gt;</code> — The actual business objects persisted to the database<br>
+    <code>&lt;/items&gt;</code>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="loading-order">
+  <h2 class="section-title">Type Loading Order</h2>
+  <p class="section-desc">Types are processed in a strict dependency order. Each section depends on the ones above it. Within <code>itemtypes</code>, parent types must be defined before children.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Order</th><th>Section</th><th>Why This Position</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">1</td><td class="attr-type">atomictypes</td><td class="attr-note">Primitives first &mdash; everything else references these (String, Integer, Date, PK&hellip;)</td></tr>
+        <tr><td class="attr-name">2</td><td class="attr-type">collectiontypes</td><td class="attr-note">Lists/Sets of atomic types &mdash; needed as attribute types later</td></tr>
+        <tr><td class="attr-name">3</td><td class="attr-type">enumtypes</td><td class="attr-note">Named value sets &mdash; used as attribute types on ItemTypes (OrderStatus, Gender&hellip;)</td></tr>
+        <tr><td class="attr-name">4</td><td class="attr-type">maptypes</td><td class="attr-note">Key-value maps &mdash; especially <code>localized:*</code> types needed for localized attributes</td></tr>
+        <tr><td class="attr-name">5</td><td class="attr-type">relations</td><td class="attr-note">Links between ItemTypes &mdash; declared before itemtypes because they <strong>generate attributes</strong> on both sides</td></tr>
+        <tr><td class="attr-name">6</td><td class="attr-type">itemtypes</td><td class="attr-note">Business objects &mdash; can now reference all of the above</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Within itemtypes: parent before child</h3>
+  <div class="hierarchy-diagram"><span class="node">Item</span>                          <span class="branch">&larr; defined first (root)</span>
+  <span class="node">ExtensibleItem</span>              <span class="branch">&larr; extends Item</span>
+    <span class="node">LocalizableItem</span>           <span class="branch">&larr; extends ExtensibleItem</span>
+      <span class="node">GenericItem</span>             <span class="branch">&larr; extends LocalizableItem</span>
+        <span class="node">Type, ComposedType&hellip;</span>  <span class="branch">&larr; meta types</span>
+        <span class="node">Principal, User&hellip;</span>    <span class="branch">&larr; security</span>
+        <span class="node">AbstractOrder, Cart&hellip;</span> <span class="branch">&larr; commerce</span>
+        <span class="node">Product, Media&hellip;</span>     <span class="branch">&larr; catalog/content</span></div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Across extensions: merge order from localextensions.xml</h3>
+  <p class="section-desc">When multiple extensions each have their own <code>*-items.xml</code>, Hybris merges them in the order declared in <code>localextensions.xml</code>. An extension can only reference types already defined by itself or by extensions loaded before it.</p>
+
+  <div class="xml-note">
+    <strong>Merge sequence:</strong><br>
+    <code>1. core-items.xml</code> &mdash; platform core (always first)<br>
+    <code>2. catalog-items.xml</code> &mdash; adds CatalogVersion, Category, etc.<br>
+    <code>3. europe1-items.xml</code> &mdash; adds PriceRow, TaxRow, etc.<br>
+    <code>4. &hellip;</code> &mdash; other platform/accelerator extensions in order<br>
+    <code>5. landmarkshopscore-items.xml</code> &mdash; your custom extension (can extend all above)
+  </div>
+
+  <div class="callout">
+    <strong>Key rule:</strong> The dependency chain is <strong>Atomics &rarr; Collections &rarr; Enums &rarr; Maps &rarr; Relations &rarr; ItemTypes (parent before child)</strong>. Breaking this order causes build failures during <code>ant all</code>.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="atomictypes">
+  <h2 class="section-title">Atomic Types <span class="tag tag-atomic">Atomic</span></h2>
+  <p class="section-desc">Atomic types map Java primitive/wrapper classes into the Hybris type system. They aren't persisted on their own — they're used as the <code>type</code> of attributes on ItemTypes.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Standard Java Types</h3>
+      <p class="purpose">Wrappers for every Java primitive plus String, Date, Class, and Map.</p>
+      <div class="attrs">
+        Object, Number, Integer, Boolean, Byte, Double, Float, Long, Short, String, Character, Date, Map, Class, BigInteger, BigDecimal
+      </div>
+    </div>
+    <div class="card">
+      <h3>Hybris-Specific Atomics</h3>
+      <p class="purpose">Custom value objects that Hybris needs to serialize as attribute values.</p>
+      <div class="attrs">
+        <strong>PK</strong> — primary key (unique ID for every item)<br>
+        <strong>TaxValue</strong> — tax rate + name + currency<br>
+        <strong>DiscountValue</strong> — discount amount/percentage<br>
+        <strong>StandardDateRange</strong> — date-from / date-to pair<br>
+        <strong>ItemPropertyValue</strong> — generic property storage
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Key XML attributes:</strong>
+    <code>class</code> — the Java class being registered.
+    <code>extends</code> — parent type.
+    <code>autocreate="true"</code> — creates the type during system init.
+    <code>generate="false"</code> — no Java code generated (class already exists).
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Can You Create Custom Atomic Types?</h3>
+  <p class="section-desc">Yes, but <strong>you rarely need to</strong>. You create one only when you have a custom Java value object (not an Item) that you want to store as an attribute. The Java class must already exist and implement <code>Serializable</code>.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Situation</th><th>Use Instead</th><th>Why Not Atomic</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">Simple String/Integer/Date values</td><td class="attr-type">Built-in atomics</td><td class="attr-note">Already registered — just use them</td></tr>
+        <tr><td class="attr-note">Named values (ACTIVE, INACTIVE)</td><td class="attr-type">enumtype</td><td class="attr-note">Enums are purpose-built for this</td></tr>
+        <tr><td class="attr-note">A list of things</td><td class="attr-type">collectiontype</td><td class="attr-note">Collections handle multiple values</td></tr>
+        <tr><td class="attr-note">Object with own lifecycle/relations</td><td class="attr-type">itemtype</td><td class="attr-note">Needs its own table and PK</td></tr>
+        <tr><td class="attr-note">Combining existing fields</td><td class="attr-type">Multiple attributes</td><td class="attr-note">Simpler, searchable, no custom Java class</td></tr>
+        <tr><td class="attr-note" style="color:var(--accent);font-weight:500;">Custom value object (e.g., GeoPoint, Money)</td><td class="attr-type" style="color:var(--accent);font-weight:500;">Custom atomictype</td><td class="attr-note" style="color:var(--accent);font-weight:500;">This is the one case where you need it</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">How To Create: 3 Steps</h3>
+
+  <div class="xml-note">
+    <strong>Step 0 — Write the Java class first</strong> (must be <code>Serializable</code>)<br><br>
+    <code>package com.landmarkshops.core.types;</code><br><br>
+    <code>public class GeoPoint implements Serializable {</code><br>
+    <code>&nbsp;&nbsp;private double latitude;</code><br>
+    <code>&nbsp;&nbsp;private double longitude;</code><br>
+    <code>&nbsp;&nbsp;// constructor, getters, equals, hashCode, toString</code><br>
+    <code>}</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>Step 1 — Register it in your *-items.xml</strong><br><br>
+    <code>&lt;atomictypes&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;atomictype</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;class="com.landmarkshops.core.types.GeoPoint"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;extends="java.lang.Object"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;autocreate="true"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;generate="false" /&gt;</code><br>
+    <code>&lt;/atomictypes&gt;</code><br><br>
+    <code>generate="false"</code> because the Java class already exists — Hybris should not generate one.
+  </div>
+
+  <div class="xml-note">
+    <strong>Step 2 — Use it as an attribute type on an ItemType</strong><br><br>
+    <code>&lt;itemtype code="Store" extends="GenericItem"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;attributes&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="location"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type="com.landmarkshops.core.types.GeoPoint"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;/attributes&gt;</code><br>
+    <code>&lt;/itemtype&gt;</code><br><br>
+    Stored in the <strong>property table</strong> (serialized). Cannot use <code>cmp</code> — only simple Java types get real columns.
+  </div>
+
+  <div class="callout">
+    <strong>Limitations of custom atomics:</strong> Values are serialized into the property table, so they <strong>cannot be searched</strong> with FlexibleSearch. If you need to query by latitude/longitude, use separate <code>Double</code> attributes instead. Custom atomics are best for display-only or pass-through values.
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Atomic Type vs ItemType &mdash; Why Not Just Use ItemType?</h3>
+  <p class="section-desc">You <strong>can</strong> use an ItemType instead of an atomic type almost always. The difference is how the data gets stored and accessed.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>&nbsp;</th><th>Atomic Type</th><th>ItemType</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">What it is</td><td class="attr-note">Just a Java class</td><td class="attr-note">A full Hybris object</td></tr>
+        <tr><td class="attr-name">Has its own table?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">Has a PK?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">Can exist alone?</td><td class="attr-note" style="color:var(--tag-relation);">No &mdash; lives inside parent</td><td class="attr-note" style="color:var(--accent);">Yes &mdash; independent object</td></tr>
+        <tr><td class="attr-name">How stored</td><td class="attr-note">Serialized bytes stuffed inside parent&rsquo;s property table</td><td class="attr-note">Its own row in its own DB table</td></tr>
+        <tr><td class="attr-name">Searchable?</td><td class="attr-note" style="color:var(--tag-relation);">No &mdash; cannot use in FlexibleSearch</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">Can have relations?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15px; font-weight:600; margin:24px 0 8px; color:var(--text);">Example: GeoPoint as Atomic vs ItemType</h3>
+
+  <div class="xml-note">
+    <strong>As Atomic Type &mdash; stored INSIDE the Store row:</strong><br><br>
+    <code>Store table</code><br>
+    <code>&nbsp;&nbsp;pk = 123</code><br>
+    <code>&nbsp;&nbsp;name = "Dubai Mall Store"</code><br>
+    <code>&nbsp;&nbsp;location = [blob of bytes: lat=25.27, lng=55.29]</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ no separate table, no PK, can't search it</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>As ItemType &mdash; stored in its OWN table:</strong><br><br>
+    <code>Store table&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GeoPoint table</code><br>
+    <code>&nbsp;&nbsp;pk = 123&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk = 456</code><br>
+    <code>&nbsp;&nbsp;name = "Dubai Mall Store"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;latitude = 25.27</code><br>
+    <code>&nbsp;&nbsp;locationPK = 456 ──────►&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;longitude = 55.29</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ own table, own PK, searchable</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:15px; font-weight:600; margin:24px 0 8px; color:var(--text);">When to use which</h3>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Scenario</th><th>Use</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">Need to search/query the data</td><td class="attr-type" style="color:var(--accent);font-weight:500;">ItemType</td><td class="attr-note">Atomic values can&rsquo;t be used in FlexibleSearch WHERE clauses</td></tr>
+        <tr><td class="attr-note">Needs relations to other items</td><td class="attr-type" style="color:var(--accent);font-weight:500;">ItemType</td><td class="attr-note">Atomics have no PK, so they can&rsquo;t participate in relations</td></tr>
+        <tr><td class="attr-note">Has its own lifecycle (create/update/delete independently)</td><td class="attr-type" style="color:var(--accent);font-weight:500;">ItemType</td><td class="attr-note">Atomics only exist inside their parent &mdash; delete parent, value is gone</td></tr>
+        <tr><td class="attr-note">Address, PaymentInfo, Media &mdash; anything with meaning on its own</td><td class="attr-type" style="color:var(--accent);font-weight:500;">ItemType</td><td class="attr-note">Hybris itself uses ItemTypes for all of these</td></tr>
+        <tr><td class="attr-note">Lightweight throwaway value &mdash; calculation result, bundled numbers</td><td class="attr-type" style="color:var(--tag-atomic);font-weight:500;">Atomic</td><td class="attr-note">No extra table, no join &mdash; one query gets everything. E.g., <code>TaxValue</code>, <code>DiscountValue</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>Bottom line:</strong> Use <strong>ItemType</strong> by default. Use Atomic only for simple value objects that don&rsquo;t need searching, relations, or independent existence &mdash; like a sticky note pasted on a file folder vs. a separate document in its own drawer.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="collectiontypes">
+  <h2 class="section-title">Collection Types <span class="tag tag-collection">Collection</span></h2>
+  <p class="section-desc">Collection types define typed containers (List, Set, Collection) of other types. Used as <code>type</code> for attributes holding multiple values. Default is unordered Collection; use <code>type="list"</code> for ordered, <code>type="set"</code> for unique.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Order-Related</h3>
+      <p class="purpose">Typed lists for order entries, carts, payment modes, discounts, and taxes.</p>
+      <div class="attrs">
+        AbstractOrderEntryList (list), CartEntryCollection (list), OrderEntryCollection (list), CartCollection, OrderCollection, PaymentModeCollection, DeliveryModeCollection, DiscountValueCollection (list), TaxValueCollection
+      </div>
+    </div>
+    <div class="card">
+      <h3>User &amp; Security</h3>
+      <p class="purpose">Collections for group membership, addresses, and principals.</p>
+      <div class="attrs">
+        PrincipalGroupCollection, PrincipalGroupSet (set), PrincipalCollection, AddressCollection, UserCollection
+      </div>
+    </div>
+    <div class="card">
+      <h3>Localization &amp; Infrastructure</h3>
+      <p class="purpose">Language collections, type system descriptors, media.</p>
+      <div class="attrs">
+        LanguageCollection, LanguageList (list), LanguageSet (set), RegionCollection, MediaCollection, StringCollection, ItemCollection, TypeCollection, RestrictionList
+      </div>
+    </div>
+  </div>
+
+  <div class="xml-note">
+    <code>&lt;collectiontype code="OrderEntryCollection" elementtype="OrderEntry" type="list" /&gt;</code><br><br>
+    <strong>code</strong> — name to reference this collection<br>
+    <strong>elementtype</strong> — what the collection contains<br>
+    <strong>type</strong> — <code>collection</code> (default), <code>list</code> (ordered), or <code>set</code> (unique)
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="enumtypes">
+  <h2 class="section-title">Enum Types <span class="tag tag-enum">Enum</span></h2>
+  <p class="section-desc">Enums define a fixed (or extensible) set of named values. Use <code>dynamic="true"</code> when you need to add values at runtime without a rebuild.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Order Statuses <span class="modifier-badge">dynamic</span></h3>
+      <p class="purpose">Extensible status enums — add project-specific values without rebuilding.</p>
+      <div class="attrs">
+        <strong>OrderStatus</strong> — CREATED, ON_VALIDATION, COMPLETED, CANCELLED<br>
+        <strong>PaymentStatus</strong> — NOTPAID, PARTPAID, PAID<br>
+        <strong>DeliveryStatus</strong> — NOTSHIPPED, PARTSHIPPED, SHIPPED
+      </div>
+    </div>
+    <div class="card">
+      <h3>Fixed Enums</h3>
+      <p class="purpose">Values baked into the generated Java enum at build time.</p>
+      <div class="attrs">
+        <strong>CreditCardType</strong> — amex, visa, master, diners<br>
+        <strong>ExportStatus</strong> — NOTEXPORTED, EXPORTED<br>
+        <strong>Gender</strong> — MALE, FEMALE<br>
+        <strong>SavedValueEntryType</strong> — created, removed, changed
+      </div>
+    </div>
+    <div class="card">
+      <h3>Infrastructure Enums</h3>
+      <p class="purpose">Used by the type system and platform internals.</p>
+      <div class="attrs">
+        <strong>TypeOfCollectionEnum</strong> — collection, set, list<br>
+        <strong>RelationEndCardinalityEnum</strong> — one, many<br>
+        <strong>MediaManagementTypeEnum</strong> — FILES, SSH, FTP<br>
+        <strong>EncodingEnum</strong> — dynamic, for password encodings<br>
+        <strong>PhoneContactInfoType</strong> — MOBILE, WORK, HOME
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>dynamic="true" vs fixed:</strong> A dynamic enum stores values in the DB and lets you add values at runtime. A fixed enum generates a Java enum with compile-time constants. Use dynamic for business-extendable values (statuses). Use fixed for technical constants.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="maptypes">
+  <h2 class="section-title">Map Types <span class="tag tag-map">Map</span></h2>
+  <p class="section-desc">Map types define key-value pairs. The common use is <strong>localization</strong>: <code>localized:java.lang.String</code> maps Language to String, storing one value per language. Hybris resolves the correct value based on session language.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Localized Primitives</h3>
+      <p class="purpose">One entry per primitive type that might need per-language values. Key is always Language.</p>
+      <div class="attrs">
+        localized:String, Integer, Boolean, Byte, Double, Float, Long, Short, Character, Date, BigInteger, BigDecimal, StandardDateRange
+      </div>
+    </div>
+    <div class="card">
+      <h3>Special Maps</h3>
+      <p class="purpose">Non-localization maps used by infrastructure and media.</p>
+      <div class="attrs">
+        <strong>localized:Media</strong> — Language to Media, for localized images<br>
+        <strong>ParameterMap</strong> — String to Type, for query params<br>
+        <strong>ParamTypeMap</strong> — String to Type, for saved queries
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="relations">
+  <h2 class="section-title">Relations <span class="tag tag-relation">Relation</span></h2>
+  <p class="section-desc">Relations define links between ItemTypes. A <strong>1:n</strong> stores a foreign key on the "many" side. An <strong>n:m</strong> creates a separate link table. <code>partof="true"</code> means the child is deleted with the parent.</p>
+
+  <div class="relation-card">
+    <h3>AbstractOrder2AbstractOrderEntry</h3>
+    <div class="relation-visual">
+      <span class="entity">AbstractOrder</span>
+      <span class="cardinality">1</span>
+      <span class="arrow">&rarr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">AbstractOrderEntry</span>
+    </div>
+    <p class="relation-note">An order has many entries. Entries are <code>partof</code> the order. Ordered by <code>entryNumber</code>. Access: <code>order.entries</code> / <code>entry.order</code>.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>PrincipalGroupRelation</h3>
+    <div class="relation-visual">
+      <span class="entity">Principal</span>
+      <span class="cardinality">many</span>
+      <span class="arrow">&harr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">PrincipalGroup</span>
+    </div>
+    <p class="relation-note">Users/groups belong to groups. n:m link powering group membership — <code>user.groups</code> / <code>group.members</code>.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>OrderDiscountRelation</h3>
+    <div class="relation-visual">
+      <span class="entity">AbstractOrder</span>
+      <span class="cardinality">many</span>
+      <span class="arrow">&harr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">Discount</span>
+    </div>
+    <p class="relation-note">Orders can have multiple discounts, discounts apply to multiple orders. Ordered list on target side.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>User2Addresses / User2Carts / User2Orders / User2PaymentInfos</h3>
+    <div class="relation-visual">
+      <span class="entity">User</span>
+      <span class="cardinality">1</span>
+      <span class="arrow">&rarr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">Address / Cart / Order / PaymentInfo</span>
+    </div>
+    <p class="relation-note">Standard 1:n ownership relations. Children are <code>partof</code>. Addresses and PaymentInfos filter to non-duplicates only.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>Country2RegionRelation</h3>
+    <div class="relation-visual">
+      <span class="entity">Country</span>
+      <span class="cardinality">1</span>
+      <span class="arrow">&rarr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">Region</span>
+    </div>
+    <p class="relation-note">Regions belong to a country. Regions are <code>partof</code> the country.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>Media Relations</h3>
+    <div class="relation-visual">
+      <span class="entity">MediaContainer</span>
+      <span class="arrow">&rarr;</span>
+      <span class="entity">Media</span>
+      <span class="arrow">&rarr;</span>
+      <span class="entity">DerivedMedia</span>
+    </div>
+    <p class="relation-note">MediaContainer groups related Media (same image, different formats). Each Media can have DerivedMedia (resized versions). MediaContext handles format mapping.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="collection-vs-relation">
+  <h2 class="section-title">Collection vs Relation &mdash; Deep Comparison</h2>
+  <p class="section-desc">Both store "multiple values" on an item. But they work completely differently under the hood. Understanding this difference is critical for choosing the right approach.</p>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">How They Store Data</h3>
+
+  <div class="xml-note">
+    <strong>Collection &mdash; a serialized blob pasted on the item:</strong><br><br>
+    <code>Product table</code><br>
+    <code>&nbsp;&nbsp;pk = 123</code><br>
+    <code>&nbsp;&nbsp;name = "Nike Shoes"</code><br>
+    <code>&nbsp;&nbsp;keywords = [blob: "running", "sports", "nike", "shoes"]</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ ALL values in ONE column as serialized bytes</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ no separate table</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ like a comma-separated sticky note on the file</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>Relation (1:n) &mdash; real DB rows linked by foreign key:</strong><br><br>
+    <code>User table&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Address table</code><br>
+    <code>&nbsp;&nbsp;pk = 100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=201, userPK=100 &larr; FK</code><br>
+    <code>&nbsp;&nbsp;name = "Ahmed"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=202, userPK=100 &larr; FK</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=203, userPK=100 &larr; FK</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ each child has its OWN row in its OWN table</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>Relation (n:m) &mdash; separate link table connecting both sides:</strong><br><br>
+    <code>Order table&nbsp;&nbsp;&nbsp;&nbsp;Link table&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Discount table</code><br>
+    <code>&nbsp;&nbsp;pk = 10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;orderPK | discPK&nbsp;&nbsp;&nbsp;&nbsp;pk = 50</code><br>
+    <code>&nbsp;&nbsp;pk = 11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk = 51</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 51</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;11&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| 50</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↑ separate table connecting both sides</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Full Comparison Table</h3>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>&nbsp;</th><th>Collection Type</th><th>Relation</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Stores</td><td class="attr-note">Primitives or ItemType PKs as serialized blob</td><td class="attr-note">Real DB foreign key (1:n) or link table (n:m)</td></tr>
+        <tr><td class="attr-name">Separate table?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">Searchable?</td><td class="attr-note" style="color:var(--tag-relation);">No &mdash; it&rsquo;s a blob</td><td class="attr-note" style="color:var(--accent);">Yes &mdash; FlexibleSearch works</td></tr>
+        <tr><td class="attr-name">Navigate both directions?</td><td class="attr-note" style="color:var(--tag-relation);">No &mdash; only parent &rarr; children</td><td class="attr-note" style="color:var(--accent);">Yes &mdash; parent &rarr; child AND child &rarr; parent</td></tr>
+        <tr><td class="attr-name">Children are independent items?</td><td class="attr-note" style="color:var(--tag-relation);">No (primitives) / Loose (ItemType PKs)</td><td class="attr-note" style="color:var(--accent);">Yes &mdash; each child has own PK, lifecycle</td></tr>
+        <tr><td class="attr-name">Supports partof, ordering?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">Read performance</td><td class="attr-note" style="color:var(--accent);">Fast &mdash; one query, no join</td><td class="attr-note">Slightly slower &mdash; needs join</td></tr>
+        <tr><td class="attr-name">Write performance</td><td class="attr-note" style="color:var(--tag-relation);">Bad for large lists &mdash; rewrites entire blob</td><td class="attr-note" style="color:var(--accent);">Good &mdash; insert/update individual rows</td></tr>
+        <tr><td class="attr-name">Max practical size</td><td class="attr-note">~50&ndash;100 values</td><td class="attr-note">Unlimited</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">When to Use Collection Type</h3>
+  <p class="section-desc">Only for <strong>small lists of simple values</strong> (primitives or atomics). This is the only way to store multiple atomic values.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Use Case</th><th>Example</th><th>Why Collection</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">List of Strings</td><td class="attr-type">keywords = ["running", "sports"]</td><td class="attr-note">Simple primitives, don&rsquo;t need searching</td></tr>
+        <tr><td class="attr-note">Set of Enum values</td><td class="attr-type">allowedPaymentModes</td><td class="attr-note">Small fixed set, read-only mostly</td></tr>
+        <tr><td class="attr-note">List of calculated values</td><td class="attr-type">TaxValueCollection on OrderEntry</td><td class="attr-note">TaxValue is an atomic &mdash; has no table, relation is impossible</td></tr>
+        <tr><td class="attr-note">List of DiscountValues</td><td class="attr-type">DiscountValueCollection on OrderEntry</td><td class="attr-note">Same &mdash; DiscountValue is an atomic</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">When to Use Relation</h3>
+  <p class="section-desc"><strong>Almost everything else.</strong> Whenever children are ItemTypes (have their own table and PK).</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Use Case</th><th>Relation Type</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">One parent owns many children</td><td class="attr-type">1:n</td><td class="attr-note">User &rarr; Addresses, Order &rarr; OrderEntries</td></tr>
+        <tr><td class="attr-note">Children die with parent</td><td class="attr-type">1:n + partof</td><td class="attr-note">Delete Order &rarr; its OrderEntries auto-deleted</td></tr>
+        <tr><td class="attr-note">Children need ordering</td><td class="attr-type">1:n + ordered</td><td class="attr-note">Order &rarr; OrderEntries ordered by entryNumber</td></tr>
+        <tr><td class="attr-note">Both sides have many</td><td class="attr-type">n:m</td><td class="attr-note">Orders &harr; Discounts, Users &harr; UserGroups</td></tr>
+        <tr><td class="attr-note">Need to search children</td><td class="attr-type">any</td><td class="attr-note">"Find all addresses in Dubai" &mdash; only possible with relation</td></tr>
+        <tr><td class="attr-note">Need backward navigation</td><td class="attr-type">any</td><td class="attr-note"><code>address.owner</code> &mdash; "which user does this address belong to?"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Decision Flowchart</h3>
+
+  <div class="hierarchy-diagram"><span class="branch">Do you need to store MULTIPLE values on an item?</span>
+<span class="branch">│</span>
+<span class="branch">├── Are the values simple primitives (String, Integer, Enum)?</span>
+<span class="branch">│   ├──</span> <span class="node">YES, and &lt;50 values, no search needed</span> <span class="branch">&rarr;</span> <span class="node" style="color:var(--tag-collection);">COLLECTION TYPE</span>
+<span class="branch">│   └──</span> <span class="node">YES, but need to search by them</span> <span class="branch">&rarr;</span> <span class="node" style="color:var(--tag-relation);">Make them ItemTypes, use RELATION</span>
+<span class="branch">│</span>
+<span class="branch">├── Are the values ItemTypes (their own table)?</span>
+<span class="branch">│   ├──</span> <span class="node">One side owns the other (User owns Addresses)</span> <span class="branch">&rarr;</span> <span class="node" style="color:var(--tag-relation);">1:n RELATION</span>
+<span class="branch">│   └──</span> <span class="node">Both sides have many (Order &harr; Discount)</span> <span class="branch">&rarr;</span> <span class="node" style="color:var(--tag-relation);">n:m RELATION</span>
+<span class="branch">│</span>
+<span class="branch">└── Are they calculated atomic values (TaxValue, DiscountValue)?</span>
+<span class="branch">    └──</span> <span class="node">YES</span> <span class="branch">&rarr;</span> <span class="node" style="color:var(--tag-collection);">COLLECTION TYPE of atomics (only option)</span></div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Common Mistake: Don&rsquo;t Use Collection for ItemType Lists</h3>
+
+  <div class="xml-note">
+    <strong style="color:var(--tag-relation);">&#10007; BAD &mdash; Storing Product PKs as a collection:</strong><br><br>
+    <code>&lt;attribute qualifier="relatedProducts" type="ProductCollection"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&lt;/attribute&gt;</code><br><br>
+    Can&rsquo;t search, can&rsquo;t navigate backwards, blob gets huge, no partof support.
+  </div>
+
+  <div class="xml-note">
+    <strong style="color:var(--accent);">&#10003; GOOD &mdash; Use a relation:</strong><br><br>
+    <code>&lt;relation code="Product2RelatedProducts" localized="false"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;sourceElement type="Product" qualifier="relatedFrom"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;cardinality="many"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;targetElement type="Product" qualifier="relatedProducts"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;cardinality="many"/&gt;</code><br>
+    <code>&lt;/relation&gt;</code><br><br>
+    Searchable, navigable both ways, scales to any size, proper DB integrity.
+  </div>
+
+  <div class="callout">
+    <strong>Bottom line:</strong> Default to <strong>Relation</strong>. Use Collection only for small lists of primitives/atomics &mdash; things like <code>StringCollection</code>, <code>TaxValueCollection</code>, <code>DiscountValueCollection</code>. If the values are ItemTypes, always use a Relation.
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Additional Details You Should Know</h3>
+
+  <!-- Point 1: Collection variants -->
+  <details class="detail-block">
+    <summary><h3>Collection has 3 variants: collection, list, set</h3></summary>
+    <div class="detail-body">
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Variant</th><th>Ordered?</th><th>Duplicates?</th><th>Use When</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">collection</td><td class="attr-note">No</td><td class="attr-note">Yes</td><td class="attr-note">Default &mdash; don&rsquo;t care about order</td></tr>
+            <tr><td class="attr-name">list</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note">Yes</td><td class="attr-note">Order matters (e.g., priority list)</td></tr>
+            <tr><td class="attr-name">set</td><td class="attr-note">No</td><td class="attr-note" style="color:var(--accent);">No</td><td class="attr-note">Unique values only (e.g., language set)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="xml-note">
+        <code>&lt;collectiontype code="MyList" elementtype="String" type="list" /&gt;</code><br>
+        <code>&lt;collectiontype code="MySet" elementtype="String" type="set" /&gt;</code>
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 2: navigable="false" -->
+  <details class="detail-block">
+    <summary><h3>Relations can be one-sided (navigable="false")</h3></summary>
+    <div class="detail-body">
+      <p>By default, both sides can navigate. You can block one side when backward navigation doesn&rsquo;t make sense.</p>
+      <div class="xml-note">
+        <code>&lt;relation code="Product2Keyword"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;sourceElement type="Product" qualifier="keywords" cardinality="many" /&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;targetElement type="Keyword" qualifier="products" cardinality="many"</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;<strong>navigable="false"</strong> /&gt;</code><br>
+        <code>&lt;/relation&gt;</code><br><br>
+        <code>product.getKeywords()</code> &rarr; &#10003; works<br>
+        <code>keyword.getProducts()</code> &rarr; &#10007; no getter generated
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 3: n:m link table -->
+  <details class="detail-block">
+    <summary><h3>n:m relation creates a hidden Link table</h3></summary>
+    <div class="detail-body">
+      <p>Hybris auto-creates an invisible table to connect both sides. You never define it &mdash; it&rsquo;s managed automatically.</p>
+      <div class="xml-note">
+        <code>Table: OrderDiscountRelation (auto-created)</code><br>
+        <code>&nbsp;&nbsp;sourcePK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Order PK)</code><br>
+        <code>&nbsp;&nbsp;targetPK&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Discount PK)</code><br>
+        <code>&nbsp;&nbsp;sequenceNumber&nbsp;(for ordering)</code><br>
+        <code>&nbsp;&nbsp;languagePK</code>
+      </div>
+      <p><strong>You cannot add custom attributes to this link table.</strong> If you need extra data on the link (like &ldquo;quantity&rdquo; between Product and Warehouse), create a separate ItemType as the link:</p>
+      <div class="xml-note">
+        <strong style="color:var(--tag-relation);">&#10007; Can&rsquo;t add &ldquo;quantity&rdquo; to an n:m relation</strong><br><br>
+        <strong style="color:var(--accent);">&#10003; Create an explicit link ItemType instead:</strong><br><br>
+        <code>&lt;itemtype code="StockLevel" extends="GenericItem"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;attributes&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="product" type="Product" /&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="warehouse" type="Warehouse" /&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="quantity" type="Integer" /&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;/attributes&gt;</code><br>
+        <code>&lt;/itemtype&gt;</code>
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 4: partof cascade -->
+  <details class="detail-block">
+    <summary><h3>partof="true" &mdash; cascade delete explained</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <code>&lt;targetElement type="Address" qualifier="user" cardinality="one"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;modifiers <strong>partof="true"</strong> /&gt;</code><br>
+        <code>&lt;/targetElement&gt;</code>
+      </div>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Event</th><th>What Happens</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">Delete User</td><td class="attr-note">All their Addresses <strong>auto-deleted</strong></td></tr>
+            <tr><td class="attr-name">Delete Address</td><td class="attr-note">User is <strong>not affected</strong></td></tr>
+            <tr><td class="attr-name">Export User</td><td class="attr-note">Addresses are <strong>included</strong> in export</td></tr>
+            <tr><td class="attr-name">Clone User</td><td class="attr-note">Addresses are <strong>deep-copied</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Without partof: Delete User &rarr; Addresses become orphaned (still in DB, pointing to nothing).</p>
+    </div>
+  </details>
+
+  <!-- Point 5: ordered relations -->
+  <details class="detail-block">
+    <summary><h3>Ordered relations (ordered="true")</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <code>&lt;sourceElement type="AbstractOrder" qualifier="entries"</code><br>
+        <code>&nbsp;&nbsp;cardinality="many" <strong>ordered="true"</strong> /&gt;</code><br><br>
+        Hybris maintains a sequence number behind the scenes.<br>
+        <code>order.getEntries()</code> returns items in <strong>consistent order</strong>.<br>
+        Without it, order is random from DB.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 6: FK placement -->
+  <details class="detail-block">
+    <summary><h3>1:n relation &mdash; FK is on the &ldquo;many&rdquo; side</h3></summary>
+    <div class="detail-body">
+      <p>The foreign key column is added to the child table, not the parent.</p>
+      <div class="xml-note">
+        <code>User table&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Address table</code><br>
+        <code>&nbsp;&nbsp;pk = 100&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=201, <strong>userPK=100</strong> &larr; FK here</code><br>
+        <code>&nbsp;&nbsp;name = "Ahmed"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=202, <strong>userPK=100</strong></code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pk=203, <strong>userPK=100</strong></code><br><br>
+        Adding a 1:n relation adds a column to the &ldquo;many&rdquo; side&rsquo;s table. This requires a <strong>system update</strong> (<code>ant all</code> + update running system).
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 7: Cannot convert -->
+  <details class="detail-block">
+    <summary><h3>You cannot convert between Collection and Relation later</h3></summary>
+    <div class="detail-body">
+      <p>If you start with a Collection and later need search/relations, you <strong>cannot simply switch</strong>. You&rsquo;d need to:</p>
+      <div class="xml-note">
+        <code>1. Create a new ItemType for the values</code><br>
+        <code>2. Create a relation</code><br>
+        <code>3. Write a migration script to move all data</code><br>
+        <code>4. Remove the old collection attribute</code><br><br>
+        <strong>Choose correctly upfront.</strong> When in doubt, use a Relation &mdash; it&rsquo;s always more flexible.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 8: No ORDER BY on collections -->
+  <details class="detail-block">
+    <summary><h3>Collections are invisible to FlexibleSearch entirely</h3></summary>
+    <div class="detail-body">
+      <p>Not just WHERE &mdash; you also cannot use ORDER BY, GROUP BY, or any query operation on a collection attribute.</p>
+      <div class="xml-note">
+        <code style="color:var(--tag-relation);">-- &#10007; NONE of these work on collections:</code><br>
+        <code>SELECT {pk} FROM {Product} WHERE {keywords} = 'running'</code><br>
+        <code>SELECT {pk} FROM {Product} ORDER BY {keywords}</code><br>
+        <code>SELECT {keywords}, COUNT(*) FROM {Product} GROUP BY {keywords}</code><br><br>
+        Collections are serialized blobs &mdash; the DB engine cannot read inside them.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 9: Size limit -->
+  <details class="detail-block">
+    <summary><h3>Collections have a DB size limit</h3></summary>
+    <div class="detail-body">
+      <p>Collections serialize into a single column, limited by DB column size (typically 64KB&ndash;4MB depending on DB). If the list grows beyond this, <strong>data gets silently truncated</strong>.</p>
+      <p>Relations have <strong>no limit</strong> &mdash; each child is its own row.</p>
+    </div>
+  </details>
+
+  <!-- Point 10: Auto-generated code -->
+  <details class="detail-block">
+    <summary><h3>Relations auto-generate getters/setters on BOTH sides</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <strong>From this relation definition:</strong><br><br>
+        <code>&lt;relation code="User2Addresses"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;sourceElement type="User" qualifier="addresses" cardinality="many" /&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;targetElement type="Address" qualifier="user" cardinality="one" /&gt;</code><br>
+        <code>&lt;/relation&gt;</code><br><br>
+        <strong>Hybris auto-generates:</strong><br><br>
+        <code>// On UserModel:</code><br>
+        <code>user.getAddresses()&nbsp;&nbsp;// &#10003; auto-generated</code><br>
+        <code>user.setAddresses()&nbsp;&nbsp;// &#10003; auto-generated</code><br><br>
+        <code>// On AddressModel:</code><br>
+        <code>address.getUser()&nbsp;&nbsp;&nbsp;&nbsp;// &#10003; auto-generated</code><br>
+        <code>address.setUser()&nbsp;&nbsp;&nbsp;&nbsp;// &#10003; auto-generated</code><br><br>
+        Collection attributes only generate getter/setter on the <strong>parent side</strong>.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 11: collectiontype on relation -->
+  <details class="detail-block">
+    <summary><h3>Override the Java return type on a relation</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <code>&lt;sourceElement type="User" qualifier="addresses" cardinality="many"</code><br>
+        <code>&nbsp;&nbsp;<strong>collectiontype="set"</strong> /&gt;</code><br><br>
+        <code>collectiontype="list"</code> &rarr; <code>List&lt;AddressModel&gt;</code><br>
+        <code>collectiontype="set"</code>&nbsp; &rarr; <code>Set&lt;AddressModel&gt;</code><br>
+        default &rarr; <code>Collection&lt;AddressModel&gt;</code>
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 12: qualifier = API name -->
+  <details class="detail-block">
+    <summary><h3>Relation qualifier becomes the attribute/API name</h3></summary>
+    <div class="detail-body">
+      <p>The <code>qualifier</code> you choose becomes the method name in Java and the column name in FlexibleSearch.</p>
+      <div class="xml-note">
+        <code>&lt;sourceElement type="User" qualifier="<strong>addresses</strong>" cardinality="many" /&gt;</code><br><br>
+        <code>// Java:</code><br>
+        <code>user.get<strong>Addresses</strong>()</code><br><br>
+        <code>// FlexibleSearch:</code><br>
+        <code>SELECT {<strong>addresses</strong>} FROM {User}</code><br><br>
+        Pick <strong>meaningful qualifier names</strong> &mdash; they&rsquo;re part of your permanent API.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 13: n:m deployment -->
+  <details class="detail-block">
+    <summary><h3>Control the n:m link table name with deployment</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <code>&lt;relation code="OrderDiscountRelation"&gt;</code><br>
+        <code>&nbsp;&nbsp;<strong>&lt;deployment table="orderdiscrel" typecode="9999" /&gt;</strong></code><br>
+        <code>&nbsp;&nbsp;&lt;sourceElement ... /&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;targetElement ... /&gt;</code><br>
+        <code>&lt;/relation&gt;</code><br><br>
+        Without this, Hybris auto-generates a table name. For custom n:m relations, always set <code>deployment</code> so you control the table name and typecode.
+      </div>
+    </div>
+  </details>
+
+  <!-- Point 14: Loading strategy -->
+  <details class="detail-block">
+    <summary><h3>Collections load eagerly, Relations load lazily</h3></summary>
+    <div class="detail-body">
+      <div class="xml-note">
+        <strong>Collection &mdash; loaded immediately with parent:</strong><br>
+        <code>Product p = modelService.get(pk);</code><br>
+        <code>// p.keywords is ALREADY in memory (deserialized from blob)</code><br><br>
+        <strong>Relation &mdash; loaded only when you access it:</strong><br>
+        <code>User u = modelService.get(pk);</code><br>
+        <code>// u.addresses is NOT loaded yet</code><br>
+        <code>u.getAddresses(); // NOW it hits the DB (lazy query)</code>
+      </div>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>&nbsp;</th><th>Collection (eager)</th><th>Relation (lazy)</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">First access</td><td class="attr-note" style="color:var(--accent);">Fast &mdash; already in memory</td><td class="attr-note">Slower &mdash; extra DB query</td></tr>
+            <tr><td class="attr-name">Memory usage</td><td class="attr-note" style="color:var(--tag-relation);">Wastes memory if you don&rsquo;t need it</td><td class="attr-note" style="color:var(--accent);">Saves memory &mdash; loads only when accessed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <!-- Final summary table -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Complete Summary: All 14 Points</h3>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>#</th><th>Point</th><th>Collection</th><th>Relation</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">1</td><td class="attr-note">Variants</td><td class="attr-note">list / set / collection</td><td class="attr-note">1:n / n:m</td></tr>
+        <tr><td class="attr-name">2</td><td class="attr-note">One-sided navigation</td><td class="attr-note">N/A</td><td class="attr-note">navigable="false"</td></tr>
+        <tr><td class="attr-name">3</td><td class="attr-note">Link table</td><td class="attr-note">N/A</td><td class="attr-note">Auto-created for n:m</td></tr>
+        <tr><td class="attr-name">4</td><td class="attr-note">Cascade delete</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">partof="true"</td></tr>
+        <tr><td class="attr-name">5</td><td class="attr-note">Ordering</td><td class="attr-note">By list type only</td><td class="attr-note">ordered="true"</td></tr>
+        <tr><td class="attr-name">6</td><td class="attr-note">FK placement</td><td class="attr-note">N/A</td><td class="attr-note">On &ldquo;many&rdquo; side</td></tr>
+        <tr><td class="attr-name">7</td><td class="attr-note">Convert later?</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-name">8</td><td class="attr-note">ORDER BY in query</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">9</td><td class="attr-note">Size limit</td><td class="attr-note">DB column limit (~64KB&ndash;4MB)</td><td class="attr-note" style="color:var(--accent);">Unlimited</td></tr>
+        <tr><td class="attr-name">10</td><td class="attr-note">Auto-generated code</td><td class="attr-note">One side only</td><td class="attr-note" style="color:var(--accent);">Both sides</td></tr>
+        <tr><td class="attr-name">11</td><td class="attr-note">Return type override</td><td class="attr-note">N/A</td><td class="attr-note">collectiontype="set"</td></tr>
+        <tr><td class="attr-name">12</td><td class="attr-note">Qualifier = API name</td><td class="attr-note">N/A</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-name">13</td><td class="attr-note">Custom table name</td><td class="attr-note">N/A</td><td class="attr-note">deployment tag</td></tr>
+        <tr><td class="attr-name">14</td><td class="attr-note">Loading strategy</td><td class="attr-note">Eager (with parent)</td><td class="attr-note">Lazy (on access)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="base-hierarchy">
+  <h2 class="section-title">Base Item Hierarchy</h2>
+  <p class="section-desc">Every object in Hybris inherits from <code>Item</code>. The four abstract layers add capabilities incrementally. Custom types almost always extend <code>GenericItem</code>.</p>
+
+  <div class="hierarchy-diagram"><span class="abstract node">Item</span> <span class="branch">— abstract root. Has PK, creationtime, modifiedtime, owner, itemtype</span>
+<span class="branch">  &boxur;&horbar;</span> <span class="abstract node">ExtensibleItem</span> <span class="branch">— adds property storage (the "props" side-table)</span>
+<span class="branch">      &boxur;&horbar;</span> <span class="abstract node">LocalizableItem</span> <span class="branch">— adds localized attribute support (per-language values)</span>
+<span class="branch">          &boxur;&horbar;</span> <span class="node">GenericItem</span> <span class="branch">— concrete base. 95% of custom types extend this</span>
+<span class="branch">              &boxvr;&horbar;</span> <span class="node">Product</span>, <span class="node">Address</span>, <span class="node">Media</span>, <span class="node">Currency</span>, ...
+<span class="branch">              &boxvr;&horbar;</span> <span class="abstract node">Principal</span> &rarr; <span class="node">User</span> &rarr; <span class="node">Customer</span>, <span class="node">Employee</span>
+<span class="branch">              &boxvr;&horbar;</span> <span class="abstract node">AbstractOrder</span> &rarr; <span class="node">Cart</span>, <span class="node">Order</span>
+<span class="branch">              &boxur;&horbar;</span> <span class="abstract node">C2LItem</span> &rarr; <span class="node">Country</span>, <span class="node">Language</span>, <span class="node">Currency</span>, <span class="node">Region</span></div>
+
+  <details class="detail-block">
+    <summary>
+      <h3>Item <span class="tag tag-meta">abstract</span></h3>
+      <span class="extends">root type</span>
+    </summary>
+    <div class="detail-body">
+      <p>The absolute root. Every single object in Hybris is an Item. Carries the five fundamental attributes on every record.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">pk</td><td class="attr-type">PK</td><td class="attr-note"><span class="modifier-badge req">required</span> Primary key — unique identifier. Generated automatically. Never changes.</td></tr>
+            <tr><td class="attr-name">creationtime</td><td class="attr-type">Date</td><td class="attr-note"><span class="modifier-badge">initial</span> When this item was created. Set once, never updated.</td></tr>
+            <tr><td class="attr-name">modifiedtime</td><td class="attr-type">Date</td><td class="attr-note">Last modification timestamp. Updated automatically on save.</td></tr>
+            <tr><td class="attr-name">itemtype</td><td class="attr-type">ComposedType</td><td class="attr-note">Points to the type definition. System knows "this record is a Product".</td></tr>
+            <tr><td class="attr-name">owner</td><td class="attr-type">Item</td><td class="attr-note"><span class="modifier-badge">initial</span> The item that "owns" this one. Used by permissions and cleanup.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary>
+      <h3>ExtensibleItem <span class="tag tag-meta">abstract</span></h3>
+      <span class="extends">extends Item</span>
+    </summary>
+    <div class="detail-body">
+      <p>Adds the "property table" mechanism. <code>persistence type="property"</code> attributes are stored in a side-table. Makes it possible to add new attributes in extensions without touching the main table.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary>
+      <h3>LocalizableItem <span class="tag tag-meta">abstract</span></h3>
+      <span class="extends">extends ExtensibleItem</span>
+    </summary>
+    <div class="detail-body">
+      <p>Adds support for localized attributes — attributes storing a different value per Language. Localized values go in a separate "lp" table. When you use <code>type="localized:java.lang.String"</code>, this layer handles it.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary>
+      <h3>GenericItem</h3>
+      <span class="extends">extends LocalizableItem</span>
+    </summary>
+    <div class="detail-body">
+      <p>The first <strong>concrete</strong> type. Doesn't add new attributes — it's where base, extensible, and localizable capabilities combine in a non-abstract class. Almost every business type extends this.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="meta-types">
+  <h2 class="section-title">Meta Types (Type System Internals) <span class="tag tag-meta">Meta</span></h2>
+  <p class="section-desc">These types describe the type system itself — visible in Backoffice under "System &rarr; Types". Rarely used in application code, but important for debugging type issues.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>Type</h3>
+      <p class="purpose">Abstract base for all type definitions. Holds <code>code</code>, <code>description</code>, <code>defaultValue</code>.</p>
+    </div>
+    <div class="card">
+      <h3>ComposedType</h3>
+      <p class="purpose">Represents an ItemType. Has inheritance info (<code>superType</code>, <code>subtypes</code>), <code>jaloclass</code>, whether <code>abstract</code>, and attribute descriptors.</p>
+    </div>
+    <div class="card">
+      <h3>AttributeDescriptor</h3>
+      <p class="purpose">Describes one attribute: <code>qualifier</code>, <code>attributeType</code>, <code>enclosingType</code>, and all modifiers (readable, writable, optional, unique, encrypted, etc.).</p>
+    </div>
+    <div class="card">
+      <h3>EnumerationMetaType</h3>
+      <p class="purpose">Type system's representation of an EnumType. Holds its <code>values</code> and sorting info.</p>
+    </div>
+    <div class="card">
+      <h3>RelationMetaType</h3>
+      <p class="purpose">Describes a relation — source/target types, cardinalities, qualifiers, ordering attributes.</p>
+    </div>
+    <div class="card">
+      <h3>EnumerationValue</h3>
+      <p class="purpose">A single enum value (e.g., "CREATED" in OrderStatus). Has <code>code</code>, localized <code>name</code>, <code>sequenceNumber</code>, optional <code>icon</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="user-types">
+  <h2 class="section-title">User &amp; Security Types <span class="tag tag-item">ItemType</span></h2>
+  <p class="section-desc">The user model: Principal (abstract, can have permissions) &rarr; User (can log in) &rarr; Customer/Employee. Groups handle access control.</p>
+
+  <div class="hierarchy-diagram"><span class="abstract node">Principal</span> <span class="branch">— uid, name, description, groups, searchRestrictions</span>
+<span class="branch">  &boxvr;&horbar;</span> <span class="abstract node">PrincipalGroup</span> <span class="branch">— locName, maxBruteForceLoginAttempts</span>
+<span class="branch">  &boxv;   &boxur;&horbar;</span> <span class="node">UserGroup</span> <span class="branch">— readable/writableLanguages (table: UserGroups)</span>
+<span class="branch">  &boxur;&horbar;</span> <span class="node">User</span> <span class="branch">— password, addresses, carts, orders, loginDisabled (table: Users)</span>
+<span class="branch">      &boxvr;&horbar;</span> <span class="node">Employee</span> <span class="branch">— backoffice/admin users</span>
+<span class="branch">      &boxur;&horbar;</span> <span class="node">Customer</span> <span class="branch">— customerID (storefront users)</span></div>
+
+  <details class="detail-block">
+    <summary>
+      <h3>Principal <span class="tag tag-meta">abstract</span></h3>
+      <span class="extends">extends GenericItem</span>
+    </summary>
+    <div class="detail-body">
+      <p>Root of all security-aware entities. Any "actor" — user, employee, or group — is a Principal.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">uid</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge req">required, unique</span> Login ID / unique identifier. Indexed.</td></tr>
+            <tr><td class="attr-name">name</td><td class="attr-type">String</td><td class="attr-note">Display name.</td></tr>
+            <tr><td class="attr-name">displayName</td><td class="attr-type">localized:String</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Computed per-language display name via attributeHandler.</td></tr>
+            <tr><td class="attr-name">groups</td><td class="attr-type">PrincipalGroupSet</td><td class="attr-note">Direct group memberships (from PrincipalGroupRelation).</td></tr>
+            <tr><td class="attr-name">allGroups</td><td class="attr-type">PrincipalGroupSet</td><td class="attr-note"><span class="modifier-badge">dynamic</span> All groups including inherited.</td></tr>
+            <tr><td class="attr-name">allSearchRestrictions</td><td class="attr-type">RestrictionList</td><td class="attr-note"><span class="modifier-badge">dynamic</span> All search restrictions for this principal.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary>
+      <h3>User</h3>
+      <span class="extends">extends Principal — table: Users</span>
+    </summary>
+    <div class="detail-body">
+      <p>A principal that can log in. Carries authentication data, session preferences, and owns addresses/carts/orders/payment infos.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">password</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge">dynamic, write-only</span> Write-only! Setting it hashes and stores. Can never read back.</td></tr>
+            <tr><td class="attr-name">encodedPassword</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge">encrypted</span> The actual hashed password in DB.</td></tr>
+            <tr><td class="attr-name">loginDisabled</td><td class="attr-type">boolean</td><td class="attr-note"><span class="modifier-badge req">required</span> If true, user cannot log in.</td></tr>
+            <tr><td class="attr-name">lastLogin</td><td class="attr-type">Date</td><td class="attr-note">Last successful login timestamp.</td></tr>
+            <tr><td class="attr-name">sessionLanguage</td><td class="attr-type">Language</td><td class="attr-note">Preferred language.</td></tr>
+            <tr><td class="attr-name">sessionCurrency</td><td class="attr-type">Currency</td><td class="attr-note">Preferred currency.</td></tr>
+            <tr><td class="attr-name">defaultPaymentAddress</td><td class="attr-type">Address</td><td class="attr-note">Selection from addresses collection.</td></tr>
+            <tr><td class="attr-name">defaultShipmentAddress</td><td class="attr-type">Address</td><td class="attr-note">Selection from addresses collection.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Address</h3><span class="extends">extends GenericItem — table: Addresses</span></summary>
+    <div class="detail-body">
+      <p>A physical address. Belongs to a User. When attached to an order, Hybris <em>clones</em> it (<code>duplicate=true</code>) so editing the address book doesn't change historical orders.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">firstname, lastname</td><td class="attr-type">String</td><td class="attr-note">Name components.</td></tr>
+            <tr><td class="attr-name">streetname, streetnumber</td><td class="attr-type">String</td><td class="attr-note">Street address.</td></tr>
+            <tr><td class="attr-name">town, postalcode, district</td><td class="attr-type">String</td><td class="attr-note">City/town details.</td></tr>
+            <tr><td class="attr-name">country</td><td class="attr-type">Country</td><td class="attr-note">C2L Country item.</td></tr>
+            <tr><td class="attr-name">region</td><td class="attr-type">Region</td><td class="attr-note">State/province.</td></tr>
+            <tr><td class="attr-name">phone1, phone2, cellphone, fax</td><td class="attr-type">String</td><td class="attr-note">Contact numbers.</td></tr>
+            <tr><td class="attr-name">email</td><td class="attr-type">String</td><td class="attr-note">Email at this address.</td></tr>
+            <tr><td class="attr-name">company, department</td><td class="attr-type">String</td><td class="attr-note">Business address fields.</td></tr>
+            <tr><td class="attr-name">title</td><td class="attr-type">Title</td><td class="attr-note">Mr/Mrs/Dr etc.</td></tr>
+            <tr><td class="attr-name">duplicate</td><td class="attr-type">Boolean</td><td class="attr-note">True = snapshot cloned onto an order, not the user's live address.</td></tr>
+            <tr><td class="attr-name">original</td><td class="attr-type">Address</td><td class="attr-note"><span class="modifier-badge">initial</span> If duplicate, points to original.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Other Security Types</h3></summary>
+    <div class="detail-body">
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">UserRight</td><td class="attr-note">A named permission (read, change, create). Assigned to Principals on Types.</td></tr>
+            <tr><td class="attr-name">UserGroup</td><td class="attr-note">A group of users/groups. Controls readable/writable languages per group.</td></tr>
+            <tr><td class="attr-name">SearchRestriction</td><td class="attr-note">A WHERE clause auto-appended for a Principal+Type. Powers row-level security.</td></tr>
+            <tr><td class="attr-name">BruteForceLoginAttempts</td><td class="attr-note">Tracks failed login count per UID. Locks after threshold.</td></tr>
+            <tr><td class="attr-name">AbstractUserAudit</td><td class="attr-note">Base for audit: UserPasswordChangeAudit, BruteForceLoginDisabledAudit.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="order-types">
+  <h2 class="section-title">Order &amp; Commerce Types <span class="tag tag-item">ItemType</span></h2>
+  <p class="section-desc">Commerce centers on <code>AbstractOrder</code> — shared base for Cart and Order. A Cart becomes an Order by copying from the same structure. Entries, payment, delivery, discounts, and taxes are all modeled here.</p>
+
+  <div class="hierarchy-diagram"><span class="abstract node">AbstractOrder</span> <span class="branch">— code, currency, user, totals, status, delivery/payment info</span>
+<span class="branch">  &boxvr;&horbar;</span> <span class="node">Cart</span> <span class="branch">— sessionId (table: Carts, typecode: 43)</span>
+<span class="branch">  &boxur;&horbar;</span> <span class="node">Order</span> <span class="branch">— (table: Orders, typecode: 45)</span>
+
+<span class="abstract node">AbstractOrderEntry</span> <span class="branch">— product, quantity, unit, basePrice, totalPrice, discounts, taxes</span>
+<span class="branch">  &boxvr;&horbar;</span> <span class="node">CartEntry</span> <span class="branch">— order&rarr;Cart (table: CartEntries)</span>
+<span class="branch">  &boxur;&horbar;</span> <span class="node">OrderEntry</span> <span class="branch">— order&rarr;Order (table: OrderEntries)</span></div>
+
+  <details class="detail-block">
+    <summary><h3>AbstractOrder <span class="tag tag-meta">abstract</span></h3><span class="extends">extends GenericItem</span></summary>
+    <div class="detail-body">
+      <p>Shared base for Cart and Order. Everything about a purchase: who, what currency, delivery/payment, totals, and statuses.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">code</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge">unique</span> Auto-generated order number.</td></tr>
+            <tr><td class="attr-name">user</td><td class="attr-type">User</td><td class="attr-note"><span class="modifier-badge req">required</span> The customer.</td></tr>
+            <tr><td class="attr-name">currency</td><td class="attr-type">Currency</td><td class="attr-note"><span class="modifier-badge req">required</span> Transaction currency.</td></tr>
+            <tr><td class="attr-name">date</td><td class="attr-type">Date</td><td class="attr-note"><span class="modifier-badge req">required</span> Creation date.</td></tr>
+            <tr><td class="attr-name">net</td><td class="attr-type">Boolean</td><td class="attr-note"><span class="modifier-badge req">required</span> True = net prices (tax added). False = gross (tax included).</td></tr>
+            <tr><td class="attr-name">calculated</td><td class="attr-type">Boolean</td><td class="attr-note">Whether totals are up to date.</td></tr>
+            <tr><td class="attr-name">totalPrice</td><td class="attr-type">Double</td><td class="attr-note">Final total including everything.</td></tr>
+            <tr><td class="attr-name">subtotal</td><td class="attr-type">Double</td><td class="attr-note">Sum of entries before order-level discounts.</td></tr>
+            <tr><td class="attr-name">totalDiscounts</td><td class="attr-type">Double</td><td class="attr-note">Total discount amount.</td></tr>
+            <tr><td class="attr-name">totalTax</td><td class="attr-type">Double</td><td class="attr-note">Total tax amount.</td></tr>
+            <tr><td class="attr-name">deliveryCost</td><td class="attr-type">Double</td><td class="attr-note">Shipping cost.</td></tr>
+            <tr><td class="attr-name">paymentCost</td><td class="attr-type">Double</td><td class="attr-note">Payment processing fee.</td></tr>
+            <tr><td class="attr-name">deliveryAddress</td><td class="attr-type">Address</td><td class="attr-note">Ship-to (cloned from user).</td></tr>
+            <tr><td class="attr-name">paymentAddress</td><td class="attr-type">Address</td><td class="attr-note">Billing address.</td></tr>
+            <tr><td class="attr-name">deliveryMode</td><td class="attr-type">DeliveryMode</td><td class="attr-note">Shipping method.</td></tr>
+            <tr><td class="attr-name">paymentMode</td><td class="attr-type">PaymentMode</td><td class="attr-note">Payment method.</td></tr>
+            <tr><td class="attr-name">paymentInfo</td><td class="attr-type">PaymentInfo</td><td class="attr-note">Specific payment details.</td></tr>
+            <tr><td class="attr-name">status</td><td class="attr-type">OrderStatus</td><td class="attr-note">CREATED, ON_VALIDATION, COMPLETED, CANCELLED (dynamic).</td></tr>
+            <tr><td class="attr-name">deliveryStatus</td><td class="attr-type">DeliveryStatus</td><td class="attr-note">NOTSHIPPED, PARTSHIPPED, SHIPPED.</td></tr>
+            <tr><td class="attr-name">paymentStatus</td><td class="attr-type">PaymentStatus</td><td class="attr-note">NOTPAID, PARTPAID, PAID.</td></tr>
+            <tr><td class="attr-name">globalDiscountValues</td><td class="attr-type">DiscountValueCollection</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Order-level discounts. Serialized internally.</td></tr>
+            <tr><td class="attr-name">totalTaxValues</td><td class="attr-type">TaxValueCollection</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Tax breakdown.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>AbstractOrderEntry <span class="tag tag-meta">abstract</span></h3><span class="extends">extends GenericItem</span></summary>
+    <div class="detail-body">
+      <p>One line item in a cart/order. Links product, quantity, unit, and calculated prices.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">product</td><td class="attr-type">Product</td><td class="attr-note"><span class="modifier-badge req">required</span> The product being ordered.</td></tr>
+            <tr><td class="attr-name">quantity</td><td class="attr-type">Long</td><td class="attr-note"><span class="modifier-badge req">required</span> How many units.</td></tr>
+            <tr><td class="attr-name">unit</td><td class="attr-type">Unit</td><td class="attr-note"><span class="modifier-badge req">required</span> Unit of measure.</td></tr>
+            <tr><td class="attr-name">basePrice</td><td class="attr-type">Double</td><td class="attr-note">Price per unit before discounts.</td></tr>
+            <tr><td class="attr-name">totalPrice</td><td class="attr-type">Double</td><td class="attr-note">quantity x basePrice adjusted by discounts.</td></tr>
+            <tr><td class="attr-name">entryNumber</td><td class="attr-type">Integer</td><td class="attr-note"><span class="modifier-badge">unique</span> Position (0, 1, 2...).</td></tr>
+            <tr><td class="attr-name">discountValues</td><td class="attr-type">DiscountValueCollection</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Entry-level discounts.</td></tr>
+            <tr><td class="attr-name">taxValues</td><td class="attr-type">TaxValueCollection</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Entry-level taxes.</td></tr>
+            <tr><td class="attr-name">giveAway</td><td class="attr-type">Boolean</td><td class="attr-note">Free gift from promotion?</td></tr>
+            <tr><td class="attr-name">rejected</td><td class="attr-type">Boolean</td><td class="attr-note">Was entry rejected (e.g., out of stock)?</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Payment &amp; Delivery Types</h3></summary>
+    <div class="detail-body">
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Type</th><th>Purpose</th><th>Key Attributes</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">PaymentInfo</td><td class="attr-note">Base for payment details. Cloned when attached to order.</td><td class="attr-note">code, duplicate, original</td></tr>
+            <tr><td class="attr-name">CreditCardPaymentInfo</td><td class="attr-note">Credit card. Number is <strong>encrypted</strong>.</td><td class="attr-note">ccOwner, number, type, validTo</td></tr>
+            <tr><td class="attr-name">DebitPaymentInfo</td><td class="attr-note">Bank debit.</td><td class="attr-note">bankIDNumber, bank, accountNumber</td></tr>
+            <tr><td class="attr-name">InvoicePaymentInfo</td><td class="attr-note">Pay by invoice.</td><td class="attr-note">(no extra attrs)</td></tr>
+            <tr><td class="attr-name">DeliveryMode</td><td class="attr-note">Shipping method (standard, express).</td><td class="attr-note">code, name, active</td></tr>
+            <tr><td class="attr-name">PaymentMode</td><td class="attr-note">Payment method (card, COD).</td><td class="attr-note">code, name, active, paymentInfoType</td></tr>
+            <tr><td class="attr-name">Discount</td><td class="attr-note">Reusable discount definition. Absolute or percentage.</td><td class="attr-note">code, value, currency, global, priority</td></tr>
+            <tr><td class="attr-name">Tax</td><td class="attr-note">Tax definition. Absolute or percentage.</td><td class="attr-note">code, value, currency</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="c2l-types">
+  <h2 class="section-title">C2L Types (Country, Currency, Language, Region) <span class="tag tag-item">ItemType</span></h2>
+  <p class="section-desc">C2L = "Commerce to Localization". Geographic and linguistic building blocks. All share a common base (<code>C2LItem</code>) with <code>isocode</code>, <code>name</code>, and <code>active</code>.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>C2LItem <span class="tag tag-meta">abstract</span></h3>
+      <p class="purpose">Base for all localization items:</p>
+      <div class="attrs">
+        <strong>isocode</strong> — ISO code (EN, US, USD)<br>
+        <strong>name</strong> — localized display name<br>
+        <strong>active</strong> — enabled or not
+      </div>
+    </div>
+    <div class="card">
+      <h3>Language</h3>
+      <p class="purpose">A language (en, de, ar). Drives localized attribute resolution.</p>
+      <div class="attrs">
+        <strong>isocode</strong> — unique<br>
+        <strong>fallbackLanguages</strong> — ordered fallback list
+      </div>
+    </div>
+    <div class="card">
+      <h3>Currency</h3>
+      <p class="purpose">A currency (USD, AED, SAR). Used in orders and prices.</p>
+      <div class="attrs">
+        <strong>symbol</strong> — display symbol ($, AED)<br>
+        <strong>digits</strong> — decimal places (2 usually)<br>
+        <strong>conversion</strong> — rate vs base currency<br>
+        <strong>base</strong> — is this the base currency?
+      </div>
+    </div>
+    <div class="card">
+      <h3>Country / Region</h3>
+      <p class="purpose">Country has regions as children (Country2RegionRelation).</p>
+      <div class="attrs">
+        <strong>Country</strong> — isocode (unique)<br>
+        <strong>Region</strong> — isocode (unique within country), parent country (required)
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="media-types">
+  <h2 class="section-title">Media Types <span class="tag tag-item">ItemType</span></h2>
+  <p class="section-desc">Media handles all binary content. Media items don't store the file in DB — they store metadata and a <code>location</code> pointer to a storage backend (local, S3, Azure, etc.).</p>
+
+  <div class="hierarchy-diagram"><span class="abstract node">AbstractMedia</span> <span class="branch">— mime, size, dataPK, location, realFileName</span>
+<span class="branch">  &boxvr;&horbar;</span> <span class="node">Media</span> <span class="branch">— code, URL, folder, mediaFormat, permissions</span>
+<span class="branch">  &boxur;&horbar;</span> <span class="node">DerivedMedia</span> <span class="branch">— version (e.g. "thumbnail"), linked to parent Media</span>
+
+<span class="node">MediaContainer</span> <span class="branch">— groups Media items (same image, different formats)</span>
+<span class="node">MediaFormat</span> <span class="branch">— defines a format (96x96, 300x300, etc.)</span>
+<span class="node">MediaFolder</span> <span class="branch">— logical folder for organizing media</span></div>
+
+  <details class="detail-block">
+    <summary><h3>Media</h3><span class="extends">extends AbstractMedia — table: Medias</span></summary>
+    <div class="detail-body">
+      <p>The main media type. File metadata and access control. Actual file stored by a Storage Strategy.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">code</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge req">required, unique, initial</span> Media identifier.</td></tr>
+            <tr><td class="attr-name">URL</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Computed public URL.</td></tr>
+            <tr><td class="attr-name">mime</td><td class="attr-type">String</td><td class="attr-note">MIME type (image/jpeg, application/pdf).</td></tr>
+            <tr><td class="attr-name">size</td><td class="attr-type">Long</td><td class="attr-note">File size in bytes.</td></tr>
+            <tr><td class="attr-name">folder</td><td class="attr-type">MediaFolder</td><td class="attr-note">Logical folder (affects storage path).</td></tr>
+            <tr><td class="attr-name">mediaFormat</td><td class="attr-type">MediaFormat</td><td class="attr-note">Image size designation.</td></tr>
+            <tr><td class="attr-name">permittedPrincipals</td><td class="attr-type">PrincipalCollection</td><td class="attr-note"><span class="modifier-badge">dynamic</span> Access control (empty = public).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="product-types">
+  <h2 class="section-title">Product &amp; Unit Types <span class="tag tag-item">ItemType</span></h2>
+  <p class="section-desc">The core Product is deliberately minimal — code, name, description, unit, images. The real product model gets richer via <code>catalog</code> (categories, variants) and <code>commerceservices</code> (stock, prices) extensions.</p>
+
+  <details class="detail-block" open>
+    <summary><h3>Product</h3><span class="extends">extends GenericItem — table: Products, typecode: 1</span></summary>
+    <div class="detail-body">
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">code</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge req">required, unique, initial</span> Product SKU. Indexed.</td></tr>
+            <tr><td class="attr-name">name</td><td class="attr-type">localized:String</td><td class="attr-note">Localized product name.</td></tr>
+            <tr><td class="attr-name">description</td><td class="attr-type">localized:String</td><td class="attr-note">Localized description. Stored as CLOB.</td></tr>
+            <tr><td class="attr-name">unit</td><td class="attr-type">Unit</td><td class="attr-note">Default unit of measure.</td></tr>
+            <tr><td class="attr-name">thumbnail</td><td class="attr-type">Media</td><td class="attr-note">Small image for listings.</td></tr>
+            <tr><td class="attr-name">picture</td><td class="attr-type">Media</td><td class="attr-note">Full-size product image.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Unit</h3><span class="extends">extends GenericItem — table: Units</span></summary>
+    <div class="detail-body">
+      <p>A unit of measure (pieces, kg, meters). Used by products and order entries.</p>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Attribute</th><th>Type</th><th>What &amp; Why</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">code</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge req">required, unique, initial</span> Identifier (pieces, kg).</td></tr>
+            <tr><td class="attr-name">unitType</td><td class="attr-type">String</td><td class="attr-note"><span class="modifier-badge req">required</span> Category (weight, length, count).</td></tr>
+            <tr><td class="attr-name">conversion</td><td class="attr-type">Double</td><td class="attr-note">Conversion factor vs base unit. Default 1.0.</td></tr>
+            <tr><td class="attr-name">name</td><td class="attr-type">localized:String</td><td class="attr-note">Localized display name.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="modifiers">
+  <h2 class="section-title">Modifier Reference — Complete Guide</h2>
+  <p class="section-desc">Modifiers control how an attribute behaves — who can read/write it, whether it's required, searchable, encrypted, etc. They go inside the <code>&lt;modifiers&gt;</code> tag on each attribute.</p>
+
+  <div class="xml-note">
+    <strong>Full modifier syntax:</strong><br><br>
+    <code>&lt;attribute qualifier="code" type="java.lang.String"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;modifiers read="true" write="true" search="true"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;optional="false" unique="true" encrypted="false"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;initial="false" removable="true" private="false"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;partof="false" dontOptimize="false"/&gt;</code><br>
+    <code>&lt;/attribute&gt;</code>
+  </div>
+
+  <!-- 1. read -->
+  <details class="detail-block">
+    <summary><h3>read</h3><span class="extends">default: true</span></summary>
+    <div class="detail-body">
+      <p>Controls whether a <strong>getter</strong> is generated on the model class.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers read="true"/&gt;</code> &rarr; <code>model.getCode()</code> exists<br>
+        <code>&lt;modifiers read="false"/&gt;</code> &rarr; no getter &mdash; <strong>write-only</strong> attribute
+      </div>
+      <p>When <code>false</code>: The attribute becomes write-only. Rare &mdash; used for things like password fields where you can set but never read back. The platform's <code>encodedPassword</code> on <code>User</code> uses this.</p>
+    </div>
+  </details>
+
+  <!-- 2. write -->
+  <details class="detail-block">
+    <summary><h3>write</h3><span class="extends">default: true</span></summary>
+    <div class="detail-body">
+      <p>Controls whether a <strong>setter</strong> is generated on the model class.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers write="true"/&gt;</code> &rarr; <code>model.setCode("ABC")</code> works<br>
+        <code>&lt;modifiers write="false"/&gt;</code> &rarr; no setter &mdash; <strong>read-only</strong> after creation
+      </div>
+      <p>When <code>false</code>: The attribute is read-only &mdash; can only be set during creation (via ImpEx or <code>modelService.create()</code>), never modified after. Used for things like <code>pk</code>, <code>creationtime</code>, or an order's <code>code</code> once placed.</p>
+    </div>
+  </details>
+
+  <!-- 3. optional -->
+  <details class="detail-block">
+    <summary><h3>optional</h3><span class="extends">default: true</span></summary>
+    <div class="detail-body">
+      <p>Controls whether the attribute <strong>can be null</strong>.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers optional="true"/&gt;</code> &rarr; value can be null<br>
+        <code>&lt;modifiers optional="false"/&gt;</code> &rarr; <strong>REQUIRED</strong> &mdash; cannot save without it
+      </div>
+      <p>When <code>false</code>: The model cannot be saved without this value. <code>modelService.save()</code> will throw a <code>ModelSavingException</code> if it's null.</p>
+      <div class="xml-note">
+        <strong>Real example &mdash; LMGConcept.code is required:</strong><br><br>
+        <code>&lt;modifiers read="true" write="true" unique="true" optional="false"/&gt;</code>
+      </div>
+      <div class="callout">
+        <strong>Interview tip:</strong> <code>optional="false"</code> is <strong>NOT</strong> a DB NOT NULL constraint &mdash; it's enforced by Hybris at the <strong>application layer</strong> (MandatoryAttributesValidator interceptor), not at the database level. The DB column can still be NULL.
+      </div>
+    </div>
+  </details>
+
+  <!-- 4. unique -->
+  <details class="detail-block">
+    <summary><h3>unique</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>Enforces <strong>uniqueness</strong> &mdash; no two records can have the same value.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers unique="true"/&gt;</code><br><br>
+        What happens:<br>
+        &bull; Creates a <strong>DB unique index</strong> on the column<br>
+        &bull; Hybris validates uniqueness in <code>PrepareInterceptor</code> before saving<br>
+        &bull; If duplicate &rarr; <code>ModelSavingException</code>
+      </div>
+      <p><strong>Composite uniqueness:</strong> If you need unique across multiple fields (e.g., <code>product</code> + <code>baseSite</code>), use <code>&lt;indexes&gt;</code> instead:</p>
+      <div class="xml-note">
+        <code>&lt;indexes&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;index name="productSiteIdx" unique="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;key attribute="product"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;key attribute="baseSite"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;/index&gt;</code><br>
+        <code>&lt;/indexes&gt;</code>
+      </div>
+    </div>
+  </details>
+
+  <!-- 5. search -->
+  <details class="detail-block">
+    <summary><h3>search</h3><span class="extends">default: true</span></summary>
+    <div class="detail-body">
+      <p>Controls whether the attribute can be used in <strong>FlexibleSearch</strong> queries.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers search="true"/&gt;</code> &rarr; can use in WHERE, ORDER BY<br>
+        <code>&lt;modifiers search="false"/&gt;</code> &rarr; cannot query by this field<br><br>
+        <strong>When false, this query WILL FAIL:</strong><br>
+        <code>SELECT {pk} FROM {Product} WHERE {someField} = 'value'</code>
+      </div>
+      <p><strong>Why disable?</strong> Performance &mdash; every searchable attribute gets indexed. Large text fields (descriptions, HTML content) that you never filter by should have <code>search="false"</code>.</p>
+      <div class="callout">
+        <strong>Note:</strong> <code>dynamic</code> persistence attributes are <strong>never searchable</strong> regardless of this flag &mdash; there's no DB column to search.
+      </div>
+    </div>
+  </details>
+
+  <!-- 6. encrypted -->
+  <details class="detail-block">
+    <summary><h3>encrypted</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>Stores the value <strong>encrypted</strong> in the database.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers encrypted="true"/&gt;</code><br><br>
+        What happens:<br>
+        &bull; Value is encrypted before writing to DB<br>
+        &bull; Decrypted when reading via model getter<br>
+        &bull; DB column contains <strong>cipher text</strong>, not plain text<br>
+        &bull; Uses Hybris platform encryption (configurable algorithm)
+      </div>
+      <p><strong>Real examples from LandmarkShops:</strong></p>
+      <div class="xml-note">
+        <code>&lt;!-- Credit card number in LMGBankCCBins --&gt;</code><br>
+        <code>&lt;attribute qualifier="cardNumber" type="java.lang.String"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;modifiers encrypted="true"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+        <code>&lt;/attribute&gt;</code><br><br>
+        <code>&lt;!-- PIN codes --&gt;</code><br>
+        <code>&lt;attribute qualifier="pin" type="java.lang.String"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;modifiers encrypted="true"/&gt;</code><br>
+        <code>&lt;/attribute&gt;</code>
+      </div>
+      <div class="callout">
+        <strong>Important:</strong> Encrypted attributes are technically searchable in FlexibleSearch, but they search the <strong>encrypted value</strong>, not the plain text. In practice, exact-match lookups won't work as expected.
+      </div>
+    </div>
+  </details>
+
+  <!-- 7. initial -->
+  <details class="detail-block">
+    <summary><h3>initial</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>Value can <strong>only be set during creation</strong> &mdash; then becomes permanently read-only.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers initial="true"/&gt;</code> &mdash; set once at creation, locked forever
+      </div>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th></th><th>write="false"</th><th>initial="true"</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">Set during creation</td><td class="attr-note" style="color:var(--tag-relation);">No setter at all</td><td class="attr-note" style="color:var(--accent);">Yes &mdash; setter works once</td></tr>
+            <tr><td class="attr-name">Modify later</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+            <tr><td class="attr-name">Use case</td><td class="attr-note">System-generated values (pk)</td><td class="attr-note">User-provided but immutable (order code)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Real example:</strong> <code>catalogVersion</code> on <code>Product</code> is <code>initial="true"</code> &mdash; once a product is assigned to a catalog version, it can't move.</p>
+    </div>
+  </details>
+
+  <!-- 8. removable -->
+  <details class="detail-block">
+    <summary><h3>removable</h3><span class="extends">default: true</span></summary>
+    <div class="detail-body">
+      <p>Controls whether the attribute value can be <strong>set to null</strong> after it has a value.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers removable="false"/&gt;</code> &mdash; once set, cannot be nulled
+      </div>
+      <p>When <code>false</code>: Once the attribute has a value, calling <code>model.setField(null)</code> will be rejected. The value can be <strong>changed</strong> to another non-null value, but not removed.</p>
+      <p><strong>Use case:</strong> Attributes that must always have a value once populated &mdash; like a payment reference on a completed order.</p>
+    </div>
+  </details>
+
+  <!-- 9. private -->
+  <details class="detail-block">
+    <summary><h3>private</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>Hides the attribute from the <strong>public model API</strong>.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers private="true"/&gt;</code><br><br>
+        What happens:<br>
+        &bull; No public getter/setter on the generated <code>Model</code> class<br>
+        &bull; Still accessible via <code>modelService.getAttributeValue()</code> internally<br>
+        &bull; Still stored in DB<br>
+        &bull; Invisible in Backoffice by default
+      </div>
+      <p><strong>Use case:</strong> Internal system attributes that external code should never touch &mdash; like internal flags, cache markers, or migration-only fields.</p>
+    </div>
+  </details>
+
+  <!-- 10. partof -->
+  <details class="detail-block">
+    <summary><h3>partof</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>The child <strong>dies with the parent</strong> &mdash; cascade delete.</p>
+      <div class="xml-note">
+        <strong>Real example (platform) &mdash; OrderEntries die with the Order:</strong><br><br>
+        <code>&lt;relation code="AbstractOrder2AbstractOrderEntry"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;sourceElement type="AbstractOrder" cardinality="one"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;targetElement type="AbstractOrderEntry" cardinality="many"&gt;</code><br>
+        <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;modifiers partof="true"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;/targetElement&gt;</code><br>
+        <code>&lt;/relation&gt;</code>
+      </div>
+      <p>When the parent is deleted, all <code>partof</code> children are <strong>automatically deleted</strong>. The child cannot exist without its parent. Typically used on <strong>relation endpoints</strong>, not on regular attributes.</p>
+    </div>
+  </details>
+
+  <!-- 11. dontOptimize -->
+  <details class="detail-block">
+    <summary><h3>dontOptimize</h3><span class="extends">default: false</span></summary>
+    <div class="detail-body">
+      <p>Disables <strong>cache optimization</strong> for this attribute.</p>
+      <div class="xml-note">
+        <code>&lt;modifiers dontOptimize="true"/&gt;</code> &mdash; always read from DB, skip cache
+      </div>
+      <p>Hybris normally caches attribute values in the item cache. With <code>dontOptimize="true"</code>, the value is always fetched fresh from the DB.</p>
+      <p><strong>Use case:</strong> Very rare. Only when you know the value can be changed by something outside the Hybris process (direct SQL updates, another application writing to the same DB).</p>
+    </div>
+  </details>
+
+  <!-- Summary Table -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Complete Comparison Table</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Modifier</th><th>Default</th><th>What It Controls</th><th>Common Use</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">read</td><td class="attr-type">true</td><td class="attr-note">Getter generated?</td><td class="attr-note"><code>false</code> for write-only (passwords)</td></tr>
+        <tr><td class="attr-name">write</td><td class="attr-type">true</td><td class="attr-note">Setter generated?</td><td class="attr-note"><code>false</code> for read-only fields</td></tr>
+        <tr><td class="attr-name">optional</td><td class="attr-type">true</td><td class="attr-note">Can be null?</td><td class="attr-note"><code>false</code> for required fields</td></tr>
+        <tr><td class="attr-name">unique</td><td class="attr-type">false</td><td class="attr-note">Must be unique?</td><td class="attr-note"><code>true</code> for codes, identifiers</td></tr>
+        <tr><td class="attr-name">search</td><td class="attr-type">true</td><td class="attr-note">FlexibleSearch queryable?</td><td class="attr-note"><code>false</code> for large text, CLOBs</td></tr>
+        <tr><td class="attr-name">encrypted</td><td class="attr-type">false</td><td class="attr-note">Encrypted in DB?</td><td class="attr-note"><code>true</code> for card numbers, PINs</td></tr>
+        <tr><td class="attr-name">initial</td><td class="attr-type">false</td><td class="attr-note">Set only at creation?</td><td class="attr-note"><code>true</code> for immutable IDs</td></tr>
+        <tr><td class="attr-name">removable</td><td class="attr-type">true</td><td class="attr-note">Can be set to null?</td><td class="attr-note"><code>false</code> for must-keep values</td></tr>
+        <tr><td class="attr-name">private</td><td class="attr-type">false</td><td class="attr-note">Hidden from public API?</td><td class="attr-note"><code>true</code> for internal flags</td></tr>
+        <tr><td class="attr-name">partof</td><td class="attr-type">false</td><td class="attr-note">Deleted with parent?</td><td class="attr-note"><code>true</code> for child records in relations</td></tr>
+        <tr><td class="attr-name">dontOptimize</td><td class="attr-type">false</td><td class="attr-note">Skip cache?</td><td class="attr-note"><code>true</code> for externally-updated fields</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Common Combinations -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Common Modifier Combinations</h3>
+  <div class="xml-note">
+    <strong>Required unique identifier</strong> (like concept.code):<br>
+    <code>&lt;modifiers read="true" write="true" optional="false" unique="true"/&gt;</code><br><br>
+    <strong>Sensitive data</strong> (like card number):<br>
+    <code>&lt;modifiers read="true" write="true" encrypted="true"/&gt;</code><br><br>
+    <strong>Immutable ID set at creation:</strong><br>
+    <code>&lt;modifiers read="true" write="true" optional="false" initial="true"/&gt;</code><br><br>
+    <strong>Internal flag hidden from API:</strong><br>
+    <code>&lt;modifiers read="true" write="true" private="true"/&gt;</code><br><br>
+    <strong>Large description not searchable:</strong><br>
+    <code>&lt;modifiers read="true" write="true" search="false"/&gt;</code><br><br>
+    <strong>Read-only system timestamp:</strong><br>
+    <code>&lt;modifiers read="true" write="false"/&gt;</code>
+  </div>
+
+  <!-- Interview Questions for Modifiers -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Modifier Interview Questions</h3>
+
+  <details class="detail-block">
+    <summary><h3>Q: optional="false" &mdash; is it a DB NOT NULL constraint?</h3></summary>
+    <div class="detail-body">
+      <p>No. It's enforced at the <strong>application layer</strong> by Hybris interceptors (<code>MandatoryAttributesValidator</code>), not at the DB level. The DB column can still be NULL.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: Difference between write="false" and initial="true"?</h3></summary>
+    <div class="detail-body">
+      <p><code>write="false"</code> = no setter at all, ever. <code>initial="true"</code> = setter works during creation only, then locked. Use <code>initial</code> when users provide the value at creation but it should never change (like an order code).</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: Can you search an encrypted attribute?</h3></summary>
+    <div class="detail-body">
+      <p>Technically yes, but it searches the <strong>encrypted value</strong>, so exact-match lookups won't work as expected. In practice, encrypted fields are not usefully searchable.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: What happens if optional="false" and you try to save null?</h3></summary>
+    <div class="detail-body">
+      <p><code>ModelSavingException</code> thrown by the <code>MandatoryAttributesValidator</code> interceptor during the save operation.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="persistence">
+  <h2 class="section-title">Persistence Types</h2>
+  <p class="section-desc">The <code>&lt;persistence type="..."&gt;</code> determines <em>where</em> and <em>how</em> an attribute value is stored.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Type</th><th>Storage</th><th>When To Use</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">property</td><td class="attr-note">In the item's <strong>property table</strong> (side table, e.g., ProductProps). Serialized key-value pairs.</td><td class="attr-note"><strong>Default for custom attributes.</strong> Flexible — add without altering main table. Slightly slower for heavy queries.</td></tr>
+        <tr><td class="attr-name">cmp</td><td class="attr-note">Directly as a <strong>column</strong> on the main DB table.</td><td class="attr-note">Best performance. Used by core platform. Requires full system update for changes.</td></tr>
+        <tr><td class="attr-name">dynamic</td><td class="attr-note"><strong>Not stored in DB.</strong> Computed at runtime by a Spring bean (attributeHandler).</td><td class="attr-note">For calculated/derived values (URL, displayName). Cannot be searched in FlexibleSearch.</td></tr>
+        <tr><td class="attr-name">jalo</td><td class="attr-note">Handled by the <strong>Jalo layer</strong> (legacy).</td><td class="attr-note">Legacy. Avoid in new code. Use dynamic with Spring handlers instead.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>deployment tag:</strong> On ItemTypes, <code>&lt;deployment table="Products" typecode="1"/&gt;</code> sets the DB table name and a unique numeric type code. The typecode is embedded in every PK and <strong>must never change</strong> after go-live. Custom types should use typecodes 10000+.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="indexes">
+  <h2 class="section-title">Index Reference — Complete Guide</h2>
+  <p class="section-desc">Indexes improve query performance by creating database indexes on specific attributes. They're defined inside <code>&lt;indexes&gt;</code> on an ItemType.</p>
+
+  <div class="xml-note">
+    <strong>Basic syntax:</strong><br><br>
+    <code>&lt;itemtype code="LMGConcept" autocreate="true" generate="true"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;deployment table="LMGConcept" typecode="11001"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;attributes&gt; ... &lt;/attributes&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;indexes&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;index name="conceptCodeIdx" unique="true"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/index&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;/indexes&gt;</code><br>
+    <code>&lt;/itemtype&gt;</code>
+  </div>
+
+  <!-- 1. Simple Index -->
+  <details class="detail-block">
+    <summary><h3>Simple Index</h3><span class="extends">single attribute, non-unique</span></summary>
+    <div class="detail-body">
+      <p>Speeds up queries on a <strong>single attribute</strong>.</p>
+      <div class="xml-note">
+        <code>&lt;index name="codeIdx"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+        <code>&lt;/index&gt;</code><br><br>
+        <strong>DB result:</strong> <code>CREATE INDEX codeIdx ON LMGConcept (code);</code>
+      </div>
+      <p>Without index &rarr; <strong>full table scan</strong> (slow on large tables).<br>
+      With index &rarr; <strong>direct lookup</strong> (fast).</p>
+    </div>
+  </details>
+
+  <!-- 2. Unique Index -->
+  <details class="detail-block">
+    <summary><h3>Unique Index</h3><span class="extends">unique="true"</span></summary>
+    <div class="detail-body">
+      <p>Enforces <strong>uniqueness</strong> at the database level + speeds up lookups.</p>
+      <div class="xml-note">
+        <code>&lt;index name="conceptCodeIdx" unique="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+        <code>&lt;/index&gt;</code><br><br>
+        <strong>DB result:</strong> <code>CREATE UNIQUE INDEX conceptCodeIdx ON LMGConcept (code);</code>
+      </div>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th></th><th>Modifier unique="true"</th><th>Index unique="true"</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">Where defined</td><td class="attr-note">On the attribute</td><td class="attr-note">On the index</td></tr>
+            <tr><td class="attr-name">Scope</td><td class="attr-note">Single attribute only</td><td class="attr-note">Can span <strong>multiple attributes</strong></td></tr>
+            <tr><td class="attr-name">DB constraint</td><td class="attr-note">Creates simple unique index</td><td class="attr-note">Creates unique index (same)</td></tr>
+            <tr><td class="attr-name">App validation</td><td class="attr-note">Hybris validates in interceptor</td><td class="attr-note">DB rejects duplicates</td></tr>
+            <tr><td class="attr-name">Use when</td><td class="attr-note">Single field uniqueness</td><td class="attr-note">Composite uniqueness needed</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <!-- 3. Composite Index -->
+  <details class="detail-block">
+    <summary><h3>Composite Index (Multiple Attributes)</h3><span class="extends">multiple &lt;key&gt; elements</span></summary>
+    <div class="detail-body">
+      <p>Unique or non-unique index across <strong>multiple fields</strong>. This is where indexes shine over the <code>unique</code> modifier.</p>
+      <div class="xml-note">
+        <strong>Product ranking must be unique per baseSite:</strong><br><br>
+        <code>&lt;index name="productSiteRankingIdx" unique="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="product"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="baseSite"/&gt;</code><br>
+        <code>&lt;/index&gt;</code><br><br>
+        <strong>DB result:</strong> <code>CREATE UNIQUE INDEX productSiteRankingIdx ON LMGProductSiteRanking (product, baseSite);</code><br><br>
+        &bull; Same product in <strong>different</strong> baseSites &rarr; OK<br>
+        &bull; Same product in the <strong>same</strong> baseSite twice &rarr; REJECTED
+      </div>
+      <div class="callout">
+        <strong>Column order matters!</strong> The DB uses indexes left-to-right. An index on <code>(product, baseSite)</code>:<br>
+        &bull; Speeds up <code>WHERE product = ?</code> &rarr; Yes<br>
+        &bull; Speeds up <code>WHERE product = ? AND baseSite = ?</code> &rarr; Yes<br>
+        &bull; Speeds up <code>WHERE baseSite = ?</code> &rarr; <strong>No</strong> (baseSite is second, not first)<br><br>
+        Put the <strong>most selective</strong> (most unique values) column first.
+      </div>
+      <p><strong>Real LandmarkShops examples:</strong></p>
+      <div class="xml-note">
+        <code>&lt;!-- Product + baseSite (2-key) --&gt;</code><br>
+        <code>&lt;index name="productSiteRankingIdx" unique="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="product"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="baseSite"/&gt;</code><br>
+        <code>&lt;/index&gt;</code><br><br>
+        <code>&lt;!-- Customer + baseStore + concept (3-key) --&gt;</code><br>
+        <code>&lt;index name="customerStoreConceptIdx" unique="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="customer"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="baseStore"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="concept"/&gt;</code><br>
+        <code>&lt;/index&gt;</code><br><br>
+        <code>&lt;!-- code + versionID + itemtype (covering index) --&gt;</code><br>
+        <code>&lt;index name="productLookupIdx"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="versionID"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="itemtype"/&gt;</code><br>
+        <code>&lt;/index&gt;</code>
+      </div>
+    </div>
+  </details>
+
+  <!-- 4. replace -->
+  <details class="detail-block">
+    <summary><h3>replace="true" — Override OOB Index</h3><span class="extends">replaces existing platform index</span></summary>
+    <div class="detail-body">
+      <p>Replaces an <strong>existing platform index</strong> with your custom version.</p>
+      <div class="xml-note">
+        <code>&lt;!-- Override OOB StockLevel index with custom one --&gt;</code><br>
+        <code>&lt;index name="StockLevelIdx" replace="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="productCode"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="warehouse"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="concept"/&gt;</code>&nbsp;&nbsp;<code>&lt;!-- added custom field --&gt;</code><br>
+        <code>&lt;/index&gt;</code>
+      </div>
+      <p>The original platform index is <strong>dropped</strong> and your new version is created. The index name <strong>must match exactly</strong> the OOB index name you're replacing.</p>
+      <p><strong>When to use:</strong></p>
+      <ul style="font-size:13px; color:var(--text-secondary); margin-left:20px;">
+        <li>You extended an OOB type with custom fields and need them in the index</li>
+        <li>The OOB index doesn't cover your query patterns</li>
+        <li>You need to change the uniqueness of an existing index</li>
+      </ul>
+    </div>
+  </details>
+
+  <!-- 5. remove -->
+  <details class="detail-block">
+    <summary><h3>remove="true" — Delete OOB Index</h3><span class="extends">drops index entirely</span></summary>
+    <div class="detail-body">
+      <p>Completely <strong>removes</strong> an existing platform index without replacing it.</p>
+      <div class="xml-note">
+        <code>&lt;index name="StockLevelIdx" remove="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="productCode"/&gt;</code><br>
+        <code>&lt;/index&gt;</code>
+      </div>
+      <p>The index is <strong>dropped</strong> from the database. No replacement is created.</p>
+      <p><strong>When to use:</strong></p>
+      <ul style="font-size:13px; color:var(--text-secondary); margin-left:20px;">
+        <li>The OOB index causes performance issues (overhead on writes, not used in reads)</li>
+        <li>You've created a different index that covers the same queries better</li>
+        <li>The index conflicts with your custom data model</li>
+      </ul>
+    </div>
+  </details>
+
+  <!-- 6. replace + remove -->
+  <details class="detail-block">
+    <summary><h3>replace="true" remove="true" — Combined</h3><span class="extends">clean replacement</span></summary>
+    <div class="detail-body">
+      <p>Used together to <strong>completely replace</strong> an OOB index definition with a clean slate.</p>
+      <div class="xml-note">
+        <strong>Real example from LandmarkShops:</strong><br><br>
+        <code>&lt;index name="codeVersionIDIdx" replace="true" remove="true"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="versionID"/&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="itemtype"/&gt;</code><br>
+        <code>&lt;/index&gt;</code>
+      </div>
+      <div class="attr-table-wrap">
+        <table class="attr-table">
+          <thead><tr><th>Flag Combination</th><th>What Happens</th></tr></thead>
+          <tbody>
+            <tr><td class="attr-name">replace="true" alone</td><td class="attr-note">Keeps old definition in memory, overrides it</td></tr>
+            <tr><td class="attr-name">remove="true" alone</td><td class="attr-note">Drops it entirely, no replacement</td></tr>
+            <tr><td class="attr-name">Both together</td><td class="attr-note">Cleanest approach &mdash; old index definition completely forgotten, your version used</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <!-- 7. creationmode -->
+  <details class="detail-block">
+    <summary><h3>creationmode="force" — Force Index Creation</h3><span class="extends">override optimization skip</span></summary>
+    <div class="detail-body">
+      <p>Forces index creation even if Hybris would normally skip it.</p>
+      <div class="xml-note">
+        <code>&lt;index name="areaCodeIdx" creationmode="force"&gt;</code><br>
+        <code>&nbsp;&nbsp;&lt;key attribute="code"/&gt;</code><br>
+        <code>&lt;/index&gt;</code>
+      </div>
+      <p>Hybris sometimes skips index creation if it thinks the index is redundant. <code>creationmode="force"</code> overrides that check. Used when you know the index is needed despite Hybris's optimization logic.</p>
+    </div>
+  </details>
+
+  <!-- Summary Table -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Complete Comparison Table</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Index Type</th><th>Key Syntax</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Simple</td><td class="attr-type">&lt;index name="idx"&gt;&lt;key attribute="code"/&gt;&lt;/index&gt;</td><td class="attr-note">Speed up single-field queries</td></tr>
+        <tr><td class="attr-name">Unique</td><td class="attr-type">unique="true"</td><td class="attr-note">Enforce uniqueness + speed up</td></tr>
+        <tr><td class="attr-name">Composite</td><td class="attr-type">Multiple &lt;key&gt; elements</td><td class="attr-note">Multi-field queries / composite uniqueness</td></tr>
+        <tr><td class="attr-name">Replace</td><td class="attr-type">replace="true"</td><td class="attr-note">Override an OOB index</td></tr>
+        <tr><td class="attr-name">Remove</td><td class="attr-type">remove="true"</td><td class="attr-note">Drop an OOB index entirely</td></tr>
+        <tr><td class="attr-name">Replace+Remove</td><td class="attr-type">Both ="true"</td><td class="attr-note">Clean replacement of OOB index</td></tr>
+        <tr><td class="attr-name">Force</td><td class="attr-type">creationmode="force"</td><td class="attr-note">Force creation even if Hybris skips it</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- When to Create -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">When to Create Indexes</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Scenario</th><th>Index?</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">Attribute used in <code>WHERE</code> frequently</td><td class="attr-name" style="color:var(--accent);">Yes</td><td class="attr-note">Speeds up lookups</td></tr>
+        <tr><td class="attr-note">Attribute used in <code>ORDER BY</code> frequently</td><td class="attr-name" style="color:var(--accent);">Yes</td><td class="attr-note">Speeds up sorting</td></tr>
+        <tr><td class="attr-note">Composite fields in <code>WHERE ... AND ...</code></td><td class="attr-name" style="color:var(--accent);">Yes (composite)</td><td class="attr-note">Single direct lookup on both fields</td></tr>
+        <tr><td class="attr-note">Unique business key (code, email)</td><td class="attr-name" style="color:var(--accent);">Yes (unique)</td><td class="attr-note">Uniqueness + fast lookup</td></tr>
+        <tr><td class="attr-note">Large text field (CLOB)</td><td class="attr-name" style="color:var(--tag-relation);">No</td><td class="attr-note">CLOBs can't be indexed</td></tr>
+        <tr><td class="attr-note">Rarely queried attribute</td><td class="attr-name" style="color:var(--tag-relation);">No</td><td class="attr-note">Index slows down writes</td></tr>
+        <tr><td class="attr-note">Small table (&lt;1000 rows)</td><td class="attr-name" style="color:var(--tag-relation);">No</td><td class="attr-note">Full scan is fast enough</td></tr>
+        <tr><td class="attr-note">Dynamic attributes</td><td class="attr-name" style="color:var(--tag-relation);">No</td><td class="attr-note">No DB column exists</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Common Mistakes -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Common Mistakes</h3>
+  <div class="xml-note">
+    <strong>1. Too many indexes:</strong> Every index slows down writes (INSERT/UPDATE). Each write must update all indexes on the table. Only index what you actually query.<br><br>
+    <strong>2. Wrong column order:</strong> <code>(product, baseSite)</code> does NOT help queries that filter only by <code>baseSite</code>. Most selective column first.<br><br>
+    <strong>3. Forgetting system update:</strong> Index changes require <code>ant clean all</code> + System Update in HAC with "Create essential data" checked.<br><br>
+    <strong>4. Duplicate index names:</strong> Index names must be unique within a type. If two extensions define the same index name on the same type, the second one wins.
+  </div>
+
+  <!-- Index Interview Questions -->
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Index Interview Questions</h3>
+
+  <details class="detail-block">
+    <summary><h3>Q: How do you enforce uniqueness across multiple fields?</h3></summary>
+    <div class="detail-body">
+      <p>Use a composite index with <code>unique="true"</code> and multiple <code>&lt;key&gt;</code> elements. The <code>unique</code> modifier on a single attribute can't do composite uniqueness.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: Can you index a dynamic attribute?</h3></summary>
+    <div class="detail-body">
+      <p>No. Dynamic attributes have no DB column &mdash; there's nothing to index.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: What's the difference between replace and remove on an index?</h3></summary>
+    <div class="detail-body">
+      <p><code>replace="true"</code> overrides the OOB index with your definition. <code>remove="true"</code> drops it entirely. Together they do a clean replacement &mdash; old definition is completely forgotten.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: Does column order matter in a composite index?</h3></summary>
+    <div class="detail-body">
+      <p>Yes. The DB uses indexes left-to-right. An index on <code>(A, B)</code> helps queries on <code>A</code> or <code>A + B</code>, but <strong>NOT</strong> queries on <code>B</code> alone. Put the most selective column first.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Q: When should you NOT create an index?</h3></summary>
+    <div class="detail-body">
+      <p>On rarely queried fields, small tables, CLOB columns, dynamic attributes, or when the table has heavy write traffic &mdash; each index adds write overhead.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- PART B: LANDMARKSHOPS PATTERNS & LEARNING -->
+<!-- ============================================================ -->
+
+<section id="lmg-itemtype">
+  <h2 class="section-title">LMG: ItemType Patterns</h2>
+  <p class="section-desc">Real examples from the LandmarkShops codebase — how to create new types and extend OOB types. The project has <strong>180+ item types</strong>, <strong>50+ enums</strong>, and <strong>48 relations</strong>.</p>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Creating a New Type</h3>
+  <div class="xml-note">
+    <strong>LMGConcept — a retail brand family (Max, Splash, Home Centre)</strong><br><br>
+    <code>&lt;itemtype code="LMGConcept" autocreate="true" generate="true"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;deployment table="LMGConcept" typecode="11001"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;attributes&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="code" type="java.lang.String"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;modifiers read="true" write="true" unique="true" optional="false"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="name" type="localized:java.lang.String"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="dynamic" attributeHandler="conceptNameHandler"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="sameDayDeliveryEnabled" type="java.lang.Boolean"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;defaultvalue&gt;java.lang.Boolean.FALSE&lt;/defaultvalue&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;/attributes&gt;</code><br>
+    <code>&lt;/itemtype&gt;</code><br><br>
+    Key points: <code>typecode="11001"</code> (unique, 10000+), <code>localized:</code> for multi-language, <code>dynamic</code> for computed name, Java expression default values.
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Extending an Existing OOB Type</h3>
+  <div class="xml-note">
+    <strong>Adding custom fields to Product — note autocreate="false" generate="false"</strong><br><br>
+    <code>&lt;itemtype code="Product" autocreate="false" generate="false"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;attributes&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="concept" type="LMGConcept"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="brand" type="LMGBrand"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;attribute qualifier="giftCardFlag" type="java.lang.Boolean"&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;persistence type="property"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;defaultvalue&gt;java.lang.Boolean.FALSE&lt;/defaultvalue&gt;</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&lt;/attribute&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;/attributes&gt;</code><br>
+    <code>&lt;/itemtype&gt;</code>
+  </div>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Flag</th><th>New Type</th><th>Extending Existing</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">autocreate</td><td class="attr-note" style="color:var(--accent);">true</td><td class="attr-note" style="color:var(--tag-relation);">false</td></tr>
+        <tr><td class="attr-name">generate</td><td class="attr-note" style="color:var(--accent);">true</td><td class="attr-note" style="color:var(--tag-relation);">false</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Variant Products (Inheritance Chain)</h3>
+  <div class="hierarchy-diagram"><span class="node">Product</span>
+  <span class="branch">└──</span> <span class="node">VariantProduct</span>
+      <span class="branch">├──</span> <span class="node">LMGColorVariantProduct</span>  <span class="abstract">(color, pantone, shadeImageUrl)</span>
+      <span class="branch">└──</span> <span class="node">LMGSizeVariantProduct</span>   <span class="abstract">(size, brandSize, age)</span></div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Attribute Patterns in LandmarkShops</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Pattern</th><th>Syntax</th><th>When to Use</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Property</td><td class="attr-type">&lt;persistence type="property"/&gt;</td><td class="attr-note">Normal DB column (90% of the time)</td></tr>
+        <tr><td class="attr-name">Dynamic</td><td class="attr-type">&lt;persistence type="dynamic" attributeHandler="bean"/&gt;</td><td class="attr-note">Computed at runtime via Spring bean</td></tr>
+        <tr><td class="attr-name">Localized</td><td class="attr-type">type="localized:java.lang.String"</td><td class="attr-note">Multi-language values (EN, AR, etc.)</td></tr>
+        <tr><td class="attr-name">Encrypted</td><td class="attr-type">&lt;modifiers encrypted="true"/&gt;</td><td class="attr-note">Sensitive data (card numbers, PINs)</td></tr>
+        <tr><td class="attr-name">Redeclare</td><td class="attr-type">redeclare="true"</td><td class="attr-note">Override inherited attribute's type/modifiers</td></tr>
+        <tr><td class="attr-name">Default value</td><td class="attr-type">&lt;defaultvalue&gt;java.lang.Boolean.FALSE&lt;/defaultvalue&gt;</td><td class="attr-note">Java expression defaults</td></tr>
+        <tr><td class="attr-name">Enum default</td><td class="attr-type">&lt;defaultvalue&gt;em().getEnumerationValue("CartType","NORMAL")&lt;/defaultvalue&gt;</td><td class="attr-note">Enum defaults</td></tr>
+        <tr><td class="attr-name">Large text</td><td class="attr-type">&lt;columntype&gt;&lt;value&gt;CLOB&lt;/value&gt;&lt;/columntype&gt;</td><td class="attr-note">Long text fields</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="lmg-enum">
+  <h2 class="section-title">LMG: Enum Patterns</h2>
+  <p class="section-desc">LandmarkShops defines 50+ enums — both static and dynamic, plus extending OOB enums.</p>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Static Enum (generates Java enum)</h3>
+  <div class="xml-note">
+    <code>&lt;enumtype code="CartType" dynamic="false"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="NORMAL"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="BUYNOW"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="GIFTCARD"/&gt;</code><br>
+    <code>&lt;/enumtype&gt;</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Dynamic Enum (values addable at runtime)</h3>
+  <div class="xml-note">
+    <code>&lt;enumtype code="ConsignmentStatus" dynamic="true"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="IN_TRANSIT"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="DELIVERED"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="NOT_DELIVERED"/&gt;</code><br>
+    <code>&lt;/enumtype&gt;</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Extending OOB Enum</h3>
+  <div class="xml-note">
+    <code>&lt;enumtype code="OrderStatus" dynamic="true" autocreate="false" generate="false"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="COD_ORDER_PLACED"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="PARTIALLY_CANCELLED"/&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;value code="MY_CREDIT_VERIFICATION_PENDING"/&gt;</code><br>
+    <code>&lt;/enumtype&gt;</code>
+  </div>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th></th><th>dynamic="false"</th><th>dynamic="true"</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Java class</td><td class="attr-note">Generates Java <code>enum</code></td><td class="attr-note">Uses <code>HybrisEnumValue</code></td></tr>
+        <tr><td class="attr-name">Add values</td><td class="attr-note">Only via items.xml + rebuild</td><td class="attr-note">Via ImpEx/Backoffice at runtime</td></tr>
+        <tr><td class="attr-name">Type-safe</td><td class="attr-note" style="color:var(--accent);">Yes (compile-time)</td><td class="attr-note" style="color:var(--tag-relation);">No (runtime strings)</td></tr>
+        <tr><td class="attr-name">Use when</td><td class="attr-note">Values are fixed forever</td><td class="attr-note">Values may change in production</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="lmg-relations">
+  <h2 class="section-title">LMG: Relation Patterns</h2>
+  <p class="section-desc">LandmarkShops defines 48 relations. Here are the key patterns.</p>
+
+  <div class="relation-card">
+    <h3>Customer2BankDetails (1:N)</h3>
+    <div class="relation-visual">
+      <span class="entity">Customer</span>
+      <span class="cardinality">1</span>
+      <span class="arrow">&rarr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">LMGBankAccountDetails</span>
+    </div>
+    <p class="relation-note"><strong>No separate table</strong> — FK added to the "many" side. <code>ordered="true"</code> preserves list order.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>ProdOrdPromoRelations (M:N)</h3>
+    <div class="relation-visual">
+      <span class="entity">Product</span>
+      <span class="cardinality">many</span>
+      <span class="arrow">&harr;</span>
+      <span class="cardinality">many</span>
+      <span class="entity">OrderPromotion</span>
+    </div>
+    <p class="relation-note"><strong>Creates junction table</strong> <code>ProdOrdPromoRelations</code> with typecode <code>15203</code>.</p>
+  </div>
+
+  <div class="relation-card">
+    <h3>LMGNavigationNode2LMGNavigationNodeRelation (Self-referencing)</h3>
+    <div class="relation-visual">
+      <span class="entity">LMGNavigationNode</span>
+      <span class="cardinality">1 (parent)</span>
+      <span class="arrow">&rarr;</span>
+      <span class="cardinality">many (children)</span>
+      <span class="entity">LMGNavigationNode</span>
+    </div>
+    <p class="relation-note">Tree structure — parent/child of the <strong>same type</strong>. Ordered list for menu sequence.</p>
+  </div>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Cardinality</th><th>Junction Table?</th><th>Where is the FK?</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">1:N</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note">FK on the "many" side's table</td></tr>
+        <tr><td class="attr-name">M:N</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note">Separate link table with own typecode</td></tr>
+        <tr><td class="attr-name">1:1</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note">FK on either side (rare)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="property-vs-dynamic">
+  <h2 class="section-title">Property vs Dynamic — Deep Dive</h2>
+  <p class="section-desc">One of the most asked interview topics. Understanding when to use each persistence type is critical.</p>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">How Dynamic Works — 3 Steps</h3>
+
+  <div class="xml-note">
+    <strong>Step 1: Define in items.xml</strong><br><br>
+    <code>&lt;attribute qualifier="expired" type="java.lang.Boolean"&gt;</code><br>
+    <code>&nbsp;&nbsp;&lt;persistence type="dynamic" attributeHandler="cartExpiryAttributeHandler"/&gt;</code><br>
+    <code>&lt;/attribute&gt;</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>Step 2: Write the Handler (Java)</strong><br><br>
+    <code>public class CartExpiryAttributeHandler</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;implements DynamicAttributeHandler&lt;Boolean, CartModel&gt; {</code><br><br>
+    <code>&nbsp;&nbsp;@Override</code><br>
+    <code>&nbsp;&nbsp;public Boolean get(CartModel cart) {</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;Date lastModified = cart.getModifiedtime();</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;Date now = new Date();</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;long diffHours = (now.getTime() - lastModified.getTime()) / (1000 * 60 * 60);</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;return diffHours > 24;</code><br>
+    <code>&nbsp;&nbsp;}</code><br><br>
+    <code>&nbsp;&nbsp;@Override</code><br>
+    <code>&nbsp;&nbsp;public void set(CartModel cart, Boolean value) {</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;throw new UnsupportedOperationException("expired is read-only");</code><br>
+    <code>&nbsp;&nbsp;}</code><br>
+    <code>}</code>
+  </div>
+
+  <div class="xml-note">
+    <strong>Step 3: Register as Spring bean</strong><br><br>
+    <code>&lt;bean id="cartExpiryAttributeHandler"</code><br>
+    <code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;class="com.landmarkshops.core.handlers.CartExpiryAttributeHandler"/&gt;</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Real Dynamic Attributes in LandmarkShops</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Type</th><th>Attribute</th><th>Handler</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">LMGConcept</td><td class="attr-type">name</td><td class="attr-note">conceptNameHandler</td><td class="attr-note">Returns name based on current language/store</td></tr>
+        <tr><td class="attr-name">Cart</td><td class="attr-type">expired</td><td class="attr-note">cartExpiryAttributeHandler</td><td class="attr-note">Checks if cart is expired based on time</td></tr>
+        <tr><td class="attr-name">LMGCMSDeviceRestriction</td><td class="attr-type">description</td><td class="attr-note">lmgCMSDeviceRestriction&hellip;</td><td class="attr-note">Generates description dynamically</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Full Comparison</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th></th><th><span class="tag tag-item">property</span></th><th><span class="tag tag-atomic">dynamic</span></th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Stored in DB?</td><td class="attr-note" style="color:var(--accent);">Yes — real column</td><td class="attr-note" style="color:var(--tag-relation);">No — computed every call</td></tr>
+        <tr><td class="attr-name">FlexibleSearch?</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-name">Performance</td><td class="attr-note">Fast (DB read)</td><td class="attr-note">Depends on handler logic</td></tr>
+        <tr><td class="attr-name">Survives restart?</td><td class="attr-note">Yes</td><td class="attr-note">N/A (no storage)</td></tr>
+        <tr><td class="attr-name">Needs Spring bean?</td><td class="attr-note">No</td><td class="attr-note">Yes (DynamicAttributeHandler)</td></tr>
+        <tr><td class="attr-name">Read + Write?</td><td class="attr-note">Both by default</td><td class="attr-note">Can be read-only (throw in set)</td></tr>
+        <tr><td class="attr-name">DB migration?</td><td class="attr-note">Needs system update</td><td class="attr-note">No DB change needed</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="border-left-color:var(--tag-relation);">
+    <strong>Common Mistake:</strong> You cannot use dynamic attributes in FlexibleSearch!<br><br>
+    <code>SELECT {pk} FROM {Cart} WHERE {expired} = true</code> — <strong>this WILL FAIL.</strong><br>
+    There's no DB column to query against. Filter in Java code after fetching results.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="dynamic-vs-service">
+  <h2 class="section-title">Dynamic Attribute vs Service/Utility</h2>
+  <p class="section-desc">A valid question: "Why not just create a service or utility class?" You can — but dynamic attributes win in specific scenarios.</p>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Side-by-Side Comparison</h3>
+  <div class="xml-note">
+    <strong>Service approach — extra dependency everywhere:</strong><br><br>
+    <code>CartModel cart = cartService.getSessionCart();</code><br>
+    <code>boolean expired = cartUtilityService.isCartExpired(cart);</code><br><br>
+    <strong>Dynamic attribute approach — feels like a native field:</strong><br><br>
+    <code>CartModel cart = cartService.getSessionCart();</code><br>
+    <code>boolean expired = cart.getExpired();</code>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Where Dynamic Wins</h3>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Feature</th><th>Property</th><th>Dynamic Attr</th><th>Service Method</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Shows in Backoffice</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-name">Works in OCC/DTO converters</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No (needs custom populator)</td></tr>
+        <tr><td class="attr-name">Works in ImpEx export</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--accent);">Yes (virtual=true)</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-name">Works in Interceptors</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">Needs injection</td></tr>
+        <tr><td class="attr-name">FlexibleSearch queryable</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--tag-relation);">N/A</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:'Source Serif 4',Georgia,serif; font-size:17px; font-weight:600; margin:28px 0 8px; color:var(--text);">Decision Matrix</h3>
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Scenario</th><th>Dynamic Attr</th><th>Service</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-note">Value should appear in <strong>Backoffice</strong></td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-note">Needed in <strong>OCC/DTO mapping</strong> automatically</td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-note">Core property of the <strong>model identity</strong></td><td class="attr-note" style="color:var(--accent);">Yes</td><td class="attr-note" style="color:var(--tag-relation);">No</td></tr>
+        <tr><td class="attr-note">Complex logic with <strong>multiple services</strong></td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-note"><strong>One-off calculation</strong> not tied to model</td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-note">Business logic / <strong>workflow decisions</strong></td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+        <tr><td class="attr-note">Used only in <strong>one specific flow</strong></td><td class="attr-note" style="color:var(--tag-relation);">No</td><td class="attr-note" style="color:var(--accent);">Yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <strong>Real example — LMGConcept.name:</strong> Concept name depends on current language + current base store. Every place that calls <code>concept.getName()</code> gets the right name automatically — Backoffice, OCC, populators, interceptors. If this was a service, every developer would need to call <code>conceptService.getName(concept, language, store)</code>.
+  </div>
+
+  <div class="callout">
+    <strong>The honest answer:</strong> Most of the time a service works fine. Dynamic attributes shine when the value needs to be visible in <strong>Backoffice</strong>, used in <strong>DTO/converter mapping</strong>, or treated as a <strong>native property</strong> of the model across the entire platform.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="lmg-deployment">
+  <h2 class="section-title">Deployment &amp; Typecodes</h2>
+  <p class="section-desc">Every new ItemType needs a deployment with a unique typecode.</p>
+
+  <div class="xml-note">
+    <code>&lt;deployment table="LMGConcept" typecode="11001"/&gt;</code>
+  </div>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Rule</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">Typecode must be unique</td><td class="attr-note">Range 0&ndash;32767. Custom types use <strong>10000+</strong></td></tr>
+        <tr><td class="attr-name">Without deployment</td><td class="attr-note">Data goes into parent type's table (single-table inheritance)</td></tr>
+        <tr><td class="attr-name">With deployment</td><td class="attr-note">Gets its own table in the database</td></tr>
+        <tr><td class="attr-name">M:N relations</td><td class="attr-note">Also need their own deployment + typecode</td></tr>
+        <tr><td class="attr-name">LandmarkShops range</td><td class="attr-note">Uses typecodes from <strong>10120 to 20100</strong> across 180+ types</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="border-left-color:var(--tag-relation);">
+    <strong>If two extensions use the same typecode, the build will fail.</strong> Always check existing typecodes before adding new ones. Use HAC &rarr; Platform &rarr; Types to see all registered typecodes.
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="interview">
+  <h2 class="section-title">Interview Questions</h2>
+  <p class="section-desc">Common items.xml interview questions with concise answers.</p>
+
+  <details class="detail-block">
+    <summary><h3>What's the difference between autocreate and generate?</h3></summary>
+    <div class="detail-body">
+      <p><code>autocreate=true</code> creates the type in the DB during initialization. <code>generate=true</code> generates Java model/jalo classes during build. When extending OOB types, set both to <code>false</code>.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>What happens if two extensions use the same typecode?</h3></summary>
+    <div class="detail-body">
+      <p>Build fails. Typecodes must be globally unique across the entire platform.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>property vs dynamic persistence?</h3></summary>
+    <div class="detail-body">
+      <p><strong>Property</strong> = stored in DB column, queryable via FlexibleSearch. <strong>Dynamic</strong> = computed at runtime via <code>DynamicAttributeHandler</code> Spring bean, not in DB, not queryable.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>CollectionType vs Relation?</h3></summary>
+    <div class="detail-body">
+      <p>CollectionType = serialized blob, not queryable with FlexibleSearch. Relation = proper DB relationship, fully queryable. <strong>Always prefer Relations.</strong></p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Can you add enum values without a rebuild?</h3></summary>
+    <div class="detail-body">
+      <p>Only if <code>dynamic="true"</code>. Static enums (<code>dynamic="false"</code>) require a rebuild and system update.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Can a dynamic attribute be writable?</h3></summary>
+    <div class="detail-body">
+      <p>Yes — implement the <code>set()</code> method in the handler. But most dynamic attributes are read-only (throw <code>UnsupportedOperationException</code> in set).</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>What happens if the attributeHandler bean is missing?</h3></summary>
+    <div class="detail-body">
+      <p>Runtime error — <code>NullPointerException</code> or <code>SystemException</code> when accessing the attribute. The build won't catch this.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Can you make an existing property attribute dynamic?</h3></summary>
+    <div class="detail-body">
+      <p>Technically yes, but you'd <strong>lose existing data</strong> in that column. This is a dangerous migration — avoid it.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>Why use dynamic attributes instead of a service/utility class?</h3></summary>
+    <div class="detail-body">
+      <p>Dynamic attributes <strong>automatically work</strong> in Backoffice, OCC/DTO converters, ImpEx export, and interceptors without extra wiring. A service method is invisible to these subsystems. Use dynamic when the value is a core characteristic of the model; use services for complex business logic or one-off calculations.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>How do you add a new field to Product?</h3></summary>
+    <div class="detail-body">
+      <p>Extend Product in items.xml with <code>autocreate="false" generate="false"</code>, add the attribute, run <code>ant clean all</code>, then perform a System Update in HAC.</p>
+    </div>
+  </details>
+
+  <details class="detail-block">
+    <summary><h3>When does a relation get its own table?</h3></summary>
+    <div class="detail-body">
+      <p><strong>M:N relations</strong> require a junction table with its own deployment and typecode. <strong>1:N relations</strong> do not — the FK is added to the "many" side's table.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<section id="cheatsheet">
+  <h2 class="section-title">Cheat Sheet</h2>
+  <p class="section-desc">Quick reference for common items.xml tasks.</p>
+
+  <div class="attr-table-wrap">
+    <table class="attr-table">
+      <thead><tr><th>Task</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td class="attr-name">New type</td><td class="attr-note"><code>autocreate="true" generate="true"</code> + deployment</td></tr>
+        <tr><td class="attr-name">Extend OOB type</td><td class="attr-note"><code>autocreate="false" generate="false"</code></td></tr>
+        <tr><td class="attr-name">1:N relation</td><td class="attr-note">No deployment needed, FK on "many" side</td></tr>
+        <tr><td class="attr-name">M:N relation</td><td class="attr-note">Needs deployment (junction table + typecode)</td></tr>
+        <tr><td class="attr-name">Static enum</td><td class="attr-note"><code>dynamic="false"</code> &rarr; generates Java enum</td></tr>
+        <tr><td class="attr-name">Dynamic enum</td><td class="attr-note"><code>dynamic="true"</code> &rarr; runtime addable</td></tr>
+        <tr><td class="attr-name">Localized attr</td><td class="attr-note"><code>type="localized:java.lang.String"</code></td></tr>
+        <tr><td class="attr-name">Computed attr</td><td class="attr-note"><code>persistence type="dynamic"</code> + handler bean</td></tr>
+        <tr><td class="attr-name">Typecodes</td><td class="attr-note">Custom: 10000+, must be globally unique</td></tr>
+        <tr><td class="attr-name">After changes</td><td class="attr-note"><code>ant clean all</code> &rarr; System Update in HAC</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>

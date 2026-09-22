@@ -1,0 +1,519 @@
+<title>Promotion Data Hierarchy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-alt: #eef0f4;
+    --text: #1a1d24;
+    --text-muted: #5c6370;
+    --border: #d4d8e0;
+    --accent-engine: #7a8599;
+    --accent-engine-bg: #ebedf2;
+    --accent-commerce: #2563a0;
+    --accent-commerce-bg: #e8f0f8;
+    --accent-promo: #c47a1a;
+    --accent-promo-bg: #fdf3e4;
+    --accent-lmg: #1a7a5c;
+    --accent-lmg-bg: #e6f5ef;
+    --connector: #b0b8c8;
+    --tag-bg: rgba(0,0,0,0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13151a;
+      --surface: #1c1f27;
+      --surface-alt: #252830;
+      --text: #e0e2e8;
+      --text-muted: #8a8f9c;
+      --border: #33363f;
+      --accent-engine: #8a94a8;
+      --accent-engine-bg: #252830;
+      --accent-commerce: #5a9fd4;
+      --accent-commerce-bg: #1a2536;
+      --accent-promo: #daa04a;
+      --accent-promo-bg: #2a2218;
+      --accent-lmg: #3dba8a;
+      --accent-lmg-bg: #182a22;
+      --connector: #4a4f5c;
+      --tag-bg: rgba(255,255,255,0.06);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13151a;
+    --surface: #1c1f27;
+    --surface-alt: #252830;
+    --text: #e0e2e8;
+    --text-muted: #8a8f9c;
+    --border: #33363f;
+    --accent-engine: #8a94a8;
+    --accent-engine-bg: #252830;
+    --accent-commerce: #5a9fd4;
+    --accent-commerce-bg: #1a2536;
+    --accent-promo: #daa04a;
+    --accent-promo-bg: #2a2218;
+    --accent-lmg: #3dba8a;
+    --accent-lmg-bg: #182a22;
+    --connector: #4a4f5c;
+    --tag-bg: rgba(255,255,255,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    line-height: 1.5;
+    padding: 2rem 1.5rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .layer {
+    position: relative;
+    margin-bottom: 1.25rem;
+  }
+
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .layer-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .layer-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .layer-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    border-left: 3px solid transparent;
+  }
+
+  .layer-card h3 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin-bottom: 0.125rem;
+  }
+
+  .layer-card .desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+
+  .types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .type-item {
+    background: var(--surface-alt);
+    border-radius: 4px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .type-item .type-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    font-size: 0.75rem;
+    display: block;
+    margin-bottom: 0.125rem;
+  }
+
+  .type-item .type-desc {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .layer-engine .layer-badge { background: var(--accent-engine-bg); color: var(--accent-engine); }
+  .layer-engine .layer-card { border-left-color: var(--accent-engine); }
+
+  .layer-commerce .layer-badge { background: var(--accent-commerce-bg); color: var(--accent-commerce); }
+  .layer-commerce .layer-card { border-left-color: var(--accent-commerce); }
+
+  .layer-promo .layer-badge { background: var(--accent-promo-bg); color: var(--accent-promo); }
+  .layer-promo .layer-card { border-left-color: var(--accent-promo); }
+
+  .layer-lmg .layer-badge { background: var(--accent-lmg-bg); color: var(--accent-lmg); }
+  .layer-lmg .layer-card { border-left-color: var(--accent-lmg); }
+
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0;
+    color: var(--connector);
+  }
+
+  .connector svg {
+    width: 20px;
+    height: 28px;
+  }
+
+  .need-tag {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .need-skip { background: var(--accent-engine-bg); color: var(--accent-engine); }
+  .need-know { background: var(--accent-commerce-bg); color: var(--accent-commerce); }
+  .need-must { background: var(--accent-lmg-bg); color: var(--accent-lmg); }
+
+  .extends-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    background: var(--tag-bg);
+    padding: 0.1rem 0.4rem;
+    border-radius: 2px;
+    margin-left: 0.25rem;
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 0.75rem 0;
+  }
+
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.75rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-top: 2rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  .summary strong { color: var(--text); }
+
+  @media (max-width: 600px) {
+    body { padding: 1.25rem 1rem; }
+    .types-grid { grid-template-columns: 1fr; }
+    .legend { flex-direction: column; gap: 0.5rem; }
+  }
+</style>
+
+<h1>Hybris Promotion Data Hierarchy</h1>
+<p class="subtitle">How data types stack across the four extension layers — bottom to top</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background: var(--accent-engine);"></div> Rule Engine (SAP) — skip internals</div>
+  <div class="legend-item"><div class="legend-dot" style="background: var(--accent-commerce);"></div> Commerce Rule Engine (SAP) — know basics</div>
+  <div class="legend-item"><div class="legend-dot" style="background: var(--accent-promo);"></div> Promotion Engine (SAP) — know basics</div>
+  <div class="legend-item"><div class="legend-dot" style="background: var(--accent-lmg);"></div> LMG Custom (your team) — must understand</div>
+</div>
+
+<!-- Layer 1: Rule Engine -->
+<div class="layer layer-engine">
+  <div class="layer-header">
+    <span class="layer-badge">Layer 1</span>
+    <span class="layer-label">ruleengine extension</span>
+    <span class="need-tag need-skip">skip internals</span>
+  </div>
+  <div class="layer-card">
+    <h3>Generic Rule Engine</h3>
+    <p class="desc">SAP's code. Knows nothing about promotions. Just runs rules.</p>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">AbstractRuleEngineRule</span>
+        <span class="type-desc">Base type for any rule</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DroolsRule</span>
+        <span class="type-desc">One compiled Drools rule</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DroolsKIEModule</span>
+        <span class="type-desc">Groups rules together</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DroolsKIEBase</span>
+        <span class="type-desc">Rule evaluation config</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DroolsKIESession</span>
+        <span class="type-desc">Runtime session</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DroolsRuleEngineContext</span>
+        <span class="type-desc">Session + firing limits</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector"><svg viewBox="0 0 20 28"><path d="M10 0 L10 12 L6 8 M10 12 L14 8" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(180 10 14)"/></svg></div>
+
+<!-- Layer 2: Commerce Rule Engine -->
+<div class="layer layer-commerce">
+  <div class="layer-header">
+    <span class="layer-badge">Layer 2</span>
+    <span class="layer-label">ruledefinitions + promotionengineservices</span>
+    <span class="need-tag need-know">know basics</span>
+  </div>
+  <div class="layer-card">
+    <h3>Commerce Rule Engine</h3>
+    <p class="desc">Adds commerce concepts — products, categories, carts — on top of the generic engine.</p>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">SourceRule</span>
+        <span class="type-desc">A rule as the user wrote it</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">SourceRuleTemplate</span>
+        <span class="type-desc">Blueprint for creating rules</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">RuleConditionDefinition</span>
+        <span class="type-desc">What conditions are available</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">RuleActionDefinition</span>
+        <span class="type-desc">What actions are available</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">AbstractRuleBasedPromotion<br/>Action</span>
+        <span class="type-desc">Base for all promo actions</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">PromotionSourceRule</span>
+        <span class="type-desc">A promotion rule <span class="extends-label">extends SourceRule</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector"><svg viewBox="0 0 20 28"><path d="M10 0 L10 12 L6 8 M10 12 L14 8" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(180 10 14)"/></svg></div>
+
+<!-- Layer 3: Promotion Engine -->
+<div class="layer layer-promo">
+  <div class="layer-header">
+    <span class="layer-badge">Layer 3</span>
+    <span class="layer-label">promotionengine + promotions</span>
+    <span class="need-tag need-know">know basics</span>
+  </div>
+  <div class="layer-card">
+    <h3>Promotion Engine</h3>
+    <p class="desc">Promotion-specific types. This is where business users create promotions in Backoffice.</p>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">RuleBasedPromotion</span>
+        <span class="type-desc">A rule-based promotion result</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">AbstractPromotion</span>
+        <span class="type-desc">Base for all promotions</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">ProductPromotion</span>
+        <span class="type-desc">Product-level discount</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">OrderPromotion</span>
+        <span class="type-desc">Order-level discount</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">PromotionGroup</span>
+        <span class="type-desc">Groups promos by store/site</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">PromotionResult</span>
+        <span class="type-desc">Applied promotion outcome</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">Voucher</span>
+        <span class="type-desc">Base voucher type</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">PromotionVoucher</span>
+        <span class="type-desc">Promotion-linked voucher</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector"><svg viewBox="0 0 20 28"><path d="M10 0 L10 12 L6 8 M10 12 L14 8" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(180 10 14)"/></svg></div>
+
+<!-- Layer 4: LMG Custom -->
+<div class="layer layer-lmg">
+  <div class="layer-header">
+    <span class="layer-badge">Layer 4</span>
+    <span class="layer-label">landmarkshopscore — your team's code</span>
+    <span class="need-tag need-must">must understand</span>
+  </div>
+  <div class="layer-card">
+    <h3>LMG Custom Extensions</h3>
+    <p class="desc">Everything your team built on top. This is where you'll work daily.</p>
+
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-lmg);margin-bottom:0.5rem;">Custom Promotion Types</div>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">LMGProductBOGOFPromotion</span>
+        <span class="type-desc">Buy X Get Y Free</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGStaffDiscountPromotion</span>
+        <span class="type-desc">Staff discount</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGOrderThresholdFreeGift<br/>Promotion</span>
+        <span class="type-desc">Free gift on threshold</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGProductFixedPricePromotion</span>
+        <span class="type-desc">RPM fixed pricing</span>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-lmg);margin-bottom:0.5rem;">Custom Rule Actions</div>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">RuleBasedAddVoucherAction</span>
+        <span class="type-desc">Generate voucher (OTFV)</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">RuleBasedCashbackAction</span>
+        <span class="type-desc">Shukran Pay cashback</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">RuleBasedFreeShippingAction</span>
+        <span class="type-desc">Free shipping</span>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-lmg);margin-bottom:0.5rem;">Custom Voucher Types</div>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">LMGPromotionVoucher</span>
+        <span class="type-desc">Base LMG voucher</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGAffiliateVoucher</span>
+        <span class="type-desc">Affiliate partnership</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGRefundVoucher</span>
+        <span class="type-desc">Refund voucher</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGReferralVoucher</span>
+        <span class="type-desc">Referral discount</span>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-lmg);margin-bottom:0.5rem;">Custom Restrictions</div>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">LMGConceptPromotionRestriction</span>
+        <span class="type-desc">Filter by concept</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGDevicePromotionRestriction</span>
+        <span class="type-desc">Filter by device</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">LMGPromotionBankRestriction</span>
+        <span class="type-desc">Filter by bank card</span>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent-lmg);margin-bottom:0.5rem;">Custom Source Rule Junctions</div>
+    <div class="types-grid">
+      <div class="type-item">
+        <span class="type-name">ConceptForPromotionSourceRule</span>
+        <span class="type-desc">Link concept → rule</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">BrandForPromotionSourceRule</span>
+        <span class="type-desc">Link brand → rule</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">DeviceForPromotionSourceRule</span>
+        <span class="type-desc">Link device → rule</span>
+      </div>
+      <div class="type-item">
+        <span class="type-name">TargetedGroupForPromotion<br/>SourceRule</span>
+        <span class="type-desc">Link customer segment → rule</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="summary">
+  <strong>How to read this:</strong> Each layer extends the one below it. Layer 1 is a generic rule engine. Layer 2 adds commerce awareness. Layer 3 adds promotion logic. Layer 4 is what your team built — concepts, brands, devices, card BINs, custom vouchers, and custom restrictions. <strong>Start learning from the top (Layer 4) and only go deeper when you need to.</strong>
+</div>

@@ -1,0 +1,565 @@
+<title>ruleengineservices Deep Dive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f4f5f7; --surface: #fff; --surface-alt: #eceef2;
+    --text: #1b1e25; --text-muted: #6b7280; --border: #d1d5db;
+    --blue: #2563a0; --blue-bg: #e8f0f8; --blue-border: #a3bdd6;
+    --green: #1a7a5c; --green-bg: #e6f5ef; --green-border: #8ec4ad;
+    --orange: #c47a1a; --orange-bg: #fdf3e4; --orange-border: #ddb576;
+    --purple: #7a5ca0; --purple-bg: #f0ebf5; --purple-border: #c4b3d6;
+    --gray: #8b95a5; --gray-bg: #f0f1f4; --gray-border: #c5c9d2;
+    --red: #c0392b; --red-bg: #fdeaea;
+  }
+  @media(prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+      --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+      --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+      --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+      --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+      --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+      --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+      --red:#e74c3c;--red-bg:#2a1818;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:960px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  ul li{margin-bottom:0.25rem;}
+  ul li strong{color:var(--text);}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .card-accent{border-left:3px solid var(--blue);}
+  .card-green{border-left:3px solid var(--green);}
+  .card-orange{border-left:3px solid var(--orange);}
+  .card-purple{border-left:3px solid var(--purple);}
+
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;display:inline-block;margin-bottom:0.5rem;}
+  .badge-blue{background:var(--blue-bg);color:var(--blue);}
+  .badge-green{background:var(--green-bg);color:var(--green);}
+  .badge-orange{background:var(--orange-bg);color:var(--orange);}
+  .badge-purple{background:var(--purple-bg);color:var(--purple);}
+  .badge-gray{background:var(--gray-bg);color:var(--gray);}
+
+  .type-name{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.9rem;color:var(--blue);margin-bottom:0.25rem;}
+  .type-name.green{color:var(--green);}
+  .type-name.orange{color:var(--orange);}
+  .type-name.purple{color:var(--purple);}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  td:first-child{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:0.75rem;white-space:nowrap;}
+  .tbl-container{overflow-x:auto;}
+
+  .flow{display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;padding:0.75rem;background:var(--surface-alt);border-radius:5px;margin:0.75rem 0;}
+  .flow-item{padding:0.25rem 0.6rem;border-radius:4px;font-weight:500;}
+  .flow-blue{background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);}
+  .flow-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);}
+  .flow-orange{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);}
+  .flow-gray{background:var(--gray-bg);border:1px solid var(--gray-border);color:var(--gray);}
+  .flow-arr{color:var(--text-muted);}
+
+  .hierarchy{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hierarchy .hl-blue{color:var(--blue);font-weight:600;}
+  .hierarchy .hl-green{color:var(--green);font-weight:600;}
+  .hierarchy .hl-orange{color:var(--orange);font-weight:600;}
+  .hierarchy .hl-purple{color:var(--purple);font-weight:600;}
+  .hierarchy .hl-muted{color:var(--text-muted);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .callout{background:var(--orange-bg);border:1px solid var(--orange-border);border-radius:5px;padding:0.75rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .callout strong{color:var(--orange);}
+
+  .when-table td:nth-child(2){color:var(--text-muted);}
+  .when-table td:nth-child(3){font-size:0.75rem;color:var(--text-muted);}
+
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.grid-2{grid-template-columns:1fr;}.flow{flex-direction:column;align-items:flex-start;}}
+</style>
+
+<h1>ruleengineservices — Deep Dive</h1>
+<p class="subtitle">Every type explained: purpose, why it exists, when you use it, and how they connect</p>
+
+<!-- ============ OVERVIEW ============ -->
+<h2>What is ruleengineservices?</h2>
+<div class="card card-accent">
+  <p><strong>One-line answer:</strong> It provides the generic building blocks to create, configure, and organize any kind of business rule.</p>
+  <p>It knows nothing about promotions, discounts, or carts. It just says: <strong>"A rule has conditions, actions, a schedule, a priority, and belongs to a group."</strong></p>
+  <p>The extension has <strong>3 groups</strong> of types:</p>
+  <div class="flow">
+    <span class="flow-item flow-blue">Group 1: Rules</span>
+    <span class="flow-arr">&nbsp;—&nbsp;</span>
+    <span style="font-size:0.7rem;color:var(--text-muted);font-family:'IBM Plex Sans',sans-serif;">"What rules exist?"</span>
+    <span class="flow-arr">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
+    <span class="flow-item flow-green">Group 2: Definitions</span>
+    <span class="flow-arr">&nbsp;—&nbsp;</span>
+    <span style="font-size:0.7rem;color:var(--text-muted);font-family:'IBM Plex Sans',sans-serif;">"What building blocks can rules use?"</span>
+    <span class="flow-arr">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
+    <span class="flow-item flow-orange">Group 3: Grouping</span>
+    <span class="flow-arr">&nbsp;—&nbsp;</span>
+    <span style="font-size:0.7rem;color:var(--text-muted);font-family:'IBM Plex Sans',sans-serif;">"How are rules organized?"</span>
+  </div>
+</div>
+
+<!-- ============ GROUP 1: RULES ============ -->
+<h2>Group 1: Rules — "The actual rules"</h2>
+
+<!-- AbstractRule -->
+<div class="card card-accent">
+  <span class="badge badge-gray">abstract — never created directly</span>
+  <div class="type-name">AbstractRule</div>
+  <p><strong>Purpose:</strong> Base type that defines what EVERY rule must have — the common DNA.</p>
+  <p><strong>Why it exists:</strong> Whether it's a promotion rule, a tax rule, or a fraud rule — they all need the same basic fields.</p>
+  <p><strong>When you encounter it:</strong> Never directly. You work with PromotionSourceRule which inherits everything from here.</p>
+
+  <h3>Attributes — why each one exists</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th><th>Example</th></tr>
+    <tr><td>code</td><td>String (unique)</td><td>Unique ID for this rule</td><td><code>summer_sale_2026</code></td></tr>
+    <tr><td>name</td><td>localized String</td><td>Human-readable name for Backoffice</td><td>"Summer Sale 10% Off"</td></tr>
+    <tr><td>description</td><td>localized String</td><td>Longer explanation for Backoffice users</td><td>"10% off all categories during summer"</td></tr>
+    <tr><td>startDate</td><td>Date</td><td>When the rule becomes active — no deploy needed to start</td><td>2026-06-01</td></tr>
+    <tr><td>endDate</td><td>Date</td><td>When the rule stops — no deploy needed to stop</td><td>2026-08-31</td></tr>
+    <tr><td>priority</td><td>Integer</td><td>When two rules conflict, higher priority wins</td><td>500 (higher = applied first)</td></tr>
+    <tr><td>maxAllowedRuns</td><td>Integer</td><td>How many times can this fire per cart? Prevents double-discount</td><td>1 (default)</td></tr>
+    <tr><td>stackable</td><td>Boolean</td><td>Can this combine with other rules in the same group?</td><td>false (default — exclusive)</td></tr>
+    <tr><td>status</td><td>RuleStatus enum</td><td>Lifecycle state of the rule</td><td>PUBLISHED</td></tr>
+    <tr><td>messageFired</td><td>localized String</td><td>Message shown to customer when rule applies</td><td>"You saved 50 AED!"</td></tr>
+  </table>
+  </div>
+
+  <h3>The status lifecycle</h3>
+  <div class="flow">
+    <span class="flow-item flow-gray">UNPUBLISHED</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item flow-green">PUBLISHED</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item flow-orange">MODIFIED</span>
+    <span class="flow-arr">&rarr; re-publish &rarr;</span>
+    <span class="flow-item flow-green">PUBLISHED</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item" style="background:var(--red-bg);border:1px solid var(--border);color:var(--red);">ARCHIVED</span>
+  </div>
+  <ul>
+    <li><strong>UNPUBLISHED</strong> — business user created rule, not active yet</li>
+    <li><strong>PUBLISHED</strong> — rule is compiled into DroolsRule, now active and firing</li>
+    <li><strong>MODIFIED</strong> — someone edited it after publishing, needs re-publish to take effect</li>
+    <li><strong>ARCHIVED</strong> — retired, no longer active</li>
+  </ul>
+</div>
+
+<!-- SourceRule -->
+<div class="card card-accent">
+  <span class="badge badge-blue">concrete — extends AbstractRule</span>
+  <div class="type-name">SourceRule</div>
+  <p><strong>Purpose:</strong> Adds the actual rule logic — the conditions (IF) and actions (THEN).</p>
+  <p><strong>Why it exists:</strong> AbstractRule only has metadata (dates, priority). SourceRule adds the <strong>brain</strong>.</p>
+  <p><strong>When you encounter it:</strong> Never directly. PromotionSourceRule extends this.</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th></tr>
+    <tr><td>conditions</td><td>String (JSON/CLOB)</td><td>Stores the IF part as JSON — built by business user in Backoffice rule builder</td></tr>
+    <tr><td>actions</td><td>String (JSON/CLOB)</td><td>Stores the THEN part as JSON — built by business user in Backoffice rule builder</td></tr>
+  </table>
+  </div>
+
+  <div class="callout">
+    <strong>Why JSON?</strong> Because conditions and actions are dynamic — business users build them with drag-and-drop in Backoffice. The system can't know the structure in advance, so it stores them as flexible JSON strings.
+  </div>
+
+  <h3>What the JSON looks like</h3>
+  <div class="hierarchy"><span class="hl-muted">// conditions JSON — "IF cart has products from MAX concept"</span>
+[{
+  "definitionId": "<span class="hl-green">lmg_qualifying_concepts</span>",
+  "parameters": {
+    "concepts": { "value": ["<span class="hl-blue">MAX</span>", "<span class="hl-blue">SPLASH</span>"] }
+  }
+}]
+
+<span class="hl-muted">// actions JSON — "THEN give 10% order discount"</span>
+[{
+  "definitionId": "<span class="hl-green">y_order_percentage_discount</span>",
+  "parameters": {
+    "value": { "value": <span class="hl-orange">10</span> }
+  }
+}]</div>
+
+  <h3>The flow from UI to execution</h3>
+  <div class="flow">
+    <span class="flow-item flow-blue">Business user drags conditions/actions in Backoffice</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item flow-green">Saved as JSON in SourceRule</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item flow-orange">Translator reads JSON, compiles into DroolsRule</span>
+    <span class="flow-arr">&rarr;</span>
+    <span class="flow-item flow-gray">Engine fires the DroolsRule</span>
+  </div>
+</div>
+
+<!-- Templates -->
+<div class="card card-accent">
+  <span class="badge badge-gray">abstract + concrete</span>
+  <div class="type-name">AbstractRuleTemplate / SourceRuleTemplate</div>
+  <p><strong>Purpose:</strong> Pre-made blueprints so business users don't start from scratch.</p>
+  <p><strong>Why it exists:</strong> Instead of building conditions and actions from zero, a business user picks a template that pre-fills the structure. They just fill in the values.</p>
+  <p><strong>When you encounter it:</strong> Your 35+ templates (BOGO, cashback, etc.) are <code>PromotionSourceRuleTemplate</code> instances (Layer 3 extends this).</p>
+
+  <h3>How a template works</h3>
+  <div class="hierarchy"><span class="hl-muted">Template: "Product Percentage Discount"</span>
+<span class="hl-muted">Pre-filled:</span>
+  condition = <span class="hl-green">qualifying_products</span> (<span class="hl-muted">empty — user fills in</span>)
+  action    = <span class="hl-green">percentage_discount</span> (<span class="hl-muted">empty — user fills in</span>)
+
+<span class="hl-muted">Business user fills in:</span>
+  condition = qualifying_products = [<span class="hl-blue">shoes</span>, <span class="hl-blue">bags</span>]
+  action    = percentage_discount = <span class="hl-orange">20%</span>
+
+<span class="hl-muted">Result: "20% off shoes and bags"</span></div>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>code</td><td>String (unique)</td><td>Template ID — e.g. "product_percentage_discount_promotion"</td></tr>
+    <tr><td>name</td><td>localized String</td><td>Label in Backoffice — "Percentage discount (product)"</td></tr>
+    <tr><td>conditions</td><td>String (JSON)</td><td>Pre-filled condition structure</td></tr>
+    <tr><td>actions</td><td>String (JSON)</td><td>Pre-filled action structure</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ GROUP 2: DEFINITIONS ============ -->
+<h2>Group 2: Definitions — "The rule vocabulary"</h2>
+
+<div class="card card-green">
+  <p><strong>This is the most important group.</strong> Definitions tell the Backoffice rule builder <strong>what options to show</strong> to the business user. Without definitions, the rule builder UI would be empty.</p>
+  <p>Think of it as a <strong>menu at a restaurant</strong>. The definitions ARE the menu. The business user picks items from the menu to build their rule.</p>
+</div>
+
+<!-- RuleConditionDefinition -->
+<div class="card card-green">
+  <span class="badge badge-green">condition vocabulary</span>
+  <div class="type-name green">RuleConditionDefinition</div>
+  <p><strong>Purpose:</strong> Defines ONE condition type that business users can pick in the "IF" part.</p>
+  <p><strong>Why it exists:</strong> Without this, the rule builder would have no conditions to choose from.</p>
+  <p><strong>When you touch it:</strong> When adding a <strong>new condition type</strong>. Your LMG team added 5 custom ones here.</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th><th>Example</th></tr>
+    <tr><td>id</td><td>String (unique)</td><td>Unique identifier referenced in JSON conditions</td><td><code>lmg_qualifying_concepts</code></td></tr>
+    <tr><td>name</td><td>localized String</td><td>Label in the rule builder UI dropdown</td><td>"LMG Qualifying Concepts"</td></tr>
+    <tr><td>priority</td><td>Integer</td><td>Order in the UI dropdown</td><td>100</td></tr>
+    <tr><td>breadcrumb</td><td>localized String</td><td>Summary text shown in rule preview</td><td>"Concepts: {concepts}"</td></tr>
+    <tr><td>translatorId</td><td>String</td><td><strong>KEY FIELD</strong> — Spring bean that compiles this into Drools</td><td><code>LMGRuleQualifyingConceptsConditionTranslator</code></td></tr>
+    <tr><td>translatorParameters</td><td>Map</td><td>Extra config for the translator</td><td>{}</td></tr>
+    <tr><td>allowsChildren</td><td>Boolean</td><td>Can it nest sub-conditions?</td><td>false</td></tr>
+  </table>
+  </div>
+
+  <h3>SAP standard vs LMG custom conditions</h3>
+  <div class="hierarchy"><span class="hl-muted">SAP Standard (out of the box):</span>
+  <span class="hl-green">y_qualifying_products</span>      <span class="hl-muted">— filter by products</span>
+  <span class="hl-green">y_qualifying_categories</span>    <span class="hl-muted">— filter by categories</span>
+  <span class="hl-green">y_cart_total</span>               <span class="hl-muted">— cart total threshold</span>
+  <span class="hl-green">y_target_customers</span>         <span class="hl-muted">— target customer groups</span>
+
+<span class="hl-muted">LMG Custom (your team added):</span>
+  <span class="hl-blue">lmg_qualifying_concepts</span>    <span class="hl-muted">— Max, Splash, Centrepoint, etc.</span>
+  <span class="hl-blue">lmg_qualifying_brands</span>      <span class="hl-muted">— Nike, Adidas, etc.</span>
+  <span class="hl-blue">lmg_concept_cart_total</span>     <span class="hl-muted">— cart total PER concept</span>
+  <span class="hl-blue">lmg_qualifying_devices</span>     <span class="hl-muted">— mobile / desktop</span>
+  <span class="hl-blue">lmg_qualifying_card_bins</span>   <span class="hl-muted">— bank card BIN numbers</span></div>
+
+  <div class="callout">
+    <strong>The translatorId is the KEY field.</strong> It points to a Spring bean that knows how to convert this condition into Drools syntax. When your team added <code>lmg_qualifying_concepts</code>, they also wrote <code>LMGRuleQualifyingConceptsConditionTranslator</code> — the code that teaches Drools what "concept = MAX" means.
+  </div>
+</div>
+
+<!-- RuleConditionDefinitionParameter -->
+<div class="card card-green">
+  <span class="badge badge-green">condition parameters</span>
+  <div class="type-name green">RuleConditionDefinitionParameter</div>
+  <p><strong>Purpose:</strong> Defines the <strong>input fields</strong> for a condition — what the user fills in.</p>
+  <p><strong>Why it exists:</strong> The condition "qualifying concepts" needs a parameter "which concepts?" — this type defines that input field.</p>
+  <p><strong>When you touch it:</strong> When your new condition needs user input fields.</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th><th>Example</th></tr>
+    <tr><td>id</td><td>String</td><td>Parameter name referenced in JSON</td><td><code>concepts</code></td></tr>
+    <tr><td>name</td><td>localized String</td><td>Label in the UI form</td><td>"Concepts"</td></tr>
+    <tr><td>type</td><td>String</td><td>Data type — controls which UI widget appears</td><td><code>List(String)</code></td></tr>
+    <tr><td>value</td><td>String</td><td>Default value</td><td>null</td></tr>
+    <tr><td>required</td><td>Boolean</td><td>Must user fill this?</td><td>true</td></tr>
+    <tr><td>validators</td><td>List</td><td>Validation rules</td><td><code>["notEmptyValidator"]</code></td></tr>
+  </table>
+  </div>
+
+  <h3>Example: parameters for "lmg_qualifying_concepts" condition</h3>
+  <div class="hierarchy"><span class="hl-green">RuleConditionDefinition</span>: id = "lmg_qualifying_concepts"
+  └── <span class="hl-blue">RuleConditionDefinitionParameter</span>:
+        id       = "concepts"
+        type     = "List(String)"     <span class="hl-muted">← user picks from: MAX, SPLASH, CENTREPOINT...</span>
+        required = true               <span class="hl-muted">← must select at least one concept</span></div>
+
+  <p><strong>Relation:</strong> Each <code>RuleConditionDefinition</code> has many <code>RuleConditionDefinitionParameter</code> (one-to-many, part-of — parameters are deleted when the definition is deleted).</p>
+</div>
+
+<!-- RuleConditionDefinitionCategory -->
+<div class="card card-green">
+  <span class="badge badge-green">UI grouping</span>
+  <div class="type-name green">RuleConditionDefinitionCategory</div>
+  <p><strong>Purpose:</strong> Groups conditions in the Backoffice UI dropdown into sections.</p>
+  <p><strong>Why it exists:</strong> Without categories, all 15+ conditions would be in one flat list. Categories make the dropdown organized.</p>
+  <p><strong>When you touch it:</strong> Rarely — only when adding a new category of conditions.</p>
+
+  <h3>How it looks in the Backoffice rule builder</h3>
+  <div class="hierarchy"><span class="hl-muted">Backoffice → Create Promotion Rule → Add Condition dropdown:</span>
+
+├── <span class="hl-green">Cart</span>                         <span class="hl-muted">← category</span>
+│   ├── Cart total
+│   └── LMG Cart total per concept
+├── <span class="hl-green">Product</span>                      <span class="hl-muted">← category</span>
+│   ├── Qualifying products
+│   └── Qualifying categories
+├── <span class="hl-green">Customer</span>                     <span class="hl-muted">← category</span>
+│   └── Target customers
+└── <span class="hl-green">LMG Custom</span>                   <span class="hl-muted">← category</span>
+    ├── Qualifying concepts
+    ├── Qualifying brands
+    ├── Qualifying devices
+    └── Qualifying card BINs</div>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>id</td><td>String (unique)</td><td>Category identifier</td></tr>
+    <tr><td>name</td><td>localized String</td><td>Label shown in the UI</td></tr>
+    <tr><td>icon</td><td>Media</td><td>Icon shown next to the category name</td></tr>
+    <tr><td>priority</td><td>Integer</td><td>Order of categories in the dropdown</td></tr>
+  </table>
+  </div>
+
+  <p><strong>Relation:</strong> Many-to-many with <code>RuleConditionDefinition</code>. One condition can belong to multiple categories, one category can have multiple conditions.</p>
+</div>
+
+<!-- RuleConditionDefinitionRuleTypeMapping -->
+<div class="card card-green">
+  <span class="badge badge-green">access control</span>
+  <div class="type-name green">RuleConditionDefinitionRuleTypeMapping</div>
+  <p><strong>Purpose:</strong> Controls which conditions appear for which rule types.</p>
+  <p><strong>Why it exists:</strong> A "cart total" condition makes no sense for a product-level rule. This mapping restricts what shows up in the UI based on the rule type being edited.</p>
+  <p><strong>When you touch it:</strong> When you want a condition to only appear for certain rule types.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>ruleType</td><td>Which ComposedType (PromotionSourceRule, etc.) can use this condition</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- Actions mirror -->
+<div class="card card-green">
+  <span class="badge badge-green">action vocabulary — same pattern as conditions</span>
+  <div class="type-name green">RuleActionDefinition / Parameter / Category / RuleTypeMapping</div>
+  <p><strong>Exact same pattern as conditions, but for the THEN part (actions).</strong></p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Type</th><th>Purpose</th><th>Example</th></tr>
+    <tr><td>RuleActionDefinition</td><td>Defines ONE action type in the rule builder</td><td>id = "y_order_percentage_discount"</td></tr>
+    <tr><td>RuleActionDefinitionParameter</td><td>Input fields for the action</td><td>"value" parameter = the percentage (10%)</td></tr>
+    <tr><td>RuleActionDefinitionCategory</td><td>Groups actions in the UI</td><td>"cart_discounts", "product_discounts", "cashback"</td></tr>
+    <tr><td>RuleActionDefinitionRuleTypeMapping</td><td>Which rule types can use this action</td><td>"free shipping" only for order-level rules</td></tr>
+  </table>
+  </div>
+
+  <h3>SAP standard vs LMG custom actions</h3>
+  <div class="hierarchy"><span class="hl-muted">SAP Standard:</span>
+  <span class="hl-green">y_order_percentage_discount</span>        <span class="hl-muted">— X% off order total</span>
+  <span class="hl-green">y_order_fixed_discount</span>             <span class="hl-muted">— flat amount off order</span>
+  <span class="hl-green">y_order_entry_percentage_discount</span>  <span class="hl-muted">— X% off specific product</span>
+  <span class="hl-green">y_order_entry_fixed_discount</span>       <span class="hl-muted">— flat amount off product</span>
+  <span class="hl-green">y_free_gift</span>                        <span class="hl-muted">— add free product to cart</span>
+  <span class="hl-green">y_change_delivery_mode</span>             <span class="hl-muted">— change delivery</span>
+  <span class="hl-green">y_trigger_message</span>                  <span class="hl-muted">— show potential promo message</span>
+
+<span class="hl-muted">LMG Custom (your team added):</span>
+  <span class="hl-blue">y_cashback</span>                                         <span class="hl-muted">— Shukran Pay cashback</span>
+  <span class="hl-blue">lmg_free_shipping</span>                                  <span class="hl-muted">— free shipping</span>
+  <span class="hl-blue">lmg_given_voucher</span>                                  <span class="hl-muted">— OTFV voucher</span>
+  <span class="hl-blue">lmg_order_percentage_discount_with_card</span>            <span class="hl-muted">— card-based % discount</span>
+  <span class="hl-blue">lmg_order_fixed_discount_with_card</span>                 <span class="hl-muted">— card-based fixed discount</span>
+  <span class="hl-blue">lmg_product_fixed_price</span>                            <span class="hl-muted">— RPM fixed price</span>
+  <span class="hl-blue">lmg_target_product_price_threshold_fixed_discount</span>  <span class="hl-muted">— stepped price discount</span>
+  <span class="hl-blue">lmg_partner_order_entry_percentage_discount</span>        <span class="hl-muted">— BOGO</span>
+  <span class="hl-blue">lmg_ccs_order_entry_percentage_discount</span>            <span class="hl-muted">— cross-category selling</span></div>
+</div>
+
+<!-- ============ GROUP 3: GROUPING ============ -->
+<h2>Group 3: Grouping — "How are rules organized?"</h2>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">grouping &amp; exclusivity</span>
+  <div class="type-name orange">RuleGroup</div>
+  <p><strong>Purpose:</strong> Groups related rules together. Controls <strong>exclusivity</strong> — which rules compete.</p>
+  <p><strong>Why it exists:</strong> Rules in the same group compete — only the highest priority wins (unless stackable). Rules in different groups don't compete and can all apply.</p>
+  <p><strong>When you touch it:</strong> When adding a new category of promotions (rare).</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>code</td><td>String (unique)</td><td>Group identifier</td></tr>
+    <tr><td>description</td><td>localized String</td><td>What this group is for</td></tr>
+  </table>
+  </div>
+
+  <h3>Your LMG rule groups</h3>
+  <div class="hierarchy"><span class="hl-orange">orderPromotionRuleGroup</span>     <span class="hl-muted">— order-level promotions compete with each other</span>
+<span class="hl-orange">productPromotionRuleGroup</span>   <span class="hl-muted">— product-level promotions compete with each other</span>
+<span class="hl-orange">customerPromotionRuleGroup</span>  <span class="hl-muted">— customer-level promotions</span>
+<span class="hl-orange">voucherPromotionRuleGroup</span>   <span class="hl-muted">— voucher (OTFV) promotions are separate</span>
+<span class="hl-orange">cashBackPromotionRuleGroup</span>  <span class="hl-muted">— cashback promotions are separate</span></div>
+
+  <h3>How exclusivity works</h3>
+  <div class="hierarchy"><span class="hl-muted">Example: 2 order promotions in the same group</span>
+  Rule A: "10% off orders over 500" (priority: 500)
+  Rule B: "Free gift on orders over 300" (priority: 400)
+
+  <span class="hl-muted">Cart total = 600 AED. Both qualify. What happens?</span>
+
+  <span class="hl-muted">If both stackable = false:</span>  Only Rule A applies <span class="hl-muted">(higher priority wins)</span>
+  <span class="hl-muted">If both stackable = true:</span>   Both apply <span class="hl-muted">(10% off + free gift)</span>
+  <span class="hl-muted">If in DIFFERENT groups:</span>     Both apply <span class="hl-muted">(groups don't compete)</span></div>
+
+  <p><strong>Relation:</strong> Each <code>RuleGroup</code> has many <code>AbstractRule</code> instances (one-to-many). Also has many <code>AbstractRuleTemplate</code> instances.</p>
+</div>
+
+<!-- ============ MAPPING ============ -->
+<h2>Bonus: Mapping Type</h2>
+
+<div class="card card-purple">
+  <span class="badge badge-purple">mapping</span>
+  <div class="type-name purple">RuleToEngineRuleTypeMapping</div>
+  <p><strong>Purpose:</strong> Maps a SourceRule type to a DroolsRule type.</p>
+  <p><strong>Why it exists:</strong> Tells the system "when you compile a PromotionSourceRule, create a PROMOTION type DroolsRule."</p>
+  <p><strong>When you touch it:</strong> Almost never. Configured once during system setup.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Example</th></tr>
+    <tr><td>ruleType</td><td>PromotionSourceRule (the ComposedType)</td></tr>
+    <tr><td>engineRuleType</td><td>PROMOTION (the RuleType enum value from Layer 1)</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ ENUMS ============ -->
+<h2>Enums defined in this extension</h2>
+
+<div class="card">
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-top:0;">RuleStatus</h3>
+      <ul>
+        <li><strong>UNPUBLISHED</strong> — created, not active</li>
+        <li><strong>PUBLISHED</strong> — active, compiled into Drools</li>
+        <li><strong>MODIFIED</strong> — edited after publish, needs re-publish</li>
+        <li><strong>ARCHIVED</strong> — retired</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">OrderEntrySelectionStrategy</h3>
+      <ul>
+        <li><strong>DEFAULT</strong> — apply to entries in order</li>
+        <li><strong>CHEAPEST</strong> — apply to cheapest entries first</li>
+      </ul>
+      <h3>FactContextType</h3>
+      <ul>
+        <li><strong>RULE_GROUP</strong> — evaluate by rule group</li>
+        <li><strong>RULE_CONFIGURATION</strong> — evaluate by config</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ALSO EXTENDS LAYER 1 ============ -->
+<h2>Also extends Layer 1: AbstractRuleEngineRule</h2>
+
+<div class="card card-accent">
+  <p>This extension adds 4 extra attributes to the Layer 1 <code>AbstractRuleEngineRule</code> (DroolsRule's parent):</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>ruleParameters</td><td>Stores rule parameters as a JSON string on the compiled DroolsRule</td></tr>
+    <tr><td>maxAllowedRuns</td><td>Copied from the source rule — controls how many times the compiled rule can fire</td></tr>
+    <tr><td>ruleGroupCode</td><td>Which group this compiled rule belongs to (derived from the AbstractRule)</td></tr>
+    <tr><td>messageFired</td><td>Message to show customer (copied from the source rule)</td></tr>
+  </table>
+  </div>
+  <p>This means the compiled <strong>DroolsRule</strong> carries some metadata from the <strong>SourceRule</strong> so the engine has context while firing.</p>
+</div>
+
+<!-- ============ COMPLETE HIERARCHY ============ -->
+<h2>Complete Data Hierarchy</h2>
+
+<div class="hierarchy"><span class="hl-orange">RuleGroup</span>
+├── has many &rarr; <span class="hl-blue">AbstractRule</span> <span class="hl-muted">(abstract)</span>
+│                   └── <span class="hl-blue">SourceRule</span>
+│                         ├── conditions <span class="hl-muted">(JSON)</span> &larr; built using <span class="hl-green">ConditionDefinitions</span>
+│                         └── actions <span class="hl-muted">(JSON)</span>    &larr; built using <span class="hl-green">ActionDefinitions</span>
+│
+├── has many &rarr; <span class="hl-muted">AbstractRuleTemplate</span>
+│                   └── <span class="hl-muted">SourceRuleTemplate</span> <span class="hl-muted">(pre-filled conditions + actions)</span>
+
+<span class="hl-green">RuleConditionDefinition</span>
+├── has many &rarr; <span class="hl-green">RuleConditionDefinitionParameter</span> <span class="hl-muted">(input fields)</span>
+├── many-to-many &rarr; <span class="hl-green">RuleConditionDefinitionCategory</span> <span class="hl-muted">(UI grouping)</span>
+└── has many &rarr; <span class="hl-green">RuleConditionDefinitionRuleTypeMapping</span> <span class="hl-muted">(access control)</span>
+
+<span class="hl-green">RuleActionDefinition</span>
+├── has many &rarr; <span class="hl-green">RuleActionDefinitionParameter</span> <span class="hl-muted">(input fields)</span>
+├── many-to-many &rarr; <span class="hl-green">RuleActionDefinitionCategory</span> <span class="hl-muted">(UI grouping)</span>
+└── has many &rarr; <span class="hl-green">RuleActionDefinitionRuleTypeMapping</span> <span class="hl-muted">(access control)</span>
+
+<span class="hl-purple">RuleToEngineRuleTypeMapping</span> <span class="hl-muted">— maps SourceRule type &rarr; DroolsRule type</span></div>
+
+<!-- ============ WHEN TO TOUCH ============ -->
+<h2>When do you touch each type?</h2>
+
+<div class="card">
+  <div class="tbl-container">
+  <table class="when-table">
+    <tr><th>Type</th><th>When you touch it</th><th>How often</th></tr>
+    <tr><td>AbstractRule / SourceRule</td><td>Never directly — you work with PromotionSourceRule (Layer 3)</td><td>Never</td></tr>
+    <tr><td>RuleGroup</td><td>When adding a new category of promotions</td><td>Very rare</td></tr>
+    <tr><td>RuleConditionDefinition</td><td>When adding a new condition type (e.g. your team added concepts, brands)</td><td>Rare — only when business needs new filtering</td></tr>
+    <tr><td>RuleConditionDefinitionParameter</td><td>When your new condition needs input fields</td><td>Always paired with adding a new condition</td></tr>
+    <tr><td>RuleConditionDefinitionCategory</td><td>When adding a new UI section in the rule builder</td><td>Very rare</td></tr>
+    <tr><td>RuleActionDefinition</td><td>When adding a new action type (e.g. your team added cashback, free shipping)</td><td>Rare — only when business needs new discount types</td></tr>
+    <tr><td>RuleActionDefinitionParameter</td><td>When your new action needs input fields</td><td>Always paired with adding a new action</td></tr>
+    <tr><td>Templates</td><td>When creating a new promotion blueprint for business users</td><td>Occasional</td></tr>
+    <tr><td>RuleToEngineRuleTypeMapping</td><td>Configured once during setup</td><td>Never</td></tr>
+  </table>
+  </div>
+</div>

@@ -1,0 +1,701 @@
+<title>Customisation Example 1 — Loyalty Tier Discount</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+    --pink:#b44d8b;--pink-bg:#f8eaf3;--pink-border:#d6a3c4;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.65;padding:2rem 1.5rem;max-width:1060px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  h4{font-size:0.85rem;font-weight:600;margin:1rem 0 0.3rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul,ol{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  li{margin-bottom:0.3rem;} li strong{color:var(--text);}
+  code{font-family:'IBM Plex Mono',monospace;font-size:0.76rem;background:var(--surface-alt);padding:0.1rem 0.35rem;border-radius:3px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .step-card{position:relative;padding-left:3.5rem;}
+  .step-num{position:absolute;left:1.25rem;top:1.25rem;width:1.6rem;height:1.6rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:700;color:#fff;}
+  .sn-b .step-num{background:var(--blue);} .sn-g .step-num{background:var(--green);}
+  .sn-o .step-num{background:var(--orange);} .sn-p .step-num{background:var(--purple);}
+  .sn-r .step-num{background:var(--red);} .sn-t .step-num{background:var(--teal);}
+  .sn-pk .step-num{background:var(--pink);}
+  .sn-b{border-left:3px solid var(--blue);} .sn-g{border-left:3px solid var(--green);}
+  .sn-o{border-left:3px solid var(--orange);} .sn-p{border-left:3px solid var(--purple);}
+  .sn-r{border-left:3px solid var(--red);} .sn-t{border-left:3px solid var(--teal);}
+  .sn-pk{border-left:3px solid var(--pink);}
+  .step-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.85rem;margin-bottom:0.15rem;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  .tbl{overflow-x:auto;}
+
+  .hier{font-family:'IBM Plex Mono',monospace;font-size:0.73rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hier .hb{color:var(--blue);font-weight:600;} .hier .hg{color:var(--green);font-weight:600;}
+  .hier .ho{color:var(--orange);font-weight:600;} .hier .hp{color:var(--purple);font-weight:600;}
+  .hier .hr{color:var(--red);font-weight:600;} .hier .ht{color:var(--teal);font-weight:600;}
+  .hier .hpk{color:var(--pink);font-weight:600;} .hier .hm{color:var(--text-muted);}
+
+  .co{border-radius:5px;padding:0.65rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .co-b{background:var(--blue-bg);border:1px solid var(--blue-border);} .co-b strong{color:var(--blue);}
+  .co-g{background:var(--green-bg);border:1px solid var(--green-border);} .co-g strong{color:var(--green);}
+  .co-o{background:var(--orange-bg);border:1px solid var(--orange-border);} .co-o strong{color:var(--orange);}
+  .co-p{background:var(--purple-bg);border:1px solid var(--purple-border);} .co-p strong{color:var(--purple);}
+  .co-r{background:var(--red-bg);border:1px solid var(--red-border);} .co-r strong{color:var(--red);}
+
+  .badge{display:inline-block;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;margin-right:0.3rem;}
+  .badge-b{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
+  .badge-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+  .badge-o{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);}
+  .badge-r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+  .badge-p{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);}
+  .badge-t{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-border);}
+
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.step-card{padding-left:3rem;}.step-num{left:1rem;}}
+</style>
+
+<h1>Customisation Example 1 — Loyalty Tier-Based Discount</h1>
+<p class="subtitle">A complete, real-world customisation touching all layers — from business requirement to every file you'd create or modify.</p>
+
+<!-- ═══════════════ PROBLEM ═══════════════ -->
+<h2>The Business Requirement</h2>
+
+<div class="card" style="border-left:4px solid var(--red);">
+  <p style="font-size:0.9rem;color:var(--text);"><strong>"We want to give extra discounts based on the customer's Shukran loyalty tier. Gold members get 5% extra, Platinum members get 10% extra — but ONLY on products from specific brands, and ONLY when shopping from mobile. The discount should show as a separate line 'Loyalty Reward' and we need to track which tier triggered it for analytics."</strong></p>
+</div>
+
+<h3>Breaking down the requirement</h3>
+<div class="tbl">
+<table>
+  <tr><th>Requirement piece</th><th>What it needs</th><th>Exists today?</th></tr>
+  <tr><td>Check loyalty tier</td><td>New condition: <code>lmg_loyalty_tier</code></td><td style="color:var(--red);font-weight:600;">NO — must build</td></tr>
+  <tr><td>Check specific brands</td><td>Condition: <code>lmg_qualifying_brands</code></td><td style="color:var(--green);font-weight:600;">YES — reuse</td></tr>
+  <tr><td>Check mobile only</td><td>Condition: <code>lmg_qualifying_devices</code></td><td style="color:var(--green);font-weight:600;">YES — reuse</td></tr>
+  <tr><td>Tier-based % discount</td><td>New action: <code>lmg_loyalty_discount</code></td><td style="color:var(--red);font-weight:600;">NO — must build</td></tr>
+  <tr><td>Track tier for analytics</td><td>New action model with tier field</td><td style="color:var(--red);font-weight:600;">NO — must build</td></tr>
+</table>
+</div>
+
+<div class="co co-o">
+  <strong>Existing asset:</strong> The codebase already has <code>LoyaltyTierEnum</code> with values <strong>MEMBER, SILVER, GOLD, PLATINUM</strong> (used in <code>AbstractOrderLoyaltyInfo</code> and the rewards extension). We'll reuse this enum for our condition.
+</div>
+
+<!-- ═══════════════ WHAT WE'LL BUILD ═══════════════ -->
+<h2>What we'll build — File inventory</h2>
+
+<div class="hier"><span class="hm">╔═══════════════════════════════════════════════════════════════════════════════╗</span>
+<span class="hm">║</span>  <span class="hb">NEW CONDITION: lmg_loyalty_tier</span>                                               <span class="hm">║</span>
+<span class="hm">║</span>  "Does the customer's Shukran tier match Gold or Platinum?"                    <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-b" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 1</span>  beans.xml           → LMGLoyaltyTierRAO                              <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-g" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 2</span>  Provider .java      → LMGLoyaltyTierRAOProvider                      <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-o" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 3</span>  Translator .java    → LMGRuleLoyaltyTierConditionTranslator            <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-r" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 4</span>  Value Mapper .java  → LMGLoyaltyTierRuleParameterValueMapper           <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">╠═══════════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hg">NEW ACTION: lmg_loyalty_discount</span>                                              <span class="hm">║</span>
+<span class="hm">║</span>  "Give X% discount and record which tier triggered it"                         <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-b" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 5</span>  beans.xml           → LMGLoyaltyDiscountRAO                          <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-p" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 6</span>  items.xml           → RuleBasedLoyaltyDiscountAction                  <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-o" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 7</span>  Translator .java    → LMGRuleLoyaltyDiscountActionTranslator           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-r" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 8</span>  RAO Action .java    → DefaultLMGRuleLoyaltyDiscountRAOAction           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-t" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 9</span>  Strategy .java      → DefaultLMGLoyaltyDiscountActionStrategy          <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">╠═══════════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hpk">WIRING (modify existing files)</span>                                                <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-p" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 10</span> ImpEx               → condition + action definitions + parameters    <span class="hm">║</span>
+<span class="hm">║</span>  <span class="badge-t" style="display:inline;font-size:0.65rem;font-weight:600;">FILE 11</span> Spring XML          → all bean wiring + maps                         <span class="hm">║</span>
+<span class="hm">║</span>                                                                                 <span class="hm">║</span>
+<span class="hm">╚═══════════════════════════════════════════════════════════════════════════════╝</span>
+
+<span class="hm">Total: 9 new Java/XML entries + 2 existing files modified = 11 touch-points</span></div>
+
+<!-- ═══════════════ STEP BY STEP ═══════════════ -->
+<h2>Step-by-step implementation</h2>
+
+<!-- FILE 1 -->
+<div class="card step-card sn-b">
+  <span class="step-num">1</span>
+  <div class="step-title">beans.xml — LMGLoyaltyTierRAO (condition fact)</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-beans.xml</code></p>
+  <p><strong>Pattern copied from:</strong> <code>LMGDeviceRAO</code> — simplest existing RAO (just a code field)</p>
+  <div class="hier"><span class="hm">&lt;!-- NEW: Loyalty Tier RAO — carries the customer's Shukran tier into Drools --&gt;</span>
+<span class="hb">&lt;bean class="com.landmarkshops.core.promotionengine.rao.LMGLoyaltyTierRAO"</span>
+    <span class="hb">template="resources/coderao-template.vm"&gt;</span>
+    &lt;property name="code" type="String" equals="true"/&gt;
+&lt;/bean&gt;</div>
+  <div class="co co-b">
+    <strong>Why <code>template="resources/coderao-template.vm"</code>?</strong> This generates <code>equals()</code> and <code>hashCode()</code> based on the <code>code</code> field. Drools needs this to correctly compare facts. Same template used by LMGDeviceRAO, LMGConceptRAO, LMGBrandRAO.
+  </div>
+</div>
+
+<!-- FILE 2 -->
+<div class="card step-card sn-g">
+  <span class="step-num">2</span>
+  <div class="step-title">LMGLoyaltyTierRAOProvider.java — Insert tier fact into Drools</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../rao/provider/DefaultLMGLoyaltyTierRAOProvider.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>DefaultLMGDeviceRAOProvider</code> — standalone provider (43 lines, simplest pattern)</p>
+  <div class="hier"><span class="hg">public class DefaultLMGLoyaltyTierRAOProvider implements RAOProvider</span>
+{
+    @Resource
+    private LMGLoyaltyService lmgLoyaltyService;
+
+    @Resource
+    private UserService userService;
+
+    @Override
+    public Set&lt;?&gt; expandFactModel(final Object modelFact)
+    {
+        <span class="hm">// Get current customer</span>
+        final CustomerModel customer = (CustomerModel) userService.getCurrentUser();
+
+        <span class="hm">// Get tier from loyalty service (already exists in codebase)</span>
+        <span class="hm">// LMGLoyaltyService reads tier from Shukran/Epsilon API response</span>
+        final LoyaltyTierEnum tier = lmgLoyaltyService.getCustomerTier(customer);
+
+        final LMGLoyaltyTierRAO rao = new LMGLoyaltyTierRAO();
+        if (tier != null)
+        {
+            rao.setCode(tier.getCode());  <span class="hm">// "GOLD", "PLATINUM", "SILVER", "MEMBER"</span>
+        }
+        else
+        {
+            rao.setCode("MEMBER");  <span class="hm">// default tier</span>
+        }
+
+        return Collections.singleton(rao);
+    }
+}</div>
+  <div class="co co-g">
+    <strong>Key decision:</strong> We use a standalone provider (like Device) rather than extending the Cart populator, because the tier comes from the customer, not the cart. It's a separate fact — clean and independent.
+  </div>
+</div>
+
+<!-- FILE 3 -->
+<div class="card step-card sn-o">
+  <span class="step-num">3</span>
+  <div class="step-title">LMGRuleLoyaltyTierConditionTranslator.java — Compile condition</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../definitions/conditions/LMGRuleLoyaltyTierConditionTranslator.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>LMGRuleDeviceConditionTranslator</code> — simple single-RAO check (no join chain needed)</p>
+  <div class="hier"><span class="ho">public class LMGRuleLoyaltyTierConditionTranslator implements RuleConditionTranslator</span>
+{
+    private static final String TIER_RAO_CODE_ATTRIBUTE = "code";
+    private static final String PARAM_TIERS = "tiers";
+
+    @Override
+    public RuleIrCondition translate(final RuleCompilerContext context,
+            final RuleConditionData condition,
+            final RuleConditionDefinitionData conditionDefinition) throws RuleCompilerException
+    {
+        <span class="hm">// 1. Read what business user selected: e.g., [GOLD, PLATINUM]</span>
+        final RuleParameterData tiersParam = condition.getParameters().get(PARAM_TIERS);
+        final List tiers = (List) tiersParam.getValue();
+
+        <span class="hm">// 2. Generate variable for the LMGLoyaltyTierRAO fact</span>
+        final String tierRaoVar = context.generateVariable(<span class="ho">LMGLoyaltyTierRAO</span>.class);
+
+        <span class="hm">// 3. Build condition: LMGLoyaltyTierRAO.code IN ["GOLD", "PLATINUM"]</span>
+        final RuleIrAttributeCondition irTierCondition = new RuleIrAttributeCondition();
+        irTierCondition.setVariable(tierRaoVar);
+        irTierCondition.setAttribute(TIER_RAO_CODE_ATTRIBUTE);
+        irTierCondition.setOperator(RuleIrAttributeOperator.IN);
+        irTierCondition.setValue(tiers);
+
+        <span class="hm">// 4. Wrap in AND group and return</span>
+        final RuleIrGroupCondition group = new RuleIrGroupCondition();
+        group.setOperator(RuleIrGroupOperator.AND);
+        group.setChildren(new ArrayList&lt;&gt;());
+        group.getChildren().add(irTierCondition);
+
+        return group;
+    }
+}</div>
+  <div class="co co-o">
+    <strong>Why is this simpler than the concept translator?</strong> The concept translator needs a 4-step join chain (Cart → Entry → Product → Concept) because concept lives deep inside products. But tier is a standalone top-level fact — just one direct check. Same pattern as DeviceConditionTranslator.
+  </div>
+</div>
+
+<!-- FILE 4 -->
+<div class="card step-card sn-r">
+  <span class="step-num">4</span>
+  <div class="step-title">LMGLoyaltyTierRuleParameterValueMapper.java — Convert tier codes</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../rule/strategies/impl/mappers/LMGLoyaltyTierRuleParameterValueMapper.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>LMGDeviceRuleParameterValueMapper</code> — maps enum values</p>
+  <div class="hier"><span class="hr">public class LMGLoyaltyTierRuleParameterValueMapper</span>
+    implements RuleParameterValueMapper&lt;EnumerationValueModel&gt;
+{
+    @Resource
+    private FlexibleSearchService flexibleSearchService;
+
+    @Override
+    public EnumerationValueModel fromString(final String value)
+    {
+        <span class="hm">// Convert "GOLD" string → LoyaltyTierEnum EnumerationValueModel</span>
+        final String query = "SELECT {pk} FROM {LoyaltyTierEnum} WHERE {code}=?code";
+        final FlexibleSearchQuery fsq = new FlexibleSearchQuery(query);
+        fsq.addQueryParameter("code", value);
+        return flexibleSearchService.searchUnique(fsq);
+    }
+
+    @Override
+    public String toString(final EnumerationValueModel value)
+    {
+        return value.getCode();  <span class="hm">// "GOLD", "PLATINUM", etc.</span>
+    }
+}</div>
+</div>
+
+<h2>Now the action side...</h2>
+
+<!-- FILE 5 -->
+<div class="card step-card sn-b">
+  <span class="step-num">5</span>
+  <div class="step-title">beans.xml — LMGLoyaltyDiscountRAO (action result)</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-beans.xml</code></p>
+  <p><strong>Pattern copied from:</strong> <code>LMGCashbackRAO</code> — action RAO extending AbstractRuleActionRAO</p>
+  <div class="hier"><span class="hm">&lt;!-- NEW: Loyalty Discount RAO — carries the discount + tier info --&gt;</span>
+<span class="hb">&lt;bean class="com.landmarkshops.core.promotionengine.rao.LMGLoyaltyDiscountRAO"</span>
+    <span class="hb">extends="de.hybris.platform.ruleengineservices.rao.AbstractRuleActionRAO"&gt;</span>
+    &lt;property name="discountPercentage" type="java.math.BigDecimal" equals="true"/&gt;
+    &lt;property name="discountAmount" type="java.math.BigDecimal" equals="true"/&gt;
+    &lt;property name="loyaltyTier" type="String" equals="true"/&gt;
+    &lt;property name="maxDiscountAmount" type="java.math.BigDecimal" equals="true"/&gt;
+&lt;/bean&gt;</div>
+</div>
+
+<!-- FILE 6 -->
+<div class="card step-card sn-p">
+  <span class="step-num">6</span>
+  <div class="step-title">items.xml — RuleBasedLoyaltyDiscountAction model</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-items.xml</code></p>
+  <p><strong>Pattern copied from:</strong> <code>RuleBasedCashbackAction</code> — custom action model with JSON storage</p>
+  <div class="hier"><span class="hp">&lt;itemtype code="RuleBasedLoyaltyDiscountAction"</span>
+    <span class="hp">extends="AbstractRuleBasedPromotionAction"</span>
+    jaloclass="com.landmarkshops.core.jalo.RuleBasedLoyaltyDiscountAction"
+    autocreate="true" generate="true"&gt;
+    &lt;attributes&gt;
+        &lt;attribute qualifier="loyaltyTier" type="java.lang.String"&gt;
+            &lt;description&gt;The tier that triggered this discount (GOLD, PLATINUM)&lt;/description&gt;
+            &lt;persistence type="property" /&gt;
+        &lt;/attribute&gt;
+        &lt;attribute qualifier="discountPercentage" type="java.lang.Double"&gt;
+            &lt;description&gt;The % discount applied&lt;/description&gt;
+            &lt;persistence type="property" /&gt;
+            &lt;defaultvalue&gt;Double.valueOf(0.0D)&lt;/defaultvalue&gt;
+        &lt;/attribute&gt;
+        &lt;attribute qualifier="discountAmount" type="java.lang.Double"&gt;
+            &lt;description&gt;The absolute discount amount applied&lt;/description&gt;
+            &lt;persistence type="property" /&gt;
+            &lt;defaultvalue&gt;Double.valueOf(0.0D)&lt;/defaultvalue&gt;
+        &lt;/attribute&gt;
+        &lt;attribute qualifier="maxDiscountAmount" type="java.lang.Double"&gt;
+            &lt;description&gt;The cap on max discount&lt;/description&gt;
+            &lt;persistence type="property" /&gt;
+            &lt;defaultvalue&gt;Double.valueOf(0.0D)&lt;/defaultvalue&gt;
+        &lt;/attribute&gt;
+    &lt;/attributes&gt;
+&lt;/itemtype&gt;</div>
+  <div class="co co-p">
+    <strong>Why separate fields instead of a JSON blob?</strong> For analytics — SQL queries can directly filter by <code>loyaltyTier = 'GOLD'</code> without parsing JSON. The cashback action uses JSON because it has many nested attributes; this one has few fields, so individual columns are better.
+  </div>
+</div>
+
+<!-- FILE 7 -->
+<div class="card step-card sn-o">
+  <span class="step-num">7</span>
+  <div class="step-title">LMGRuleLoyaltyDiscountActionTranslator.java — Action translator</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../definitions/action/LMGRuleLoyaltyDiscountActionTranslator.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>DefaultLMGRuleCashbackActionTranslator</code> — pushes condition params into action</p>
+  <div class="hier"><span class="ho">public class LMGRuleLoyaltyDiscountActionTranslator</span>
+    extends RuleExecutableActionTranslator
+{
+    @Override
+    public RuleIrAction translate(RuleCompilerContext context,
+            RuleActionData action, RuleActionDefinitionData actionDef)
+    {
+        <span class="hm">// 1. Call parent to build the standard executable action IR</span>
+        RuleIrAction irAction = super.translate(context, action, actionDef);
+
+        <span class="hm">// 2. Push condition parameters into action parameters</span>
+        <span class="hm">//    This copies lmg_loyalty_tier_tiers = ["GOLD","PLATINUM"]</span>
+        <span class="hm">//    into the action params, so the RAO action can read which</span>
+        <span class="hm">//    tier(s) are configured and set the right percentage</span>
+        <span class="hr">pushConditionParameters</span>(context, irAction);
+
+        return irAction;
+    }
+
+    private void pushConditionParameters(RuleCompilerContext context,
+            RuleIrAction irAction)
+    {
+        <span class="hm">// Same pattern as cashback translator:</span>
+        <span class="hm">// iterate all conditions, copy every param into action params</span>
+        <span class="hm">// keyed as "{definitionId}_{paramName}"</span>
+        for (RuleConditionData condition : context.getRule().getConditions())
+        {
+            for (Map.Entry&lt;String, RuleParameterData&gt; param :
+                    condition.getParameters().entrySet())
+            {
+                String key = condition.getDefinitionId() + "_" + param.getKey();
+                ((RuleIrExecutableAction) irAction).getActionParameters()
+                    .put(key, param.getValue().getValue());
+            }
+        }
+    }
+}</div>
+</div>
+
+<!-- FILE 8 -->
+<div class="card step-card sn-r">
+  <span class="step-num">8</span>
+  <div class="step-title">DefaultLMGRuleLoyaltyDiscountRAOAction.java — Execute inside Drools</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../rule/evaluation/actions/impl/DefaultLMGRuleLoyaltyDiscountRAOAction.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>DefaultLMGRuleCashbackRAOAction</code> — reads params, checks eligibility, builds RAO</p>
+  <div class="hier"><span class="hr">public class DefaultLMGRuleLoyaltyDiscountRAOAction</span>
+    extends AbstractRuleExecutableSupport
+{
+    @Override
+    public boolean performAction(RuleActionContext context,
+            Map&lt;String, Object&gt; params)
+    {
+        <span class="hm">// 1. Read action parameters (set by business user in Backoffice)</span>
+        final BigDecimal goldPercentage = (BigDecimal) params.get("gold_percentage");
+        final BigDecimal platinumPercentage = (BigDecimal) params.get("platinum_percentage");
+        final BigDecimal maxDiscount = (BigDecimal) params.get("max_discount_amount");
+
+        <span class="hm">// 2. Read the customer's ACTUAL tier from condition params</span>
+        <span class="hm">//    (pushed by translator from lmg_loyalty_tier condition)</span>
+        final List configuredTiers = (List) params.get("<span class="hr">lmg_loyalty_tier_tiers</span>");
+
+        <span class="hm">// 3. Get the customer's actual tier from the Drools facts</span>
+        <span class="hm">//    (inserted by LMGLoyaltyTierRAOProvider)</span>
+        final LMGLoyaltyTierRAO tierFact = context.getValues(LMGLoyaltyTierRAO.class)
+                .iterator().next();
+        final String customerTier = tierFact.getCode();
+
+        <span class="hm">// 4. Determine the discount percentage for this tier</span>
+        BigDecimal percentage = BigDecimal.ZERO;
+        if ("<span class="hg">PLATINUM</span>".equals(customerTier)) {
+            percentage = platinumPercentage;
+        } else if ("<span class="hg">GOLD</span>".equals(customerTier)) {
+            percentage = goldPercentage;
+        }
+        <span class="hm">// SILVER and MEMBER get no loyalty discount</span>
+
+        if (percentage.compareTo(BigDecimal.ZERO) &lt;= 0) {
+            return false;  <span class="hm">// no action for this tier</span>
+        }
+
+        <span class="hm">// 5. Calculate the discount amount</span>
+        final CartRAO cartRAO = context.getCartRao();
+        final BigDecimal cartTotal = cartRAO.getTotal();
+        BigDecimal discountAmt = cartTotal.multiply(percentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        <span class="hm">// 6. Apply max cap</span>
+        if (maxDiscount != null && discountAmt.compareTo(maxDiscount) > 0) {
+            discountAmt = maxDiscount;
+        }
+
+        <span class="hm">// 7. Build the LMGLoyaltyDiscountRAO</span>
+        final <span class="hr">LMGLoyaltyDiscountRAO</span> discountRAO = new LMGLoyaltyDiscountRAO();
+        discountRAO.setDiscountPercentage(percentage);
+        discountRAO.setDiscountAmount(discountAmt);
+        discountRAO.setLoyaltyTier(customerTier);
+        discountRAO.setMaxDiscountAmount(maxDiscount);
+        discountRAO.setCurrencyIsoCode(cartRAO.getCurrencyIsoCode());
+        discountRAO.setAppliedToObject(cartRAO);
+        discountRAO.setFiredRuleCode(context.getRuleName());
+
+        <span class="hm">// 8. Add to cart and result</span>
+        cartRAO.getActions().add(discountRAO);
+        setRAOMetaData(context, discountRAO);
+        context.insertFact(discountRAO);
+        context.scheduleForUpdate(cartRAO);
+
+        <span class="hm">// 9. Consume order entries</span>
+        consumeOrderEntries(context, cartRAO);
+
+        return true;
+    }
+}</div>
+</div>
+
+<!-- FILE 9 -->
+<div class="card step-card sn-t">
+  <span class="step-num">9</span>
+  <div class="step-title">DefaultLMGLoyaltyDiscountActionStrategy.java — Persist to DB</div>
+  <p><strong>New file:</strong> <code>landmarkshopscore/src/.../rule/strategies/DefaultLMGLoyaltyDiscountActionStrategy.java</code></p>
+  <p><strong>Pattern copied from:</strong> <code>DefaultLMGCashbackActionStrategy</code></p>
+  <div class="hier"><span class="ht">public class DefaultLMGLoyaltyDiscountActionStrategy</span>
+    extends AbstractRuleActionStrategy&lt;RuleBasedLoyaltyDiscountActionModel&gt;
+{
+    @Override
+    public List&lt;PromotionResultModel&gt; apply(AbstractRuleActionRAO action)
+    {
+        if (!(action instanceof LMGLoyaltyDiscountRAO)) { return Collections.emptyList(); }
+        final LMGLoyaltyDiscountRAO discountRAO = (LMGLoyaltyDiscountRAO) action;
+
+        <span class="hm">// 1. Create PromotionResult</span>
+        final PromotionResultModel promoResult =
+            getPromotionActionService().createPromotionResult(action);
+        promoResult.setCertainty(1.0f);
+
+        <span class="hm">// 2. Create the action model</span>
+        final RuleBasedLoyaltyDiscountActionModel actionModel =
+            createPromotionAction(promoResult, action);
+
+        <span class="hm">// 3. Set the tier-specific fields (for analytics!)</span>
+        actionModel.setLoyaltyTier(discountRAO.getLoyaltyTier());  <span class="hm">// "GOLD"</span>
+        actionModel.setDiscountPercentage(discountRAO.getDiscountPercentage().doubleValue());
+        actionModel.setDiscountAmount(discountRAO.getDiscountAmount().doubleValue());
+        actionModel.setMaxDiscountAmount(discountRAO.getMaxDiscountAmount().doubleValue());
+
+        <span class="hm">// 4. Create DiscountValue on the order (actual price reduction)</span>
+        final AbstractOrderModel order = getOrderFromCartRAO(discountRAO);
+        final DiscountValue discountValue = new DiscountValue(
+            "loyaltyReward",                          <span class="hm">// discount code</span>
+            discountRAO.getDiscountAmount().doubleValue(),
+            true,                                      <span class="hm">// absolute</span>
+            discountRAO.getCurrencyIsoCode()
+        );
+        addDiscountToOrder(order, discountValue);      <span class="hm">// shows as "Loyalty Reward"</span>
+
+        <span class="hm">// 5. Save everything</span>
+        getModelService().saveAll(promoResult, actionModel, order);
+
+        return Collections.singletonList(promoResult);
+    }
+}</div>
+  <div class="co co-g">
+    <strong>Key difference from cashback:</strong> This strategy creates an actual <code>DiscountValue</code> on the order (reduces the cart total). Cashback was informational only. Here, the customer sees a lower price immediately.
+  </div>
+</div>
+
+<!-- FILE 10 -->
+<div class="card step-card sn-p">
+  <span class="step-num">10</span>
+  <div class="step-title">ImpEx — Register condition + action definitions</div>
+  <p><strong>File:</strong> <code>landmarkshopsinitialdata/.../essentialData/common/21-essentialdata-definitions.impex</code></p>
+  <div class="hier"><span class="hm">═══ CONDITION DEFINITION ═══</span>
+
+INSERT_UPDATE <span class="hp">RuleConditionDefinition</span>
+  ;id[unique=true]          ;name[lang=$lang]          ;priority ;breadcrumb[lang=$lang]                 ;allowsChildren ;translatorId                              ;categories(id)
+  ;<span class="hp">lmg_loyalty_tier</span>         ;LMG Loyalty Tier          ;94       ;Customer loyalty tier in {tiers}        ;false          ;ruleLMGLoyaltyTierConditionTranslator     ;cart
+
+INSERT_UPDATE <span class="hp">RuleConditionDefinitionParameter</span>
+  ;definition(id)[unique=true] ;id[unique=true] ;priority ;name[lang=$lang] ;type                                    ;required
+  ;lmg_loyalty_tier            ;tiers           ;1000     ;Loyalty Tiers    ;List(ItemType(LoyaltyTierEnum))         ;true
+
+
+<span class="hm">═══ ACTION DEFINITION ═══</span>
+
+INSERT_UPDATE <span class="hp">RuleActionDefinition</span>
+  ;id[unique=true]             ;name[lang=$lang]        ;priority ;breadcrumb[lang=$lang]                                          ;translatorId                                 ;translatorParameters                       ;categories(id)
+  ;<span class="hp">lmg_loyalty_discount</span>        ;LMG Loyalty Discount    ;1600     ;{gold_percentage}% for Gold, {platinum_percentage}% for Platinum ;ruleLoyaltyDiscountActionTranslator           ;actionId->ruleLoyaltyDiscountAction         ;discount
+
+INSERT_UPDATE <span class="hp">RuleActionDefinitionParameter</span>
+  ;definition(id)[unique=true] ;id[unique=true]           ;priority ;name[lang=$lang]       ;type                    ;required
+  ;lmg_loyalty_discount        ;gold_percentage           ;100      ;Gold % Discount        ;java.math.BigDecimal    ;true
+  ;lmg_loyalty_discount        ;platinum_percentage       ;200      ;Platinum % Discount    ;java.math.BigDecimal    ;true
+  ;lmg_loyalty_discount        ;max_discount_amount       ;300      ;Max Discount Cap       ;java.math.BigDecimal    ;false</div>
+</div>
+
+<!-- FILE 11 -->
+<div class="card step-card sn-t">
+  <span class="step-num">11</span>
+  <div class="step-title">Spring XML — Wire everything</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-promotionengine-spring.xml</code></p>
+  <div class="hier"><span class="hm">═══ A. CONDITION BEANS ═══</span>
+
+<span class="ht">&lt;!-- Loyalty Tier condition translator --&gt;</span>
+&lt;alias alias="ruleLMGLoyaltyTierConditionTranslator"
+       name="defaultRuleLMGLoyaltyTierConditionTranslator"/&gt;
+&lt;bean id="defaultRuleLMGLoyaltyTierConditionTranslator"
+    class="...definitions.conditions.LMGRuleLoyaltyTierConditionTranslator"/&gt;
+
+<span class="ht">&lt;!-- Loyalty Tier RAO provider (standalone like Device) --&gt;</span>
+&lt;bean id="lmgLoyaltyTierRAOProvider"
+    class="...rao.provider.DefaultLMGLoyaltyTierRAOProvider"/&gt;
+
+<span class="ht">&lt;!-- Add to orderPromotionRaoProviders map → CartModel entry list --&gt;</span>
+<span class="hm">&lt;!-- (add alongside lmgDeviceRAOProvider in the existing list) --&gt;</span>
+&lt;ref bean="lmgLoyaltyTierRAOProvider"/&gt;
+
+<span class="ht">&lt;!-- Value mapper for LoyaltyTierEnum --&gt;</span>
+&lt;bean id="lmgLoyaltyTierRuleParameterValueMapper"
+    class="...mappers.LMGLoyaltyTierRuleParameterValueMapper"/&gt;
+&lt;bean id="loyaltyTierRuleParameterValueMapperDefinition"
+    class="...RuleParameterValueMapperDefinition"&gt;
+    &lt;property name="mapper" ref="lmgLoyaltyTierRuleParameterValueMapper"/&gt;
+    &lt;property name="type" value="ItemType(LoyaltyTierEnum)"/&gt;
+&lt;/bean&gt;
+
+<span class="ht">&lt;!-- Add to conditionResolutionStrategies map --&gt;</span>
+&lt;entry key="lmg_loyalty_tier" value-ref="loyaltyTierConditionResolutionStrategy"/&gt;
+
+
+<span class="hm">═══ B. ACTION BEANS ═══</span>
+
+<span class="ht">&lt;!-- Action translator --&gt;</span>
+&lt;alias alias="ruleLoyaltyDiscountActionTranslator"
+       name="defaultLMGRuleLoyaltyDiscountActionTranslator"/&gt;
+&lt;bean id="defaultLMGRuleLoyaltyDiscountActionTranslator"
+    class="...action.LMGRuleLoyaltyDiscountActionTranslator"
+    parent="defaultRuleExecutableActionTranslator"/&gt;
+
+<span class="ht">&lt;!-- Executable action wrapper (try-catch) --&gt;</span>
+&lt;bean id="ruleLoyaltyDiscountAction"
+    class="...action.DefaultLMGRuleExecutableAction"&gt;
+    &lt;property name="raoAction" ref="ruleLoyaltyDiscountRAOAction"/&gt;
+&lt;/bean&gt;
+
+<span class="ht">&lt;!-- RAO action --&gt;</span>
+&lt;alias name="defaultRuleLMGLoyaltyDiscountRAOAction"
+       alias="ruleLoyaltyDiscountRAOAction"/&gt;
+&lt;bean id="defaultRuleLMGLoyaltyDiscountRAOAction"
+    parent="abstractRuleExecutableSupport"
+    class="...actions.impl.DefaultLMGRuleLoyaltyDiscountRAOAction"/&gt;
+
+<span class="ht">&lt;!-- Action strategy --&gt;</span>
+&lt;alias name="defaultLoyaltyDiscountActionStrategy"
+       alias="loyaltyDiscountActionStrategy"/&gt;
+&lt;bean id="defaultLoyaltyDiscountActionStrategy"
+    parent="abstractRuleActionStrategy"
+    class="...strategies.DefaultLMGLoyaltyDiscountActionStrategy"&gt;
+    &lt;property name="promotionAction"
+        value="com.landmarkshops.core.model.RuleBasedLoyaltyDiscountActionModel"/&gt;
+&lt;/bean&gt;
+
+<span class="ht">&lt;!-- Register in promotionActionStrategiesMapping --&gt;</span>
+&lt;entry key="defaultRuleLMGLoyaltyDiscountRAOAction"
+       value-ref="defaultLoyaltyDiscountActionStrategy"/&gt;
+
+<span class="ht">&lt;!-- Register in actionStrategies list --&gt;</span>
+&lt;ref bean="defaultLoyaltyDiscountActionStrategy"/&gt;</div>
+</div>
+
+<!-- ═══════════════ HOW BUSINESS USER USES IT ═══════════════ -->
+<h2>How the business user uses it in Backoffice</h2>
+
+<div class="hier"><span class="hm">After deploying all 11 files and running ant initialize + updatesystem:</span>
+
+<span class="hb">Backoffice → Marketing → Promotion Rules → Create</span>
+
+<span class="hg">Conditions (IF):</span>
+  ├── lmg_loyalty_tier:     tiers = [GOLD, PLATINUM]
+  ├── lmg_qualifying_brands: brands = [NIKE, ADIDAS]    <span class="hm">← existing condition, reused</span>
+  └── lmg_qualifying_devices: devices = [Mobile]         <span class="hm">← existing condition, reused</span>
+
+<span class="ho">Action (THEN):</span>
+  └── lmg_loyalty_discount:
+        gold_percentage = 5
+        platinum_percentage = 10
+        max_discount_amount = 200
+
+<span class="hm">Result:</span>
+  Gold member on mobile buying Nike shoes   → <span class="hg">5% off (max 200 AED)</span> labeled "Loyalty Reward"
+  Platinum member on mobile buying Adidas   → <span class="hg">10% off (max 200 AED)</span> labeled "Loyalty Reward"
+  Silver member on mobile buying Nike       → <span class="hr">No discount</span> (tier not in [GOLD, PLATINUM])
+  Gold member on desktop buying Nike        → <span class="hr">No discount</span> (device not Mobile)</div>
+
+<!-- ═══════════════ RUNTIME TRACE ═══════════════ -->
+<h2>Runtime trace — what happens when a Gold member adds Nike shoes on mobile</h2>
+
+<div class="hier"><span class="hb">1.</span> Customer (Gold member) adds Nike shoes on mobile → cart calc triggers
+
+<span class="hg">2.</span> RAO Providers build facts:
+   CartRAO, OrderEntryRAO, ProductRAO(brand=NIKE)
+   + <span class="hg">LMGLoyaltyTierRAO(code="GOLD")</span>  <span class="hm">← our new provider</span>
+   + LMGDeviceRAO(code="Mobile")       <span class="hm">← existing provider</span>
+   + LMGBrandRAO(code="NIKE")          <span class="hm">← existing provider</span>
+
+<span class="ho">3.</span> Drools evaluates rule:
+   ✓ LMGLoyaltyTierRAO.code IN [GOLD, PLATINUM]  <span class="hm">← GOLD matches</span>
+   ✓ LMGBrandRAO.code IN [NIKE, ADIDAS]           <span class="hm">← NIKE matches</span>
+   ✓ LMGDeviceRAO.code IN [Mobile]                <span class="hm">← Mobile matches</span>
+   → <span class="ho">ALL CONDITIONS MET → FIRE!</span>
+
+<span class="hr">4.</span> RAO Action runs:
+   Reads gold_percentage=5, customer tier="GOLD"
+   Cart total = 800 AED → discount = 800 × 5% = <span class="hr">40 AED</span>
+   Builds LMGLoyaltyDiscountRAO(percentage=5, amount=40, tier="GOLD")
+
+<span class="hpk">5.</span> Strategy persists:
+   Creates PromotionResult + RuleBasedLoyaltyDiscountActionModel
+   Sets loyaltyTier="GOLD", discountPercentage=5.0, discountAmount=40.0
+   Creates DiscountValue("loyaltyReward", 40 AED) on order
+
+<span class="hg">6.</span> Customer sees:
+   Subtotal:       800 AED
+   <span class="hg">Loyalty Reward: −40 AED</span>  (5% Gold tier discount)
+   Total:          760 AED
+
+<span class="hm">7.</span> Analytics team can query:
+   SELECT loyaltyTier, COUNT(*), SUM(discountAmount)
+   FROM RuleBasedLoyaltyDiscountAction
+   GROUP BY loyaltyTier
+   → GOLD: 1,234 orders, 45,000 AED total discount
+   → PLATINUM: 567 orders, 38,000 AED total discount</div>
+
+<!-- ═══════════════ LAYERS TOUCHED ═══════════════ -->
+<h2>Summary — Every layer touched</h2>
+
+<div class="tbl">
+<table>
+  <tr><th>Layer</th><th>What we touched</th><th>Files</th></tr>
+  <tr><td style="font-weight:600;color:var(--blue);">Data Model</td><td>beans.xml (2 RAOs) + items.xml (1 action model)</td><td>2 entries in beans.xml, 1 itemtype in items.xml</td></tr>
+  <tr><td style="font-weight:600;color:var(--green);">Fact Building</td><td>New RAO provider for loyalty tier</td><td>1 new Java class</td></tr>
+  <tr><td style="font-weight:600;color:var(--orange);">Compilation</td><td>Condition translator + action translator + value mapper</td><td>3 new Java classes</td></tr>
+  <tr><td style="font-weight:600;color:var(--red);">Drools Execution</td><td>RAO action that picks tier % and calculates discount</td><td>1 new Java class</td></tr>
+  <tr><td style="font-weight:600;color:var(--teal);">Persistence</td><td>Action strategy that saves with tier metadata</td><td>1 new Java class</td></tr>
+  <tr><td style="font-weight:600;color:var(--purple);">Registration</td><td>ImpEx condition + action definitions with parameters</td><td>1 impex file modified</td></tr>
+  <tr><td style="font-weight:600;color:var(--pink);">Wiring</td><td>Spring XML: 10+ bean definitions, 3 map entries</td><td>1 Spring XML modified</td></tr>
+</table>
+</div>
+
+<div class="co co-r">
+  <strong>Build + deploy steps:</strong><br>
+  1. <code>ant clean all</code> — regenerates RAO Java classes from beans.xml<br>
+  2. <code>ant updatesystem</code> — creates the new RuleBasedLoyaltyDiscountAction table from items.xml<br>
+  3. <code>ant initialize</code> (or import impex manually) — loads condition + action definitions<br>
+  4. Restart server → verify in Backoffice that the new condition and action appear in the rule editor
+</div>

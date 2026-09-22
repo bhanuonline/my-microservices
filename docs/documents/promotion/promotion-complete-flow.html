@@ -1,0 +1,667 @@
+<title>Complete Promotion Flow — End to End</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --gray:#8b95a5;--gray-bg:#f0f1f4;--gray-border:#c5c9d2;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+    --pink:#b44d8b;--pink-bg:#f8eaf3;--pink-border:#d6a3c4;
+    --step-1:#2563a0;--step-2:#7a5ca0;--step-3:#1a7a5c;--step-4:#0e7c7b;
+    --step-5:#c47a1a;--step-6:#c0392b;--step-7:#b44d8b;--step-8:#1a7a5c;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+    --step-1:#6aaceb;--step-2:#b090d0;--step-3:#3dba8a;--step-4:#3db8b6;
+    --step-5:#daa04a;--step-6:#e74c3c;--step-7:#d070b0;--step-8:#3dba8a;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+    --step-1:#6aaceb;--step-2:#b090d0;--step-3:#3dba8a;--step-4:#3db8b6;
+    --step-5:#daa04a;--step-6:#e74c3c;--step-7:#d070b0;--step-8:#3dba8a;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:1000px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  li{margin-bottom:0.25rem;} li strong{color:var(--text);}
+  code{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;background:var(--surface-alt);padding:0.1rem 0.35rem;border-radius:3px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .step-card{position:relative;padding-left:3.5rem;}
+  .step-num{position:absolute;left:1.25rem;top:1.25rem;width:1.6rem;height:1.6rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:700;color:#fff;}
+  .s1 .step-num{background:var(--step-1);} .s2 .step-num{background:var(--step-2);}
+  .s3 .step-num{background:var(--step-3);} .s4 .step-num{background:var(--step-4);}
+  .s5 .step-num{background:var(--step-5);} .s6 .step-num{background:var(--step-6);}
+  .s7 .step-num{background:var(--step-7);} .s8 .step-num{background:var(--step-8);}
+  .s1{border-left:3px solid var(--step-1);} .s2{border-left:3px solid var(--step-2);}
+  .s3{border-left:3px solid var(--step-3);} .s4{border-left:3px solid var(--step-4);}
+  .s5{border-left:3px solid var(--step-5);} .s6{border-left:3px solid var(--step-6);}
+  .s7{border-left:3px solid var(--step-7);} .s8{border-left:3px solid var(--step-8);}
+
+  .step-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.85rem;margin-bottom:0.15rem;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  td:first-child{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:0.75rem;}
+  .tbl{overflow-x:auto;}
+
+  .hier{font-family:'IBM Plex Mono',monospace;font-size:0.74rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hier .hb{color:var(--blue);font-weight:600;} .hier .hg{color:var(--green);font-weight:600;}
+  .hier .ho{color:var(--orange);font-weight:600;} .hier .hp{color:var(--purple);font-weight:600;}
+  .hier .hr{color:var(--red);font-weight:600;} .hier .ht{color:var(--teal);font-weight:600;}
+  .hier .hpk{color:var(--pink);font-weight:600;} .hier .hm{color:var(--text-muted);}
+
+  .flow{display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.73rem;padding:0.75rem;background:var(--surface-alt);border-radius:5px;margin:0.75rem 0;}
+  .fi{padding:0.25rem 0.6rem;border-radius:4px;font-weight:500;}
+  .fi-b{background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);}
+  .fi-g{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);}
+  .fi-o{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);}
+  .fi-p{background:var(--purple-bg);border:1px solid var(--purple-border);color:var(--purple);}
+  .fi-gr{background:var(--gray-bg);border:1px solid var(--gray-border);color:var(--gray);}
+  .fi-r{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);}
+  .fi-t{background:var(--teal-bg);border:1px solid var(--teal-border);color:var(--teal);}
+  .fi-pk{background:var(--pink-bg);border:1px solid var(--pink-border);color:var(--pink);}
+  .arr{color:var(--text-muted);}
+
+  .co{border-radius:5px;padding:0.75rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .co-b{background:var(--blue-bg);border:1px solid var(--blue-border);}
+  .co-b strong{color:var(--blue);}
+  .co-g{background:var(--green-bg);border:1px solid var(--green-border);}
+  .co-g strong{color:var(--green);}
+  .co-o{background:var(--orange-bg);border:1px solid var(--orange-border);}
+  .co-o strong{color:var(--orange);}
+
+  .scenario{background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:1rem;margin:1rem 0;}
+  .scenario-title{font-weight:600;font-size:0.85rem;margin-bottom:0.5rem;}
+
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.step-card{padding-left:3rem;}.step-num{left:1rem;}}
+</style>
+
+<h1>Complete Promotion Flow — End to End</h1>
+<p class="subtitle">Tracing one real promotion (<code>cashback_10</code>) through every step — from Backoffice to customer's cart. Every class, every method, every data transformation.</p>
+
+<!-- ============ THE SCENARIO ============ -->
+<div class="scenario">
+  <div class="scenario-title">The Scenario We're Tracing</div>
+  <p><strong>Promotion:</strong> <code>cashback_10</code> — "Spend 400 AED on MAX or SPLASH products in women-regular-tops or men-regular-tops, get 20 AED Shukran Pay cashback."</p>
+  <p><strong>Customer:</strong> Adds 3 items from MAX concept, category women-regular-tops. Cart total = 520 AED.</p>
+  <p><strong>Expected result:</strong> Customer qualifies → 20 AED cashback message shown → cashback awarded after order placement.</p>
+</div>
+
+<!-- ============ OVERVIEW FLOW ============ -->
+<div class="flow">
+  <span class="fi fi-b">1. Create</span><span class="arr">→</span>
+  <span class="fi fi-p">2. Publish</span><span class="arr">→</span>
+  <span class="fi fi-g">3. Cart Calc</span><span class="arr">→</span>
+  <span class="fi fi-t">4. Build Facts</span><span class="arr">→</span>
+  <span class="fi fi-o">5. Fire Rules</span><span class="arr">→</span>
+  <span class="fi fi-r">6. RAO Action</span><span class="arr">→</span>
+  <span class="fi fi-pk">7. Persist</span><span class="arr">→</span>
+  <span class="fi fi-g">8. Customer Sees</span>
+</div>
+
+<!-- ============ STEP 1 ============ -->
+<h2>Step 1 — Business User Creates the Promotion</h2>
+
+<div class="card step-card s1">
+  <span class="step-num">1</span>
+  <div class="step-title">Backoffice → Create Promotion Rule</div>
+  <p><strong>Who:</strong> Business user (marketing team)</p>
+  <p><strong>Where:</strong> Hybris Backoffice → Marketing → Promotion Rules → Create</p>
+
+  <h3>1a. Pick the template</h3>
+  <p>Business user selects <code>shukranpay_cashback_promotion</code> from the template dropdown.</p>
+  <p>This template is a <code>PromotionSourceRuleTemplate</code> defined in:</p>
+  <p><code>landmarkshopsinitialdata/.../essentialData/common/21-essentialdata-definitions.impex</code></p>
+  <p>The template pre-fills: promotionType = <code>CASHBACK_PROMOTION</code>, ruleGroup = <code>cashBackPromotionRuleGroup</code>, and the skeleton conditions + actions structure.</p>
+
+  <h3>1b. Fill in the conditions (IF part)</h3>
+  <div class="tbl">
+  <table>
+    <tr><th>Condition</th><th>Definition ID</th><th>What user fills in</th></tr>
+    <tr><td>Target Customers</td><td>y_target_customers</td><td>customergroup (CONTAINS_ANY)</td></tr>
+    <tr><td>Qualifying Categories</td><td>y_qualifying_categories</td><td>women-regular-tops, men-regular-tops</td></tr>
+    <tr><td>Qualifying Concepts</td><td>lmg_qualifying_concepts</td><td>MAX, SPLASH</td></tr>
+    <tr><td>Cart Total</td><td>y_cart_total</td><td>>= AED 400</td></tr>
+  </table>
+  </div>
+
+  <h3>1c. Fill in the action (THEN part)</h3>
+  <div class="tbl">
+  <table>
+    <tr><th>Parameter</th><th>Value</th></tr>
+    <tr><td>is_percentage</td><td>false (fixed amount)</td></tr>
+    <tr><td>cashback_value</td><td>20</td></tr>
+    <tr><td>max_cashback_value</td><td>50</td></tr>
+    <tr><td>redeemable_concepts</td><td>MAX, SPLASH, CENTREPOINT</td></tr>
+    <tr><td>cashback_expiry_in_days</td><td>90</td></tr>
+  </table>
+  </div>
+
+  <h3>1d. What's saved in the database</h3>
+  <p>A <code>PromotionSourceRule</code> is created with status = <strong>UNPUBLISHED</strong>:</p>
+  <div class="hier"><span class="hb">PromotionSourceRule</span>
+  code            = "cashback_10"
+  promotionType   = CASHBACK_PROMOTION
+  website         = maxae-PromoGrp        <span class="hm">← scoped to MAX UAE</span>
+  ruleGroup       = cashBackPromotionRuleGroup
+  status          = <span class="hr">UNPUBLISHED</span>
+  maxAllowedRuns  = 1
+  startDate       = 2026-08-23
+  endDate         = 2099-10-30
+
+  <span class="hg">conditions</span> = <span class="hm">(JSON string)</span>
+  [{
+    "definitionId": "<span class="hg">y_target_customers</span>",
+    "parameters": {
+      "customer_groups": {"value": ["customergroup"]},
+      "customer_groups_operator": {"value": "CONTAINS_ANY"}
+    }
+  },
+  {
+    "definitionId": "<span class="hg">y_qualifying_categories</span>",
+    "parameters": {
+      "categories_operator": {"value": "CONTAINS_ANY"},
+      "categories": {"value": ["women-regular-tops","men-regular-tops"]}
+    }
+  },
+  {
+    "definitionId": "<span class="hg">lmg_qualifying_concepts</span>",
+    "parameters": {
+      "concepts": {"value": ["MAX","SPLASH"]}
+    }
+  },
+  {
+    "definitionId": "<span class="hg">y_cart_total</span>",
+    "parameters": {
+      "operator": {"value": "GREATER_THAN_OR_EQUAL"},
+      "value": {"value": {"AED": 400}}
+    }
+  }]
+
+  <span class="ho">actions</span> = <span class="hm">(JSON string)</span>
+  [{
+    "definitionId": "<span class="ho">y_cashback</span>",
+    "parameters": {
+      "is_percentage": {"value": false},
+      "cashback_value": {"value": 20},
+      "max_cashback_value": {"value": 50},
+      "redeemable_concepts": {"value": "MAX,SPLASH,CENTREPOINT"},
+      "cashback_expiry_in_days": {"value": 90}
+    }
+  }]</div>
+</div>
+
+<!-- ============ STEP 2 ============ -->
+<h2>Step 2 — Publish (Rule Compilation)</h2>
+
+<div class="card step-card s2">
+  <span class="step-num">2</span>
+  <div class="step-title">Business user clicks "Publish" in Backoffice</div>
+  <p><strong>What happens:</strong> The system compiles the JSON conditions + actions into executable Drools code.</p>
+
+  <h3>2a. Condition translators compile the IF part</h3>
+  <p>Each condition in the JSON has a <code>translatorId</code> (defined in the impex). The system calls each translator to generate Drools DRL syntax:</p>
+  <div class="hier"><span class="hm">Condition 1:</span> y_target_customers
+  Translator: <span class="hp">LMGRuleTargetCustomersConditionTranslator</span>
+  Output: Drools code checking UserRAO.groups contains "customergroup"
+
+<span class="hm">Condition 2:</span> y_qualifying_categories
+  Translator: <span class="hp">LMGRuleQualifyingCategoriesConditionTranslator</span>
+  Output: Drools code checking ProductRAO.categories contains "women-regular-tops" OR "men-regular-tops"
+
+<span class="hm">Condition 3:</span> lmg_qualifying_concepts
+  Translator: <span class="hp">LMGRuleQualifyingConceptsConditionTranslator</span>
+  Output: Drools code checking ProductRAO.concept.code == "MAX" OR "SPLASH"
+
+<span class="hm">Condition 4:</span> y_cart_total
+  Translator: <span class="hp">LMGRuleLMGConceptCartTotalConditionTranslator</span>
+  Output: Drools code checking CartRAO.total >= 400 (AED)</div>
+
+  <h3>2b. Action translator compiles the THEN part</h3>
+  <div class="hier"><span class="hm">Action:</span> y_cashback
+  Translator: <span class="hp">DefaultLMGRuleCashbackActionTranslator</span>
+
+  <span class="hm">Key behavior — pushConditionParameters():</span>
+  This translator does something special — it copies ALL condition parameter values
+  INTO the action parameters map. This is how the cashback RAO Action can later
+  read the cart total threshold (y_cart_total_value) at runtime.
+
+  Output: A <span class="ho">RuleIrExecutableAction</span> pointing to bean "ruleCashbackAction"
+  with action params = {
+    is_percentage: false,
+    cashback_value: 20,
+    max_cashback_value: 50,
+    redeemable_concepts: "MAX,SPLASH,CENTREPOINT",
+    cashback_expiry_in_days: 90,
+    <span class="hr">y_cart_total_value: {AED: 400}</span>      <span class="hm">← pushed from condition!</span>
+    <span class="hr">y_cart_total_operator: GREATER_THAN_OR_EQUAL</span>
+  }</div>
+
+  <h3>2c. DroolsRule created + RuleBasedPromotion auto-created</h3>
+  <div class="hier"><span class="hm">System creates:</span>
+
+  <span class="hp">DroolsRule</span>
+    code         = "cashback_10"
+    ruleContent  = <span class="hm">"rule 'cashback_10' when ... then ..."</span> <span class="hm">(DRL syntax)</span>
+    active       = true
+    currentVersion = true
+    ruleGroupCode = "cashBackPromotionRuleGroup"
+    └── promotion → <span class="hg">RuleBasedPromotion</span>
+                       code = "cashback_10"
+                       rulePromotionType = CASHBACK_PROMOTION
+                       messageFired = "Get 20 AED Shukran Pay cashback"
+
+<span class="hm">Junction tables populated:</span>
+  <span class="ht">ConceptForPromotionSourceRule</span>: (MAX, cashback_10), (SPLASH, cashback_10)
+  <span class="ht">CatForPromotionSourceRule</span>: (women-regular-tops, cashback_10), (men-regular-tops, cashback_10)
+
+<span class="hm">Status changes:</span>
+  PromotionSourceRule.status = <span class="hg">PUBLISHED</span></div>
+</div>
+
+<!-- ============ STEP 3 ============ -->
+<h2>Step 3 — Customer Adds to Cart (Cart Calculation)</h2>
+
+<div class="card step-card s3">
+  <span class="step-num">3</span>
+  <div class="step-title">Customer adds a MAX concept product to their cart</div>
+  <p><strong>Trigger:</strong> Any cart modification (add/update/remove) triggers cart calculation.</p>
+
+  <h3>The call chain</h3>
+  <div class="hier"><span class="hg">DefaultLMGCommerceCartCalculationStrategy</span>.calculateCart(parameter)
+  <span class="hm">File: landmarkshopscore/.../strategies/impl/DefaultLMGCommerceCartCalculationStrategy.java</span>
+│
+├── Check DELAY_FULL_CART_CALCULATION flag?  <span class="hm">→ No</span>
+├── Check onlyAdditionalCostCalculation?    <span class="hm">→ No (full calc needed)</span>
+│
+└── Delegates to <span class="hb">DefaultCommerceCartCalculationStrategy</span>.calculateCart()
+    <span class="hm">File: ext-commerce/commerceservices/.../DefaultCommerceCartCalculationStrategy.java</span>
+    │
+    ├── <span class="hm">Step A:</span> beforeCalculate(parameter)    <span class="hm">← fires hooks</span>
+    │
+    ├── <span class="hm">Step B:</span> CalculationService.calculate(cartModel)
+    │   <span class="hm">Calculates line totals: 3 items × 175 AED = 525 AED subtotal</span>
+    │
+    ├── <span class="hm">Step C:</span> <span class="hr">promotionsService.updatePromotions</span>(promotionGroups, cart, ...)
+    │   <span class="hm">promotionsService IS DefaultPromotionEngineService (aliased in Spring)</span>
+    │   <span class="hm">THIS is where the promotion engine is invoked</span>
+    │
+    └── <span class="hm">Step D:</span> afterCalculate(parameter)     <span class="hm">← fires hooks</span></div>
+
+  <div class="co co-g">
+    <strong>Key insight:</strong> <code>promotionsService</code> is aliased to <code>DefaultPromotionEngineService</code> in <code>promotionengineservices-spring.xml</code>. This is the bridge from "calculate cart" to "evaluate promotions."
+  </div>
+</div>
+
+<!-- ============ STEP 4 ============ -->
+<h2>Step 4 — Build Facts (RAO Population)</h2>
+
+<div class="card step-card s4">
+  <span class="step-num">4</span>
+  <div class="step-title">DefaultPromotionEngineService.evaluate() builds Drools facts</div>
+  <p><strong>What are "facts"?</strong> Simple Java objects (RAOs — Rule Applicable Objects) that represent the cart, products, customer, etc. Drools rules match against these facts.</p>
+
+  <h3>4a. The RAO providers chain</h3>
+  <div class="hier"><span class="hb">DefaultPromotionEngineService</span>.evaluate(cart, promotionGroups)
+│
+├── Uses <span class="ht">factContextFactory</span> to build facts from RAO providers
+│
+├── RAO providers for CartModel (configured in Spring):
+│   ├── <span class="ht">DefaultLMGCartRAOProvider</span>     <span class="hm">← converts cart → CartRAO</span>
+│   ├── promotionDeliveryModeRaoProvider  <span class="hm">← delivery mode</span>
+│   ├── customerSupportRAOProvider        <span class="hm">← CS agent info</span>
+│   └── <span class="ht">lmgDeviceRAOProvider</span>          <span class="hm">← mobile/desktop</span>
+│
+└── RAO providers for PromotionGroupModel:
+    └── websiteGroupRaoProvider           <span class="hm">← promotion groups</span></div>
+
+  <h3>4b. DefaultLMGCartRAOProvider.expandFactModel(cartModel)</h3>
+  <p>This is the main provider. It converts the CartModel into a full set of facts.</p>
+
+  <div class="hier"><span class="ht">DefaultLMGCartRAOProvider</span>.expandFactModel(cartModel)
+│
+├── <span class="hm">Step 1:</span> Convert CartModel → CartRAO using <span class="hp">LMGCartRaoPopulator</span>
+│   ├── Sets: code, currency, total, subtotal, user, payment mode
+│   ├── <span class="hg">Concept subtotals</span>: groups entries by concept, sums basePrice × qty
+│   │   └── MAX: 525 AED  <span class="hm">(3 items × 175 AED)</span>
+│   └── <span class="hg">Payment info</span>: card BINs, card number from order additional info
+│
+├── <span class="hm">Step 2:</span> Convert each OrderEntry using <span class="hp">LMGOrderEntryRaoPopulator</span>
+│   ├── Sets: entryNumber, quantity, basePrice
+│   └── <span class="hg">All base products</span>: adds variant + base product as ProductRAO list
+│
+├── <span class="hm">Step 3:</span> Convert each Product using <span class="hp">LMGProductRaoPopulator</span>
+│   ├── Sets: code, categories (full hierarchy)
+│   ├── <span class="hg">concept</span>: converts LMGConcept → LMGConceptRAO  <span class="hm">← "MAX"</span>
+│   └── <span class="hg">brand</span>: converts LMGBrand → LMGBrandRAO      <span class="hm">← "NIKE"</span>
+│
+├── <span class="hm">Step 4:</span> expandRAO() builds the complete fact set:
+│   ├── CartRAO                        <span class="hm">(1 object)</span>
+│   ├── OrderEntryRAO × 3              <span class="hm">(one per cart line)</span>
+│   ├── ProductRAO × 3                 <span class="hm">(one per product)</span>
+│   ├── CategoryRAO × N                <span class="hm">(all categories + ancestors)</span>
+│   ├── UserRAO + UserGroupRAO         <span class="hm">(customer + groups)</span>
+│   ├── <span class="hg">LMGConceptRAO</span>: MAX            <span class="hm">(extracted from products)</span>
+│   ├── <span class="hg">LMGBrandRAO</span>: NIKE             <span class="hm">(extracted from products)</span>
+│   ├── <span class="hg">LMGConceptCartTotalRAO</span>: MAX=525 <span class="hm">(subtotal per concept)</span>
+│   └── <span class="hg">LMGPaymentInfoRAO</span>            <span class="hm">(card BINs if payment set)</span></div>
+
+  <div class="co co-o">
+    <strong>All of these objects become "facts" in Drools working memory.</strong> The rules written in Step 2 match against these facts. For example, the concept condition matches <code>LMGConceptRAO.code == "MAX"</code>, and the cart total condition matches <code>LMGConceptCartTotalRAO.total >= 400</code>.
+  </div>
+</div>
+
+<!-- ============ STEP 5 ============ -->
+<h2>Step 5 — Drools Engine Fires Rules</h2>
+
+<div class="card step-card s5">
+  <span class="step-num">5</span>
+  <div class="step-title">DefaultCommerceRuleEngineService.evaluate(facts, context)</div>
+
+  <h3>5a. Load active rules</h3>
+  <div class="hier"><span class="ho">DefaultLMGPlatformRuleEngineService</span>.addRules(kieBaseModel, kfs, base)
+│
+├── Calls fetchActiveRules()
+│   ├── Gets configured promotion groups from config properties
+│   ├── Queries DB: SELECT rules WHERE
+│   │     kieBase = current
+│   │     AND currentVersion = true
+│   │     AND active = true
+│   │     AND endDate > NOW()
+│   │     AND promotionGroup IN (configured groups)
+│   └── Returns: [cashback_10, summer_sale_20, bogo_shoes, ...] <span class="hm">only active rules</span>
+│
+└── For each rule: writes DRL content to KIE file system
+    cashback_10.drl → package path in KIE</div>
+
+  <h3>5b. Fire rules against facts</h3>
+  <div class="hier"><span class="ho">Drools KIE Session</span>
+│
+├── Insert ALL facts into working memory:
+│   CartRAO, OrderEntryRAOs, ProductRAOs, CategoryRAOs,
+│   UserRAO, ConceptRAOs, BrandRAOs, ConceptCartTotalRAOs, PaymentInfoRAO
+│
+├── Fire all rules...
+│
+├── <span class="hm">Rule: cashback_10</span>
+│   ├── Condition 1: UserRAO.groups contains "customergroup"?  <span class="hg">✓ YES</span>
+│   ├── Condition 2: ProductRAO.categories contains "women-regular-tops"?  <span class="hg">✓ YES</span>
+│   ├── Condition 3: ProductRAO.concept.code == "MAX" OR "SPLASH"?  <span class="hg">✓ YES (MAX)</span>
+│   ├── Condition 4: CartRAO total >= 400 AED?  <span class="hg">✓ YES (525 >= 400)</span>
+│   │
+│   └── <span class="ho">ALL CONDITIONS MET → FIRE ACTION</span>
+│       Calls: ruleCashbackAction.executeAction(context, params)
+│
+├── <span class="hm">Other rules also evaluated...</span>
+│   (some fire, some don't — each independently)
+│
+└── Returns: <span class="ho">RuleEngineResultRAO</span> with all fired actions</div>
+</div>
+
+<!-- ============ STEP 6 ============ -->
+<h2>Step 6 — RAO Action Executes (Inside Drools)</h2>
+
+<div class="card step-card s6">
+  <span class="step-num">6</span>
+  <div class="step-title">DefaultLMGRuleCashbackRAOAction.performAction()</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/.../rule/evaluation/actions/impl/DefaultLMGRuleCashbackRAOAction.java</code></p>
+  <p>This runs INSIDE the Drools engine. It doesn't touch the database — it creates in-memory RAO objects.</p>
+
+  <div class="hier"><span class="hr">DefaultLMGRuleExecutableAction</span>.executeAction()  <span class="hm">← try-catch wrapper</span>
+│
+└── <span class="hr">DefaultLMGRuleCashbackRAOAction</span>.performAction(context, params)
+    │
+    ├── <span class="hm">Step A: Read parameters</span>
+    │   is_percentage = false
+    │   cashback_value = 20
+    │   max_cashback_value = 50
+    │   redeemable_concepts = "MAX,SPLASH,CENTREPOINT"
+    │   cashback_expiry_in_days = 90
+    │   <span class="hr">y_cart_total_value = {AED: 400}</span>  <span class="hm">← pushed by translator in Step 2!</span>
+    │
+    ├── <span class="hm">Step B: Get eligible order entries</span>
+    │   Filters to entries with quantity > 0 that match the conditions
+    │   → 3 entries found
+    │
+    ├── <span class="hm">Step C: Calculate eligible cart amount</span>
+    │   <span class="ht">raoUtils.getEligibleCartAmountForCartLevelPromo()</span>
+    │   Sums prices of eligible entries, considering already-adjusted prices
+    │   → eligible amount = 525 AED
+    │
+    ├── <span class="hm">Step D: Check threshold</span>
+    │   525 AED >= 400 AED?  <span class="hg">✓ YES → proceed</span>
+    │
+    ├── <span class="hm">Step E: Build LMGCashbackRAO</span>
+    │   <span class="hr">LMGCashbackRAO</span> {
+    │     orderThresholdValue = 400
+    │     cashbackValue = 20
+    │     maxCashbackValue = 50  <span class="hm">(forced to 0 for fixed, but set here)</span>
+    │     isPercentage = false
+    │     redeemableConcepts = ["MAX","SPLASH","CENTREPOINT"]
+    │     expiryInDays = 90
+    │     eligibleCartTotalAmount = 525
+    │   }
+    │
+    ├── <span class="hm">Step F: Add action to cart and result</span>
+    │   CartRAO.actions.add(cashbackRAO)
+    │   RuleEngineResultRAO.actions.add(cashbackRAO)
+    │
+    └── <span class="hm">Step G: Consume order entries</span>
+        Marks all 3 eligible entries as "consumed" by this cashback action
+        → prevents other promotions from double-applying to these entries</div>
+</div>
+
+<!-- ============ STEP 7 ============ -->
+<h2>Step 7 — Action Strategy Persists to Database</h2>
+
+<div class="card step-card s7">
+  <span class="step-num">7</span>
+  <div class="step-title">DefaultLMGCashbackActionStrategy.apply()</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/.../rule/strategies/DefaultLMGCashbackActionStrategy.java</code></p>
+  <p>This runs AFTER Drools finishes. It takes the in-memory RAO results and persists them to the Hybris database.</p>
+
+  <h3>7a. How the strategy is found</h3>
+  <div class="hier"><span class="hm">promotionActionStrategiesMapping (Spring XML):</span>
+
+  <span class="hpk">defaultRuleLMGCashbackRAOAction</span> → <span class="hpk">defaultCashbackActionStrategy</span>
+
+<span class="hm">The system iterates through RuleEngineResultRAO.actions:</span>
+  For each action, looks up its RAO action bean in the mapping
+  → finds the matching strategy → calls strategy.apply(action)</div>
+
+  <h3>7b. What apply() does</h3>
+  <div class="hier"><span class="hpk">DefaultLMGCashbackActionStrategy</span>.apply(cashbackRAO)
+│
+├── <span class="hm">Step A: Validate</span>
+│   Is action an LMGCashbackRAO?  ✓
+│   Is appliedToObject a CartRAO?  ✓
+│
+├── <span class="hm">Step B: Create PromotionResult</span>
+│   promotionActionService.createPromotionResult(cashbackRAO)
+│   → Creates <span class="hg">PromotionResultModel</span> {
+│       certainty = 1.0     <span class="hm">(fully applied, not potential)</span>
+│       promotion = RuleBasedPromotion("cashback_10")
+│       order     = CartModel
+│     }
+│
+├── <span class="hm">Step C: Create the action model</span>
+│   Creates <span class="hpk">RuleBasedCashbackActionModel</span>
+│
+├── <span class="hm">Step D: Serialize cashback attributes to JSON</span>
+│   LMGCashbackAttributesData dto = {
+│     orderThresholdValue: 400,
+│     cashbackValue: 20,
+│     maxCashbackValue: 50,
+│     isPercentage: false,
+│     redeemableConcepts: ["MAX","SPLASH","CENTREPOINT"],
+│     expiryInDays: 90,
+│     eligibleCartTotalAmount: 525
+│   }
+│   String json = CommonUtil.convertToJson(dto)
+│   actionModel.setCashbackAttributesJson(json)
+│
+├── <span class="hm">Step E: Link everything together</span>
+│   promotionResult.addAction(actionModel)
+│   order.addPromotionResult(promotionResult)
+│
+└── <span class="hm">Step F: Save to database</span>
+    modelService.saveAll(promotionResult, actionModel, order)</div>
+
+  <h3>7c. What's now in the database</h3>
+  <div class="hier"><span class="hm">═══ Database after Step 7 ═══</span>
+
+<span class="hg">PromotionResultModel</span>
+  PK = 8800001
+  certainty = 1.0
+  promotion → RuleBasedPromotion("cashback_10")
+  order → Cart("00001234")
+  actions → [RuleBasedCashbackAction]
+
+<span class="hpk">RuleBasedCashbackActionModel</span>
+  PK = 8800002
+  rule → DroolsRule("cashback_10")
+  strategyId = "defaultRuleLMGCashbackRAOAction"
+  cashbackAttributesJson = '{"orderThresholdValue":400,
+    "cashbackValue":20,"maxCashbackValue":50,
+    "isPercentage":false,
+    "redeemableConcepts":["MAX","SPLASH","CENTREPOINT"],
+    "expiryInDays":90,"eligibleCartTotalAmount":525}'</div>
+</div>
+
+<!-- ============ STEP 8 ============ -->
+<h2>Step 8 — Customer Sees the Result</h2>
+
+<div class="card step-card s8">
+  <span class="step-num">8</span>
+  <div class="step-title">Storefront displays the cashback message</div>
+
+  <h3>8a. Reading the promotion result</h3>
+  <div class="hier"><span class="hm">Storefront / Facade layer reads:</span>
+
+  order.getPromotionResults()
+  → finds PromotionResult with promotion = "cashback_10"
+  → promotion.messageFired = "Get 20 AED Shukran Pay cashback"
+
+  <span class="hg">DefaultLMGPromotionEngineResultService</span>.isCashbackPromotion(promotion)
+  → checks rulePromotionType == "CASHBACK_PROMOTION"  <span class="hg">✓</span>
+  → reads cashbackAttributesJson from the action
+  → deserializes to LMGCashbackAttributesData
+  → returns cashback value = 20 AED</div>
+
+  <h3>8b. What the customer sees</h3>
+  <div class="scenario">
+    <div class="scenario-title" style="color:var(--green);">Cart Page</div>
+    <p style="font-size:0.85rem;"><strong>Subtotal:</strong> 525 AED</p>
+    <p style="font-size:0.85rem;color:var(--green);"><strong>Shukran Pay Cashback:</strong> You'll get 20 AED cashback!</p>
+    <p style="font-size:0.85rem;color:var(--text-muted);">Redeemable at MAX, SPLASH, CENTREPOINT. Expires in 90 days.</p>
+    <p style="font-size:0.85rem;"><strong>Total:</strong> 525 AED <span style="font-size:0.75rem;color:var(--text-muted);">(cashback is post-order, not a discount)</span></p>
+  </div>
+
+  <h3>8c. After order placement</h3>
+  <p>The <code>cashbackAttributesJson</code> is sent to downstream systems (OMS, Shukran Pay) which process the actual cashback credit to the customer's Shukran account.</p>
+  <p><strong>Note:</strong> Unlike a discount (which reduces the cart total), cashback is <strong>informational at cart time</strong> — the strategy does NOT create a DiscountValue on the order. The actual money transfer happens post-order via external systems.</p>
+</div>
+
+<!-- ============ COMPLETE CLASS MAP ============ -->
+<h2>Complete Class Map — Every file touched</h2>
+
+<div class="card">
+  <div class="tbl">
+  <table>
+    <tr><th>Step</th><th>Class</th><th>File location</th></tr>
+    <tr><td>1</td><td>PromotionSourceRule (saved)</td><td>Database (items.xml defines the type)</td></tr>
+    <tr><td>2</td><td>DefaultLMGRuleCashbackActionTranslator</td><td>landmarkshopscore/.../definitions/action/</td></tr>
+    <tr><td>2</td><td>LMGRuleQualifyingConceptsConditionTranslator</td><td>landmarkshopscore/.../definitions/conditions/</td></tr>
+    <tr><td>2</td><td>LMGRuleQualifyingCategoriesConditionTranslator</td><td>landmarkshopscore/.../definitions/conditions/</td></tr>
+    <tr><td>2</td><td>LMGRuleTargetCustomersConditionTranslator</td><td>landmarkshopscore/.../definitions/conditions/</td></tr>
+    <tr><td>3</td><td>DefaultLMGCommerceCartCalculationStrategy</td><td>landmarkshopscore/.../strategies/impl/</td></tr>
+    <tr><td>3</td><td>DefaultCommerceCartCalculationStrategy</td><td>ext-commerce/commerceservices/.../order/impl/</td></tr>
+    <tr><td>3</td><td>DefaultPromotionEngineService</td><td>ext-commerce/promotionengineservices/.../impl/</td></tr>
+    <tr><td>4</td><td>DefaultLMGCartRAOProvider</td><td>landmarkshopscore/.../rao/provider/</td></tr>
+    <tr><td>4</td><td>LMGCartRaoPopulator</td><td>landmarkshopscore/.../converters/populator/</td></tr>
+    <tr><td>4</td><td>LMGProductRaoPopulator</td><td>landmarkshopscore/.../converters/populator/</td></tr>
+    <tr><td>4</td><td>LMGOrderEntryRaoPopulator</td><td>landmarkshopscore/.../converters/populator/</td></tr>
+    <tr><td>5</td><td>DefaultCommerceRuleEngineService</td><td>ext-commerce/droolsruleengineservices/.../impl/</td></tr>
+    <tr><td>5</td><td>DefaultLMGPlatformRuleEngineService</td><td>landmarkshopscore/.../services/impl/</td></tr>
+    <tr><td>6</td><td>DefaultLMGRuleExecutableAction</td><td>landmarkshopscore/.../definitions/action/</td></tr>
+    <tr><td>6</td><td>DefaultLMGRuleCashbackRAOAction</td><td>landmarkshopscore/.../rule/evaluation/actions/impl/</td></tr>
+    <tr><td>6</td><td>LMGRaoUtils</td><td>landmarkshopscore/.../promotionengine/util/</td></tr>
+    <tr><td>7</td><td>DefaultLMGCashbackActionStrategy</td><td>landmarkshopscore/.../rule/strategies/</td></tr>
+    <tr><td>7</td><td>DefaultLMGPromotionActionService</td><td>landmarkshopscore/.../services/impl/</td></tr>
+    <tr><td>8</td><td>DefaultLMGPromotionEngineResultService</td><td>landmarkshopscore/.../services/impl/</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ SIMPLIFIED OVERVIEW ============ -->
+<h2>Simplified — The whole thing in one picture</h2>
+
+<div class="hier"><span class="hm">╔═════════════════════════════════════════════════════════════════════════╗</span>
+<span class="hm">║</span>  <span class="hb">STEP 1: CREATE</span>                                                        <span class="hm">║</span>
+<span class="hm">║</span>  Business user → Backoffice → picks template → fills in values          <span class="hm">║</span>
+<span class="hm">║</span>  → PromotionSourceRule saved (conditions + actions as JSON)              <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hp">STEP 2: PUBLISH</span>                                                       <span class="hm">║</span>
+<span class="hm">║</span>  Translators compile JSON → Drools DRL code                             <span class="hm">║</span>
+<span class="hm">║</span>  Cashback translator pushes condition params → action params            <span class="hm">║</span>
+<span class="hm">║</span>  → DroolsRule created → RuleBasedPromotion auto-created                 <span class="hm">║</span>
+<span class="hm">║</span>  → Junction tables populated (concept, category lookups)                <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hg">STEP 3: CART CALCULATION</span>                                              <span class="hm">║</span>
+<span class="hm">║</span>  Customer adds item → LMGCommerceCartCalculationStrategy                <span class="hm">║</span>
+<span class="hm">║</span>  → CalculationService (line totals) → promotionsService.updatePromotions<span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="ht">STEP 4: BUILD FACTS</span>                                                  <span class="hm">║</span>
+<span class="hm">║</span>  LMGCartRAOProvider converts cart → RAO objects                         <span class="hm">║</span>
+<span class="hm">║</span>  LMGProductRaoPopulator adds concept + brand to each product            <span class="hm">║</span>
+<span class="hm">║</span>  LMGCartRaoPopulator adds concept subtotals + payment info              <span class="hm">║</span>
+<span class="hm">║</span>  → Full fact set: Cart, Entries, Products, Concepts, Brands, Payment    <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="ho">STEP 5: FIRE RULES</span>                                                   <span class="hm">║</span>
+<span class="hm">║</span>  LMGPlatformRuleEngineService loads active rules for promo groups       <span class="hm">║</span>
+<span class="hm">║</span>  Drools inserts facts → fires rules → cashback_10 matches!             <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hr">STEP 6: RAO ACTION (inside Drools)</span>                                   <span class="hm">║</span>
+<span class="hm">║</span>  LMGRuleCashbackRAOAction reads params, checks threshold (525>=400)     <span class="hm">║</span>
+<span class="hm">║</span>  → Builds LMGCashbackRAO → adds to cart → consumes entries              <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hpk">STEP 7: PERSIST (after Drools)</span>                                       <span class="hm">║</span>
+<span class="hm">║</span>  LMGCashbackActionStrategy → creates PromotionResult + Action model     <span class="hm">║</span>
+<span class="hm">║</span>  → Serializes cashback attributes to JSON → saves to database           <span class="hm">║</span>
+<span class="hm">╠═════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>  <span class="hg">STEP 8: CUSTOMER SEES</span>                                                <span class="hm">║</span>
+<span class="hm">║</span>  Storefront reads PromotionResult → shows cashback message              <span class="hm">║</span>
+<span class="hm">║</span>  After order: JSON sent to Shukran Pay for actual cashback credit       <span class="hm">║</span>
+<span class="hm">╚═════════════════════════════════════════════════════════════════════════╝</span></div>

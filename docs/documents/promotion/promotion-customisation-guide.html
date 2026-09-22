@@ -1,0 +1,862 @@
+<title>Promotion Customisation Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --gray:#8b95a5;--gray-bg:#f0f1f4;--gray-border:#c5c9d2;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+    --pink:#b44d8b;--pink-bg:#f8eaf3;--pink-border:#d6a3c4;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:1060px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.8rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  h4{font-size:0.85rem;font-weight:600;margin:1rem 0 0.3rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul,ol{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  li{margin-bottom:0.25rem;} li strong{color:var(--text);}
+  code{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;background:var(--surface-alt);padding:0.1rem 0.35rem;border-radius:3px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .step-card{position:relative;padding-left:3.5rem;}
+  .step-num{position:absolute;left:1.25rem;top:1.25rem;width:1.6rem;height:1.6rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:0.7rem;font-weight:700;color:#fff;}
+  .sn-b .step-num{background:var(--blue);} .sn-g .step-num{background:var(--green);}
+  .sn-o .step-num{background:var(--orange);} .sn-p .step-num{background:var(--purple);}
+  .sn-r .step-num{background:var(--red);} .sn-t .step-num{background:var(--teal);}
+  .sn-pk .step-num{background:var(--pink);}
+  .sn-b{border-left:3px solid var(--blue);} .sn-g{border-left:3px solid var(--green);}
+  .sn-o{border-left:3px solid var(--orange);} .sn-p{border-left:3px solid var(--purple);}
+  .sn-r{border-left:3px solid var(--red);} .sn-t{border-left:3px solid var(--teal);}
+  .sn-pk{border-left:3px solid var(--pink);}
+
+  .step-title{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.85rem;margin-bottom:0.15rem;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  td:first-child{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:0.75rem;}
+  .tbl{overflow-x:auto;}
+
+  .hier{font-family:'IBM Plex Mono',monospace;font-size:0.74rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hier .hb{color:var(--blue);font-weight:600;} .hier .hg{color:var(--green);font-weight:600;}
+  .hier .ho{color:var(--orange);font-weight:600;} .hier .hp{color:var(--purple);font-weight:600;}
+  .hier .hr{color:var(--red);font-weight:600;} .hier .ht{color:var(--teal);font-weight:600;}
+  .hier .hpk{color:var(--pink);font-weight:600;} .hier .hm{color:var(--text-muted);}
+
+  .co{border-radius:5px;padding:0.75rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .co-b{background:var(--blue-bg);border:1px solid var(--blue-border);}
+  .co-b strong{color:var(--blue);}
+  .co-g{background:var(--green-bg);border:1px solid var(--green-border);}
+  .co-g strong{color:var(--green);}
+  .co-o{background:var(--orange-bg);border:1px solid var(--orange-border);}
+  .co-o strong{color:var(--orange);}
+  .co-p{background:var(--purple-bg);border:1px solid var(--purple-border);}
+  .co-p strong{color:var(--purple);}
+  .co-r{background:var(--red-bg);border:1px solid var(--red-border);}
+  .co-r strong{color:var(--red);}
+  .co-t{background:var(--teal-bg);border:1px solid var(--teal-border);}
+  .co-t strong{color:var(--teal);}
+
+  .flow{display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.73rem;padding:0.75rem;background:var(--surface-alt);border-radius:5px;margin:0.75rem 0;}
+  .fi{padding:0.25rem 0.6rem;border-radius:4px;font-weight:500;}
+  .fi-b{background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);}
+  .fi-g{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);}
+  .fi-o{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);}
+  .fi-p{background:var(--purple-bg);border:1px solid var(--purple-border);color:var(--purple);}
+  .fi-r{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);}
+  .fi-t{background:var(--teal-bg);border:1px solid var(--teal-border);color:var(--teal);}
+  .fi-pk{background:var(--pink-bg);border:1px solid var(--pink-border);color:var(--pink);}
+  .arr{color:var(--text-muted);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:0.75rem 0;}
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.step-card{padding-left:3rem;}.step-num{left:1rem;}.grid-2{grid-template-columns:1fr;}}
+
+  .badge{display:inline-block;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;margin-right:0.3rem;}
+  .badge-b{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
+  .badge-g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+  .badge-o{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);}
+  .badge-p{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);}
+  .badge-r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
+  .badge-t{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-border);}
+  .badge-pk{background:var(--pink-bg);color:var(--pink);border:1px solid var(--pink-border);}
+</style>
+
+<h1>Promotion Customisation Guide</h1>
+<p class="subtitle">Where you can customise, how to do it, and real examples from the LMG codebase. Every extension point explained with the exact files to touch.</p>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 1 — The Big Picture: 7 Customisation Points</h2>
+
+<div class="co co-b">
+  <strong>Restaurant analogy:</strong> Think of the promotion engine as a restaurant. You can customise: (1) what questions the waiter asks, (2) what dishes the kitchen can cook, (3) what ingredients are available, (4) how the kitchen picks which ingredients to use, (5) when the kitchen starts cooking, (6) how the dish is plated and served, (7) swap out any staff member with your own person.
+</div>
+
+<div class="hier"><span class="hm">╔═══════════════════════════════════════════════════════════════════════════╗</span>
+<span class="hm">║</span>                    <strong>7 CUSTOMISATION POINTS</strong>                                <span class="hm">║</span>
+<span class="hm">╠═══════════════════════════════════════════════════════════════════════════╣</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="hb">1. NEW CONDITION</span>        "Can this customer get this deal?"                <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Teach the engine a new question to ask</span>                              <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Is the customer on a mobile device?"</span>                     <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="hg">2. NEW ACTION</span>           "What reward to give"                             <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Teach the engine a new reward type</span>                                  <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Give Shukran Pay cashback"</span>                                <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="ho">3. ENRICH FACTS</span>         "More data for rules to see"                     <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Add more information to what Drools can match against</span>               <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Add brand and concept to each product"</span>                   <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="hp">4. ENTRY SELECTION</span>      "Which items get the discount"                    <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Control the algorithm that picks consumed entries</span>                   <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Costliest items consumed first"</span>                           <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="hr">5. CART CALCULATION</span>     "When promotions run"                              <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Control the cart calculation trigger and flow</span>                       <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Delay calculation until checkout"</span>                         <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="ht">6. RESULT HANDLING</span>      "What happens with results"                        <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Customize how results are processed and displayed</span>                   <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Detect cashback vs discount promotions"</span>                   <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">║</span>  <span class="hpk">7. SPRING ALIAS OVERRIDE</span> "Swap any OOB bean"                              <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Replace any out-of-the-box behavior via Spring alias</span>                <span class="hm">║</span>
+<span class="hm">║</span>     <span class="hm">Example: "Replace the cart RAO provider with ours"</span>                  <span class="hm">║</span>
+<span class="hm">║</span>                                                                           <span class="hm">║</span>
+<span class="hm">╚═══════════════════════════════════════════════════════════════════════════╝</span></div>
+
+<p><strong>Where in the code does each live?</strong></p>
+<div class="tbl">
+<table>
+  <tr><th>#</th><th>Customisation</th><th>Layer</th><th>Key file</th></tr>
+  <tr><td>1</td><td>New Condition</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-promotionengine-spring.xml</td></tr>
+  <tr><td>2</td><td>New Action</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-promotionengine-spring.xml</td></tr>
+  <tr><td>3</td><td>Enrich Facts</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-beans.xml + populators/providers</td></tr>
+  <tr><td>4</td><td>Entry Selection</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-promotionengine-spring.xml</td></tr>
+  <tr><td>5</td><td>Cart Calculation</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-spring.xml</td></tr>
+  <tr><td>6</td><td>Result Handling</td><td>Layer 4 (LMG custom)</td><td>landmarkshopscore-promotionengine-spring.xml</td></tr>
+  <tr><td>7</td><td>Spring Override</td><td>Layer 4 (LMG custom)</td><td>Any Spring XML in landmarkshopscore</td></tr>
+</table>
+</div>
+
+<div class="co co-o">
+  <strong>Notice:</strong> ALL customisation happens in Layer 4 (your custom extension). You NEVER modify OOB code in Layers 1-3. You extend, override, or replace via Spring aliases. This is the golden rule of Hybris customisation.
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 2 — Add a Custom Condition</h2>
+
+<p><span class="badge badge-b">WHAT</span> Teach the promotion engine a new question to ask — "Is this customer using a mobile?", "Is this product from the MAX concept?", "Is the card BIN 4532xx?"</p>
+
+<h3>The recipe: 6 files to touch</h3>
+
+<div class="card step-card sn-b">
+  <span class="step-num">1</span>
+  <div class="step-title">beans.xml — Define the RAO class</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-beans.xml</code></p>
+  <p>Create a new Java bean class that will carry your custom data into Drools. This is a simple POJO that gets code-generated at build time.</p>
+  <div class="hier"><span class="hm">&lt;!-- Example: LMGConceptRAO — carries a concept code into Drools --&gt;</span>
+<span class="hb">&lt;bean class="com.landmarkshops.core.promotionengine.rao.LMGConceptRAO"</span>
+    <span class="hb">template="resources/coderao-template.vm"&gt;</span>
+    &lt;property name="code" type="String" equals="true"/&gt;
+&lt;/bean&gt;
+
+<span class="hm">&lt;!-- If your RAO is a PROPERTY of an existing RAO, extend that RAO too: --&gt;</span>
+<span class="hg">&lt;bean class="de.hybris.platform.ruleengineservices.rao.ProductRAO"&gt;</span>
+    &lt;property name="concept" type="com.landmarkshops.core.promotionengine.rao.LMGConceptRAO" equals="true"/&gt;
+    &lt;property name="brand" type="com.landmarkshops.core.promotionengine.rao.LMGBrandRAO" equals="true"/&gt;
+&lt;/bean&gt;</div>
+</div>
+
+<div class="card step-card sn-g">
+  <span class="step-num">2</span>
+  <div class="step-title">RAO Populator — Fill the RAO with real data</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../converters/populator/</code></p>
+  <p>Extend an existing populator (or create a new converter) that converts a Hybris model → your RAO.</p>
+  <div class="hier"><span class="hm">Two patterns:</span>
+
+<span class="hg">Pattern A — Extend an OOB populator</span> (most common)
+  Extend the OOB populator, call super.populate(), then add your fields.
+
+  Example: <span class="hg">LMGProductRaoPopulator</span> extends ProductRaoPopulator
+    @Override
+    public void populate(ProductModel source, ProductRAO target) {
+        super.populate(source, target);  <span class="hm">← OOB fields</span>
+        ProductModel baseProduct = getBaseProduct(source);
+        target.setConcept(lmgConceptRaoPopulator.convert(baseProduct.getConcept()));  <span class="hm">← LMG field</span>
+        target.setBrand(lmgBrandRaoPopulator.convert(baseProduct.getBrand()));        <span class="hm">← LMG field</span>
+    }
+
+<span class="hb">Pattern B — Create a new converter</span> (for entirely new RAO types)
+  Create an AbstractPopulatingConverter that converts Model → RAO.
+
+  Example: <span class="hb">LMGConceptRaoPopulator</span> extends AbstractPopulatingConverter
+    Converts LMGConceptModel → LMGConceptRAO (copies code field)</div>
+</div>
+
+<div class="card step-card sn-o">
+  <span class="step-num">3</span>
+  <div class="step-title">RAO Provider — Insert the RAO into Drools working memory</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../rao/provider/</code></p>
+  <p>The provider controls which RAO objects become "facts" that Drools rules can match against.</p>
+  <div class="hier"><span class="hm">Two patterns:</span>
+
+<span class="ho">Pattern A — Extend an OOB provider</span>
+  Override expandRAO() to add your custom facts.
+
+  Example: <span class="ho">DefaultLMGCartRAOProvider</span> extends DefaultCartRAOProvider
+    In expandRAO(), adds 3 extra fact-expansion options:
+    • EXPAND_CONCEPT_BRAND → inserts LMGConceptRAO + LMGBrandRAO per product
+    • INCLUDE_CONCEPT_TOTAL → inserts LMGConceptCartTotalRAO per concept
+    • INCLUDE_PAYMENT_INFO → inserts LMGPaymentInfoRAO + LMGCardBinRAOs
+
+<span class="hb">Pattern B — Create an entirely new provider</span>
+  Implement RAOProvider interface from scratch. Register in orderPromotionRaoProviders.
+
+  Example: <span class="hb">DefaultLMGDeviceRAOProvider</span> implements RAOProvider
+    Creates LMGDeviceRAO from UiExperienceService.getUiExperienceLevel()
+    → Registered as a standalone entry in orderPromotionRaoProviders map</div>
+</div>
+
+<div class="card step-card sn-p">
+  <span class="step-num">4</span>
+  <div class="step-title">Condition Translator — Compile UI params into Drools IR</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../definitions/conditions/</code></p>
+  <p>The translator converts what the business user configured in Backoffice into Drools intermediate representation (IR) conditions. This IR is then compiled into DRL code.</p>
+  <div class="hier"><span class="hm">Your translator implements RuleConditionTranslator with one method:</span>
+
+public RuleIrCondition <span class="hp">translate</span>(RuleCompilerContext context,
+                                RuleConditionData condition,
+                                RuleConditionDefinitionData conditionDefinition)
+
+<span class="hm">Inside translate(), you:</span>
+  1. Read parameters from condition.getParameters()
+  2. Generate Drools variables: context.generateVariable(YourRAO.class)
+  3. Build RuleIr*Condition objects (the "join chain")
+  4. Return a RuleIrGroupCondition wrapping them all</div>
+</div>
+
+<div class="card step-card sn-r">
+  <span class="step-num">5</span>
+  <div class="step-title">ImpEx Definition — Register in the system</div>
+  <p><strong>File:</strong> <code>landmarkshopsinitialdata/.../essentialData/common/21-essentialdata-definitions.impex</code></p>
+  <div class="hier"><span class="hm">Two inserts needed:</span>
+
+<span class="hr">1. The condition definition itself:</span>
+INSERT_UPDATE RuleConditionDefinition
+  ;id[unique=true]       = lmg_qualifying_concepts
+  ;name[lang=$lang]      = "LMG Qualifying Concepts"
+  ;priority              = 99
+  ;breadcrumb[lang=$lang]= "Cart {concept_operator} products {concepts}"
+  ;allowsChildren        = false
+  ;translatorId          = ruleQualifyingConceptsConditionTranslator  <span class="hm">← Spring bean alias</span>
+  ;categories(id)        = cart
+
+<span class="hr">2. The condition parameters:</span>
+INSERT_UPDATE RuleConditionDefinitionParameter
+  ;definition(id) = lmg_qualifying_concepts
+  ;id[unique=true]= concepts
+  ;type           = List(ItemType(LMGConcept))   <span class="hm">← data type for the UI widget</span>
+  ;required       = false</div>
+</div>
+
+<div class="card step-card sn-t">
+  <span class="step-num">6</span>
+  <div class="step-title">Spring XML — Wire everything together</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-promotionengine-spring.xml</code></p>
+  <div class="hier"><span class="hm">Three things to wire:</span>
+
+<span class="ht">A. The translator bean:</span>
+&lt;alias alias="ruleQualifyingConceptsConditionTranslator"
+       name="defaultRuleQualifyingConceptsConditionTranslator" /&gt;
+&lt;bean id="defaultRuleQualifyingConceptsConditionTranslator"
+    class="...LMGRuleQualifyingConceptsConditionTranslator" /&gt;
+
+<span class="ht">B. The condition resolution strategy</span> (adds to lmgConditionResolutionStrategies map):
+&lt;entry key="lmg_qualifying_concepts"
+       value-ref="conceptConditionResolutionStrategy" /&gt;
+
+<span class="ht">C. The value mapper</span> (if your parameter uses a custom ItemType):
+&lt;bean id="lmgConceptRuleParameterValueMapper"
+    class="...LMGConceptRuleParameterValueMapper" /&gt;
+&lt;bean id="conceptRuleParameterValueMapperDefinition"
+    class="...RuleParameterValueMapperDefinition"&gt;
+    &lt;property name="mapper" ref="lmgConceptRuleParameterValueMapper" /&gt;
+    &lt;property name="type" value="ItemType(LMGConcept)" /&gt;
+&lt;/bean&gt;</div>
+</div>
+
+<h3>Real example: lmg_qualifying_concepts — Full translator code</h3>
+<p>This is the actual code from the LMG codebase. The translator builds a 4-step join chain: <code>CartRAO → entries → OrderEntryRAO → products → ProductRAO → concept → LMGConceptRAO.code IN [list]</code></p>
+
+<div class="hier"><span class="hm">// File: LMGRuleQualifyingConceptsConditionTranslator.java</span>
+
+public class <span class="hb">LMGRuleQualifyingConceptsConditionTranslator</span> implements RuleConditionTranslator {
+
+    @Override
+    public RuleIrCondition <span class="hg">translate</span>(RuleCompilerContext context,
+            RuleConditionData condition,
+            RuleConditionDefinitionData conditionDefinition) {
+
+        <span class="hm">// 1. Read what the business user selected in Backoffice</span>
+        RuleParameterData conceptsParameter = condition.getParameters().get("concepts");
+        List concepts = (List) conceptsParameter.getValue();
+
+        <span class="hm">// 2. Generate unique variable names for the Drools rule</span>
+        String conceptRaoVariable    = context.generateVariable(<span class="hb">LMGConceptRAO</span>.class);
+        String productRaoVariable    = context.generateVariable(ProductRAO.class);
+        String orderEntryRaoVariable = context.generateVariable(OrderEntryRAO.class);
+        String cartRaoVariable       = context.generateVariable(CartRAO.class);
+
+        <span class="hm">// 3. Build the join chain (4 conditions ANDed together):</span>
+
+        <span class="hp">// Condition 1: LMGConceptRAO.code IN ["MAX", "SPLASH"]</span>
+        RuleIrAttributeCondition irConceptCondition = new RuleIrAttributeCondition();
+        irConceptCondition.setVariable(conceptRaoVariable);
+        irConceptCondition.setAttribute("code");
+        irConceptCondition.setOperator(RuleIrAttributeOperator.IN);
+        irConceptCondition.setValue(concepts);
+
+        <span class="hp">// Condition 2: ProductRAO.concept == $conceptRAO</span>
+        RuleIrAttributeRelCondition irProductConceptRel = new RuleIrAttributeRelCondition();
+        irProductConceptRel.setVariable(productRaoVariable);
+        irProductConceptRel.setAttribute("concept");
+        irProductConceptRel.setOperator(RuleIrAttributeOperator.EQUAL);
+        irProductConceptRel.setTargetVariable(conceptRaoVariable);
+
+        <span class="hp">// Condition 3: OrderEntryRAO.products CONTAINS $productRAO</span>
+        RuleIrAttributeRelCondition irOrderEntryProductRel = new RuleIrAttributeRelCondition();
+        irOrderEntryProductRel.setVariable(orderEntryRaoVariable);
+        irOrderEntryProductRel.setAttribute("products");
+        irOrderEntryProductRel.setOperator(RuleIrAttributeOperator.CONTAINS);
+        irOrderEntryProductRel.setTargetVariable(productRaoVariable);
+
+        <span class="hp">// Condition 4: CartRAO.entries CONTAINS $orderEntryRAO</span>
+        RuleIrAttributeRelCondition irCartOrderEntryRel = new RuleIrAttributeRelCondition();
+        irCartOrderEntryRel.setVariable(cartRaoVariable);
+        irCartOrderEntryRel.setAttribute("entries");
+        irCartOrderEntryRel.setOperator(RuleIrAttributeOperator.CONTAINS);
+        irCartOrderEntryRel.setTargetVariable(orderEntryRaoVariable);
+
+        <span class="hm">// 4. Wrap all in an AND group and return</span>
+        RuleIrGroupCondition group = new RuleIrGroupCondition();
+        group.setOperator(RuleIrGroupOperator.AND);
+        group.setChildren(Arrays.asList(
+            irConceptCondition, irProductConceptRel,
+            irOrderEntryProductRel, irCartOrderEntryRel
+        ));
+        return group;
+    }
+}</div>
+
+<h3>All 5 LMG custom conditions at a glance</h3>
+<div class="tbl">
+<table>
+  <tr><th>Condition ID</th><th>What it checks</th><th>Translator</th><th>RAO</th><th>Provider</th></tr>
+  <tr><td>lmg_qualifying_concepts</td><td>Product belongs to concept (MAX, SPLASH...)</td><td>LMGRuleQualifyingConceptsConditionTranslator</td><td>LMGConceptRAO</td><td>LMGCartRAOProvider (EXPAND_CONCEPT_BRAND)</td></tr>
+  <tr><td>lmg_qualifying_brands</td><td>Product belongs to brand (NIKE, ADIDAS...)</td><td>LMGRuleQualifyingBrandsConditionTranslator</td><td>LMGBrandRAO</td><td>LMGCartRAOProvider (EXPAND_CONCEPT_BRAND)</td></tr>
+  <tr><td>lmg_qualifying_devices</td><td>Customer using Desktop/Mobile/Tablet</td><td>LMGRuleDeviceConditionTranslator</td><td>LMGDeviceRAO</td><td>DefaultLMGDeviceRAOProvider (standalone)</td></tr>
+  <tr><td>lmg_concept_cart_total</td><td>Per-concept spend >= threshold</td><td>LMGRuleLMGConceptCartTotalConditionTranslator</td><td>LMGConceptCartTotalRAO</td><td>LMGCartRAOProvider (INCLUDE_CONCEPT_TOTAL)</td></tr>
+  <tr><td>lmg_qualifying_card_bins</td><td>Customer's card BIN matches (VISA, bank...)</td><td>LMGRuleQualifyingCardBinsConditionTranslator</td><td>LMGCardBinRAO</td><td>LMGCardBinRAOProvider → LMGCartRaoPopulator</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 3 — Add a Custom Action</h2>
+
+<p><span class="badge badge-g">WHAT</span> Teach the promotion engine a new reward — cashback, free voucher, free shipping, or any custom business logic beyond simple discounts.</p>
+
+<h3>Three tiers of action customisation</h3>
+
+<div class="grid-2">
+  <div class="card" style="border-left:3px solid var(--red);">
+    <p><span class="badge badge-r">TIER 1</span> <strong>Fully custom action</strong></p>
+    <p>New model type + new RAO + new strategy. The most work, but gives you a completely new action type.</p>
+    <p><strong>LMG examples:</strong> Cashback, Voucher, Free Shipping</p>
+    <p style="font-size:0.72rem;color:var(--text-muted);">7 files to touch</p>
+  </div>
+  <div class="card" style="border-left:3px solid var(--orange);">
+    <p><span class="badge badge-o">TIER 2</span> <strong>Custom RAO action, OOB strategy</strong></p>
+    <p>New RAO action logic, but reuses an existing strategy (like orderEntryAdjustActionStrategy).</p>
+    <p><strong>LMG examples:</strong> Threshold discounts, BOGO, CCS, Card discounts, RPM</p>
+    <p style="font-size:0.72rem;color:var(--text-muted);">4 files to touch</p>
+  </div>
+</div>
+<div class="card" style="border-left:3px solid var(--blue);max-width:49%;">
+  <p><span class="badge badge-b">TIER 3</span> <strong>Override an OOB RAO action</strong></p>
+  <p>Replace the OOB action bean with your version via Spring alias. Same strategy, same model.</p>
+  <p><strong>LMG examples:</strong> Percentage discount, Fixed discount, Trigger message</p>
+  <p style="font-size:0.72rem;color:var(--text-muted);">2 files to touch</p>
+</div>
+
+<h3>The Tier 1 recipe: 7 files for a fully custom action</h3>
+
+<div class="card step-card sn-b">
+  <span class="step-num">1</span>
+  <div class="step-title">beans.xml — Define the RAO class</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-beans.xml</code></p>
+  <p>Create the RAO that carries your action data inside Drools.</p>
+  <div class="hier"><span class="hb">&lt;bean class="...rao.LMGCashbackRAO"</span>
+    <span class="hb">extends="...rao.AbstractRuleActionRAO"&gt;</span>    <span class="hm">← must extend this!</span>
+    &lt;property name="orderThresholdValue" type="java.math.BigDecimal" equals="true"/&gt;
+    &lt;property name="cashbackValue" type="java.math.BigDecimal" equals="true"/&gt;
+    &lt;property name="maxCashbackValue" type="java.math.BigDecimal" equals="true"/&gt;
+    &lt;property name="isPercentage" type="boolean" equals="true"/&gt;
+    &lt;property name="redeemableConcepts" type="java.util.List&lt;String&gt;" equals="true"/&gt;
+    &lt;property name="expiryInDays" type="java.lang.Integer" equals="true"/&gt;
+    &lt;property name="eligibleCartTotalAmount" type="java.math.BigDecimal" equals="true"/&gt;
+&lt;/bean&gt;</div>
+</div>
+
+<div class="card step-card sn-g">
+  <span class="step-num">2</span>
+  <div class="step-title">items.xml — Define the action model type</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-items.xml</code></p>
+  <p>Create a persistent model that stores the action result in the database.</p>
+  <div class="hier"><span class="hg">&lt;itemtype code="RuleBasedCashbackAction"</span>
+    <span class="hg">extends="AbstractRuleBasedPromotionAction"</span>    <span class="hm">← must extend this!</span>
+    jaloclass="...jalo.RuleBasedCashbackAction"
+    autocreate="true" generate="true"&gt;
+    &lt;attributes&gt;
+        &lt;attribute qualifier="cashbackAttributesJson" type="java.lang.String"&gt;
+            &lt;persistence type="property"&gt;
+                &lt;columntype database="oracle"&gt;&lt;value&gt;CLOB&lt;/value&gt;&lt;/columntype&gt;
+                &lt;columntype database="mysql"&gt;&lt;value&gt;TEXT&lt;/value&gt;&lt;/columntype&gt;
+                &lt;columntype&gt;&lt;value&gt;HYBRIS.LONG_STRING&lt;/value&gt;&lt;/columntype&gt;
+            &lt;/persistence&gt;
+        &lt;/attribute&gt;
+    &lt;/attributes&gt;
+&lt;/itemtype&gt;</div>
+</div>
+
+<div class="card step-card sn-o">
+  <span class="step-num">3</span>
+  <div class="step-title">Action Translator — Compile UI params for Drools</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../definitions/action/</code></p>
+  <div class="hier"><span class="ho">DefaultLMGRuleCashbackActionTranslator</span> extends RuleExecutableActionTranslator
+
+Key override: <span class="hr">pushConditionParameters()</span>
+  Iterates over ALL rule conditions and pushes every condition parameter
+  into the action parameter map. This is how the RAO Action (Step 4)
+  can read condition values like "cart total threshold" at runtime.
+
+  <span class="hm">Without this trick, the action would not know the cart total threshold</span>
+  <span class="hm">because Drools actions can only see their own parameters, not conditions.</span></div>
+</div>
+
+<div class="card step-card sn-p">
+  <span class="step-num">4</span>
+  <div class="step-title">RAO Action — Execute inside Drools</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../rule/evaluation/actions/impl/</code></p>
+  <p>This runs INSIDE the Drools engine. It creates in-memory RAO objects — no database yet.</p>
+  <div class="hier"><span class="hp">DefaultLMGRuleCashbackRAOAction</span> extends AbstractRuleExecutableSupport
+
+The performAction() method:
+  1. Read parameters (cashback_value, is_percentage, threshold from conditions...)
+  2. Get eligible order entries
+  3. Calculate eligible cart amount
+  4. Check if threshold is met
+  5. Build <span class="hp">LMGCashbackRAO</span> with all attributes
+  6. Add to CartRAO.actions and RuleEngineResultRAO.actions
+  7. Consume order entries (prevent double-counting)</div>
+</div>
+
+<div class="card step-card sn-r">
+  <span class="step-num">5</span>
+  <div class="step-title">Action Strategy — Persist RAO to database</div>
+  <p><strong>Where:</strong> <code>landmarkshopscore/src/.../rule/strategies/</code></p>
+  <p>This runs AFTER Drools finishes. It takes the in-memory RAO and saves it to the database.</p>
+  <div class="hier"><span class="hr">DefaultLMGCashbackActionStrategy</span> extends AbstractRuleActionStrategy&lt;RuleBasedCashbackActionModel&gt;
+
+The apply() method:
+  1. Validate: is it an LMGCashbackRAO applied to CartRAO?
+  2. Create <span class="hg">PromotionResultModel</span> (certainty=1.0)
+  3. Create <span class="hr">RuleBasedCashbackActionModel</span>
+  4. Build LMGCashbackAttributesData DTO → serialize to JSON
+  5. actionModel.setCashbackAttributesJson(json)
+  6. modelService.saveAll(result, action, order)
+
+The undo() method:
+  Reverses the action (called when promotion no longer applies)</div>
+</div>
+
+<div class="card step-card sn-t">
+  <span class="step-num">6</span>
+  <div class="step-title">ImpEx Definition — Register the action</div>
+  <p><strong>File:</strong> <code>landmarkshopsinitialdata/.../essentialData/common/21-essentialdata-definitions.impex</code></p>
+  <div class="hier">INSERT_UPDATE RuleActionDefinition
+  ;id[unique=true]         = <span class="ht">y_cashback</span>
+  ;name[lang=$lang]        = "LMG Cash back"
+  ;priority                = 1500
+  ;breadcrumb[lang=$lang]  = "Get {cashback_value} Cash back..."
+  ;translatorId            = <span class="ht">ruleCashbackActionTranslator</span>     <span class="hm">← Spring bean alias</span>
+  ;translatorParameters    = <span class="ht">actionId->ruleCashbackAction</span>    <span class="hm">← points to the executable action bean</span>
+  ;categories(id)          = cashback
+
+INSERT_UPDATE RuleActionDefinitionParameter
+  ;definition(id) = y_cashback  ;id = is_percentage        ;type = java.lang.Boolean
+  ;definition(id) = y_cashback  ;id = cashback_value       ;type = java.math.BigDecimal
+  ;definition(id) = y_cashback  ;id = max_cashback_value   ;type = java.math.BigDecimal
+  ;definition(id) = y_cashback  ;id = redeemable_concepts  ;type = java.lang.String
+  ;definition(id) = y_cashback  ;id = cashback_expiry_in_days ;type = java.lang.Integer</div>
+</div>
+
+<div class="card step-card sn-pk">
+  <span class="step-num">7</span>
+  <div class="step-title">Spring XML — Wire all the beans</div>
+  <p><strong>File:</strong> <code>landmarkshopscore/resources/landmarkshopscore-promotionengine-spring.xml</code></p>
+  <div class="hier"><span class="hm">Five things to wire:</span>
+
+<span class="hpk">A. Translator bean</span>
+&lt;alias alias="ruleCashbackActionTranslator" name="defaultLMGRuleCashbackActionTranslator" /&gt;
+&lt;bean id="defaultLMGRuleCashbackActionTranslator" class="...DefaultLMGRuleCashbackActionTranslator"
+    parent="defaultRuleExecutableActionTranslator" /&gt;
+
+<span class="hpk">B. Executable action wrapper</span> (wraps RAO action in try-catch)
+&lt;bean id="ruleCashbackAction" class="...DefaultLMGRuleExecutableAction"&gt;
+    &lt;property name="raoAction" ref="ruleCashbackRAOAction" /&gt;
+&lt;/bean&gt;
+
+<span class="hpk">C. RAO action bean</span>
+&lt;alias name="defaultRuleLMGCashbackRAOAction" alias="ruleCashbackRAOAction" /&gt;
+&lt;bean id="defaultRuleLMGCashbackRAOAction" parent="abstractRuleExecutableSupport"
+    class="...DefaultLMGRuleCashbackRAOAction" /&gt;
+
+<span class="hpk">D. Action strategy bean</span>
+&lt;alias name="defaultCashbackActionStrategy" alias="cashbackActionStrategy" /&gt;
+&lt;bean id="defaultCashbackActionStrategy" parent="abstractRuleActionStrategy"
+    class="...DefaultLMGCashbackActionStrategy"&gt;
+    &lt;property name="promotionAction"
+        value="com.landmarkshops.core.model.RuleBasedCashbackActionModel" /&gt;
+&lt;/bean&gt;
+
+<span class="hpk">E. Register in the two maps:</span>
+<span class="hm">&lt;!-- promotionActionStrategiesMapping: RAO action → strategy --&gt;</span>
+&lt;entry key="defaultRuleLMGCashbackRAOAction" value-ref="defaultCashbackActionStrategy" /&gt;
+
+<span class="hm">&lt;!-- actionStrategies list: add strategy to the list --&gt;</span>
+&lt;ref bean="defaultCashbackActionStrategy" /&gt;</div>
+</div>
+
+<h3>All LMG custom actions at a glance</h3>
+<div class="tbl">
+<table>
+  <tr><th>Tier</th><th>Action ID</th><th>What it does</th><th>RAO Action</th><th>Strategy</th></tr>
+  <tr><td><span class="badge badge-r">T1</span></td><td>y_cashback</td><td>Shukran Pay cashback</td><td>DefaultLMGRuleCashbackRAOAction</td><td>DefaultLMGCashbackActionStrategy</td></tr>
+  <tr><td><span class="badge badge-r">T1</span></td><td>lmg_given_voucher</td><td>Give a voucher code</td><td>DefaultLMGRuleAddVoucherRAOAction</td><td>DefaultLMGAddVoucherActionStrategy</td></tr>
+  <tr><td><span class="badge badge-r">T1</span></td><td>lmg_free_shipping</td><td>Free delivery</td><td>DefaultLMGRuleFreeShippingRAOAction</td><td>DefaultLMGFreeShippingActionStrategy</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_target_product_price_threshold_*</td><td>Product-price-based discount</td><td>Custom RAO action</td><td>orderEntryAdjustActionStrategy (OOB)</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_partner_order_entry_*</td><td>BOGO</td><td>DefaultLMGRulePartnerOrderEntry...RAOAction</td><td>lmgOrderEntryAdjustActionStrategy</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_ccs_order_entry_*</td><td>Cross-category discount</td><td>DefaultLMGRuleOrderCrossCategory...RAOAction</td><td>lmgOrderEntryAdjustActionStrategy</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_order_*_discount_with_card</td><td>Card-based discount</td><td>Custom RAO action</td><td>lmgOrderTotalAdjustActionStrategy</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_product_fixed_price</td><td>RPM fixed price</td><td>DefaultLMGProductFixedPriceActionStrategyRAOAction</td><td>orderEntryAdjustActionStrategy (OOB)</td></tr>
+  <tr><td><span class="badge badge-o">T2</span></td><td>lmg_order_threshold_free_product</td><td>OTFG (free gift)</td><td>DefaultLMGOrderThresholdFreeGiftRAOAction</td><td>defaultLMGAddProductToCartActionStrategy</td></tr>
+  <tr><td><span class="badge badge-b">T3</span></td><td>(OOB IDs)</td><td>% discount, fixed discount, message</td><td>Override via alias</td><td>OOB strategies</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 4 — Enrich Facts (Populators + Providers)</h2>
+
+<p><span class="badge badge-o">WHAT</span> Add more data for Drools rules to see — without creating a new condition, you can enrich the existing facts with extra fields.</p>
+
+<div class="co co-o">
+  <strong>Analogy:</strong> Imagine a restaurant menu card. OOB Hybris gives each dish a name and price. LMG enriches it by also writing the brand, the concept (which store), and the payment card used — so the chef (Drools) can make smarter decisions.
+</div>
+
+<h3>Pattern A — Extend an OOB populator</h3>
+<p>Replace the OOB populator with yours via Spring alias. Call <code>super.populate()</code> first, then add your fields.</p>
+
+<div class="tbl">
+<table>
+  <tr><th>LMG Populator</th><th>OOB Parent</th><th>What it adds</th><th>Spring alias replaced</th></tr>
+  <tr><td>LMGCartRaoPopulator</td><td>CartRaoPopulator</td><td>Per-concept subtotals (LMGConceptCartTotalRAO list), payment info + card BINs</td><td>cartRaoPopulator</td></tr>
+  <tr><td>LMGProductRaoPopulator</td><td>ProductRaoPopulator</td><td>Concept (LMGConceptRAO) and brand (LMGBrandRAO) on each product, categories from all base products</td><td>productRaoPopulator</td></tr>
+  <tr><td>LMGOrderEntryRaoPopulator</td><td>OrderEntryRaoPopulator</td><td>All base products + variants in the products list (OOB only sets one)</td><td>orderEntryRaoPopulator</td></tr>
+</table>
+</div>
+
+<h3>Pattern B — Create a new provider</h3>
+<p>Implement <code>RAOProvider</code> from scratch and register in <code>orderPromotionRaoProviders</code>.</p>
+
+<div class="tbl">
+<table>
+  <tr><th>LMG Provider</th><th>What it provides</th><th>How registered</th></tr>
+  <tr><td>DefaultLMGDeviceRAOProvider</td><td>LMGDeviceRAO (desktop/mobile/tablet)</td><td>Standalone in orderPromotionRaoProviders list for CartModel</td></tr>
+  <tr><td>DefaultLMGCardBinRAOProvider</td><td>Multiple LMGCardBinRAOs (progressive prefixes of card BIN)</td><td>Called by LMGCartRaoPopulator, expanded by LMGCartRAOProvider</td></tr>
+</table>
+</div>
+
+<h3>Value Mappers — For custom parameter types</h3>
+<p>When your condition uses a custom ItemType (like <code>LMGConcept</code>) in its parameters, you need a value mapper to convert between the model and its string representation.</p>
+
+<div class="tbl">
+<table>
+  <tr><th>Mapper</th><th>Type mapped</th><th>Converts</th></tr>
+  <tr><td>LMGConceptRuleParameterValueMapper</td><td>ItemType(LMGConcept)</td><td>Concept code string ↔ LMGConceptModel</td></tr>
+  <tr><td>LMGBrandRuleParameterValueMapper</td><td>ItemType(LMGBrand)</td><td>Brand code string ↔ LMGBrandModel</td></tr>
+  <tr><td>LMGDeviceRuleParameterValueMapper</td><td>ItemType(UiExperienceLevel)</td><td>Device code string ↔ EnumerationValueModel</td></tr>
+  <tr><td>LMGPromotionVoucherRuleParameterValueMapper</td><td>ItemType(LMGPromotionVoucher)</td><td>Voucher code string ↔ LMGPromotionVoucherModel</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 5 — Change Entry Selection Strategy</h2>
+
+<p><span class="badge badge-p">WHAT</span> Control WHICH cart items are consumed by a promotion — the cheapest? the costliest? the most profitable combination?</p>
+
+<div class="co co-p">
+  <strong>Analogy:</strong> You have a "Buy 2 Get 1 Free" offer. Which item is free? OOB Hybris makes the cheapest one free (DEFAULT). LMG added COSTLIEST (most expensive item free — better for the company) and PROFITABLE (maximizes customer benefit for BOGO).</p>
+</div>
+
+<div class="tbl">
+<table>
+  <tr><th>Strategy</th><th>Source</th><th>Algorithm</th></tr>
+  <tr><td>DEFAULT</td><td>OOB</td><td>Natural order of entries</td></tr>
+  <tr><td>CHEAPEST</td><td>OOB</td><td>Sorted ascending by price — cheapest consumed first</td></tr>
+  <tr><td>COSTLIEST</td><td>LMG custom</td><td>Sorted descending by price — costliest consumed first</td></tr>
+  <tr><td>PROFITABLE</td><td>LMG custom</td><td>BOGO-aware: sorts descending, alternates between qualifying (X) and free (Y) quantities to maximize free-item value</td></tr>
+</table>
+</div>
+
+<h4>How to add a new selection strategy</h4>
+<div class="hier"><span class="hm">1.</span> Add enum value to OrderEntrySelectionStrategy in <span class="hp">items.xml</span>:
+   &lt;value code="MYNEWSTRATEGY" /&gt;
+
+<span class="hm">2.</span> Create Java class extending DefaultEntriesSelectionStrategy:
+   Override <span class="hp">getOrderEntriesToProcess()</span> with your sorting/selection logic
+
+<span class="hm">3.</span> Register in <span class="hp">entriesSelectionStrategies</span> map in Spring XML:
+   &lt;entry key="MYNEWSTRATEGY" value-ref="myNewSelectionStrategy" /&gt;</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 6 — Change Cart Calculation Behavior</h2>
+
+<p><span class="badge badge-r">WHAT</span> Control WHEN and HOW the promotion engine is triggered during cart operations.</p>
+
+<div class="hier"><span class="hr">DefaultLMGCommerceCartCalculationStrategy</span> extends DefaultCommerceCartCalculationStrategy
+
+<span class="hm">What LMG added:</span>
+
+<span class="hb">1. Delayed calculation</span>
+   Checks DELAY_FULL_CART_CALCULATION flag in RequestContextHolder.
+   If true → return immediately, skip all calculation.
+   Use case: batch operations where you want ONE calculation at the end.
+
+<span class="hg">2. Additional-cost-only optimization</span>
+   When cart.getOnlyAdditionalCostCalculation() == true:
+   → Skip full promotion re-evaluation
+   → Only recalculate delivery costs
+   → Run beforeCalculate/afterCalculate hooks
+   Use case: checkout step where only shipping/payment cost changed.
+
+<span class="ho">3. Delivery cost calculation</span>
+   Private calculateDeliveryCost() method calls findDeliveryCostStrategy directly.
+
+<span class="hm">Spring alias:</span>
+  alias "commerceCartCalculationStrategy" → "lmgDefaultCommerceCartCalculationStrategy"
+  alias "checkoutCartCalculationStrategy" → "lmgDefaultCommerceCartCalculationStrategy"</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 7 — Change Result Handling</h2>
+
+<p><span class="badge badge-t">WHAT</span> Customize how promotion results are processed, what data is extracted, and how the storefront interprets them.</p>
+
+<div class="tbl">
+<table>
+  <tr><th>LMG Service</th><th>OOB Parent</th><th>What it adds</th></tr>
+  <tr><td>DefaultLMGPromotionEngineResultService</td><td>DefaultPromotionEngineResultService</td><td>
+    <ul style="margin:0;padding-left:1rem;">
+      <li>Promotion type detection (isCashbackPromotion, isBOGO, isOTFG, etc.) for all 22 PromotionType values</li>
+      <li>Voucher action extraction (RuleBasedAddVoucherAction)</li>
+      <li>Rule parameter inspection helpers</li>
+      <li>RPM promotion detection per order entry</li>
+    </ul>
+  </td></tr>
+  <tr><td>DefaultLMGPromotionActionService</td><td>DefaultPromotionActionService</td><td>
+    <ul style="margin:0;padding-left:1rem;">
+      <li>Sets flash sale + fixed price flags on consumed entries</li>
+      <li>Filters consumed entries by fired rule code (prevents cross-rule leakage)</li>
+    </ul>
+  </td></tr>
+  <tr><td>DefaultLMGOrderEntryAdjustActionStrategy</td><td>DefaultOrderEntryAdjustActionStrategy</td><td>Calculates orderEntryQuantity from DiscountRAO (fixes OOB mismatch)</td></tr>
+  <tr><td>DefaultLMGOrderAdjustActionStrategy</td><td>DefaultOrderAdjustTotalActionStrategy</td><td>Pro-rates cart-level discounts to per-entry amounts for return/refund</td></tr>
+  <tr><td>LMGRaoUtils</td><td>RaoUtils</td><td>Available quantity tracking, ignores DisplayMessageRAO in consumed counts, eligible-amount calc with prior discounts</td></tr>
+  <tr><td>DefaultLMGRuleEngineCalculationService</td><td>DefaultRuleEngineCalculationService</td><td>Per-unit proportionate discount, configurable rounding, free gift pricing</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 8 — Override via Spring Alias</h2>
+
+<p><span class="badge badge-pk">WHAT</span> The master technique — replace ANY out-of-the-box bean with your own via Spring alias. This is how ALL the above customisations are activated.</p>
+
+<div class="co co-p">
+  <strong>The pattern:</strong><br>
+  <code>&lt;alias alias="oobBeanName" name="yourCustomBean" /&gt;</code><br>
+  <code>&lt;bean id="yourCustomBean" class="YourClass" parent="oobBeanName" /&gt;</code><br><br>
+  The <code>alias</code> tells Spring: "whenever someone asks for <code>oobBeanName</code>, give them <code>yourCustomBean</code> instead." The <code>parent</code> inherits the OOB bean's properties so you only override what you need.
+</div>
+
+<h3>Complete list of LMG overrides</h3>
+
+<h4>Data Pipeline (populators + providers)</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Bean Replaced</th><th>LMG Bean</th></tr>
+  <tr><td>cartRaoPopulator</td><td>defaultLMGCartRaoPopulator</td></tr>
+  <tr><td>productRaoPopulator</td><td>defaultLMGProductRaoPopulator</td></tr>
+  <tr><td>orderEntryRaoPopulator</td><td>defaultLMGOrderEntryRaoPopulator</td></tr>
+  <tr><td>promotionCartRaoProvider</td><td>lmgCartRAOProvider</td></tr>
+  <tr><td>promotionProductRaoProvider</td><td>lmgProductRAOProvider</td></tr>
+  <tr><td>raoUtils</td><td>lmgRaoUtils</td></tr>
+</table>
+</div>
+
+<h4>Engine Services</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Bean Replaced</th><th>LMG Bean</th></tr>
+  <tr><td>platformRuleEngineService</td><td>DefaultLMGPlatformRuleEngineService</td></tr>
+  <tr><td>ruleMaintenanceService</td><td>defaultLMGRuleMaintenanceService</td></tr>
+  <tr><td>ruleEngineCalculationService</td><td>lMGRuleEngineCalculationService</td></tr>
+  <tr><td>commerceCartCalculationStrategy</td><td>lmgDefaultCommerceCartCalculationStrategy</td></tr>
+  <tr><td>checkoutCartCalculationStrategy</td><td>lmgDefaultCommerceCartCalculationStrategy</td></tr>
+</table>
+</div>
+
+<h4>Result + Action Processing</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Bean Replaced</th><th>LMG Bean</th></tr>
+  <tr><td>promotionResultService</td><td>lmgPromotionEngineResultService</td></tr>
+  <tr><td>promotionActionService</td><td>defaultLMGPromotionActionService</td></tr>
+  <tr><td>addProductToCartActionStrategy</td><td>defaultLMGAddProductToCartActionStrategy</td></tr>
+</table>
+</div>
+
+<h4>Compilation + Translation</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Bean Replaced</th><th>LMG Bean</th></tr>
+  <tr><td>ruleExecutableActionTranslator</td><td>defaultLMGRuleExecutableActionTranslator</td></tr>
+  <tr><td>ruleOrderPercentageDiscountRAOAction</td><td>defaultLMGRuleOrderPercentageDiscountRAOAction</td></tr>
+  <tr><td>ruleOrderFixedDiscountRAOAction</td><td>defaultLMGRuleOrderFixedDiscountRAOAction</td></tr>
+  <tr><td>ruleOrderEntryFixedPriceRAOAction</td><td>defaultLMGRuleOrderEntryFixedPriceRAOAction</td></tr>
+  <tr><td>ruleOrderEntryPercentageDiscountRAOAction</td><td>defaultLMGRuleOrderEntryPercentageDiscountRAOAction</td></tr>
+  <tr><td>ruleTriggerMessageRAOAction</td><td>defaultLMGRuleTriggerMessageRAOAction</td></tr>
+</table>
+</div>
+
+<h4>Interceptors + Validators + DAOs</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Bean Replaced</th><th>LMG Bean</th></tr>
+  <tr><td>promotionRulePrepareInterceptor</td><td>lmgPromotionRulePrepareInterceptor</td></tr>
+  <tr><td>sourceRuleValidateInterceptor</td><td>lmgCustomSourceRuleValidateInterceptor</td></tr>
+  <tr><td>promotionSourceRuleDao</td><td>defaultLMGPromotionSourceRuleDao</td></tr>
+  <tr><td>engineRuleDao</td><td>defaultLMGEngineRuleDao</td></tr>
+  <tr><td>onTenantStartupProcessor</td><td>lmgOnTenantStartupProcessor</td></tr>
+</table>
+</div>
+
+<h4>Maps replaced wholesale</h4>
+<div class="tbl">
+<table>
+  <tr><th>OOB Map</th><th>LMG Replacement</th><th>What it adds</th></tr>
+  <tr><td>entriesSelectionStrategies</td><td>defaultLMGEntriesSelectionStrategies</td><td>COSTLIEST + PROFITABLE strategies</td></tr>
+  <tr><td>conditionResolutionStrategies</td><td>lmgConditionResolutionStrategies</td><td>Concept, brand, device resolution strategies</td></tr>
+  <tr><td>promotionActionStrategiesMapping</td><td>(replaced inline)</td><td>18+ LMG RAO action → strategy mappings</td></tr>
+  <tr><td>actionStrategies</td><td>defaultActionStrategies</td><td>6 LMG strategies added to the list</td></tr>
+  <tr><td>orderPromotionRaoProviders</td><td>(replaced inline)</td><td>Device RAO provider added</td></tr>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<h2>Section 9 — Quick-Start Checklists</h2>
+
+<div class="grid-2">
+  <div class="card" style="border-left:3px solid var(--blue);">
+    <h4 style="color:var(--blue);margin-top:0;">I want to add a new CONDITION</h4>
+    <ol>
+      <li><strong>beans.xml</strong> — Define RAO class</li>
+      <li><strong>Populator .java</strong> — Fill RAO from model</li>
+      <li><strong>Provider .java</strong> — Insert RAO into Drools facts</li>
+      <li><strong>Translator .java</strong> — Compile UI params → Drools IR</li>
+      <li><strong>ImpEx</strong> — Register condition + parameters</li>
+      <li><strong>Spring XML</strong> — Wire translator + resolution strategy + value mapper</li>
+      <li><strong>ant initialize</strong> — Load impex into DB</li>
+      <li><strong>Backoffice</strong> — Verify condition appears in rule editor</li>
+    </ol>
+  </div>
+  <div class="card" style="border-left:3px solid var(--green);">
+    <h4 style="color:var(--green);margin-top:0;">I want to add a new ACTION (Tier 1)</h4>
+    <ol>
+      <li><strong>beans.xml</strong> — Define RAO class</li>
+      <li><strong>items.xml</strong> — Define action model type</li>
+      <li><strong>Translator .java</strong> — Compile UI params</li>
+      <li><strong>RAO Action .java</strong> — Execute inside Drools</li>
+      <li><strong>Strategy .java</strong> — Persist to database</li>
+      <li><strong>ImpEx</strong> — Register action + parameters</li>
+      <li><strong>Spring XML</strong> — Wire all 5 beans + 2 maps</li>
+      <li><strong>ant initialize</strong> + <strong>ant updatesystem</strong></li>
+      <li><strong>Backoffice</strong> — Verify action appears in rule editor</li>
+    </ol>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card" style="border-left:3px solid var(--orange);">
+    <h4 style="color:var(--orange);margin-top:0;">I want to enrich existing facts</h4>
+    <ol>
+      <li><strong>beans.xml</strong> — Add property to existing RAO (or new RAO class)</li>
+      <li><strong>Populator .java</strong> — Extend OOB populator, add field in populate()</li>
+      <li><strong>Spring XML</strong> — Alias your populator over the OOB one</li>
+      <li>If new top-level fact: also update the <strong>provider</strong> to expand it</li>
+    </ol>
+  </div>
+  <div class="card" style="border-left:3px solid var(--purple);">
+    <h4 style="color:var(--purple);margin-top:0;">I want to override OOB behavior</h4>
+    <ol>
+      <li>Find the OOB bean name in the OOB Spring XML</li>
+      <li>Create your class extending the OOB class</li>
+      <li>Override the specific method(s) you want to change</li>
+      <li><strong>Spring XML</strong> — <code>&lt;alias alias="oobBean" name="yourBean" /&gt;</code></li>
+      <li>Set <code>parent="oobBean"</code> to inherit properties</li>
+    </ol>
+  </div>
+</div>

@@ -1,0 +1,619 @@
+<title>LMG Custom Layer Deep Dive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:#f4f5f7;--surface:#fff;--surface-alt:#eceef2;
+    --text:#1b1e25;--text-muted:#6b7280;--border:#d1d5db;
+    --blue:#2563a0;--blue-bg:#e8f0f8;--blue-border:#a3bdd6;
+    --green:#1a7a5c;--green-bg:#e6f5ef;--green-border:#8ec4ad;
+    --orange:#c47a1a;--orange-bg:#fdf3e4;--orange-border:#ddb576;
+    --purple:#7a5ca0;--purple-bg:#f0ebf5;--purple-border:#c4b3d6;
+    --gray:#8b95a5;--gray-bg:#f0f1f4;--gray-border:#c5c9d2;
+    --red:#c0392b;--red-bg:#fdeaea;--red-border:#e6a8a2;
+    --teal:#0e7c7b;--teal-bg:#e4f5f5;--teal-border:#8ec4c3;
+    --pink:#b44d8b;--pink-bg:#f8eaf3;--pink-border:#d6a3c4;
+  }
+  @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    --pink:#d070b0;--pink-bg:#2a1828;--pink-border:#5a3048;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:1000px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  h4{font-size:0.85rem;font-weight:600;margin:1rem 0 0.3rem;color:var(--text-muted);}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  ul li{margin-bottom:0.25rem;}
+  ul li strong{color:var(--text);}
+  code{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;background:var(--surface-alt);padding:0.1rem 0.35rem;border-radius:3px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .card-blue{border-left:3px solid var(--blue);}
+  .card-green{border-left:3px solid var(--green);}
+  .card-orange{border-left:3px solid var(--orange);}
+  .card-purple{border-left:3px solid var(--purple);}
+  .card-red{border-left:3px solid var(--red);}
+  .card-teal{border-left:3px solid var(--teal);}
+  .card-pink{border-left:3px solid var(--pink);}
+
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;display:inline-block;margin-bottom:0.5rem;}
+  .badge-blue{background:var(--blue-bg);color:var(--blue);}
+  .badge-green{background:var(--green-bg);color:var(--green);}
+  .badge-orange{background:var(--orange-bg);color:var(--orange);}
+  .badge-purple{background:var(--purple-bg);color:var(--purple);}
+  .badge-gray{background:var(--gray-bg);color:var(--gray);}
+  .badge-red{background:var(--red-bg);color:var(--red);}
+  .badge-teal{background:var(--teal-bg);color:var(--teal);}
+  .badge-pink{background:var(--pink-bg);color:var(--pink);}
+
+  .type-name{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.9rem;margin-bottom:0.25rem;}
+  .tn-blue{color:var(--blue);} .tn-green{color:var(--green);} .tn-orange{color:var(--orange);}
+  .tn-purple{color:var(--purple);} .tn-red{color:var(--red);} .tn-teal{color:var(--teal);} .tn-pink{color:var(--pink);}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  td:first-child{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:0.75rem;white-space:nowrap;}
+  .tbl-container{overflow-x:auto;}
+
+  .flow{display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;padding:0.75rem;background:var(--surface-alt);border-radius:5px;margin:0.75rem 0;}
+  .flow-item{padding:0.25rem 0.6rem;border-radius:4px;font-weight:500;}
+  .fi-blue{background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);}
+  .fi-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);}
+  .fi-orange{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);}
+  .fi-purple{background:var(--purple-bg);border:1px solid var(--purple-border);color:var(--purple);}
+  .fi-gray{background:var(--gray-bg);border:1px solid var(--gray-border);color:var(--gray);}
+  .fi-red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);}
+  .fi-teal{background:var(--teal-bg);border:1px solid var(--teal-border);color:var(--teal);}
+  .fi-pink{background:var(--pink-bg);border:1px solid var(--pink-border);color:var(--pink);}
+  .flow-arr{color:var(--text-muted);}
+
+  .hier{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hier .h-b{color:var(--blue);font-weight:600;} .hier .h-g{color:var(--green);font-weight:600;}
+  .hier .h-o{color:var(--orange);font-weight:600;} .hier .h-p{color:var(--purple);font-weight:600;}
+  .hier .h-r{color:var(--red);font-weight:600;} .hier .h-t{color:var(--teal);font-weight:600;}
+  .hier .h-pk{color:var(--pink);font-weight:600;} .hier .h-m{color:var(--text-muted);}
+
+  .callout{border-radius:5px;padding:0.75rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .co-orange{background:var(--orange-bg);border:1px solid var(--orange-border);}
+  .co-orange strong{color:var(--orange);}
+  .co-green{background:var(--green-bg);border:1px solid var(--green-border);}
+  .co-green strong{color:var(--green);}
+  .co-blue{background:var(--blue-bg);border:1px solid var(--blue-border);}
+  .co-blue strong{color:var(--blue);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;}
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.grid-2,.grid-3{grid-template-columns:1fr;}}
+</style>
+
+<h1>Layer 4: LMG Custom Extensions — Deep Dive</h1>
+<p class="subtitle">Everything your team built on top of SAP's promotion engine. The LEGO blocks that make promotions work for Landmark Group.</p>
+
+<!-- ============ OVERVIEW ============ -->
+<h2>What did your team customize?</h2>
+<div class="card card-blue">
+  <p><strong>SAP gives you a generic promotion engine. But Landmark Group has business needs SAP doesn't cover:</strong></p>
+  <ul>
+    <li>Multiple <strong>concepts</strong> (Max, Splash, Centrepoint, Homecentre) — SAP has no "concept" idea</li>
+    <li>Multiple <strong>brands</strong> (Nike, Adidas) as promotion conditions — SAP only does products/categories</li>
+    <li><strong>Cashback</strong> via Shukran Pay — SAP has no cashback action</li>
+    <li><strong>OTFV</strong> (Order Threshold Free Voucher) — buy X, get voucher for next purchase</li>
+    <li><strong>Bank card BIN</strong> promotions — discount when paying with specific bank cards</li>
+    <li><strong>Device-based</strong> promos — mobile-only or desktop-only</li>
+    <li><strong>RPM</strong> (Retail Price Management) — fixed price promotions loaded from external system</li>
+    <li><strong>Free shipping</strong> — as a promotion action (not just a delivery mode)</li>
+  </ul>
+
+  <p>Your team customized <strong>7 areas</strong>:</p>
+  <div class="flow">
+    <span class="flow-item fi-blue">1. Custom Conditions</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-green">2. Custom Actions</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-orange">3. Custom Action Types</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-teal">4. Junction Tables</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-purple">5. Pipeline</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-red">6. PromotionType Enum</span>
+    <span class="flow-arr">|</span>
+    <span class="flow-item fi-pink">7. Voucher Hierarchy</span>
+  </div>
+</div>
+
+<!-- ============ AREA 1: CUSTOM CONDITIONS ============ -->
+<h2>Area 1: Custom Conditions — 5 new "IF" blocks</h2>
+
+<div class="card card-blue">
+  <p>SAP provides conditions like "qualifying products" and "cart total." Your team added 5 conditions for Landmark-specific business logic.</p>
+  <p>Each condition has <strong>3 parts</strong>: a <strong>Definition</strong> (in impex), a <strong>Translator</strong> (Java class), and <strong>Parameters</strong> (input fields).</p>
+</div>
+
+<!-- Condition 1: Concepts -->
+<div class="card card-blue">
+  <span class="badge badge-blue">condition 1 — most used</span>
+  <div class="type-name tn-blue">lmg_qualifying_concepts</div>
+  <p><strong>Purpose:</strong> "IF the cart contains products from these concepts (Max, Splash, Centrepoint...)"</p>
+  <p><strong>Why it exists:</strong> SAP has no concept of "concept" (a brand umbrella like Max). This is Landmark Group's core business organizing principle — every product belongs to a concept.</p>
+  <p><strong>Translator:</strong> <code>LMGRuleQualifyingConceptsConditionTranslator</code></p>
+  <p><strong>Parameter:</strong> <code>concepts</code> — List of LMGConcept items to match</p>
+
+  <div class="callout co-blue">
+    <strong>How it works:</strong> Business user picks "MAX" + "SPLASH" from dropdown → saved as JSON → translator compiles into Drools code that checks if cart entries have products from MAX or SPLASH concept.
+  </div>
+</div>
+
+<!-- Condition 2: Brands -->
+<div class="card card-blue">
+  <span class="badge badge-blue">condition 2</span>
+  <div class="type-name tn-blue">lmg_qualifying_brands</div>
+  <p><strong>Purpose:</strong> "IF the cart contains products from these brands (Nike, Adidas, Zara...)"</p>
+  <p><strong>Why it exists:</strong> SAP only filters by product or category — not by brand. Landmark runs brand-specific promotions ("20% off all Nike items").</p>
+  <p><strong>Translator:</strong> <code>LMGRuleQualifyingBrandsConditionTranslator</code></p>
+  <p><strong>Parameter:</strong> <code>brands</code> — List of LMGBrand items to match</p>
+</div>
+
+<!-- Condition 3: Concept Cart Total -->
+<div class="card card-blue">
+  <span class="badge badge-blue">condition 3</span>
+  <div class="type-name tn-blue">lmg_concept_cart_total</div>
+  <p><strong>Purpose:</strong> "IF the cart total <strong>for a specific concept</strong> is >= X"</p>
+  <p><strong>Why it exists:</strong> SAP's <code>y_cart_total</code> checks the WHOLE cart. But a customer might have items from Max AND Centrepoint in one cart. This condition checks the subtotal for one concept only.</p>
+  <p><strong>Translator:</strong> <code>LMGRuleLMGConceptCartTotalConditionTranslator</code> (extends SAP's cart total translator)</p>
+  <p><strong>Parameters:</strong></p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Parameter</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td>operator</td><td>AmountOperator enum</td><td>>=, >, = etc.</td></tr>
+    <tr><td>value</td><td>Map(Currency, BigDecimal)</td><td>Threshold per currency — e.g. AED: 500, SAR: 600</td></tr>
+    <tr><td>concept</td><td>LMGConcept</td><td>Which concept to calculate subtotal for</td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="grid-2">
+<!-- Condition 4: Devices -->
+<div class="card card-blue">
+  <span class="badge badge-blue">condition 4</span>
+  <div class="type-name tn-blue">lmg_qualifying_devices</div>
+  <p><strong>Purpose:</strong> "IF the customer is on mobile / desktop"</p>
+  <p><strong>Why:</strong> Mobile-only promotions ("Download our app, get 10% off").</p>
+  <p><strong>Translator:</strong> <code>LMGRuleDeviceConditionTranslator</code></p>
+  <p><strong>Parameter:</strong> <code>devices</code> — List of UiExperienceLevel (MOBILE, DESKTOP)</p>
+</div>
+
+<!-- Condition 5: Card BINs -->
+<div class="card card-blue">
+  <span class="badge badge-blue">condition 5</span>
+  <div class="type-name tn-blue">lmg_qualifying_card_bins</div>
+  <p><strong>Purpose:</strong> "IF the customer pays with a bank card whose BIN matches"</p>
+  <p><strong>Why:</strong> Co-branded promotions with banks ("10% off with Emirates NBD card").</p>
+  <p><strong>Translator:</strong> <code>LMGRuleQualifyingCardBinsConditionTranslator</code></p>
+  <p><strong>Parameter:</strong> <code>cardBins</code> — List of BIN strings (first 6 digits of card number)</p>
+</div>
+</div>
+
+<!-- How a condition is wired -->
+<div class="card card-blue">
+  <h3>How each condition is wired — the 3-file pattern</h3>
+  <div class="hier"><span class="h-m">For each custom condition, your team created/touched 3 things:</span>
+
+<span class="h-b">1. Definition (impex)</span> <span class="h-m">— 21-essentialdata-definitions.impex</span>
+   Registers the condition in the Backoffice rule builder UI
+   Sets: id, name, translatorId, parameters, category
+
+<span class="h-g">2. Translator (Java)</span> <span class="h-m">— LMGRule___ConditionTranslator.java</span>
+   Converts the JSON condition into Drools rule syntax
+   Example: "concepts = [MAX]" → Drools code that checks product.concept == "MAX"
+
+<span class="h-o">3. Spring bean (XML)</span> <span class="h-m">— landmarkshopscore-promotionengine-spring.xml</span>
+   Registers the translator as a Spring bean
+   The translatorId in the definition points to this bean
+
+<span class="h-m">Plus supporting infrastructure:</span>
+<span class="h-t">4. RAO Populator</span> <span class="h-m">— populates concept/brand data into the Rule Applicable Object</span>
+<span class="h-p">5. RAO Provider</span> <span class="h-m">— feeds the RAO data into the Drools engine</span>
+<span class="h-r">6. Value Mapper</span> <span class="h-m">— converts LMGConcept/LMGBrand objects to/from strings for JSON storage</span>
+<span class="h-pk">7. Resolution Strategy</span> <span class="h-m">— populates junction tables when rule is published</span></div>
+</div>
+
+<!-- ============ AREA 2: CUSTOM ACTIONS ============ -->
+<h2>Area 2: Custom Actions — 12+ new "THEN" blocks</h2>
+
+<div class="card card-green">
+  <p>SAP provides basic actions (% off cart, % off product, free gift). Your team added specialized actions for Landmark's business.</p>
+</div>
+
+<div class="card card-green">
+  <h3>All LMG custom action definitions</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Action ID</th><th>Name</th><th>What it does</th><th>Category</th></tr>
+    <tr><td>lmg_given_voucher</td><td>OTFV</td><td>Gives a free voucher for next purchase when threshold is met</td><td>Coupon</td></tr>
+    <tr><td>y_cashback</td><td>Cashback</td><td>Adds Shukran Pay cashback to the order</td><td>Cart</td></tr>
+    <tr><td>lmg_free_shipping</td><td>Free Shipping</td><td>Makes delivery free as a promotion benefit</td><td>Cart</td></tr>
+    <tr><td>lmg_product_fixed_price</td><td>RPM Fixed Price</td><td>Sets a product to a specific fixed price (loaded from external RPM system)</td><td>Product</td></tr>
+    <tr><td>lmg_order_percentage_discount_with_card</td><td>Card % Discount</td><td>% off cart when paying with specific bank card</td><td>Cart</td></tr>
+    <tr><td>lmg_order_fixed_discount_with_card</td><td>Card Fixed Discount</td><td>Fixed amount off cart when paying with specific bank card</td><td>Cart</td></tr>
+    <tr><td>lmg_partner_order_entry_percentage_discount</td><td>BOGO</td><td>Buy X get Y at % off (partner products)</td><td>Product</td></tr>
+    <tr><td>lmg_ccs_order_entry_percentage_discount</td><td>CCS</td><td>Cross-category selling — buy from cat A + cat B, get discount</td><td>Product</td></tr>
+    <tr><td>lmg_target_product_price_threshold_fixed_discount</td><td>Stepped price-fixed</td><td>Spend X on a product category → get fixed discount</td><td>Product</td></tr>
+    <tr><td>lmg_target_product_price_threshold_percentage_discount</td><td>Stepped price-%</td><td>Spend X on a product category → get % discount</td><td>Product</td></tr>
+    <tr><td>lmg_target_product_quantity_threshold_fixed_discount</td><td>Stepped qty-fixed</td><td>Buy N items → get fixed discount</td><td>Product</td></tr>
+    <tr><td>lmg_target_product_quantity_threshold_percentage_discount</td><td>Stepped qty-%</td><td>Buy N items → get % discount</td><td>Product</td></tr>
+    <tr><td>lmg_order_threshold_free_product</td><td>OTFG</td><td>Order threshold free gift — spend X, get a free product</td><td>Product</td></tr>
+    <tr><td>lmg_loyalty_points</td><td>Loyalty Points</td><td>Awards loyalty points on qualifying products</td><td>Cart</td></tr>
+    <tr><td>lmg_trigger_message_parameterized_concept_cart_total_threshold</td><td>Concept Cart Message</td><td>"Add X more to MAX cart to get free shipping!"</td><td>General</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- How an action is wired -->
+<div class="card card-green">
+  <h3>How each action is wired — the 4-step chain</h3>
+  <div class="hier"><span class="h-m">When a Drools rule fires an LMG custom action, here's the chain:</span>
+
+<span class="h-b">Step 1: RAO Action</span> <span class="h-m">(Rule Applicable Object Action)</span>
+  Java class that runs INSIDE the Drools engine
+  Creates a "discount result" object (DiscountRAO, FreeGiftRAO, etc.)
+  Example: <span class="h-g">DefaultLMGRuleCashbackRAOAction</span>
+
+<span class="h-o">Step 2: Executable Action</span> <span class="h-m">(wraps the RAO Action)</span>
+  Spring bean registered in the action definition
+  Delegates to the RAO Action
+  Example: <span class="h-o">ruleCashbackAction</span> → calls ruleCashbackRAOAction
+
+<span class="h-p">Step 3: Action Strategy</span> <span class="h-m">(writes to the cart)</span>
+  Takes the discount result and creates the actual PromotionAction in the database
+  Creates RuleBasedCashbackAction / RuleBasedAddVoucherAction / etc.
+  Example: <span class="h-p">DefaultLMGCashbackActionStrategy</span>
+
+<span class="h-r">Step 4: promotionActionStrategiesMapping</span> <span class="h-m">(connects 1 → 3)</span>
+  A Spring map that tells the system:
+  "When RAO Action X fires, use Strategy Y to save it"
+  Example: defaultRuleLMGCashbackRAOAction → defaultCashbackActionStrategy</div>
+</div>
+
+<!-- ============ AREA 3: CUSTOM ACTION TYPES ============ -->
+<h2>Area 3: Custom Action Types (items.xml)</h2>
+
+<div class="card card-orange">
+  <p>SAP provides 5 action types (adjust total, adjust entry, add product, change delivery, message). Your team added 3 more to store custom action data.</p>
+</div>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">custom action type 1</span>
+  <div class="type-name tn-orange">RuleBasedAddVoucherAction</div>
+  <p><strong>Extends:</strong> AbstractRuleBasedPromotionAction</p>
+  <p><strong>Purpose:</strong> Records that a voucher was given to the customer (OTFV promotions).</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>voucherId</td><td>String (required)</td><td>The voucher template ID</td></tr>
+    <tr><td>voucherCode</td><td>String</td><td>The specific generated voucher code given to this customer</td></tr>
+    <tr><td>conceptCode</td><td>String</td><td>Which concept the voucher is for</td></tr>
+    <tr><td>conceptThreshold</td><td>Double</td><td>The spend threshold that triggered the voucher</td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="grid-2">
+<div class="card card-orange">
+  <span class="badge badge-orange">custom action type 2</span>
+  <div class="type-name tn-orange">RuleBasedCashbackAction</div>
+  <p><strong>Extends:</strong> AbstractRuleBasedPromotionAction</p>
+  <p><strong>Purpose:</strong> Records that cashback (Shukran Pay) was awarded.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>cashbackAttributesJson</td><td>JSON string with all cashback details: threshold amount, redeemable concepts, expiry period, etc.</td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">custom action type 3</span>
+  <div class="type-name tn-orange">RuleBasedFreeShippingAction</div>
+  <p><strong>Extends:</strong> AbstractRuleBasedPromotionAction</p>
+  <p><strong>Purpose:</strong> Records that free shipping was given.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>freeShippingAttributesJson</td><td>JSON string with free shipping details</td></tr>
+  </table>
+  </div>
+</div>
+</div>
+
+<!-- ============ AREA 4: CUSTOM JUNCTION TABLES ============ -->
+<h2>Area 4: Custom Junction Tables — 4 new lookup tables</h2>
+
+<div class="card card-teal">
+  <p>SAP has junction tables for products and categories. Your team added 4 more for concepts, brands, devices, and customer groups.</p>
+</div>
+
+<div class="grid-2">
+<div class="card card-teal">
+  <span class="badge badge-teal">junction 1</span>
+  <div class="type-name tn-teal">ConceptForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> "Which promotions mention concept X?"</p>
+  <p>conceptCode + rule + promotion</p>
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">junction 2</span>
+  <div class="type-name tn-teal">BrandForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> "Which promotions mention brand X?"</p>
+  <p>brandCode + rule + promotion</p>
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">junction 3</span>
+  <div class="type-name tn-teal">DeviceForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> "Which promotions are mobile/desktop only?"</p>
+  <p>deviceType + rule + promotion</p>
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">junction 4</span>
+  <div class="type-name tn-teal">TargetedGroupForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> "Which promotions target specific customer groups?"</p>
+  <p>targetGroup + rule + promotion</p>
+</div>
+</div>
+
+<div class="card card-teal">
+  <p>Plus your team added <strong>extra indexes</strong> to the SAP junction tables (<code>ProductForPromotionSourceRule</code> and <code>CatForPromotionSourceRule</code>) for faster lookups on the <code>rule</code> column.</p>
+</div>
+
+<!-- ============ AREA 5: PIPELINE CUSTOMIZATIONS ============ -->
+<h2>Area 5: The Processing Pipeline — RAO Populators, Providers &amp; Strategies</h2>
+
+<div class="card card-purple">
+  <p>The promotion engine works through a pipeline. Your team customized every step of it.</p>
+</div>
+
+<div class="card card-purple">
+  <h3>The pipeline with LMG customizations highlighted</h3>
+  <div class="hier"><span class="h-m">Step 1: POPULATE — Convert Hybris models into RAOs (Rule Applicable Objects)</span>
+
+  <span class="h-p">LMGProductRaoPopulator</span>    <span class="h-m">→ adds concept + brand to ProductRAO</span>
+  <span class="h-p">LMGOrderEntryRaoPopulator</span> <span class="h-m">→ adds base product + variant data to OrderEntryRAO</span>
+  <span class="h-p">LMGCartRaoPopulator</span>       <span class="h-m">→ adds concept subtotals to CartRAO</span>
+  <span class="h-p">LMGConceptRaoPopulator</span>    <span class="h-m">→ converts LMGConcept → LMGConceptRAO (new RAO type)</span>
+  <span class="h-p">LMGBrandRaoPopulator</span>      <span class="h-m">→ converts LMGBrand → LMGBrandRAO (new RAO type)</span>
+
+<span class="h-m">Step 2: PROVIDE — Feed RAOs into the Drools engine as "facts"</span>
+
+  <span class="h-b">lmgCartRAOProvider</span>        <span class="h-m">→ overrides SAP's cart provider (adds concept data)</span>
+  <span class="h-b">lmgProductRAOProvider</span>     <span class="h-m">→ overrides SAP's product provider (adds brand data)</span>
+  <span class="h-b">lmgDeviceRAOProvider</span>      <span class="h-m">→ NEW: provides device type (mobile/desktop) to Drools</span>
+  <span class="h-b">lmgCardBinRAOProvider</span>     <span class="h-m">→ NEW: provides card BIN data to Drools</span>
+
+<span class="h-m">Step 3: EVALUATE — Drools engine fires matching rules</span>
+
+  <span class="h-m">Standard Drools evaluation — no custom code here</span>
+
+<span class="h-m">Step 4: APPLY — Custom action strategies write results to the cart</span>
+
+  <span class="h-o">LMGOrderEntryAdjustActionStrategy</span>  <span class="h-m">→ custom product discount logic</span>
+  <span class="h-o">LMGOrderAdjustActionStrategy</span>       <span class="h-m">→ custom order total discount logic</span>
+  <span class="h-o">LMGAddVoucherActionStrategy</span>        <span class="h-m">→ creates voucher for OTFV</span>
+  <span class="h-o">LMGCashbackActionStrategy</span>          <span class="h-m">→ writes cashback to order</span>
+  <span class="h-o">LMGFreeShippingActionStrategy</span>      <span class="h-m">→ marks order for free shipping</span>
+  <span class="h-o">LMGAddProductToCartActionStrategy</span>  <span class="h-m">→ custom free gift logic (OTFG)</span></div>
+</div>
+
+<div class="card card-purple">
+  <h3>Custom entry selection strategies</h3>
+  <p>SAP provides DEFAULT and CHEAPEST. Your team added 2 more:</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Strategy</th><th>SAP/LMG</th><th>What it does</th><th>Used by</th></tr>
+    <tr><td>DEFAULT</td><td>SAP</td><td>Apply discount to entries in order</td><td>General</td></tr>
+    <tr><td>CHEAPEST</td><td>SAP</td><td>Apply discount to cheapest entries first</td><td>General</td></tr>
+    <tr><td>COSTLIEST</td><td>LMG</td><td>Apply discount to most expensive entries first</td><td>BOGO qualifying products</td></tr>
+    <tr><td>PROFITABLE</td><td>LMG</td><td>Apply discount to maximize customer savings</td><td>BOGO free products</td></tr>
+  </table>
+  </div>
+
+  <div class="callout co-green">
+    <strong>Why BOGO needs both:</strong> In "Buy 2 get 1 free" — the qualifying products (the 2 you're buying) use COSTLIEST strategy (so the expensive ones qualify). The free product uses PROFITABLE strategy (so the cheapest one is free — better for business).
+  </div>
+</div>
+
+<!-- ============ AREA 6: PROMOTIONTYPE ENUM ============ -->
+<h2>Area 6: PromotionType Enum — Classification system</h2>
+
+<div class="card card-red">
+  <p><strong>Purpose:</strong> Every promotion gets tagged with a PromotionType. This enum classifies <strong>what kind</strong> of promotion it is.</p>
+  <p><strong>Why it exists:</strong> SAP doesn't categorize promotions. Your team needs to: filter promos by type in Backoffice, send type to downstream systems (OMS, reporting), control which promos stack.</p>
+  <p>Added to both <code>PromotionSourceRule</code> (required, set once at creation) and <code>RuleBasedPromotion</code> (copied automatically).</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Code</th><th>Full Name</th><th>Example</th></tr>
+    <tr><td>PP_PROMOTION</td><td>Product Percentage</td><td>"20% off Nike shoes"</td></tr>
+    <tr><td>PFP_PROMOTION</td><td>Product Fixed Price</td><td>"All t-shirts at 49 AED"</td></tr>
+    <tr><td>MB_PROMOTION</td><td>Multi Buy</td><td>"Buy 2 get 10% off"</td></tr>
+    <tr><td>SMB_PROMOTION</td><td>Stepped Multi Buy</td><td>"Buy 3→10%, Buy 5→20%"</td></tr>
+    <tr><td>BXGY_PROMOTION</td><td>Buy X Get Y</td><td>"Buy 2 shirts, get 1 free"</td></tr>
+    <tr><td>CCS_PROMOTION</td><td>Cross-Category Selling</td><td>"Buy shoes + bag → 15% off"</td></tr>
+    <tr><td>OTFV_PROMOTION</td><td>Order Threshold Free Voucher</td><td>"Spend 500, get voucher"</td></tr>
+    <tr><td>OTFG_PROMOTION</td><td>Order Threshold Free Gift</td><td>"Spend 300, get free gift"</td></tr>
+    <tr><td>SD_PROMOTION</td><td>Staff Discount</td><td>Internal employee discount</td></tr>
+    <tr><td>L_PROMOTION</td><td>Loyalty</td><td>Loyalty points promotion</td></tr>
+    <tr><td>PB_PROMOTION</td><td>Product Bundle</td><td>"Shirt + Pants = 199 AED"</td></tr>
+    <tr><td>PBFG_PROMOTION</td><td>Product Bundle Free Gift</td><td>"Buy this bundle, get free item"</td></tr>
+    <tr><td>SMPPTFD_PROMOTION</td><td>Stepped Price Threshold Fixed Disc.</td><td>"Spend 200→ 50 off, 400→ 120 off"</td></tr>
+    <tr><td>SMPPTPD_PROMOTION</td><td>Stepped Price Threshold % Disc.</td><td>"Spend 200→ 10%, 400→ 20%"</td></tr>
+    <tr><td>SMPQTFD_PROMOTION</td><td>Stepped Qty Threshold Fixed Disc.</td><td>"Buy 3→ 30 off, 5→ 60 off"</td></tr>
+    <tr><td>SMPQTPD_PROMOTION</td><td>Stepped Qty Threshold % Disc.</td><td>"Buy 3→ 10%, 5→ 20%"</td></tr>
+    <tr><td>RPM_FIXED_PRICE</td><td>Retail Price Management</td><td>Loaded from external system via hotfolder</td></tr>
+    <tr><td>PAYMENT_MODE_CARD_PROMOTION</td><td>Card-Based Promo</td><td>"10% off with Emirates NBD card"</td></tr>
+    <tr><td>CASHBACK_PROMOTION</td><td>Cashback</td><td>"5% cashback via Shukran Pay"</td></tr>
+    <tr><td>FREE_SHIPPING_PROMOTION</td><td>Free Shipping</td><td>"Free delivery on orders over 200"</td></tr>
+    <tr><td>POTENTIAL_PRODUCT_PROMOTION</td><td>Potential Product Message</td><td>"Add 1 more for 20% off!"</td></tr>
+    <tr><td>POTENTIAL_ORDER_PROMOTION</td><td>Potential Order Message</td><td>"Spend 50 more for free shipping!"</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ AREA 7: VOUCHER HIERARCHY ============ -->
+<h2>Area 7: Voucher Hierarchy</h2>
+
+<div class="card card-pink">
+  <p>SAP has a basic <code>PromotionVoucher</code>. Your team built a whole family of voucher types on top.</p>
+  <div class="hier"><span class="h-m">SAP:</span>  PromotionVoucher
+        └── <span class="h-pk">LMGPromotionVoucher</span> <span class="h-m">← your base voucher type</span>
+              ├── <span class="h-pk">LMGAffiliateVoucher</span>    <span class="h-m">← partner/affiliate vouchers (has pid + createdBy)</span>
+              ├── <span class="h-pk">LMGStoreVoucher</span>         <span class="h-m">← in-store vouchers</span>
+              ├── <span class="h-pk">LMGReferralVoucher</span>      <span class="h-m">← refer-a-friend (has referrerDiscount)</span>
+              ├── <span class="h-pk">LMGRefundVoucher</span>        <span class="h-m">← refund as voucher (linked to ReturnRequest)</span>
+              └── <span class="h-pk">LMGSplitDiscountVoucher</span> <span class="h-m">← split discount across concepts</span></div>
+
+  <p><strong>Why this hierarchy?</strong> Different voucher types have different behavior: an affiliate voucher tracks the partner ID, a refund voucher links back to the return request, a referral voucher has a separate discount for the referrer. Each subtype adds its own attributes.</p>
+</div>
+
+<!-- ============ EXTENSIONS TO SAP TYPES ============ -->
+<h2>Extensions to SAP types</h2>
+
+<div class="card">
+  <h3>PromotionSourceRule — 3 attributes added</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why your team added it</th></tr>
+    <tr><td>promotionType</td><td>PromotionType (required, write-once)</td><td>Classifies the promo — copied from template at creation, cannot be changed after</td></tr>
+    <tr><td>browseUrl</td><td>localized String</td><td>URL to show "see more promotions" on storefront — links to a landing page</td></tr>
+    <tr><td>badge</td><td>String</td><td>Promotion badge text shown on product cards ("SALE", "NEW", "20% OFF")</td></tr>
+  </table>
+  </div>
+
+  <h3>RuleBasedPromotion — 3 attributes added</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>isConceptLevelPromotion</td><td>Boolean</td><td>Fast flag to check if promo is concept-specific (avoids looking up junction tables)</td></tr>
+    <tr><td>isBrandLevelPromotion</td><td>Boolean</td><td>Fast flag to check if promo is brand-specific</td></tr>
+    <tr><td>rulePromotionType</td><td>PromotionType</td><td>Copied from PromotionSourceRule via interceptor — used for downstream systems</td></tr>
+  </table>
+  </div>
+
+  <h3>PromotionSourceRuleTemplate — 1 attribute added</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>promotionType</td><td>PromotionType (required)</td><td>Each template declares its type — auto-copied to the rule when user creates one from this template</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ RESTRICTION TYPES ============ -->
+<h2>Restriction Types (Legacy System)</h2>
+
+<div class="card card-pink">
+  <p>These are for the <strong>legacy Jalo-based</strong> promotion system, not the rule-based engine. Still used for vouchers and some old promotions.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Restriction Type</th><th>Purpose</th></tr>
+    <tr><td>LMGConceptPromotionRestriction</td><td>Legacy promo only fires for specific concepts</td></tr>
+    <tr><td>LMGDevicePromotionRestriction</td><td>Legacy promo only fires on mobile/desktop</td></tr>
+    <tr><td>LMGPromotionBankRestriction</td><td>Legacy promo only fires for specific bank cards</td></tr>
+    <tr><td>LMGConceptVoucherRestriction</td><td>Voucher only valid for specific concepts</td></tr>
+    <tr><td>LMGDeviceVoucherRestriction</td><td>Voucher only valid on mobile/desktop</td></tr>
+    <tr><td>LMGVoucherRestriction</td><td>Voucher with complex rules (min order value, concept, brand, category, product)</td></tr>
+    <tr><td>LMGOrderRestriction</td><td>Order-level restriction for legacy promos</td></tr>
+    <tr><td>LMGReferrerCustomerVoucherRestriction</td><td>Referral voucher only for specific customers</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ KEY FILES ============ -->
+<h2>Key Files — Where to find things</h2>
+
+<div class="card">
+  <div class="tbl-container">
+  <table>
+    <tr><th>What</th><th>File</th></tr>
+    <tr><td>All custom types (items.xml)</td><td><code>landmarkshopscore/resources/landmarkshopscore-items.xml</code></td></tr>
+    <tr><td>All Spring wiring (~690 lines)</td><td><code>landmarkshopscore/resources/landmarkshopscore-promotionengine-spring.xml</code></td></tr>
+    <tr><td>Condition/Action definitions (impex)</td><td><code>landmarkshopsinitialdata/.../essentialData/common/21-essentialdata-definitions.impex</code></td></tr>
+    <tr><td>Condition translators (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/definitions/conditions/</code></td></tr>
+    <tr><td>Action RAO classes (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/definitions/action/</code></td></tr>
+    <tr><td>Action strategies (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/rule/strategies/</code></td></tr>
+    <tr><td>RAO populators (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/converters/populator/</code></td></tr>
+    <tr><td>RAO providers (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/rao/provider/</code></td></tr>
+    <tr><td>Resolution strategies (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/compiler/strategies/impl/</code></td></tr>
+    <tr><td>Value mappers (Java)</td><td><code>landmarkshopscore/src/.../promotionengine/rule/strategies/impl/mappers/</code></td></tr>
+    <tr><td>RPM (fixed price) service</td><td><code>landmarkshopscore/src/.../promotionengine/pfpp/</code></td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ COMPLETE ARCHITECTURE ============ -->
+<h2>Complete LMG Custom Architecture</h2>
+
+<div class="hier"><span class="h-m">═══════════ WHAT BUSINESS USERS CONFIGURE ═══════════</span>
+
+<span class="h-b">PromotionSourceRule</span> + promotionType + browseUrl + badge
+  ├── conditions JSON → uses <span class="h-b">5 custom conditions</span>
+  │     lmg_qualifying_concepts / brands / devices / card_bins / concept_cart_total
+  ├── actions JSON → uses <span class="h-g">12+ custom actions</span>
+  │     OTFV / cashback / free_shipping / RPM / card_discount / BOGO / CCS / stepped / OTFG
+  └── website → PromotionGroup <span class="h-m">(scoped by country + concept)</span>
+
+<span class="h-m">═══════════ WHAT THE ENGINE CREATES ═══════════</span>
+
+<span class="h-g">RuleBasedPromotion</span> + isConceptLevelPromotion + isBrandLevelPromotion + rulePromotionType
+
+<span class="h-o">Custom PromotionActions:</span>
+  <span class="h-o">RuleBasedAddVoucherAction</span>     <span class="h-m">← OTFV: voucherId + voucherCode + conceptCode</span>
+  <span class="h-o">RuleBasedCashbackAction</span>       <span class="h-m">← Cashback: cashbackAttributesJson</span>
+  <span class="h-o">RuleBasedFreeShippingAction</span>   <span class="h-m">← Free shipping: freeShippingAttributesJson</span>
+  <span class="h-m">+ SAP's 5 standard action types</span>
+
+<span class="h-m">═══════════ LOOKUP TABLES ═══════════</span>
+
+SAP: ProductForPromo / CatForPromo / ExcludedProduct / ExcludedCat / CombinedCats
+LMG: <span class="h-t">ConceptForPromo</span> / <span class="h-t">BrandForPromo</span> / <span class="h-t">DeviceForPromo</span> / <span class="h-t">TargetedGroupForPromo</span>
+
+<span class="h-m">═══════════ THE PIPELINE ═══════════</span>
+
+  Hybris Models → <span class="h-p">LMG Populators</span> → RAOs → <span class="h-b">LMG Providers</span> → Drools
+    → <span class="h-g">LMG RAO Actions</span> → <span class="h-o">LMG Action Strategies</span> → Cart/Order
+
+<span class="h-m">═══════════ CLASSIFICATION ═══════════</span>
+
+<span class="h-r">PromotionType</span> <span class="h-m">— 22 values classifying every promotion</span>
+
+<span class="h-m">═══════════ VOUCHERS ═══════════</span>
+
+<span class="h-pk">LMGPromotionVoucher</span> → Affiliate / Store / Referral / Refund / SplitDiscount</div>

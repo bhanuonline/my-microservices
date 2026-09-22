@@ -1,0 +1,712 @@
+<title>promotionengineservices Deep Dive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f4f5f7; --surface: #fff; --surface-alt: #eceef2;
+    --text: #1b1e25; --text-muted: #6b7280; --border: #d1d5db;
+    --blue: #2563a0; --blue-bg: #e8f0f8; --blue-border: #a3bdd6;
+    --green: #1a7a5c; --green-bg: #e6f5ef; --green-border: #8ec4ad;
+    --orange: #c47a1a; --orange-bg: #fdf3e4; --orange-border: #ddb576;
+    --purple: #7a5ca0; --purple-bg: #f0ebf5; --purple-border: #c4b3d6;
+    --gray: #8b95a5; --gray-bg: #f0f1f4; --gray-border: #c5c9d2;
+    --red: #c0392b; --red-bg: #fdeaea; --red-border: #e6a8a2;
+    --teal: #0e7c7b; --teal-bg: #e4f5f5; --teal-border: #8ec4c3;
+  }
+  @media(prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+      --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+      --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+      --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+      --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+      --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+      --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+      --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+      --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#111318;--surface:#1a1d24;--surface-alt:#23262e;
+    --text:#dfe1e6;--text-muted:#7d8590;--border:#30343d;
+    --blue:#6aaceb;--blue-bg:#1a2536;--blue-border:#2d4a6e;
+    --green:#3dba8a;--green-bg:#182a22;--green-border:#2d5a45;
+    --orange:#daa04a;--orange-bg:#2a2218;--orange-border:#6e5530;
+    --purple:#b090d0;--purple-bg:#25202e;--purple-border:#4a3a60;
+    --gray:#7d8590;--gray-bg:#1e2129;--gray-border:#3a3e48;
+    --red:#e74c3c;--red-bg:#2a1818;--red-border:#5a2a2a;
+    --teal:#3db8b6;--teal-bg:#182a2a;--teal-border:#2d5a5a;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',-apple-system,sans-serif;line-height:1.6;padding:2rem 1.5rem;max-width:960px;margin:0 auto;}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.2rem;}
+  h2{font-size:1.1rem;font-weight:700;margin:2.5rem 0 0.5rem;padding-bottom:0.35rem;border-bottom:2px solid var(--border);}
+  h3{font-size:0.95rem;font-weight:700;margin:1.5rem 0 0.4rem;}
+  .subtitle{color:var(--text-muted);font-size:0.8125rem;margin-bottom:2rem;}
+  p{font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.6rem;}
+  p strong{color:var(--text);}
+  ul{font-size:0.8125rem;color:var(--text-muted);padding-left:1.5rem;margin-bottom:0.75rem;}
+  ul li{margin-bottom:0.25rem;}
+  ul li strong{color:var(--text);}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;margin-bottom:1rem;}
+  .card-blue{border-left:3px solid var(--blue);}
+  .card-green{border-left:3px solid var(--green);}
+  .card-orange{border-left:3px solid var(--orange);}
+  .card-purple{border-left:3px solid var(--purple);}
+  .card-red{border-left:3px solid var(--red);}
+  .card-teal{border-left:3px solid var(--teal);}
+
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;padding:0.15rem 0.5rem;border-radius:3px;display:inline-block;margin-bottom:0.5rem;}
+  .badge-blue{background:var(--blue-bg);color:var(--blue);}
+  .badge-green{background:var(--green-bg);color:var(--green);}
+  .badge-orange{background:var(--orange-bg);color:var(--orange);}
+  .badge-purple{background:var(--purple-bg);color:var(--purple);}
+  .badge-gray{background:var(--gray-bg);color:var(--gray);}
+  .badge-red{background:var(--red-bg);color:var(--red);}
+  .badge-teal{background:var(--teal-bg);color:var(--teal);}
+
+  .type-name{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:0.9rem;color:var(--blue);margin-bottom:0.25rem;}
+  .type-name.green{color:var(--green);}
+  .type-name.orange{color:var(--orange);}
+  .type-name.purple{color:var(--purple);}
+  .type-name.red{color:var(--red);}
+  .type-name.teal{color:var(--teal);}
+
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin:0.75rem 0;}
+  th{text-align:left;font-weight:600;padding:0.4rem 0.6rem;background:var(--surface-alt);border:1px solid var(--border);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);}
+  td{padding:0.4rem 0.6rem;border:1px solid var(--border);vertical-align:top;}
+  td:first-child{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:0.75rem;white-space:nowrap;}
+  .tbl-container{overflow-x:auto;}
+
+  .flow{display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;padding:0.75rem;background:var(--surface-alt);border-radius:5px;margin:0.75rem 0;}
+  .flow-item{padding:0.25rem 0.6rem;border-radius:4px;font-weight:500;}
+  .flow-blue{background:var(--blue-bg);border:1px solid var(--blue-border);color:var(--blue);}
+  .flow-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green);}
+  .flow-orange{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange);}
+  .flow-purple{background:var(--purple-bg);border:1px solid var(--purple-border);color:var(--purple);}
+  .flow-gray{background:var(--gray-bg);border:1px solid var(--gray-border);color:var(--gray);}
+  .flow-red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);}
+  .flow-teal{background:var(--teal-bg);border:1px solid var(--teal-border);color:var(--teal);}
+  .flow-arr{color:var(--text-muted);}
+
+  .hierarchy{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.25rem;margin:1rem 0;line-height:1.8;white-space:pre-wrap;overflow-x:auto;}
+  .hierarchy .hl-blue{color:var(--blue);font-weight:600;}
+  .hierarchy .hl-green{color:var(--green);font-weight:600;}
+  .hierarchy .hl-orange{color:var(--orange);font-weight:600;}
+  .hierarchy .hl-purple{color:var(--purple);font-weight:600;}
+  .hierarchy .hl-red{color:var(--red);font-weight:600;}
+  .hierarchy .hl-teal{color:var(--teal);font-weight:600;}
+  .hierarchy .hl-muted{color:var(--text-muted);}
+
+  .callout{border-radius:5px;padding:0.75rem 1rem;font-size:0.8rem;margin:0.75rem 0;}
+  .callout-orange{background:var(--orange-bg);border:1px solid var(--orange-border);}
+  .callout-orange strong{color:var(--orange);}
+  .callout-green{background:var(--green-bg);border:1px solid var(--green-border);}
+  .callout-green strong{color:var(--green);}
+  .callout-blue{background:var(--blue-bg);border:1px solid var(--blue-border);}
+  .callout-blue strong{color:var(--blue);}
+  .callout-red{background:var(--red-bg);border:1px solid var(--red-border);}
+  .callout-red strong{color:var(--red);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+  @media(max-width:700px){body{padding:1.25rem 0.75rem;}.grid-2{grid-template-columns:1fr;}.flow{flex-direction:column;align-items:flex-start;}}
+</style>
+
+<h1>promotionengineservices — Deep Dive</h1>
+<p class="subtitle">Layer 3: The promotion-specific layer. Every type explained — purpose, why, when, and how they connect.</p>
+
+<!-- ============ OVERVIEW ============ -->
+<h2>What is promotionengineservices?</h2>
+<div class="card card-blue">
+  <p><strong>One-line answer:</strong> It takes the generic rule building blocks from Layer 2 (ruleengineservices) and makes them <strong>promotion-specific</strong>.</p>
+  <p>Layer 2 knows about "rules" — Layer 3 knows about <strong>"promotions, discounts, free gifts, delivery changes, and cart adjustments."</strong></p>
+  <p>This is the layer where abstract "do something" becomes concrete "give 10% off" or "add free product to cart."</p>
+
+  <div class="callout callout-orange">
+    <strong>Analogy:</strong> Layer 2 (ruleengineservices) is a blank form builder — "a form has questions and answers." Layer 3 (promotionengineservices) is a <strong>discount coupon form</strong> — it uses the form builder to create a specific kind of form that gives customers discounts.
+  </div>
+
+  <p>This extension has <strong>5 groups</strong> of types:</p>
+  <div class="flow">
+    <span class="flow-item flow-blue">1. The Star</span>
+    <span class="flow-arr">&nbsp;|&nbsp;</span>
+    <span class="flow-item flow-green">2. The Bridge</span>
+    <span class="flow-arr">&nbsp;|&nbsp;</span>
+    <span class="flow-item flow-orange">3. Actions</span>
+    <span class="flow-arr">&nbsp;|&nbsp;</span>
+    <span class="flow-item flow-teal">4. Junction Tables</span>
+    <span class="flow-arr">&nbsp;|&nbsp;</span>
+    <span class="flow-item flow-purple">5. Result</span>
+  </div>
+  <ul>
+    <li><strong>Group 1 — The Star:</strong> PromotionSourceRule &amp; its template — what business users create</li>
+    <li><strong>Group 2 — The Bridge:</strong> RuleBasedPromotion — connects rule world to promotion world</li>
+    <li><strong>Group 3 — Actions:</strong> What physically happens to the cart when a promotion fires</li>
+    <li><strong>Group 4 — Junction Tables:</strong> Lookup tables for fast "which promotions affect this product?"</li>
+    <li><strong>Group 5 — Result:</strong> PromotionResult — the receipt of what happened</li>
+  </ul>
+</div>
+
+<!-- ============ GROUP 1: THE STAR ============ -->
+<h2>Group 1: The Star — PromotionSourceRule</h2>
+
+<div class="card card-blue">
+  <span class="badge badge-blue">the most important type — this is what business users create</span>
+  <div class="type-name">PromotionSourceRule</div>
+  <p><strong>Extends:</strong> SourceRule (Layer 2) → AbstractRule (Layer 2)</p>
+  <p><strong>Purpose:</strong> This IS a promotion. Everything a business user creates in Backoffice becomes a PromotionSourceRule.</p>
+  <p><strong>Why it exists:</strong> SourceRule is generic — it could be anything (tax rule, fraud rule). PromotionSourceRule says "this rule IS a promotion" and adds promotion-specific fields.</p>
+  <p><strong>When you encounter it:</strong> <strong>Always.</strong> Every promotion in the system is an instance of this type. This is where you spend most of your time.</p>
+
+  <h3>What PromotionSourceRule adds (on top of everything from SourceRule)</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th><th>Example</th></tr>
+    <tr><td>website</td><td>PromotionGroup</td><td>Which website/country/concept this promo belongs to. This is how the system knows "this promo is for UAE Centrepoint, not KSA Max"</td><td><code>centrepointae-PromoGrp</code></td></tr>
+    <tr><td>excludeFromStorefrontDisplay</td><td>Boolean</td><td>Some promos fire in the background but shouldn't be visible to the customer on product pages (default: false)</td><td><code>true</code> for internal staff discounts</td></tr>
+  </table>
+  </div>
+
+  <h3>What it inherits (from SourceRule + AbstractRule)</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Inherited from</th><th>Attribute</th><th>Purpose</th></tr>
+    <tr><td>SourceRule</td><td>conditions</td><td>IF part — JSON string (e.g. "cart > 500 AED + concept = MAX")</td></tr>
+    <tr><td>SourceRule</td><td>actions</td><td>THEN part — JSON string (e.g. "give 10% off")</td></tr>
+    <tr><td>AbstractRule</td><td>code</td><td>Unique ID — e.g. <code>summer_sale_max_ae_2026</code></td></tr>
+    <tr><td>AbstractRule</td><td>name</td><td>Display name — "Summer Sale MAX UAE"</td></tr>
+    <tr><td>AbstractRule</td><td>startDate / endDate</td><td>When this promotion is active</td></tr>
+    <tr><td>AbstractRule</td><td>priority</td><td>Which promo wins when two compete</td></tr>
+    <tr><td>AbstractRule</td><td>stackable</td><td>Can it combine with other promos in the same group?</td></tr>
+    <tr><td>AbstractRule</td><td>status</td><td>UNPUBLISHED → PUBLISHED → MODIFIED → ARCHIVED</td></tr>
+    <tr><td>AbstractRule</td><td>maxAllowedRuns</td><td>How many times can it fire per cart?</td></tr>
+    <tr><td>AbstractRule</td><td>messageFired</td><td>"You saved 50 AED!"</td></tr>
+    <tr><td>AbstractRule</td><td>ruleGroup</td><td>Which competition group (order/product/cashback)</td></tr>
+  </table>
+  </div>
+
+  <h3>Your LMG PromotionGroups (the website attribute)</h3>
+  <div class="hierarchy"><span class="hl-muted">Country-level groups:</span>
+  <span class="hl-blue">landmark-ae-PromoGrp</span>     <span class="hl-muted">— all UAE promotions</span>
+  <span class="hl-blue">landmark-sa-PromoGrp</span>     <span class="hl-muted">— all KSA promotions</span>
+
+<span class="hl-muted">Concept-level groups:</span>
+  <span class="hl-green">centrepointae-PromoGrp</span>   <span class="hl-muted">— Centrepoint UAE</span>
+  <span class="hl-green">centrepointsa-PromoGrp</span>   <span class="hl-muted">— Centrepoint KSA</span>
+  <span class="hl-green">maxae-PromoGrp</span>           <span class="hl-muted">— Max UAE</span>
+  <span class="hl-green">maxsa-PromoGrp</span>           <span class="hl-muted">— Max KSA</span>
+  <span class="hl-green">splashae-PromoGrp</span>        <span class="hl-muted">— Splash UAE</span>
+  <span class="hl-green">splashsa-PromoGrp</span>        <span class="hl-muted">— Splash KSA</span>
+  <span class="hl-muted">... and more per concept/country</span></div>
+
+  <div class="callout callout-blue">
+    <strong>Why "website"?</strong> In standard Hybris, each storefront = one "website." Since LMG has multiple concepts (Max, Splash, Centrepoint) across multiple countries (UAE, KSA), each combination gets its own PromotionGroup. This is how a "10% off for MAX UAE" promo doesn't accidentally fire on "Centrepoint KSA."
+  </div>
+</div>
+
+<!-- PromotionSourceRuleTemplate -->
+<div class="card card-blue">
+  <span class="badge badge-gray">template — blueprint for creating promos</span>
+  <div class="type-name">PromotionSourceRuleTemplate</div>
+  <p><strong>Extends:</strong> SourceRuleTemplate (Layer 2)</p>
+  <p><strong>Purpose:</strong> A pre-made blueprint that business users pick to create a new promotion.</p>
+  <p><strong>Why it exists:</strong> Instead of building conditions/actions from scratch, business user picks a template and just fills in the values.</p>
+  <p><strong>When you encounter it:</strong> When adding a new promotion type. Your system has 35+ templates.</p>
+  <p><strong>Adds nothing extra</strong> over SourceRuleTemplate — it just says "I am a PROMOTION template" (not a tax template or fraud template).</p>
+
+  <h3>Some of your 35+ templates</h3>
+  <div class="hierarchy"><span class="hl-muted">SAP standard templates:</span>
+  product_percentage_discount      <span class="hl-muted">— X% off specific products</span>
+  order_percentage_discount        <span class="hl-muted">— X% off cart total</span>
+  order_threshold_free_gift        <span class="hl-muted">— spend X, get free gift</span>
+  buy_x_get_y_free                 <span class="hl-muted">— BOGO</span>
+  free_delivery                    <span class="hl-muted">— free shipping</span>
+
+<span class="hl-muted">LMG custom templates:</span>
+  <span class="hl-blue">lmg_cashback_promotion</span>          <span class="hl-muted">— Shukran Pay cashback</span>
+  <span class="hl-blue">lmg_card_bin_discount</span>           <span class="hl-muted">— discount by bank card</span>
+  <span class="hl-blue">lmg_concept_discount</span>            <span class="hl-muted">— discount by concept (MAX, Splash)</span>
+  <span class="hl-blue">lmg_otfv_voucher</span>                <span class="hl-muted">— one-time-fire voucher</span>
+  <span class="hl-blue">lmg_rpm_fixed_price</span>             <span class="hl-muted">— retail price management</span></div>
+</div>
+
+<!-- ============ GROUP 2: THE BRIDGE ============ -->
+<h2>Group 2: The Bridge — RuleBasedPromotion</h2>
+
+<div class="card card-green">
+  <span class="badge badge-green">critical — bridges rule world &amp; promotion world</span>
+  <div class="type-name green">RuleBasedPromotion</div>
+  <p><strong>Extends:</strong> AbstractPromotion (core Hybris platform)</p>
+  <p><strong>Purpose:</strong> When a PromotionSourceRule is <strong>published</strong>, the system auto-creates a RuleBasedPromotion. This object is what the cart calculation engine actually sees and applies.</p>
+  <p><strong>Why it exists:</strong> Hybris cart calculation only understands "promotions" (AbstractPromotion). It doesn't know about SourceRules or Drools. RuleBasedPromotion <strong>translates</strong> the rule world into something the cart can use.</p>
+  <p><strong>When you encounter it:</strong> When debugging "why did this promotion apply?" — you trace from PromotionResult → RuleBasedPromotion → back to the PromotionSourceRule.</p>
+
+  <div class="callout callout-green">
+    <strong>Analogy:</strong> PromotionSourceRule is the <strong>recipe</strong> (written by the chef / business user). RuleBasedPromotion is the <strong>dish served to the customer</strong> (what the cart actually eats). You need both — the recipe defines what to cook, the dish is what gets eaten.
+  </div>
+
+  <h3>Attributes</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th><th>Example</th></tr>
+    <tr><td>code</td><td>String (unique)</td><td>Unique ID — same as the rule code</td><td><code>summer_sale_max_ae_2026</code></td></tr>
+    <tr><td>messageFired</td><td>localized String</td><td>Message shown when the promo applies — copied from the SourceRule</td><td>"You saved 50 AED!"</td></tr>
+    <tr><td>promotionDescription</td><td>localized String</td><td>Longer description for the customer / storefront</td><td>"Get 10% off on all summer items"</td></tr>
+    <tr><td>rule</td><td>AbstractRuleEngineRule</td><td>Points to the compiled <strong>DroolsRule</strong> — "which compiled rule created me?"</td><td>→ DroolsRule PK</td></tr>
+    <tr><td>ruleVersion</td><td>Long</td><td>Which version of the rule was used — important when rules change while a cart is open</td><td>3</td></tr>
+  </table>
+  </div>
+
+  <h3>The two-way link</h3>
+  <div class="hierarchy"><span class="hl-muted">This extension also adds to AbstractRuleEngineRule (DroolsRule):</span>
+
+<span class="hl-blue">DroolsRule</span>
+  └── promotion: <span class="hl-green">RuleBasedPromotion</span>   <span class="hl-muted">← "which promotion was created for me?"</span>
+
+<span class="hl-green">RuleBasedPromotion</span>
+  └── rule: <span class="hl-blue">DroolsRule</span>               <span class="hl-muted">← "which compiled rule created me?"</span>
+
+<span class="hl-muted">So you can navigate BOTH ways:</span>
+  DroolsRule → RuleBasedPromotion  <span class="hl-muted">(what promotion does this rule create?)</span>
+  RuleBasedPromotion → DroolsRule  <span class="hl-muted">(which rule created this promotion?)</span></div>
+
+  <h3>The complete chain</h3>
+  <div class="flow">
+    <span class="flow-item flow-blue">PromotionSourceRule</span>
+    <span class="flow-arr">— publish →</span>
+    <span class="flow-item flow-gray">DroolsRule</span>
+    <span class="flow-arr">— auto-creates →</span>
+    <span class="flow-item flow-green">RuleBasedPromotion</span>
+    <span class="flow-arr">— cart fires →</span>
+    <span class="flow-item flow-orange">PromotionAction(s)</span>
+    <span class="flow-arr">— records →</span>
+    <span class="flow-item flow-purple">PromotionResult</span>
+  </div>
+</div>
+
+<!-- ============ GROUP 3: ACTIONS ============ -->
+<h2>Group 3: Actions — "What physically happens to the cart"</h2>
+
+<div class="card card-orange">
+  <p>When a promotion fires, the Drools engine says <strong>"apply this discount."</strong> But the engine doesn't touch the cart directly — it creates an <strong>Action</strong> object, and the action modifies the cart.</p>
+  <p>Think of actions as <strong>work orders</strong>. The engine writes the work order, and the cart processing reads it and makes the change.</p>
+  <p>There are <strong>5 concrete action types</strong>, each for a different kind of cart change:</p>
+</div>
+
+<!-- AbstractRuleBasedPromotionAction -->
+<div class="card card-orange">
+  <span class="badge badge-gray">abstract — base for all actions</span>
+  <div class="type-name orange">AbstractRuleBasedPromotionAction</div>
+  <p><strong>Extends:</strong> AbstractPromotionAction (core Hybris)</p>
+  <p><strong>Purpose:</strong> Common fields that ALL promotion actions share.</p>
+  <p><strong>When you encounter it:</strong> Never directly — you work with the 5 concrete subtypes below.</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th></tr>
+    <tr><td>rule</td><td>AbstractRuleEngineRule</td><td>Which DroolsRule created this action — for tracing</td></tr>
+    <tr><td>strategyId</td><td>String</td><td>Spring bean ID that created this action — e.g. <code>defaultRuleOrderPercentageDiscountRAOAction</code></td></tr>
+    <tr><td>metadataHandlers</td><td>StringCollection</td><td>Extra processing handlers (advanced usage)</td></tr>
+  </table>
+  </div>
+
+  <div class="callout callout-orange">
+    <strong>strategyId is the KEY field.</strong> It points to the Spring bean (Java class) that knows how to apply this specific kind of discount. When your team added cashback or OTFV, they wrote a new strategy bean and registered it here.
+  </div>
+</div>
+
+<!-- 5 action types -->
+<div class="grid-2">
+
+<div class="card card-orange">
+  <span class="badge badge-orange">action 1</span>
+  <div class="type-name orange">RuleBasedOrderAdjustTotalAction</div>
+  <p><strong>Purpose:</strong> Adjust the <strong>cart total</strong> by a fixed amount.</p>
+  <p><strong>When it's created:</strong> Order-level discounts — "50 AED off your order"</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>amount</td><td>How much to subtract from the cart total (e.g. 50.00)</td></tr>
+  </table>
+  </div>
+  <p><strong>Example:</strong> Cart = 500 AED. This action fires with amount = 50. Cart becomes 450 AED.</p>
+</div>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">action 2</span>
+  <div class="type-name orange">RuleBasedOrderEntryAdjustAction</div>
+  <p><strong>Purpose:</strong> Adjust the price of a <strong>specific product line</strong> in the cart.</p>
+  <p><strong>When it's created:</strong> Product-level discounts — "20% off this shoe"</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>amount</td><td>Discount amount per unit</td></tr>
+    <tr><td>orderEntryProduct</td><td>Which product to discount</td></tr>
+    <tr><td>orderEntryQuantity</td><td>How many units get the discount</td></tr>
+    <tr><td>orderEntryNumber</td><td>Which line # in the cart</td></tr>
+  </table>
+  </div>
+  <p><strong>Example:</strong> Cart has 3x Nike shoes at 200 AED. Action discounts 2 of them by 40 AED each.</p>
+</div>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">action 3</span>
+  <div class="type-name orange">RuleBasedOrderAddProductAction</div>
+  <p><strong>Purpose:</strong> <strong>Add a free product</strong> to the cart.</p>
+  <p><strong>When it's created:</strong> Free gift promotions — "Buy 2, get 1 free"</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>product</td><td>Which product to add (required)</td></tr>
+    <tr><td>quantity</td><td>How many to add (required)</td></tr>
+  </table>
+  </div>
+  <p><strong>Example:</strong> Cart has 2 shirts. Promo adds 1 free t-shirt (product = tshirt123, quantity = 1).</p>
+</div>
+
+<div class="card card-orange">
+  <span class="badge badge-orange">action 4</span>
+  <div class="type-name orange">RuleBasedOrderChangeDeliveryModeAction</div>
+  <p><strong>Purpose:</strong> <strong>Change the delivery method</strong> — typically to make delivery free.</p>
+  <p><strong>When it's created:</strong> Free shipping promotions</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>deliveryMode</td><td>The new delivery mode (required)</td></tr>
+    <tr><td>deliveryCost</td><td>The new delivery cost — usually 0 (required)</td></tr>
+    <tr><td>replacedDeliveryMode</td><td>What delivery was BEFORE the promo — stored so it can be undone</td></tr>
+    <tr><td>replacedDeliveryCost</td><td>What cost was BEFORE — stored for undo</td></tr>
+  </table>
+  </div>
+  <p><strong>Example:</strong> Customer chose express shipping (30 AED). Promo changes to free standard (0 AED). Stores the old values in case promo is removed.</p>
+</div>
+
+</div><!-- end grid -->
+
+<div class="card card-orange">
+  <span class="badge badge-orange">action 5</span>
+  <div class="type-name orange">RuleBasedPotentialPromotionMessageAction</div>
+  <p><strong>Purpose:</strong> Show a <strong>message</strong> to the customer without applying any discount.</p>
+  <p><strong>When it's created:</strong> "Almost there!" messages — "Add 50 AED more to get free shipping!"</p>
+  <p>This is a <strong>potential</strong> promotion — the customer doesn't qualify yet, but the system wants to nudge them.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Why</th></tr>
+    <tr><td>parameters</td><td>Collection of PromotionActionParameter — contains the dynamic values for the message template</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- PromotionActionParameter -->
+<div class="card card-orange">
+  <span class="badge badge-gray">helper — parameters for messages</span>
+  <div class="type-name orange">PromotionActionParameter</div>
+  <p><strong>Purpose:</strong> A simple key-value pair that holds dynamic values for promotion messages.</p>
+  <p><strong>Why it exists:</strong> When the message template says "Add {remainingAmount} more to get free shipping!", this type holds the value for <code>remainingAmount</code>.</p>
+
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>uuid</td><td>String</td><td>Unique identifier for this parameter</td></tr>
+    <tr><td>value</td><td>Object</td><td>The actual value (could be a number, string, product, etc.)</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ COMPLETE ACTION ANALOGY ============ -->
+<div class="card card-orange">
+  <h3>All 5 actions — restaurant analogy</h3>
+  <div class="hierarchy"><span class="hl-muted">Think of the cart as a restaurant bill:</span>
+
+<span class="hl-orange">OrderAdjustTotalAction</span>       <span class="hl-muted">→ "Take 50 AED off the total bill"</span>
+<span class="hl-orange">OrderEntryAdjustAction</span>       <span class="hl-muted">→ "This specific dish is 20% off"</span>
+<span class="hl-orange">OrderAddProductAction</span>        <span class="hl-muted">→ "Here's a complimentary dessert"</span>
+<span class="hl-orange">ChangeDeliveryModeAction</span>     <span class="hl-muted">→ "Delivery is on us tonight"</span>
+<span class="hl-orange">PotentialMessageAction</span>       <span class="hl-muted">→ "Order 1 more dish to get free delivery!"</span></div>
+</div>
+
+<!-- ============ GROUP 4: JUNCTION TABLES ============ -->
+<h2>Group 4: Junction Tables — "Fast lookups"</h2>
+
+<div class="card card-teal">
+  <p><strong>Why do these exist?</strong> When a customer views a product page, the system needs to know <strong>"which promotions apply to THIS product?"</strong> fast.</p>
+  <p>The conditions JSON inside PromotionSourceRule stores product/category codes, but <strong>searching inside JSON is slow</strong>. So the system creates lookup tables — like an <strong>index in a book</strong>.</p>
+  <p>When a promotion is published, the system extracts product codes and category codes from the JSON and writes them into these tables. Now finding "all promotions for product X" is a simple database query.</p>
+
+  <div class="callout callout-green">
+    <strong>Analogy:</strong> Imagine a library with 10,000 books. The conditions JSON is like searching every book's content for a keyword — slow. Junction tables are the <strong>card catalog</strong> — you look up the keyword and instantly know which books (promotions) mention it.
+  </div>
+</div>
+
+<!-- Each junction table -->
+<div class="card card-teal">
+  <span class="badge badge-teal">lookup table 1</span>
+  <div class="type-name teal">ProductForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> Links a <strong>product code</strong> to the promotion(s) that mention it.</p>
+  <p><strong>When populated:</strong> Automatically when a promotion containing "qualifying products" is published.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Why</th></tr>
+    <tr><td>productCode</td><td>String</td><td>The product code (e.g. "SHOE_NK_001")</td></tr>
+    <tr><td>rule</td><td>PromotionSourceRule</td><td>Which promotion mentions this product</td></tr>
+    <tr><td>promotion</td><td>RuleBasedPromotion</td><td>The compiled promotion object — for direct access</td></tr>
+  </table>
+  </div>
+  <p><strong>Use case:</strong> Product page → query this table → "this product has 2 active promotions" → show promotion badges.</p>
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">lookup table 2</span>
+  <div class="type-name teal">CatForPromotionSourceRule</div>
+  <p><strong>Purpose:</strong> Links a <strong>category code</strong> to the promotion(s) that mention it.</p>
+  <p><strong>When populated:</strong> Automatically when a promotion containing "qualifying categories" is published.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Why</th></tr>
+    <tr><td>categoryCode</td><td>String</td><td>The category code (e.g. "shoes")</td></tr>
+    <tr><td>rule</td><td>PromotionSourceRule</td><td>Which promotion mentions this category</td></tr>
+    <tr><td>promotion</td><td>RuleBasedPromotion</td><td>The compiled promotion object</td></tr>
+  </table>
+  </div>
+  <p><strong>Use case:</strong> Category listing page → query this table → "this category has 3 active promotions" → show promotional banners.</p>
+</div>
+
+<div class="grid-2">
+
+<div class="card card-teal">
+  <span class="badge badge-teal">lookup table 3</span>
+  <div class="type-name teal">ExcludedProductForRule</div>
+  <p><strong>Purpose:</strong> Products <strong>excluded</strong> from a promotion.</p>
+  <p><strong>Why:</strong> "10% off everything EXCEPT product X."</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Column</th><th>Type</th></tr>
+    <tr><td>productCode</td><td>String</td></tr>
+    <tr><td>rule</td><td>PromotionSourceRule</td></tr>
+  </table>
+  </div>
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">lookup table 4</span>
+  <div class="type-name teal">ExcludedCatForRule</div>
+  <p><strong>Purpose:</strong> Categories <strong>excluded</strong> from a promotion.</p>
+  <p><strong>Why:</strong> "10% off all categories EXCEPT electronics."</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Column</th><th>Type</th></tr>
+    <tr><td>categoryCode</td><td>String</td></tr>
+    <tr><td>rule</td><td>PromotionSourceRule</td></tr>
+  </table>
+  </div>
+</div>
+
+</div>
+
+<div class="card card-teal">
+  <span class="badge badge-teal">lookup table 5</span>
+  <div class="type-name teal">CombinedCatsForRule</div>
+  <p><strong>Purpose:</strong> When a single condition combines <strong>multiple categories together</strong>.</p>
+  <p><strong>Why it exists:</strong> A promo might say "Buy from BOTH shoes AND bags" — the categories are combined in one condition, not separate conditions. This table tracks which categories are grouped together under one condition.</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Column</th><th>Type</th><th>Why</th></tr>
+    <tr><td>rule</td><td>PromotionSourceRule</td><td>Which promotion</td></tr>
+    <tr><td>conditionId</td><td>Integer</td><td>Which condition within the rule (a rule can have multiple conditions)</td></tr>
+    <tr><td>categoryCode</td><td>String</td><td>One of the combined categories</td></tr>
+    <tr><td>promotion</td><td>RuleBasedPromotion</td><td>The compiled promotion object</td></tr>
+  </table>
+  </div>
+
+  <h3>Example</h3>
+  <div class="hierarchy"><span class="hl-muted">Promotion: "Buy from shoes AND bags, get 15% off"</span>
+<span class="hl-muted">This creates 2 rows in CombinedCatsForRule:</span>
+
+  rule = summer_cross_sell   conditionId = 1   categoryCode = <span class="hl-teal">shoes</span>
+  rule = summer_cross_sell   conditionId = 1   categoryCode = <span class="hl-teal">bags</span>
+
+<span class="hl-muted">The conditionId = 1 groups them — "these categories must BOTH be in the cart"</span></div>
+</div>
+
+<!-- ============ GROUP 5: RESULT ============ -->
+<h2>Group 5: Result — "The receipt"</h2>
+
+<div class="card card-purple">
+  <span class="badge badge-purple">extends existing SAP type</span>
+  <div class="type-name purple">PromotionResult</div>
+  <p><strong>Note:</strong> PromotionResult already exists in core Hybris. This extension <strong>only adds 2 extra attributes</strong>.</p>
+  <p><strong>Purpose:</strong> Records that a promotion was applied (or could be applied). It's the <strong>receipt</strong> — proof that the system evaluated and/or applied a promotion.</p>
+  <p><strong>When you encounter it:</strong> When debugging "what promotions were applied to this order?" — query PromotionResult for that order.</p>
+
+  <h3>Attributes added by this extension</h3>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why it exists</th></tr>
+    <tr><td>moduleVersion</td><td>Long</td><td>Which version of the DroolsKIEModule was active when this promo fired. Important for debugging "which rules were active at the time?"</td></tr>
+    <tr><td>ruleVersion</td><td>Long</td><td>Which version of the specific rule fired. If the rule changed after the order, this tells you "the old version was used."</td></tr>
+  </table>
+  </div>
+
+  <div class="callout callout-blue">
+    <strong>Why version tracking?</strong> A customer might place an order while a promo is version 3. By the time you investigate a complaint, the promo might be version 5. These version numbers let you say "the customer got version 3's discount, which was correct at the time."
+  </div>
+
+  <h3>What PromotionResult already has (from core Hybris)</h3>
+  <ul>
+    <li><strong>certainty</strong> — 1.0 = "promotion was fully applied" / 0.5 = "potential — could apply if customer does X"</li>
+    <li><strong>promotion</strong> — which AbstractPromotion (RuleBasedPromotion) was applied</li>
+    <li><strong>actions</strong> — list of PromotionActions that were created</li>
+    <li><strong>order</strong> — which order/cart this result is for</li>
+  </ul>
+</div>
+
+<!-- ============ ENUMS ============ -->
+<h2>Enums added by this extension</h2>
+
+<div class="card">
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-top:0;">RuleType (extended)</h3>
+      <p>Adds <code>PROMOTION</code> value to the existing enum. This is what <code>RuleToEngineRuleTypeMapping</code> uses to say "PromotionSourceRule → PROMOTION type DroolsRule."</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">FactContextType (extended)</h3>
+      <p>Adds two values for the Drools fact context:</p>
+      <ul>
+        <li><strong>PROMOTION_ORDER</strong> — evaluate at order level</li>
+        <li><strong>PROMOTION_PRODUCT</strong> — evaluate at product level</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EXTENDS LAYER 1 ============ -->
+<h2>Extends Layer 1: AbstractRuleEngineRule</h2>
+
+<div class="card card-blue">
+  <p>This extension adds 1 attribute to the Layer 1 <code>AbstractRuleEngineRule</code> (DroolsRule's parent):</p>
+  <div class="tbl-container">
+  <table>
+    <tr><th>Attribute</th><th>Type</th><th>Why</th></tr>
+    <tr><td>promotion</td><td>RuleBasedPromotion (partof)</td><td>Two-way link: "this compiled DroolsRule created this RuleBasedPromotion." <code>partof</code> means if the DroolsRule is deleted, the RuleBasedPromotion is also deleted.</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ COMPLETE HIERARCHY ============ -->
+<h2>Complete Data Hierarchy</h2>
+
+<div class="hierarchy"><span class="hl-muted">────────── GROUP 1: THE STAR ──────────</span>
+
+<span class="hl-blue">PromotionSourceRule</span> <span class="hl-muted">(extends SourceRule → AbstractRule)</span>
+├── website: <span class="hl-green">PromotionGroup</span>            <span class="hl-muted">← country/concept scoping</span>
+├── excludeFromStorefrontDisplay       <span class="hl-muted">← hide on product pages?</span>
+├── conditions: JSON                   <span class="hl-muted">← inherited: the IF part</span>
+├── actions: JSON                      <span class="hl-muted">← inherited: the THEN part</span>
+├── code, name, priority, dates...     <span class="hl-muted">← inherited: metadata</span>
+│
+├── indexed by → <span class="hl-teal">ProductForPromotionSourceRule</span>
+├── indexed by → <span class="hl-teal">CatForPromotionSourceRule</span>
+├── indexed by → <span class="hl-teal">ExcludedProductForRule</span>
+├── indexed by → <span class="hl-teal">ExcludedCatForRule</span>
+└── indexed by → <span class="hl-teal">CombinedCatsForRule</span>
+
+<span class="hl-muted">PromotionSourceRuleTemplate</span> <span class="hl-muted">(extends SourceRuleTemplate)</span>
+└── <span class="hl-muted">blueprint for creating PromotionSourceRules</span>
+
+<span class="hl-muted">────────── GROUP 2: THE BRIDGE ──────────</span>
+
+<span class="hl-green">RuleBasedPromotion</span> <span class="hl-muted">(extends AbstractPromotion)</span>
+├── rule → <span class="hl-muted">DroolsRule</span>                 <span class="hl-muted">← "which compiled rule am I?"</span>
+├── messageFired                       <span class="hl-muted">← customer message</span>
+├── promotionDescription               <span class="hl-muted">← detailed description</span>
+└── ruleVersion                        <span class="hl-muted">← which version</span>
+
+<span class="hl-muted">────────── GROUP 3: ACTIONS ──────────</span>
+
+<span class="hl-orange">AbstractRuleBasedPromotionAction</span> <span class="hl-muted">(abstract, extends AbstractPromotionAction)</span>
+├── rule → DroolsRule, strategyId, metadataHandlers
+│
+├── <span class="hl-orange">RuleBasedOrderAdjustTotalAction</span>        <span class="hl-muted">← amount off cart total</span>
+├── <span class="hl-orange">RuleBasedOrderEntryAdjustAction</span>        <span class="hl-muted">← amount off specific product</span>
+├── <span class="hl-orange">RuleBasedOrderAddProductAction</span>         <span class="hl-muted">← add free product</span>
+├── <span class="hl-orange">RuleBasedOrderChangeDeliveryModeAction</span> <span class="hl-muted">← change delivery</span>
+└── <span class="hl-orange">RuleBasedPotentialPromotionMessageAction</span> <span class="hl-muted">← show message</span>
+    └── parameters → <span class="hl-orange">PromotionActionParameter</span> <span class="hl-muted">(uuid + value)</span>
+
+<span class="hl-muted">────────── GROUP 4: JUNCTION TABLES ──────────</span>
+
+<span class="hl-teal">ProductForPromotionSourceRule</span>  <span class="hl-muted">productCode ↔ rule ↔ promotion</span>
+<span class="hl-teal">CatForPromotionSourceRule</span>     <span class="hl-muted">categoryCode ↔ rule ↔ promotion</span>
+<span class="hl-teal">ExcludedProductForRule</span>        <span class="hl-muted">productCode ↔ rule</span>
+<span class="hl-teal">ExcludedCatForRule</span>            <span class="hl-muted">categoryCode ↔ rule</span>
+<span class="hl-teal">CombinedCatsForRule</span>           <span class="hl-muted">categoryCode + conditionId ↔ rule ↔ promotion</span>
+
+<span class="hl-muted">────────── GROUP 5: RESULT ──────────</span>
+
+<span class="hl-purple">PromotionResult</span> <span class="hl-muted">(extended — adds moduleVersion + ruleVersion)</span></div>
+
+<!-- ============ END-TO-END FLOW ============ -->
+<h2>End-to-End: What happens when a promotion fires</h2>
+
+<div class="card">
+  <div class="hierarchy"><span class="hl-muted">Step 1: Business user creates promo in Backoffice</span>
+  → Saved as <span class="hl-blue">PromotionSourceRule</span> <span class="hl-muted">(status = UNPUBLISHED)</span>
+
+<span class="hl-muted">Step 2: Business user clicks "Publish"</span>
+  → System compiles SourceRule into <span class="hl-muted">DroolsRule</span> <span class="hl-muted">(via translators)</span>
+  → System auto-creates <span class="hl-green">RuleBasedPromotion</span> <span class="hl-muted">(linked to DroolsRule)</span>
+  → System populates junction tables:
+    → <span class="hl-teal">ProductForPromotionSourceRule</span> <span class="hl-muted">(if products mentioned)</span>
+    → <span class="hl-teal">CatForPromotionSourceRule</span> <span class="hl-muted">(if categories mentioned)</span>
+    → <span class="hl-teal">ExcludedProductForRule</span> / <span class="hl-teal">ExcludedCatForRule</span> <span class="hl-muted">(if exclusions)</span>
+  → Status becomes PUBLISHED
+
+<span class="hl-muted">Step 3: Customer adds items to cart → cart calculation runs</span>
+  → Drools engine evaluates all active DroolsRules
+  → Rule matches? → Engine creates <span class="hl-orange">PromotionAction(s)</span>:
+    → e.g. <span class="hl-orange">RuleBasedOrderAdjustTotalAction</span>(amount = 50)
+
+<span class="hl-muted">Step 4: Cart applies the actions</span>
+  → Cart total is reduced by 50 AED
+  → <span class="hl-purple">PromotionResult</span> is created <span class="hl-muted">(certainty = 1.0, with moduleVersion + ruleVersion)</span>
+  → Customer sees: "You saved 50 AED!"</div>
+</div>
+
+<!-- ============ WHEN TO TOUCH ============ -->
+<h2>When do you touch each type?</h2>
+
+<div class="card">
+  <div class="tbl-container">
+  <table>
+    <tr><th>Type</th><th>When you touch it</th><th>How often</th></tr>
+    <tr><td>PromotionSourceRule</td><td>Always — every promo ticket involves this</td><td>Every day</td></tr>
+    <tr><td>PromotionSourceRuleTemplate</td><td>When adding a new kind of promotion</td><td>Occasional</td></tr>
+    <tr><td>RuleBasedPromotion</td><td>When debugging "why did this promo apply?" or "why didn't it?"</td><td>Regular</td></tr>
+    <tr><td>Action types (5)</td><td>When adding a new discount mechanism (rare) or debugging why a discount amount is wrong</td><td>Occasional</td></tr>
+    <tr><td>PromotionActionParameter</td><td>When debugging promotion messages</td><td>Rare</td></tr>
+    <tr><td>Junction tables (5)</td><td>When debugging "why doesn't this product show the promo badge?" — check if the junction table was populated</td><td>Occasional</td></tr>
+    <tr><td>PromotionResult</td><td>When investigating "what promos were applied to this order?"</td><td>Regular</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ============ LAYER COMPARISON ============ -->
+<h2>Layer 2 vs Layer 3 — quick comparison</h2>
+
+<div class="card">
+  <div class="tbl-container">
+  <table>
+    <tr><th>Aspect</th><th>Layer 2 (ruleengineservices)</th><th>Layer 3 (promotionengineservices)</th></tr>
+    <tr><td>Knows about</td><td>Generic rules, conditions, actions</td><td>Promotions, discounts, carts, products</td></tr>
+    <tr><td>Core type</td><td>SourceRule</td><td>PromotionSourceRule</td></tr>
+    <tr><td>Definitions</td><td>RuleConditionDefinition / RuleActionDefinition</td><td>— (uses Layer 2's definitions)</td></tr>
+    <tr><td>Execution result</td><td>— (generic)</td><td>PromotionActions (5 types) + PromotionResult</td></tr>
+    <tr><td>Lookup optimization</td><td>—</td><td>5 junction tables for product/category search</td></tr>
+    <tr><td>Scoping</td><td>RuleGroup (competition)</td><td>PromotionGroup / website (country/concept)</td></tr>
+    <tr><td>Who touches it</td><td>Platform team</td><td>Your team (daily)</td></tr>
+  </table>
+  </div>
+</div>
