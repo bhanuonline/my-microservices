@@ -411,3 +411,225 @@ docker exec kafka kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --topic user.registered.DLT --from-beginning --max-messages 1
 ```
+
+---
+
+## Spring Boot debug commands
+
+### 1. Enable remote debugger (attach IntelliJ / any debugger)
+
+The most useful. Adds a JDWP listener so you can put breakpoints in IntelliJ.
+
+```bash
+# Ad-hoc — start with debug JVM args
+./mvnw spring-boot:run \
+  -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+```
+
+**Word by word:**
+- `-agentlib:jdwp=...` — Java Debug Wire Protocol agent
+- `server=y` — the JVM listens for a debugger to connect
+- `suspend=n` — start immediately; use `y` to break on `main()`
+- `address=*:5005` — port 5005 on all interfaces
+
+Then in IntelliJ: Run → Edit Configurations → + → Remote JVM Debug → `localhost:5005`.
+
+**This project already has a `debug` Maven profile in every service's pom.** Just:
+```bash
+./mvnw spring-boot:run -Pdebug
+```
+
+**Debug port per service (from your poms — CORE microservices):**
+
+| Service | Debug port |
+|---|---|
+| eureka-server | 5006 |
+| auth-server | 5007 |
+| api-gateway | 5008 |
+| user-service | 5009 |
+| product-service | 5010 |
+| order-service | 5011 |
+| payment-service | 5012 |
+| notification | 5013 |
+
+**Side/practice modules (NOT in main reactor — some collide with core ports):**
+
+| Module | Debug port | Collides with |
+|---|---|---|
+| admin | 5009 | user-service |
+| interview | 5008 | api-gateway |
+| jwtAuthApp | 5011 | order-service |
+| process | 5013 | notification |
+| service | 5010 | product-service |
+| algolia | 5014 | — |
+| spring-security-apps | 5015 | — |
+
+⚠️ If two services share a debug port and both use `-Pdebug`, the second will fail with `Address already in use`. Colliding modules are all side-projects — don't debug them at the same time as their core-service twin.
+
+### 2. Enable Spring's DEBUG-level startup logs (auto-config decisions)
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--debug"
+# or in application.yml:
+#   debug: true
+```
+
+Prints the **Condition Evaluation Report** — every auto-config class + whether it applied + why. Killer for "why isn't Spring wiring this bean?"
+
+### 3. Log level for a specific package
+
+```yaml
+# application.yml (persistent)
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.springframework.security: TRACE
+    org.springframework.cloud.gateway: TRACE
+    com.example: DEBUG
+```
+
+Or per-run:
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--logging.level.org.hibernate.SQL=DEBUG"
+```
+
+### 4. Change log level at RUNTIME — no restart
+
+```bash
+# Current level
+curl http://localhost:8081/actuator/loggers/com.example.userservice
+
+# Set to DEBUG
+curl -X POST http://localhost:8081/actuator/loggers/com.example.userservice \
+  -H "Content-Type: application/json" \
+  -d '{"configuredLevel":"DEBUG"}'
+
+# Reset
+curl -X POST http://localhost:8081/actuator/loggers/com.example.userservice \
+  -H "Content-Type: application/json" \
+  -d '{"configuredLevel":null}'
+```
+Requires `loggers` in `management.endpoints.web.exposure.include` (already exposed on user-service).
+
+### 5. Inspect running state via actuator
+
+```bash
+# All exposed endpoints
+curl -s http://localhost:8081/actuator | jq
+
+# Every resolved property + its source (yml, env var, etc.)
+curl -s http://localhost:8081/actuator/env | jq
+
+# One property — value + WHERE it came from
+curl -s http://localhost:8081/actuator/env/server.port | jq
+
+# @ConfigurationProperties beans
+curl -s http://localhost:8081/actuator/configprops | jq
+
+# Bean names in the app context
+curl -s http://localhost:8081/actuator/beans | jq '.contexts.application.beans | keys' | head -30
+
+# Detailed health
+curl -s http://localhost:8081/actuator/health | jq
+
+# Thread dump (for hung apps)
+curl -s http://localhost:8081/actuator/threaddump | jq
+
+# Heap dump (downloads .hprof to open in Eclipse MAT / VisualVM)
+curl -X POST http://localhost:8081/actuator/heapdump -o heap.hprof
+
+# Metrics
+curl -s http://localhost:8081/actuator/metrics | jq
+curl -s http://localhost:8081/actuator/metrics/jvm.memory.used | jq
+curl -s http://localhost:8081/actuator/metrics/http.server.requests | jq
+```
+
+### 6. Startup timing — see what's slow to boot
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: startup
+spring:
+  application:
+    admin:
+      enabled: true
+```
+After startup:
+```bash
+curl -s http://localhost:8081/actuator/startup | \
+  jq '.timeline.events | sort_by(-.duration) | .[0:20]'
+```
+
+### 7. Pattern-specific debug endpoints (already exposed in this project)
+
+```bash
+# Resilience4j
+curl -s http://localhost:8083/actuator/circuitbreakerevents/productClient | jq
+curl -s http://localhost:8083/actuator/retryevents/productClient | jq
+curl -s http://localhost:8083/actuator/bulkheadevents/productClient | jq
+
+# Gateway routes (live table)
+curl -s http://localhost:8080/actuator/gateway/routes | jq
+
+# Eureka registrations
+curl -s http://localhost:8761/eureka/apps -H "Accept: application/json" | jq
+```
+
+### 8. JVM introspection (any running Java process, needs JDK on your Mac)
+
+```bash
+# Find the Spring PID
+jps -lv | grep user-service
+
+# Full thread dump to stdout
+jstack <PID>
+
+# Live heap histogram — object counts by class
+jmap -histo <PID> | head -30
+
+# Full heap dump to file
+jmap -dump:live,format=b,file=user-svc.hprof <PID>
+
+# JVM version + args
+jinfo <PID>
+
+# GC stats live (every 1s for 10 iterations)
+jstat -gc <PID> 1s 10
+```
+
+### 9. IntelliJ debugging shortcuts
+
+- **Run → Attach to Process** — debug an already-running JVM (no need to relaunch)
+- **Debug icon** in gutter next to `main()` — starts app in debug mode
+- **F9** resume | **F7** step into | **F8** step over | **Shift+F8** step out
+- **Alt+F8** — evaluate expression at breakpoint
+- **Ctrl+Shift+F8** — breakpoints dialog; enable **exception breakpoints** to break on any throw
+- **Right-click breakpoint → Condition** — break only when e.g. `orderId.equals("abc-123")`
+
+### 10. Live config reload — no restart
+
+For property changes only (not class/schema changes):
+
+```bash
+# Edit application.yml → save → then trigger reload:
+curl -X POST http://localhost:8081/actuator/refresh
+# → JSON array of the keys that changed
+```
+Only affects `@RefreshScope` beans. See `RefreshDemoController` for a working example.
+
+### Cheat-sheet — "I want to..."
+
+| I want to... | Command |
+|---|---|
+| Attach IntelliJ debugger | `./mvnw spring-boot:run -Pdebug` then attach to :5005 (varies per service) |
+| See why Spring wired / didn't wire a bean | Start with `--debug`, read Condition Evaluation Report |
+| Change log level without restart | `POST /actuator/loggers/<pkg>` with `configuredLevel` |
+| See a property's current value + source | `GET /actuator/env/<property.name>` |
+| Reload `@Value` after yml edit | `POST /actuator/refresh` (bean must be `@RefreshScope`) |
+| Trace slow startup | Expose `startup` endpoint, then query it |
+| Diagnose thread starvation / deadlock | `GET /actuator/threaddump` or `jstack <PID>` |
+| Diagnose memory leak | `POST /actuator/heapdump`, open in Eclipse MAT |
+| See circuit breaker state | `GET /actuator/health` → `.components.circuitBreakers` |

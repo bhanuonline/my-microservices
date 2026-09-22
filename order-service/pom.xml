@@ -108,4 +108,15 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>debug</id>
+            <properties>
+                <spring-boot.run.jvmArguments>
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5011
+                </spring-boot.run.jvmArguments>
+            </properties>
+        </profile>
+    </profiles>
+
 </project>

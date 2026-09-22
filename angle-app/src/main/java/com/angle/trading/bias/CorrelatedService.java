@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -37,21 +39,30 @@ public class CorrelatedService {
     private final BiasProperties biasProperties;
 
     public CorrelatedSection fetch(BigDecimal mainDayChangePercent) {
+        return fetchAsOf(mainDayChangePercent, null);
+    }
+
+    /** Fetch correlated as of a past instant; null asOf = latest. */
+    public CorrelatedSection fetchAsOf(BigDecimal mainDayChangePercent, Instant asOf) {
         BiasProperties.Correlated cfg = biasProperties.getCorrelated();
         if (!cfg.isEnabled()) {
             return null;
         }
         try {
-            LocalDate to   = LocalDate.now();
-            LocalDate from = to.minusDays(5);   // enough for prev close + today
+            LocalDate to = asOf == null ? LocalDate.now()
+                    : asOf.atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate from = to.minusDays(5);
             List<Candle> candles = marketDataService.getCandles(
                     cfg.getBroker(),
                     Exchange.valueOf(cfg.getExchange()),
                     cfg.getSymbolToken(),
                     Interval.ONE_DAY,
                     from, to);
+            if (asOf != null) {
+                candles = candles.stream().filter(c -> !c.timestamp().isAfter(asOf)).toList();
+            }
             if (candles.isEmpty()) {
-                log.debug("Correlated fetch returned no candles for {}", cfg.getSymbol());
+                log.debug("Correlated fetch returned no candles for {} (asOf={})", cfg.getSymbol(), asOf);
                 return emptySection(cfg);
             }
 

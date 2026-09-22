@@ -13,15 +13,20 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
  * Fetches India VIX (or any volatility index) from the configured broker.
  *
- * Uses daily candles for the last few days — VIX doesn't change intraday
- * with meaningful granularity for our purpose (regime labelling), and
- * daily candles are cheaper API-wise.
+ * Uses daily candles — VIX doesn't need intraday granularity for the
+ * regime labelling we do.
+ *
+ * Two entry points:
+ *   fetchLatest()        — as of right now
+ *   fetchAsOf(instant)   — as of a past date (for historical dashboard view)
  *
  * Returns null-populated section if the broker call fails; UI shows "—".
  */
@@ -37,25 +42,34 @@ public class VixService {
     private final BiasProperties biasProperties;
 
     public VixSection fetchLatest() {
+        return fetchAsOf(null);
+    }
+
+    /** Fetch VIX as of a past instant; null asOf = latest. */
+    public VixSection fetchAsOf(Instant asOf) {
         BiasProperties.Vix cfg = biasProperties.getVix();
         if (!cfg.isEnabled()) {
             return new VixSection(null, null, null, null);
         }
         try {
-            LocalDate to   = LocalDate.now();
-            LocalDate from = to.minusDays(10);   // gives us at least 2 candles even over long weekends
+            LocalDate to = asOf == null ? LocalDate.now()
+                    : asOf.atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate from = to.minusDays(10);
             List<Candle> candles = marketDataService.getCandles(
                     "ANGEL",
                     Exchange.valueOf(cfg.getExchange()),
                     cfg.getSymbolToken(),
                     Interval.ONE_DAY,
                     from, to);
+            if (asOf != null) {
+                candles = candles.stream().filter(c -> !c.timestamp().isAfter(asOf)).toList();
+            }
             if (candles.isEmpty()) {
-                log.debug("VIX fetch returned no candles");
+                log.debug("VIX fetch returned no candles (asOf={})", asOf);
                 return new VixSection(null, null, null, null);
             }
             BigDecimal current = candles.get(candles.size() - 1).close();
-            BigDecimal prev = candles.size() >= 2 ? candles.get(candles.size() - 2).close() : null;
+            BigDecimal prev    = candles.size() >= 2 ? candles.get(candles.size() - 2).close() : null;
             BigDecimal change = null;
             BigDecimal changePct = null;
             if (prev != null && prev.signum() > 0) {

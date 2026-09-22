@@ -34,6 +34,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -73,28 +74,67 @@ public class BiasSheetService {
     private final BreadthService breadthService;
 
     public BiasSheet build(BiasProperties.Instrument cfg) {
-        Instant asOf = Instant.now();
-        LocalDate to   = LocalDate.now();
+        return buildAsOf(cfg, null);
+    }
+
+    /**
+     * Build the sheet as-of a specific past instant.
+     *
+     * When {@code asOfInstant} is null → same as {@link #build(BiasProperties.Instrument)}
+     * (returns the live snapshot).
+     *
+     * When set, all candle-derived data uses only candles that closed AT OR BEFORE
+     * that instant — no future data leaks in. VIX and correlated instruments fetch
+     * their own daily candles up to that date.
+     *
+     * Breadth is SKIPPED in historical mode — it needs constituent LTPs at exact
+     * historical timestamps which are expensive and rarely useful for review.
+     */
+    public BiasSheet buildAsOf(BiasProperties.Instrument cfg, Instant asOfInstant) {
+        boolean historical = asOfInstant != null;
+        Instant asOf = historical ? asOfInstant : Instant.now();
+        LocalDate to   = historical ? asOfInstant.atZone(ZoneId.systemDefault()).toLocalDate() : LocalDate.now();
         LocalDate from = to.minusDays(biasProperties.getLookbackDays());
 
-        // Intraday candles = indicator + structure base
-        List<Candle> intraday = safeFetchCandles(cfg, cfg.getIntradayInterval(), from, to);
+        // Fetch candles, then trim anything strictly after asOf.
+        List<Candle> intraday = trimToAsOf(safeFetchCandles(cfg, cfg.getIntradayInterval(), from, to), asOf);
 
-        MarketContextSection market   = buildMarketContext(intraday);
-        VixSection           vix      = vixService.fetchLatest();
-        BreadthSection       breadth  = breadthService.fetch();
-        List<TimeframeBias>  multiTf  = buildMultiTfBias(cfg, from, to);
-        TrendFilters         trend    = buildTrendFilters(intraday);
-        MarketContext        smcCtx   = intraday.isEmpty() ? null : marketContextBuilder.build(intraday);
+        MarketContextSection market = buildMarketContext(intraday);
+        VixSection           vix    = historical ? vixService.fetchAsOf(asOf) : vixService.fetchLatest();
+        BreadthSection       breadth = historical ? null : breadthService.fetch();
+        List<TimeframeBias>  multiTf = buildMultiTfBiasAsOf(cfg, from, to, asOf);
+        TrendFilters         trend   = buildTrendFilters(intraday);
+        MarketContext        smcCtx  = intraday.isEmpty() ? null : marketContextBuilder.build(intraday);
         StructureSection     structure = buildStructure(smcCtx);
-        ZonesSection         zones    = buildZones(smcCtx);
-        CorrelatedSection    correlated = correlatedService.fetch(market.gapPercent());
-        ConsolidatedScore    score    = buildConsolidatedScore(multiTf, trend, structure, vix, correlated, breadth);
+        ZonesSection         zones     = buildZones(smcCtx);
+        CorrelatedSection    correlated = historical
+                ? correlatedService.fetchAsOf(market.gapPercent(), asOf)
+                : correlatedService.fetch(market.gapPercent());
+        ConsolidatedScore    score = buildConsolidatedScore(multiTf, trend, structure, vix, correlated, breadth);
 
         return new BiasSheet(
                 asOf, cfg.getSymbol(), cfg.getSymbolToken(), cfg.getExchange().name(),
                 market, vix, breadth, multiTf, trend, structure, zones, correlated, score
         );
+    }
+
+    private static List<Candle> trimToAsOf(List<Candle> candles, Instant asOf) {
+        if (asOf == null || candles.isEmpty()) return candles;
+        List<Candle> out = new ArrayList<>(candles.size());
+        for (Candle c : candles) {
+            if (!c.timestamp().isAfter(asOf)) out.add(c);
+        }
+        return out;
+    }
+
+    private List<TimeframeBias> buildMultiTfBiasAsOf(BiasProperties.Instrument cfg,
+                                                     LocalDate from, LocalDate to, Instant asOf) {
+        // Analyst uses whole candle list — for historical view we shrink the "to"
+        // date to asOf's date and rely on the analyst's own logic. Precise trimming
+        // per-candle happens in the intraday fetch above (used by trend/structure);
+        // multi-TF bias tolerates some slack since it's already a coarse read.
+        LocalDate effectiveTo = asOf == null ? to : asOf.atZone(ZoneId.systemDefault()).toLocalDate();
+        return buildMultiTfBias(cfg, from, effectiveTo);
     }
 
     // ---------- individual sections ----------

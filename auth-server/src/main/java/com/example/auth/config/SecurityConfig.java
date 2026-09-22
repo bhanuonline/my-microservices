@@ -49,24 +49,52 @@ import org.springframework.web.filter.CommonsRequestLoggingFilter;
 public class SecurityConfig {
     private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
-    // Authorization server endpoints
+    /**
+     * Chain 1 (ORDER 1 — runs FIRST) — OAuth2 authorization server endpoints.
+     *
+     * Matches ONLY the OAuth2 protocol paths:
+     *   /oauth2/**              (token, authorize, jwks, ...)
+     *   /.well-known/**         (OIDC discovery — critical: resource-servers fetch this)
+     *   /connect/**             (OIDC session management)
+     *
+     * Redirects HTML browsers to /login for interactive flows.
+     * Programmatic clients (Postman with Basic Auth) get straight-through access.
+     */
     @Bean
+    @Order(1)
     SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 
-        http
-                .exceptionHandling((exceptions) -> exceptions
-                        .defaultAuthenticationEntryPointFor(
-                                new LoginUrlAuthenticationEntryPoint("/login"),
-                                new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
-                        )
-                );
+        http.exceptionHandling(ex -> ex
+                .defaultAuthenticationEntryPointFor(
+                        new LoginUrlAuthenticationEntryPoint("/login"),
+                        new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
+                )
+        );
         return http.build();
     }
+
+    /**
+     * Chain 2 (ORDER 2 — fallback) — everything else on this app.
+     *
+     * Login page, actuator, custom controllers, static resources.
+     * Uses form-login so users can sign in for the auth_code flow.
+     *
+     * Public endpoints (no auth needed):
+     *   /login                — the login form itself
+     *   /error                — Spring's error page
+     *   /actuator/**          — health checks, monitoring
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
-            .formLogin(Customizer.withDefaults());
+    @Order(2)
+    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/login", "/error", "/actuator/**").permitAll()
+                .anyRequest().authenticated()
+            )
+            .formLogin(Customizer.withDefaults())
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/actuator/**"));
         return http.build();
     }
 
@@ -78,21 +106,25 @@ public class SecurityConfig {
                     context.getPrincipal().getName(),
                     context.getAuthorizedScopes());
 
-            // You can enrich JWT claims here
+            // Enrich JWT with a custom claim — useful for downstream services
             context.getClaims().claim("custom-issuer", "ExampleAuthServer");
-            context.getClaims().claim("user_ip", context.getPrincipal().getDetails());
+            // NOTE: removed 'user_ip' claim — it was serializing WebAuthenticationDetails
+            //   which contains non-JSON-safe objects. Add safe scalar claims only.
         };
     }
 
-     // Register OAuth client
+    // Register OAuth clients
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
-        RegisteredClient client = RegisteredClient.withId(UUID.randomUUID().toString())
+
+        // Client 1: for real user login flows (browser redirect).
+        // Used by web/mobile apps. Users authenticate; JWT carries user identity.
+        RegisteredClient demoClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("demo-client")
                 .clientSecret("{noop}secret")
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .redirectUri("http://127.0.0.1:8097/login/oauth2/code/demo-client")
                 .postLogoutRedirectUri("http://127.0.0.1:8097/")
                 .scope(OidcScopes.OPENID)
@@ -100,23 +132,42 @@ public class SecurityConfig {
                 .scope("read")
                 .build();
 
+        // Client 2: for machine-to-machine + Postman testing.
+        // No user involved — JWT carries client identity only (sub=m2m-client).
+        // Use this in Postman, curl, scheduled jobs, backend service-to-service.
+        RegisteredClient m2mClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                .clientId("m2m-client")
+                .clientSecret("{noop}m2m-secret")
+                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .scope("read")
+                .scope("write")
+                .build();
+
+        logRegisteredClient("demo-client (user login flow)", demoClient);
+        logRegisteredClient("m2m-client (Postman / M2M testing)", m2mClient);
+
+        return new InMemoryRegisteredClientRepository(demoClient, m2mClient);
+    }
+
+    private void logRegisteredClient(String label, RegisteredClient c) {
         log.info("""
             ================== CLIENT REGISTERED ==================
-            ID:          {}
-            CLIENT_ID:   {}
-            AUTH METHODS: {}
-            GRANT TYPES:  {}
-            SCOPES:       {}
-            REDIRECT URIs {}
+            LABEL:         {}
+            ID:            {}
+            CLIENT_ID:     {}
+            AUTH METHODS:  {}
+            GRANT TYPES:   {}
+            SCOPES:        {}
+            REDIRECT URIs: {}
             =======================================================""",
-                client.getId(),
-                client.getClientId(),
-                client.getClientAuthenticationMethods(),
-                client.getAuthorizationGrantTypes(),
-                client.getScopes(),
-                client.getRedirectUris());
-
-        return new InMemoryRegisteredClientRepository(client);
+                label,
+                c.getId(),
+                c.getClientId(),
+                c.getClientAuthenticationMethods(),
+                c.getAuthorizationGrantTypes(),
+                c.getScopes(),
+                c.getRedirectUris());
     }
     @Bean
     public OAuth2AuthorizationService authorizationService() {

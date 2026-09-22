@@ -32,15 +32,24 @@ kill <pid>       # or stop the service via brew / launchctl
 
 ---
 
-## Symptom — auth-server refuses to start: `Schema-validation: missing table [oauth2_authorization]`
+## Symptom — auth-server refuses to start: `Schema-validation: missing table [X]`
 
-**Diagnosis:** `ddl-auto=validate` runs on empty DB.
+**Diagnosis:** `ddl-auto=validate` fails when Hibernate finds an entity with
+no matching table in the DB. Happens on:
+- **First boot** — DB is empty, no tables exist yet
+- **Any time a new @Entity is added or renamed** — validate is strict
 
-**Fix:** first-boot flip `auth-server/application.properties`:
-```
-spring.jpa.hibernate.ddl-auto=update
-```
-Start once, stop, flip back to `validate`.
+**Fix (this project — dev only):** `ddl-auto=update` permanently in
+`auth-server/src/main/resources/application.properties`. Hibernate auto-creates
+missing tables on every boot. **Never use `update` in prod** — silent schema
+changes can wreck data.
+
+**Prod fix:** use Flyway or Liquibase migrations. Every schema change is a
+version-controlled SQL file. Keep `ddl-auto=validate` so app fails loudly if
+migrations weren't run.
+
+**Manual workaround (if you want to keep validate):** flip to `update`, start
+once (creates tables), flip back to `validate`.
 
 ---
 

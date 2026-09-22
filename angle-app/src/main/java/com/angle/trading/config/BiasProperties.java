@@ -65,6 +65,9 @@ public class BiasProperties {
     /** Advance/Decline breadth — number of stocks up vs down. */
     private Breadth breadth = new Breadth();
 
+    /** Ticker strip fetch performance. */
+    private Ticker ticker = new Ticker();
+
     @Data
     public static class Instrument {
         private String   symbol;              // display name, e.g. "Nifty 50"
@@ -151,5 +154,22 @@ public class BiasProperties {
         private double bullishRatio = 2.0;
         /** Advances / declines ratio at or below this = broad bearish. */
         private double bearishRatio = 0.5;
+    }
+
+    /**
+     * Ticker strip fetch performance.
+     *
+     *   parallelEnabled — true = fetch all instruments concurrently (fast, ~2s);
+     *                     false = sequential (old behaviour, ~20s; kept for debug).
+     *   threadPoolSize  — how many instruments may be fetched at the same time.
+     *                     Increase for more instruments; too high may trigger Angel rate limits.
+     *   timeoutSeconds  — max wait per instrument before giving up on it.
+     *                     Missing instruments render with "—" values.
+     */
+    @Data
+    public static class Ticker {
+        private boolean parallelEnabled = true;
+        private int     threadPoolSize  = 10;
+        private int     timeoutSeconds  = 30;
     }
 }

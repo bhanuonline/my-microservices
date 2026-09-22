@@ -2,28 +2,27 @@ package com.angle.trading.controller;
 
 import com.angle.trading.bias.BiasChangeHistory;
 import com.angle.trading.bias.BiasSheetService;
+import com.angle.trading.bias.TickerFetcher;
 import com.angle.trading.bias.model.BiasSheet;
-import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.config.BiasProperties;
 import com.angle.trading.marketdata.InstrumentMasterService;
 import com.angle.trading.marketdata.InstrumentNameResolver;
 import com.angle.trading.marketdata.model.Instrument;
 import com.angle.trading.paper.PaperTradingSessionManager;
-import com.angle.trading.paper.model.SessionSnapshot;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Dashboard endpoints.
@@ -44,80 +43,56 @@ public class BiasController {
     private final InstrumentMasterService instrumentMasterService;
     private final BiasChangeHistory biasChangeHistory;
     private final PaperTradingSessionManager sessionManager;
+    private final TickerFetcher tickerFetcher;
 
     @GetMapping("/bias")
-    public String dashboard(Model model) {
+    public String dashboard(
+            Model model,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime asOf
+    ) {
         BiasProperties.Instrument cfg = firstConfiguredOrDefault();
-        return renderDashboard(model, cfg);
+        return renderDashboard(model, cfg, asOf);
     }
 
     @GetMapping("/bias/{symbolToken}")
-    public String dashboardFor(@PathVariable String symbolToken, Model model) {
+    public String dashboardFor(
+            @PathVariable String symbolToken,
+            Model model,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime asOf
+    ) {
         BiasProperties.Instrument cfg = findByToken(symbolToken);
-        return renderDashboard(model, cfg);
+        return renderDashboard(model, cfg, asOf);
     }
 
     /**
-     * Shared render path — computes the sheet + all data feeding the dashboard.
-     * Keeps the two @GetMapping methods thin.
+     * Shared render path.
+     * If asOfLocal is set → historical mode: all data as-of that past instant,
+     * auto-refresh disabled, banner shown.
      */
-    private String renderDashboard(Model model, BiasProperties.Instrument cfg) {
-        BiasSheet sheet = biasSheetService.build(cfg);
+    private String renderDashboard(Model model, BiasProperties.Instrument cfg, LocalDateTime asOfLocal) {
+        Instant asOfInstant = asOfLocal == null ? null : asOfLocal.atZone(ZoneId.systemDefault()).toInstant();
+        boolean historical = asOfInstant != null;
+
+        BiasSheet sheet = biasSheetService.buildAsOf(cfg, asOfInstant);
         List<BiasProperties.Instrument> instruments = instrumentsForNav();
 
-        // Ticker strip: build a tiny snapshot per configured instrument so the
-        // top of the page shows a scoreboard, not just names.
-        List<Map<String, Object>> tickers = new ArrayList<>(instruments.size());
-        for (BiasProperties.Instrument ins : instruments) {
-            tickers.add(buildTicker(ins, cfg.getSymbolToken().equals(ins.getSymbolToken()) ? sheet : null));
-        }
+        // Ticker strip snapshots — parallel (or sequential) based on bias.ticker.parallel-enabled.
+        List<TickerFetcher.Ticker> tickers =
+                tickerFetcher.fetchAll(instruments, cfg.getSymbolToken(), sheet, asOfInstant);
 
         model.addAttribute("sheet", sheet);
-        model.addAttribute("refreshSeconds", biasProperties.getRefreshMinutes() * 60);
+        // Historical mode disables auto-refresh (data doesn't change).
+        model.addAttribute("refreshSeconds", historical ? 0 : biasProperties.getRefreshMinutes() * 60);
         model.addAttribute("instruments", instruments);
         model.addAttribute("currentToken", cfg.getSymbolToken());
         model.addAttribute("tickers", tickers);
         model.addAttribute("recentChanges", biasChangeHistory.recent());
         model.addAttribute("activeSessions", sessionManager.list());
+        model.addAttribute("historical", historical);
+        model.addAttribute("asOfDisplay", historical ? asOfLocal.toString() : null);
         return "bias/dashboard";
-    }
-
-    /** Compact snapshot for a ticker card. Fetches the full sheet only if we don't have it. */
-    private Map<String, Object> buildTicker(BiasProperties.Instrument ins, BiasSheet reuse) {
-        Map<String, Object> t = new LinkedHashMap<>();
-        t.put("symbol",      ins.getSymbol());
-        t.put("symbolToken", ins.getSymbolToken());
-        t.put("exchange",    ins.getExchange().name());
-        BiasSheet s = reuse != null ? reuse : safeBuild(ins);
-        if (s == null || s.marketContext() == null) {
-            t.put("price", null);
-            t.put("changePercent", null);
-            t.put("recommendation", "—");
-            t.put("score", null);
-            return t;
-        }
-        BigDecimal price = s.marketContext().currentPrice();
-        BigDecimal prev  = s.marketContext().previousClose();
-        BigDecimal pct = null;
-        if (price != null && prev != null && prev.signum() > 0) {
-            pct = price.subtract(prev)
-                    .divide(prev, MathContext.DECIMAL64)
-                    .multiply(BigDecimal.valueOf(100))
-                    .setScale(2, RoundingMode.HALF_UP);
-        }
-        t.put("price", price);
-        t.put("changePercent", pct);
-        t.put("recommendation", s.consolidated().recommendation());
-        t.put("score", s.consolidated().totalScore());
-        return t;
-    }
-
-    private BiasSheet safeBuild(BiasProperties.Instrument ins) {
-        try {
-            return biasSheetService.build(ins);
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     /**

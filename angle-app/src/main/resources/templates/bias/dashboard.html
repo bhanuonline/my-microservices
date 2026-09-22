@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title th:text="${sheet.symbol()} + ' — AngleApp Bias'">AngleApp Bias</title>
-    <meta http-equiv="refresh" th:attr="content=${refreshSeconds}">
+    <meta th:if="${refreshSeconds > 0}" http-equiv="refresh" th:attr="content=${refreshSeconds}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -177,6 +177,56 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
 .foot{color:var(--faint); font-size:11.5px; margin-top:26px; line-height:1.6}
 
+/* ── changed-cell flash ─────────────────── */
+@keyframes flashChange {
+  0%   { background: rgba(240,166,62,.35); box-shadow: 0 0 0 3px rgba(240,166,62,.35); }
+  60%  { background: rgba(240,166,62,.20); box-shadow: 0 0 0 3px rgba(240,166,62,.15); }
+  100% { background: transparent;           box-shadow: 0 0 0 3px transparent; }
+}
+.changed {
+  animation: flashChange 4s ease-out;
+  border-radius: 6px;
+}
+.change-note {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--accent);
+  color: var(--accent); padding: 10px 18px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow);
+  z-index: 100; opacity: 0; transition: opacity .3s;
+}
+.change-note.show { opacity: 1; }
+.change-note b { color: var(--ink); margin-left: 4px }
+
+/* ── historical mode banner + picker ────── */
+.hist-banner{
+  display:flex; align-items:center; gap:12px; padding:12px 20px; margin-bottom:20px; flex-wrap:wrap;
+  background:var(--amber-soft); border:1px solid var(--amber); border-radius:12px;
+  color:var(--amber); font-size:13px; font-weight:600;
+}
+.hist-banner .hist-when{color:var(--ink); font-family:'SF Mono',Menlo,monospace; font-weight:700}
+.hist-banner .grow{flex:1}
+.hist-banner .hist-btn{
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700;
+  background:var(--amber); color:#fff; cursor:pointer; text-decoration:none;
+}
+.hist-banner .hist-btn:hover{opacity:.9}
+.hist-picker{
+  display:flex; align-items:center; gap:10px; padding:12px 18px; margin-bottom:16px;
+  background:var(--surface-2); border:1px dashed var(--border); border-radius:10px;
+  font-size:12px; color:var(--muted); flex-wrap:wrap;
+}
+.hist-picker label{font-weight:600}
+.hist-picker input[type=datetime-local]{
+  background:var(--surface); color:var(--ink); border:1px solid var(--border);
+  padding:6px 10px; border-radius:8px; font-size:12.5px; font-family:inherit;
+}
+.hist-picker button{
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:600;
+  background:var(--accent); color:#fff; cursor:pointer;
+}
+.hist-picker button:hover{opacity:.9}
+.hist-picker .hint{color:var(--faint); font-size:11.5px}
+
 @media (max-width:900px){
   .shell{grid-template-columns:1fr}
   .side{display:none}
@@ -186,7 +236,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
     </style>
 </head>
-<body>
+<body th:attr="data-current-token=${currentToken}">
 <div class="shell">
 
     <aside class="side">
@@ -254,6 +304,22 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
         <div class="content">
 
+            <!-- Historical banner (only when ?asOf= is set) -->
+            <div th:if="${historical}" class="hist-banner">
+                <span>⏱ HISTORICAL SNAPSHOT</span>
+                <span class="hist-when" th:text="${asOfDisplay} + ' IST'">2026-09-19T10:30 IST</span>
+                <span class="grow"></span>
+                <a th:href="@{'/bias/' + ${currentToken}}" class="hist-btn">← Back to live</a>
+            </div>
+
+            <!-- Historical picker (only in LIVE mode, tucked at top) -->
+            <div th:unless="${historical}" class="hist-picker">
+                <label>Review a past moment:</label>
+                <input type="datetime-local" id="asOfInput">
+                <button id="asOfGo">View that snapshot</button>
+                <span class="hint">Bias, indicators &amp; zones as of the chosen time.</span>
+            </div>
+
             <div class="tickers">
                 <a th:each="t : ${tickers}"
                    th:href="@{'/bias/' + ${t.symbolToken}}"
@@ -284,11 +350,15 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                         <div class="hero-instr" th:text="${sheet.symbol()}">Nifty 50</div>
                         <div class="hero-price n" th:if="${m.currentPrice() != null}"
                              th:text="${m.currentPrice()}">24,680.75</div>
-                        <div class="hero-rec" th:text="${rec.recommendation()}">LONG-ONLY</div>
+                        <div class="hero-rec" th:text="${rec.recommendation()}"
+                             th:attr="data-track='hero.recommendation'">LONG-ONLY</div>
                         <div class="hero-meta n">
-                            <div>Score <b th:text="(${rec.totalScore() >= 0} ? '+' : '') + ${rec.totalScore()}">+5</b> / <b th:text="${#lists.size(rec.dimensionScores())}">10</b></div>
-                            <div>Strength <b th:text="${rec.strength()}">MODERATE</b></div>
-                            <div>Confidence <b th:text="${rec.confidencePercent()} + '%'">65%</b></div>
+                            <div>Score <b th:text="(${rec.totalScore() >= 0} ? '+' : '') + ${rec.totalScore()}"
+                                          th:attr="data-track='hero.score'">+5</b> / <b th:text="${#lists.size(rec.dimensionScores())}">10</b></div>
+                            <div>Strength <b th:text="${rec.strength()}"
+                                             th:attr="data-track='hero.strength'">MODERATE</b></div>
+                            <div>Confidence <b th:text="${rec.confidencePercent()} + '%'"
+                                               th:attr="data-track='hero.confidence'">65%</b></div>
                         </div>
                     </div>
                 </div>
@@ -307,7 +377,8 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="card-h">Multi-Timeframe Bias</div>
                     <div class="mtf-row" th:each="t : ${sheet.multiTfBias()}">
                         <div class="mtf-tf" th:text="${t.interval()}">1D</div>
-                        <div class="mtf-bias" th:switch="${#strings.toString(t.bias())}">
+                        <div class="mtf-bias" th:switch="${#strings.toString(t.bias())}"
+                             th:attr="data-track='mtf.' + ${t.interval()}">
                             <span th:case="'BULLISH'" class="badge up">BULLISH</span>
                             <span th:case="'BEARISH'" class="badge down">BEARISH</span>
                             <span th:case="*" class="badge neutral">—</span>
@@ -318,13 +389,14 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
                 <div class="card" th:with="m=${sheet.marketContext()}">
                     <div class="card-h">Market Context</div>
-                    <div class="kv"><span class="k">Current</span>       <span class="v n" th:text="${m.currentPrice()} ?: '—'">24,680</span></div>
+                    <div class="kv"><span class="k">Current</span>       <span class="v n" th:text="${m.currentPrice()} ?: '—'" th:attr="data-track='mc.current'">24,680</span></div>
                     <div class="kv"><span class="k">Prev Close</span>    <span class="v n" th:text="${m.previousClose()} ?: '—'">24,600</span></div>
                     <div class="kv"><span class="k">Prev Day High</span> <span class="v n" th:text="${m.previousDayHigh()} ?: '—'">24,720</span></div>
                     <div class="kv"><span class="k">Prev Day Low</span>  <span class="v n" th:text="${m.previousDayLow()} ?: '—'">24,450</span></div>
                     <div class="kv"><span class="k">Day Open</span>      <span class="v n" th:text="${m.dayOpen()} ?: '—'">24,660</span></div>
                     <div class="kv"><span class="k">Gap</span>
-                        <span class="v n" th:text="(${m.gapPoints()} ?: '—') + ' (' + (${m.gapPercent()} ?: '—') + '%)'">+80 (+0.32%)</span>
+                        <span class="v n" th:text="(${m.gapPoints()} ?: '—') + ' (' + (${m.gapPercent()} ?: '—') + '%)'"
+                              th:attr="data-track='mc.gap'">+80 (+0.32%)</span>
                     </div>
                 </div>
             </div>
@@ -337,7 +409,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="kv"><span class="k">EMA 200</span> <span class="v n" th:text="${t.ema200()} ?: '—'">24,310</span></div>
                     <div class="kv">
                         <span class="k">EMA 20 &gt; 50</span>
-                        <span th:switch="${#strings.toString(t.ema20AboveEma50())}">
+                        <span th:switch="${#strings.toString(t.ema20AboveEma50())}" th:attr="data-track='trend.ema20-vs-50'">
                             <span th:case="'true'"  class="badge up">Bullish</span>
                             <span th:case="'false'" class="badge down">Bearish</span>
                             <span th:case="*" class="badge neutral">—</span>
@@ -346,21 +418,22 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="kv"><span class="k">VWAP</span> <span class="v n" th:text="${t.vwap()} ?: '—'">24,645</span></div>
                     <div class="kv">
                         <span class="k">Price &gt; VWAP</span>
-                        <span th:switch="${#strings.toString(t.priceAboveVwap())}">
+                        <span th:switch="${#strings.toString(t.priceAboveVwap())}" th:attr="data-track='trend.above-vwap'">
                             <span th:case="'true'"  class="badge up">Yes</span>
                             <span th:case="'false'" class="badge down">No</span>
                             <span th:case="*" class="badge neutral">—</span>
                         </span>
                     </div>
                     <div class="kv"><span class="k">ADX(14)</span>
-                        <span class="v n" th:text="(${t.adx14()} ?: '—') + '  ' + (${t.adxStrength()} ?: '')">28 STRONG</span>
+                        <span class="v n" th:text="(${t.adx14()} ?: '—') + '  ' + (${t.adxStrength()} ?: '')"
+                              th:attr="data-track='trend.adx'">28 STRONG</span>
                     </div>
                     <div class="kv"><span class="k">ATR(14)</span>
                         <span class="v n" th:text="(${t.atr14()} ?: '—') + '  (' + (${t.atrPercentOfPrice()} ?: '—') + '%)'">105 (0.43%)</span>
                     </div>
-                    <div class="kv"><span class="k">RSI(14)</span> <span class="v n" th:text="${t.rsi14()} ?: '—'">62</span></div>
+                    <div class="kv"><span class="k">RSI(14)</span> <span class="v n" th:text="${t.rsi14()} ?: '—'" th:attr="data-track='trend.rsi'">62</span></div>
                     <div class="kv"><span class="k">MACD hist</span>
-                        <span>
+                        <span th:attr="data-track='trend.macd'">
                             <span th:if="${t.macdBullish() != null and t.macdBullish()}" class="badge up" th:text="${t.macdHistogram()}">+5.3</span>
                             <span th:if="${t.macdBullish() != null and !t.macdBullish()}" class="badge down" th:text="${t.macdHistogram()}">-5.3</span>
                             <span th:if="${t.macdBullish() == null}" class="badge neutral">—</span>
@@ -372,7 +445,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="card-h">Market Structure (SMC)</div>
                     <div class="kv">
                         <span class="k">Bias</span>
-                        <span th:switch="${#strings.toString(s.bias())}">
+                        <span th:switch="${#strings.toString(s.bias())}" th:attr="data-track='smc.bias'">
                             <span th:case="'BULLISH'" class="badge up">BULLISH</span>
                             <span th:case="'BEARISH'" class="badge down">BEARISH</span>
                             <span th:case="*" class="badge neutral">—</span>
@@ -381,10 +454,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="kv">
                         <span class="k">Last event</span>
                         <span class="v" th:if="${s.lastEvent()}"
-                              th:text="${s.lastEvent().type()} + ' ' + ${s.lastEvent().direction()} + ' @ ' + ${s.lastEvent().brokenLevel()}">
+                              th:text="${s.lastEvent().type()} + ' ' + ${s.lastEvent().direction()} + ' @ ' + ${s.lastEvent().brokenLevel()}"
+                              th:attr="data-track='smc.last-event'">
                             BOS BULLISH @ 24600
                         </span>
-                        <span class="badge neutral" th:unless="${s.lastEvent()}">—</span>
+                        <span class="badge neutral" th:unless="${s.lastEvent()}" th:attr="data-track='smc.last-event'">—</span>
                     </div>
                     <div class="kv"><span class="k">Swing high</span>
                         <span class="v n" th:text="${s.latestSwingHigh() != null ? s.latestSwingHigh().price() : '—'}">24,720</span></div>
@@ -409,7 +483,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
             <div class="grid">
                 <div class="card" th:with="v=${sheet.vix()}">
                     <div class="card-h">India VIX</div>
-                    <div class="kv"><span class="k">Current</span> <span class="v n" th:text="${v.value()} ?: '—'">14.5</span></div>
+                    <div class="kv"><span class="k">Current</span> <span class="v n" th:text="${v.value()} ?: '—'" th:attr="data-track='vix.value'">14.5</span></div>
                     <div class="kv">
                         <span class="k">Change</span>
                         <span>
@@ -422,7 +496,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     </div>
                     <div class="kv">
                         <span class="k">Regime</span>
-                        <span th:switch="${v.regime()}">
+                        <span th:switch="${v.regime()}" th:attr="data-track='vix.regime'">
                             <span th:case="'CALM'"     class="badge up">CALM</span>
                             <span th:case="'NORMAL'"   class="badge neutral">NORMAL</span>
                             <span th:case="'ELEVATED'" class="badge amber">ELEVATED</span>
@@ -435,14 +509,15 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     <div class="card-h" th:text="${b != null ? b.label() : 'Advance / Decline'}">Nifty 50 Breadth</div>
                     <div th:if="${b == null}" class="chg-empty">Not configured</div>
                     <div th:if="${b != null}">
-                        <div class="kv"><span class="k">Advances</span>  <span class="v n up"   th:text="${b.advances()}">32</span></div>
-                        <div class="kv"><span class="k">Declines</span>  <span class="v n down" th:text="${b.declines()}">15</span></div>
+                        <div class="kv"><span class="k">Advances</span>  <span class="v n up"   th:text="${b.advances()}" th:attr="data-track='breadth.adv'">32</span></div>
+                        <div class="kv"><span class="k">Declines</span>  <span class="v n down" th:text="${b.declines()}" th:attr="data-track='breadth.dec'">15</span></div>
                         <div class="kv"><span class="k">Unchanged</span> <span class="v n"      th:text="${b.unchanged()}">3</span></div>
                         <div class="kv"><span class="k">A/D ratio</span>
-                            <span class="v n" th:text="${b.ratio() != null ? #numbers.formatDecimal(b.ratio(), 1, 2) : '—'}">2.13</span></div>
+                            <span class="v n" th:text="${b.ratio() != null ? #numbers.formatDecimal(b.ratio(), 1, 2) : '—'}"
+                                  th:attr="data-track='breadth.ratio'">2.13</span></div>
                         <div class="kv">
                             <span class="k">Regime</span>
-                            <span th:switch="${b.regime()}">
+                            <span th:switch="${b.regime()}" th:attr="data-track='breadth.regime'">
                                 <span th:case="'STRONG_BULLISH'" class="badge up">STRONG BULLISH</span>
                                 <span th:case="'BULLISH'"        class="badge up">BULLISH</span>
                                 <span th:case="'NEUTRAL'"        class="badge neutral">NEUTRAL</span>
@@ -456,10 +531,10 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 
                 <div class="card" th:with="c=${sheet.correlated()}" th:if="${c != null}">
                     <div class="card-h" th:text="'Cross-Market — ' + ${c.symbol()}">Cross-Market</div>
-                    <div class="kv"><span class="k">Current</span>    <span class="v n" th:text="${c.currentPrice()} ?: '—'">51,200</span></div>
+                    <div class="kv"><span class="k">Current</span>    <span class="v n" th:text="${c.currentPrice()} ?: '—'" th:attr="data-track='cross.current'">51,200</span></div>
                     <div class="kv">
                         <span class="k">Day change</span>
-                        <span>
+                        <span th:attr="data-track='cross.day-change'">
                             <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() >= 0}" class="badge up"
                                   th:text="'+' + ${c.dayChangePercent()} + '%'">+0.35%</span>
                             <span th:if="${c.dayChangePercent() != null and c.dayChangePercent().signum() < 0}" class="badge down"
@@ -472,7 +547,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     </div>
                     <div class="kv">
                         <span class="k">Signal</span>
-                        <span th:switch="${c.diverging()}">
+                        <span th:switch="${c.diverging()}" th:attr="data-track='cross.signal'">
                             <span th:case="true"  class="badge down" th:text="${c.signal()}">DIVERGENT</span>
                             <span th:case="*"     class="badge up" th:text="${c.signal()}">CONFIRMED</span>
                         </span>
@@ -535,6 +610,30 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 </div>
 
 <script>
+    /* ── historical picker (live mode only) ─ */
+    (function () {
+        const input = document.getElementById('asOfInput');
+        const btn = document.getElementById('asOfGo');
+        if (!input || !btn) return;
+        // Default to 1 hour ago
+        const d = new Date(Date.now() - 60 * 60 * 1000);
+        // Format to yyyy-MM-ddTHH:mm (what datetime-local expects, local time)
+        const pad = n => String(n).padStart(2, '0');
+        input.value = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+                    + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        btn.addEventListener('click', () => {
+            if (!input.value) return;
+            // Preserve current path (e.g. /bias or /bias/{token})
+            const url = new URL(window.location.href);
+            // Append :00 seconds if missing so backend parser accepts it
+            let v = input.value;
+            if (v.length === 16) v += ':00';
+            url.searchParams.set('asOf', v);
+            window.location.href = url.toString();
+        });
+    })();
+
+    /* ── theme toggle ─────────────────────── */
     const root = document.documentElement, tgl = document.getElementById('themeBtn');
     try { const s = localStorage.getItem('angleTheme'); if (s) root.setAttribute('data-theme', s); } catch (e) {}
     const sync = () => tgl.textContent = root.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
@@ -544,6 +643,54 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
         root.setAttribute('data-theme', next); sync();
         try { localStorage.setItem('angleTheme', next); } catch (e) {}
     });
+
+    /* ── change highlighter ───────────────── */
+    // Compares current cell values with the last snapshot in sessionStorage.
+    // Cells whose text changed get a yellow flash + a summary pill at the bottom.
+    (function () {
+        const KEY_PREFIX = 'bias-snapshot:';
+        // Namespace by symbol token so each instrument gets its own snapshot.
+        const currentToken = document.body.getAttribute('data-current-token') || 'default';
+        const KEY = KEY_PREFIX + currentToken;
+
+        // Collect current values keyed by data-track.
+        const cells = document.querySelectorAll('[data-track]');
+        const current = {};
+        cells.forEach(el => {
+            current[el.dataset.track] = (el.innerText || '').trim().replace(/\s+/g, ' ');
+        });
+
+        let previous = null;
+        try { previous = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) {}
+
+        // Save new snapshot for the next refresh.
+        try { sessionStorage.setItem(KEY, JSON.stringify(current)); } catch (e) {}
+
+        if (!previous) return; // First-ever load: nothing to compare.
+
+        // Diff + flash.
+        const changed = [];
+        cells.forEach(el => {
+            const key = el.dataset.track;
+            if (previous[key] !== undefined && previous[key] !== current[key]) {
+                el.classList.add('changed');
+                changed.push({ key, from: previous[key], to: current[key] });
+                // Remove class after animation so it can retrigger next time.
+                setTimeout(() => el.classList.remove('changed'), 4200);
+            }
+        });
+
+        if (changed.length > 0) {
+            const note = document.createElement('div');
+            note.className = 'change-note';
+            note.innerHTML = '⚡ Changed since last refresh: <b>' + changed.length + '</b>';
+            document.body.appendChild(note);
+            requestAnimationFrame(() => note.classList.add('show'));
+            setTimeout(() => note.classList.remove('show'), 5000);
+            setTimeout(() => note.remove(), 5500);
+            console.log('[bias] changed cells:', changed);
+        }
+    })();
 </script>
 </body>
 </html>

@@ -19,6 +19,7 @@ Living doc for the study project. Filled in as debugging + verification progress
 - [Service discovery (Eureka + lb://)](concepts/service-discovery.md)
 - [API gateway (reactive routing, JWT relay)](concepts/api-gateway.md)
 - [JWT auth flow (auth-server + resource-server)](concepts/jwt-auth-flow.md)
+- [OAuth2 + JWT — grant types, JWKS, testing with client_credentials](concepts/oauth2-auth.md)
 - [Distributed tracing (Zipkin)](concepts/distributed-tracing.md)
 - [Correlation IDs (MDC)](concepts/correlation-ids.md)
 - [Circuit breaker](concepts/circuit-breaker.md)
