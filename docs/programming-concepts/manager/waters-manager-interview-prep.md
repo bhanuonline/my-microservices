@@ -19,7 +19,7 @@ Sell yourself as **Manager → Manager** move, combining tech depth + delivery l
 
 ## 2. Final 60-Second Intro (LOCKED)
 
-> Hi, I'm Bhanu. I have **10+ years of experience in the eCommerce domain**, primarily on the **SAP Commerce (Hybris)** platform. I currently work as a **Manager, leading a squad of 5 engineers** — owning technical design, code reviews, sprint delivery, and production incident management.
+> Hi, I'm Bhanu. I have **12+ years of experience in the eCommerce domain**, primarily on the **SAP Commerce (Hybris)** platform. I currently work as a **Teamlead, leading a squad of 7 engineers** — owning technical design, code reviews, sprint delivery, and production incident management.
 >
 > My core stack is **Java, Spring Boot, SAP Commerce (Hybris), MySQL/Postgres, Kafka, and Docker**. On Hybris, I've worked across **Cart, Checkout, Order Management, Promotions, Search (Solr), OCC REST APIs, and B2C Commerce**. Additionally, my team built new microservices for **Delivery Promise, Stock, and Notifications — integrating with external systems via REST and Kafka**.
 >

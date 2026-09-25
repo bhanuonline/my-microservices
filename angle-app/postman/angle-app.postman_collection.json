@@ -1191,6 +1191,150 @@
             "header": [],
             "url": { "raw": "{{baseUrl}}/admin/audit-log", "host": ["{{baseUrl}}"], "path": ["admin", "audit-log"] }
           }
+        },
+        {
+          "name": "Cache — stats (hits / misses / hit rate / size / heap)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "console.log(`Provider: ${j.provider}`);",
+                  "console.log(`Cache:    ${j.size} entries, ${j.hits} hits / ${j.misses} misses (${j.hitRate}% hit rate)`);",
+                  "console.log(`JVM heap: ${j.heap.usedMB}MB used / ${j.heap.maxMB}MB max (${j.heap.usedPercent}%)`);",
+                  "pm.test('stats has heap block', () => pm.expect(j).to.have.property('heap'));",
+                  "pm.test('heap under 80%', () => pm.expect(j.heap.usedPercent).to.be.below(80));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Current CandleCache metrics + JVM heap snapshot. Shows which provider is active (CaffeineCandleCache / NoopCandleCache), cache hit rate, and heap use — watch heap.usedPercent stay below 80%.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Cache — list all cached keys (peek)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Lists every currently-cached entry: broker, exchange, symbol token, interval, date range, and candle count. Small response — safe to poll.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles/keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles", "keys"]
+            }
+          }
+        },
+        {
+          "name": "Cache — clear all entries",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Wipe every cached candle list. Next request per key hits Angel and re-populates the cache. Response reports how many entries were dropped.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles/clear",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles", "clear"]
+            }
+          }
+        },
+        {
+          "name": "Cache — clear one instrument (by token)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "Drop every cached entry for the given symbol token (across all intervals + date ranges). Use to force fresh Angel data for one instrument without wiping the whole cache. Change ?token= to any Angel token (e.g. {{bankNiftyToken}}, {{relianceToken}}).",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles?token={{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles"],
+              "query": [
+                { "key": "token", "value": "{{nifty50Token}}", "description": "Angel symbol token (e.g. 99926000 for Nifty 50)" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cache — trigger warmer now",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Fires the background warmer immediately — pre-fetches all instruments in bias.instruments[]. Blocks until the round finishes (up to bias.warmer.timeout-seconds). Handy after a POST /clear so the cache is hot before real users hit it.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles/warm",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles", "warm"]
+            }
+          }
+        },
+        {
+          "name": "Warmer — force warm now (bypass circuit breaker)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Same as /warm but with ?force=true — bypasses an OPEN circuit breaker so you can test if Angel has recovered.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/cache/candles/warm?force=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "cache", "candles", "warm"],
+              "query": [
+                { "key": "force", "value": "true", "description": "Bypass circuit breaker" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Warmer — reset circuit breaker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Force circuit breaker back to CLOSED regardless of state. Use when you know Angel is healthy but cooldown hasn't elapsed.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/warmer/circuit/reset",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "warmer", "circuit", "reset"]
+            }
+          }
+        },
+        {
+          "name": "Warmer — stats (health / recent rounds)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "console.log(`Running:  ${j.currentlyRunning}`);",
+                  "console.log(`Circuit:  ${j.circuitState}${j.circuitOpenUntil ? ' (open until ' + j.circuitOpenUntil + ')' : ''}`);",
+                  "console.log(`Rounds:   ${j.successfulRounds}/${j.totalRounds} ok, ${j.failedRounds} failed, ${j.consecutiveFailures} in a row`);",
+                  "console.log(`Timing:   last=${j.lastRoundDurationMs}ms, avg=${j.avgDurationMs}ms, min=${j.minDurationMs}ms, max=${j.maxDurationMs}ms`);",
+                  "console.log(`Last:     ${j.lastRoundAt} — ${j.lastTrigger} (${j.lastRoundOk} ok / ${j.lastRoundFailed} failed)`);",
+                  "pm.test('has stats fields', () => pm.expect(j).to.have.property('totalRounds'));",
+                  "pm.test('circuit not stuck OPEN', () => pm.expect(j.circuitState).to.not.equal('OPEN'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Warmer health snapshot: total/successful/failed rounds, timing stats (last/avg/min/max), consecutive failures, last 10 rounds. Console prints a summary; tests warn if failures piling up.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/warmer/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "warmer", "stats"]
+            }
+          }
         }
       ]
     },

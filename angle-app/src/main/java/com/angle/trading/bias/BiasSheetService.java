@@ -9,6 +9,7 @@ import com.angle.trading.bias.model.CorrelatedSection;
 import com.angle.trading.bias.model.MarketContextSection;
 import com.angle.trading.bias.model.StructureSection;
 import com.angle.trading.bias.model.TimeframeBias;
+import com.angle.trading.bias.model.TradePlan;
 import com.angle.trading.bias.model.TrendFilters;
 import com.angle.trading.bias.model.VixSection;
 import com.angle.trading.bias.model.ZonesSection;
@@ -72,6 +73,7 @@ public class BiasSheetService {
     private final VixService vixService;
     private final CorrelatedService correlatedService;
     private final BreadthService breadthService;
+    private final TradePlanBuilder tradePlanBuilder;
 
     public BiasSheet build(BiasProperties.Instrument cfg) {
         return buildAsOf(cfg, null);
@@ -96,7 +98,9 @@ public class BiasSheetService {
         LocalDate to   = historical ? asOfInstant.atZone(ZoneId.systemDefault()).toLocalDate() : LocalDate.now();
         LocalDate from = to.minusDays(biasProperties.getLookbackDays());
 
-        // Fetch candles, then trim anything strictly after asOf.
+        // Base intraday candles used by every downstream calculation (trend, SMC, trade plan).
+        // Angel returns only trading-day data — 90 calendar days ≈ 60 trading days.
+        // In historical mode (asOf != null), trims candles after that instant to avoid lookahead bias.
         List<Candle> intraday = trimToAsOf(safeFetchCandles(cfg, cfg.getIntradayInterval(), from, to), asOf);
 
         MarketContextSection market = buildMarketContext(intraday);
@@ -111,11 +115,23 @@ public class BiasSheetService {
                 ? correlatedService.fetchAsOf(market.gapPercent(), asOf)
                 : correlatedService.fetch(market.gapPercent());
         ConsolidatedScore    score = buildConsolidatedScore(multiTf, trend, structure, vix, correlated, breadth);
+        TradePlan            plan  = safeBuildPlan(cfg, intraday, score, vix);
 
         return new BiasSheet(
                 asOf, cfg.getSymbol(), cfg.getSymbolToken(), cfg.getExchange().name(),
-                market, vix, breadth, multiTf, trend, structure, zones, correlated, score
+                market, vix, breadth, multiTf, trend, structure, zones, correlated, score, plan
         );
+    }
+
+    /** Never let trade-plan errors break the whole sheet — dashboard degrades to "no plan available". */
+    private TradePlan safeBuildPlan(BiasProperties.Instrument cfg, List<Candle> intraday,
+                                     ConsolidatedScore score, VixSection vix) {
+        try {
+            return tradePlanBuilder.build(cfg, intraday, score, vix);
+        } catch (Exception e) {
+            log.warn("TradePlan build failed for {}: {}", cfg.getSymbol(), e.getMessage());
+            return null;
+        }
     }
 
     private static List<Candle> trimToAsOf(List<Candle> candles, Instant asOf) {

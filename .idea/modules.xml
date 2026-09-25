@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/kite.iml" filepath="$PROJECT_DIR$/kite.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/my-microservices.iml" filepath="$PROJECT_DIR$/.idea/my-microservices.iml" />
     </modules>
   </component>
 </project>

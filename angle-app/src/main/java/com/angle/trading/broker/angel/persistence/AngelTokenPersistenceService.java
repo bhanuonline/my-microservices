@@ -23,15 +23,16 @@ public class AngelTokenPersistenceService {
     private final AngelTokenRepository repo;
 
     /**
-     * Return the cached token for this client code — but ONLY if it's
-     * still valid. Expired tokens are ignored (and returned empty).
+     * Return the cached tokens for this client code, if any.
+     *
+     * We DON'T filter by expiry here — the caller may still want the
+     * refreshToken even after the jwtToken has expired (to renew without TOTP).
      */
     @Transactional(readOnly = true)
     public Optional<CachedToken> load(String clientCode) {
         try {
             return repo.findById(clientCode)
-                    .filter(e -> Instant.now().isBefore(e.getExpiresAt()))
-                    .map(e -> new CachedToken(e.getJwtToken(), e.getExpiresAt()));
+                    .map(e -> new CachedToken(e.getJwtToken(), e.getRefreshToken(), e.getExpiresAt()));
         } catch (Exception ex) {
             log.warn("Failed to load Angel token from DB: {}", ex.getMessage());
             return Optional.empty();
@@ -39,10 +40,10 @@ public class AngelTokenPersistenceService {
     }
 
     @Transactional
-    public void save(String clientCode, String jwt, Instant expiresAt) {
+    public void save(String clientCode, String jwt, String refreshToken, Instant expiresAt) {
         try {
-            repo.save(new AngelTokenEntity(clientCode, jwt, expiresAt));
-            log.debug("Persisted Angel token for {} (expires {})", clientCode, expiresAt);
+            repo.save(new AngelTokenEntity(clientCode, jwt, refreshToken, expiresAt));
+            log.debug("Persisted Angel tokens for {} (expires {})", clientCode, expiresAt);
         } catch (Exception ex) {
             log.warn("Failed to persist Angel token: {}", ex.getMessage());
         }
@@ -58,5 +59,9 @@ public class AngelTokenPersistenceService {
         }
     }
 
-    public record CachedToken(String jwt, Instant expiresAt) {}
+    public record CachedToken(String jwt, String refreshToken, Instant expiresAt) {
+        public boolean jwtValid() {
+            return jwt != null && expiresAt != null && Instant.now().isBefore(expiresAt);
+        }
+    }
 }

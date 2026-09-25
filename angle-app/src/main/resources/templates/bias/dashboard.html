@@ -227,6 +227,62 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .hist-picker button:hover{opacity:.9}
 .hist-picker .hint{color:var(--faint); font-size:11.5px}
 
+/* ---------- Trade Plan card ---------- */
+.plan{
+  background:linear-gradient(160deg, rgba(133,119,255,.12), rgba(133,119,255,.03) 60%);
+  border:1px solid rgba(133,119,255,.28);
+  border-radius:18px; padding:24px; margin-top:20px; position:relative;
+}
+.plan-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap}
+.plan-title{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); font-weight:600}
+.plan-action{font-size:24px; font-weight:800; letter-spacing:-.02em; margin-top:2px}
+.plan-action.long{color:var(--up)}
+.plan-action.short{color:var(--down)}
+.plan-rr{
+  padding:8px 14px; border-radius:10px; background:rgba(255,255,255,.05);
+  border:1px solid var(--border); font-size:13px;
+}
+.plan-rr b{font-size:18px; font-weight:800; letter-spacing:-.01em; margin-left:6px}
+.plan-rr.good b{color:var(--up)}
+.plan-rr.poor b{color:var(--down)}
+.plan-levels{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px}
+.plan-lvl{padding:14px; background:rgba(0,0,0,.25); border-radius:12px; border:1px solid var(--border)}
+.plan-lvl .lbl{font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:.1em; font-weight:600}
+.plan-lvl .val{font-size:22px; font-weight:800; letter-spacing:-.02em; margin-top:6px}
+.plan-lvl .sub{font-size:12px; color:var(--faint); margin-top:4px}
+.plan-lvl.entry .val{color:#fff}
+.plan-lvl.stop .val{color:var(--down)}
+.plan-lvl.target .val{color:var(--up)}
+.plan-boxes{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.plan-box{background:rgba(0,0,0,.2); border:1px solid var(--border); border-radius:12px; padding:14px}
+.plan-box .card-h{margin-bottom:10px}
+.plan-box .kv{display:flex; justify-content:space-between; font-size:13px; padding:4px 0}
+.plan-box .kv .k{color:var(--faint)}
+.plan-box .kv .v{font-weight:600}
+.plan-box .lots{
+  font-size:32px; font-weight:800; letter-spacing:-.02em;
+  color:var(--accent); text-align:center; padding:6px 0 10px;
+}
+.plan-box .lots.zero{color:var(--down); font-size:20px}
+.plan-warn{
+  background:rgba(255,90,90,.1); border:1px solid rgba(255,90,90,.3);
+  color:#ffb0b0; padding:8px 12px; border-radius:8px; font-size:12px; margin-top:8px;
+}
+.plan-strike{
+  font-size:20px; font-weight:800; letter-spacing:-.02em; text-align:center;
+  padding:6px 0 8px;
+}
+.plan-strike .type-ce{color:var(--up)}
+.plan-strike .type-pe{color:var(--down)}
+.plan-rationale{
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--border);
+  font-size:12.5px; color:var(--faint); line-height:1.55;
+}
+@media (max-width:700px){
+  .plan-levels{grid-template-columns:1fr}
+  .plan-boxes{grid-template-columns:1fr}
+}
+
 @media (max-width:900px){
   .shell{grid-template-columns:1fr}
   .side{display:none}
@@ -371,6 +427,107 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
                     </span>
                 </div>
             </div>
+
+            <!-- Trade Plan card — shown only when the ensemble strategy produced actionable levels. -->
+            <section class="plan" th:if="${sheet.tradePlan() != null}" th:with="p=${sheet.tradePlan()}">
+                <div class="plan-head">
+                    <div>
+                        <div class="plan-title">Trade Plan</div>
+                        <div class="plan-action"
+                             th:classappend="${#strings.toString(p.action()) == 'ENTER_LONG' ? 'long' : 'short'}"
+                             th:text="${#strings.toString(p.action()) == 'ENTER_LONG' ? 'GO LONG' : 'GO SHORT'}"
+                             th:attr="data-track='plan.action'">GO LONG</div>
+                    </div>
+                    <div class="plan-rr"
+                         th:if="${p.riskRewardRatio() != null}"
+                         th:classappend="${p.riskRewardRatio().doubleValue() >= 1.5 ? 'good' : 'poor'}">
+                        R:R <b th:text="'1 : ' + ${p.riskRewardRatio()}"
+                               th:attr="data-track='plan.rr'">1 : 2.0</b>
+                    </div>
+                </div>
+
+                <div class="plan-levels">
+                    <div class="plan-lvl entry">
+                        <div class="lbl">Entry</div>
+                        <div class="val n" th:text="${p.entry()}" th:attr="data-track='plan.entry'">24,680</div>
+                    </div>
+                    <div class="plan-lvl stop">
+                        <div class="lbl">Stop</div>
+                        <div class="val n" th:text="${p.stop()}" th:attr="data-track='plan.stop'">24,620</div>
+                        <div class="sub" th:text="'Risk ' + ${p.riskPoints()} + ' pts'">Risk 60 pts</div>
+                    </div>
+                    <div class="plan-lvl target">
+                        <div class="lbl">Target</div>
+                        <div class="val n" th:text="${p.target()}" th:attr="data-track='plan.target'">24,800</div>
+                        <div class="sub" th:text="'Reward ' + ${p.rewardPoints()} + ' pts'">Reward 120 pts</div>
+                    </div>
+                </div>
+
+                <div class="plan-boxes">
+                    <!-- Position size -->
+                    <div class="plan-box" th:with="ps=${p.positionSize()}">
+                        <div class="card-h">Position Size</div>
+                        <div class="lots"
+                             th:classappend="${ps.recommendedLots() == 0 ? 'zero' : ''}"
+                             th:text="${ps.recommendedLots() + ' lot(s)'}"
+                             th:attr="data-track='plan.lots'">3 lot(s)</div>
+                        <div class="kv"><span class="k">Capital</span>
+                            <span class="v n" th:text="'₹' + ${#numbers.formatInteger(ps.capital(), 3, 'COMMA')}">₹5,00,000</span></div>
+                        <div class="kv"><span class="k">Risk %</span>
+                            <span class="v" th:text="${ps.riskPercent()} + '%'">1.0%</span></div>
+                        <div class="kv"><span class="k">Max risk</span>
+                            <span class="v n" th:text="'₹' + ${ps.maxRiskAmount()}">₹5,000</span></div>
+                        <div class="kv"><span class="k">Lot size</span>
+                            <span class="v" th:text="${ps.lotSize()}">75</span></div>
+                        <div class="kv"><span class="k">Per-lot risk</span>
+                            <span class="v n" th:text="'₹' + ${ps.perLotRiskAmount()}">₹4,500</span></div>
+                        <div class="kv" th:if="${ps.recommendedLots() > 0}"><span class="k">Total at risk</span>
+                            <span class="v n" th:text="'₹' + ${ps.totalRiskIfTaken()}">₹13,500</span></div>
+                        <div class="plan-warn" th:if="${ps.warning() != null}" th:text="${ps.warning()}">
+                            Stop too wide for your budget
+                        </div>
+                    </div>
+
+                    <!-- Suggested option strike -->
+                    <div class="plan-box" th:with="os=${p.optionSuggestion()}">
+                        <div class="card-h">Suggested Option</div>
+                        <div th:if="${os != null}">
+                            <div class="plan-strike">
+                                <span th:text="${os.underlying()}">NIFTY</span>
+                                <span class="n" th:text="${os.strike()}">24,700</span>
+                                <span th:classappend="${#strings.toString(os.type()) == 'CE' ? 'type-ce' : 'type-pe'}"
+                                      th:text="${os.type()}"
+                                      th:attr="data-track='plan.opt.type'">CE</span>
+                            </div>
+                            <div class="kv"><span class="k">Spot</span>
+                                <span class="v n" th:text="${os.spotPrice()}">24,680</span></div>
+                            <div class="kv"><span class="k">ATM ref</span>
+                                <span class="v n" th:text="${os.atmStrike()}">24,700</span></div>
+                            <div class="kv"><span class="k">Distance</span>
+                                <span class="v" th:text="${os.distanceFromAtm() == 0 ? 'ATM' : (os.distanceFromAtm() > 0 ? 'OTM +' + os.distanceFromAtm() : 'ITM ' + os.distanceFromAtm())}">ATM</span>
+                            </div>
+                            <div class="kv" th:if="${os.suggestedExpiry() != null}">
+                                <span class="k">Expiry</span>
+                                <span class="v" th:text="${os.suggestedExpiry()} + ' (' + ${os.daysToExpiry()} + 'd)'">2026-11-27 (65d)</span>
+                            </div>
+                            <div class="kv" th:if="${os.symbol() != null}">
+                                <span class="k">Contract</span>
+                                <span class="v" th:text="${os.symbol()}">NIFTY27NOV2624700CE</span>
+                            </div>
+                            <div class="plan-rationale" th:text="${os.rationale()}">
+                                LONG bias + STRONG confidence → ATM strike
+                            </div>
+                        </div>
+                        <div th:if="${os == null}" style="color:var(--faint); font-size:13px; padding:20px 0; text-align:center">
+                            Option suggestion not available for this instrument
+                        </div>
+                    </div>
+                </div>
+
+                <div class="plan-rationale" th:if="${p.rationale() != null}" th:text="${p.rationale()}">
+                    EMA crossover + ADX strong + structure aligned
+                </div>
+            </section>
 
             <div class="grid">
                 <div class="card">

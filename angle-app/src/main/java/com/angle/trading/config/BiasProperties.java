@@ -68,6 +68,9 @@ public class BiasProperties {
     /** Ticker strip fetch performance. */
     private Ticker ticker = new Ticker();
 
+    /** Background cache warmer — pre-fetches instruments on a schedule. */
+    private Warmer warmer = new Warmer();
+
     @Data
     public static class Instrument {
         private String   symbol;              // display name, e.g. "Nifty 50"
@@ -171,5 +174,53 @@ public class BiasProperties {
         private boolean parallelEnabled = true;
         private int     threadPoolSize  = 10;
         private int     timeoutSeconds  = 30;
+    }
+
+    /**
+     * Background warmer — pre-fetches every configured instrument on a schedule
+     * so the user's first request always hits a warm cache.
+     *
+     *   enabled         — master switch
+     *   cron            — Spring cron (in {@code zone}). Default: every 5 min, market hours, Mon-Fri
+     *   zone            — IANA time zone for the cron. Default: Asia/Kolkata (IST)
+     *   warmOnStartup   — also fire one warm-up right after the app is ready
+     *   parallelEnabled — fan out fetches across all instruments concurrently
+     *   threadPoolSize  — thread count for parallel warm-up (≥ instrument count for max parallelism)
+     *   timeoutSeconds  — kill a warm-up round if it hangs longer than this
+     *   priorityTokens  — comma-separated symbol tokens to warm FIRST (stage 1).
+     *                     Guarantees your primary instruments are hot even if
+     *                     the round times out before stage 2 finishes. Empty
+     *                     = single-stage (all instruments in one batch).
+     *                     Example: bias.warmer.priority-tokens=99926000,99926009
+     */
+    @Data
+    public static class Warmer {
+        private boolean enabled         = true;
+        private String  cron            = "0 */5 9-15 * * MON-FRI";
+        private String  zone            = "Asia/Kolkata";
+        private boolean warmOnStartup   = true;
+        private boolean parallelEnabled = true;
+        private int     threadPoolSize  = 10;
+        private int     timeoutSeconds  = 60;
+        private String  priorityTokens  = "";
+        private Circuit circuit         = new Circuit();
+    }
+
+    /**
+     * Circuit breaker for the warmer.
+     *
+     * When {@code failureThreshold} consecutive rounds fail (0 instruments
+     * succeeded), the breaker OPENS — subsequent scheduled fires are skipped
+     * for {@code cooldownMinutes}. After cooldown a single HALF_OPEN test round
+     * runs: success → CLOSED, failure → OPEN again.
+     *
+     * Manual warms via {@code POST /admin/cache/candles/warm?force=true} bypass
+     * the breaker. {@code POST /admin/warmer/circuit/reset} forces CLOSED.
+     */
+    @Data
+    public static class Circuit {
+        private boolean enabled          = true;
+        private int     failureThreshold = 3;
+        private int     cooldownMinutes  = 15;
     }
 }

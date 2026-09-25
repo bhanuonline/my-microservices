@@ -25,5 +25,6 @@ public record BiasSheet(
         StructureSection      structure,
         ZonesSection          zones,
         CorrelatedSection     correlated,      // Phase 3 — Bank Nifty parallel
-        ConsolidatedScore     consolidated
+        ConsolidatedScore     consolidated,
+        TradePlan             tradePlan        // Actionable plan when bias is LONG/SHORT (null otherwise)
 ) {}

@@ -38,6 +38,7 @@ public class BiasChangeDetector {
     private final BiasSheetService biasSheetService;
     private final AlertService alertService;
     private final BiasChangeHistory changeHistory;
+    private final MarketCalendar marketCalendar;
 
     /** symbolToken → previous snapshot */
     private final Map<String, BiasSheet> lastSnapshot = new ConcurrentHashMap<>();
@@ -50,6 +51,13 @@ public class BiasChangeDetector {
     public void tick() {
         if (!biasProperties.isEnabled()) return;
         if (!biasProperties.getChangeAlerts().isEnabled()) return;
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        if (!marketCalendar.isMarketOpen(today)) {
+            log.debug("BiasChangeDetector SKIP — market closed ({}) on {}",
+                    marketCalendar.closedReason(today), today);
+            return;
+        }
 
         List<BiasProperties.Instrument> instruments = biasProperties.getInstruments();
         if (instruments.isEmpty()) return;

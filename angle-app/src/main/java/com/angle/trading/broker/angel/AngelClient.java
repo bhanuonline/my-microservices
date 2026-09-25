@@ -46,7 +46,6 @@ public class AngelClient implements BrokerClient {
     public List<Candle> getCandles(Exchange exchange, String symbolToken,
                                    Interval interval, LocalDate from, LocalDate to) {
         BrokerProperties.Angel cfg = brokerProperties.getAngel();
-        String jwt = authService.getJwtToken();
 
         Map<String, Object> body = Map.of(
                 "exchange", exchange.name(),                  // NSE / NFO / BSE / BFO / MCX / CDS
@@ -57,19 +56,49 @@ public class AngelClient implements BrokerClient {
         );
 
         log.debug("Fetching Angel candles: {}", body);
-        AngelCandleResponse response = restClient.post()
-                .uri(cfg.getBaseUrl() + CANDLE_PATH)
-                .headers(h -> AngelHeaders.apply(h, cfg.getApiKey(), jwt))
-                .body(body)
-                .retrieve()
-                .body(AngelCandleResponse.class);
 
-        if (response == null || !response.status() || response.data() == null) {
-            String msg = response == null ? "null response" : response.message();
+        // Try once; if Angel says "Invalid Token" (AB1010) → drop JWT, retry ONCE.
+        // The retry will hit the refresh-token flow (no TOTP burn).
+        AngelCandleResponse response = callCandles(cfg, body);
+        if (response != null && !response.status() && isInvalidTokenError(response)) {
+            log.info("Angel returned invalid-token for {} — refreshing and retrying once", symbolToken);
+            authService.invalidate();
+            response = callCandles(cfg, body);
+        }
+
+        if (response == null || !response.status()) {
+            String msg = response == null
+                    ? "null response"
+                    : (response.message() + " [errorcode=" + response.errorcode() + "]");
             throw new IllegalStateException("Angel candle fetch failed: " + msg);
         }
 
-        return response.data().stream().map(AngelClient::toCandle).toList();
+        return response.candles().stream().map(AngelClient::toCandle).toList();
+    }
+
+    /** Make ONE candle POST with a fresh JWT. Returns null on transport failure. */
+    private AngelCandleResponse callCandles(BrokerProperties.Angel cfg, Map<String, Object> body) {
+        String jwt = authService.getJwtToken();
+        try {
+            return restClient.post()
+                    .uri(cfg.getBaseUrl() + CANDLE_PATH)
+                    .headers(h -> AngelHeaders.apply(h, cfg.getApiKey(), jwt))
+                    .body(body)
+                    .retrieve()
+                    .body(AngelCandleResponse.class);
+        } catch (Exception e) {
+            log.warn("Angel candle request threw for token {}: {}", body.get("symboltoken"), e.getMessage());
+            return null;
+        }
+    }
+
+    /** Angel signals a stale JWT via errorcode AB1010 or message containing "Invalid Token". */
+    private static boolean isInvalidTokenError(AngelCandleResponse r) {
+        if (r == null) return false;
+        String code = r.errorcode();
+        String msg  = r.message();
+        return ("AB1010".equalsIgnoreCase(code))
+                || (msg != null && msg.toLowerCase().contains("invalid token"));
     }
 
     @Override

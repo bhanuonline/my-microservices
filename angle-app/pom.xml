@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
-        <relativePath/>
+        <groupId>com.example</groupId>
+        <artifactId>my-microservices</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>angle-app</artifactId>
@@ -17,6 +17,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Debug port used by spring-boot-maven-plugin (see <build> section) -->
+        <debug.port>5005</debug.port>
     </properties>
 
     <dependencies>
@@ -102,6 +104,32 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Jackson: JSON serialization (ObjectMapper). Already pulled transitively via
+             spring-boot-starter-web/-json — declared explicitly for visibility. Version
+             is managed by spring-boot-dependencies BOM. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- Caffeine: in-JVM cache (L1). -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
+        <!-- Redis: external cache (L2). Only enabled when bias.cache.provider = redis / layered.
+             Requires a running Redis instance (spring.data.redis.host / port).
+             Docker one-liner: docker run -p 6379:6379 -d redis:7 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Persistence: Spring Data JPA + MySQL driver -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -113,5 +141,44 @@
             <scope>runtime</scope>
         </dependency>
     </dependencies>
-    
+
+<!--    <build>-->
+<!--        <plugins>-->
+<!--            &lt;!&ndash;-->
+<!--              Spring Boot plugin — debug agent baked into `mvn spring-boot:run`.-->
+<!--              Debugger listens on port 5005 (override via -Ddebug.port=6000 if needed).-->
+
+<!--              Usage:-->
+<!--                ./mvnw spring-boot:run-->
+<!--                → app starts, port 5005 open for debugger to attach-->
+
+<!--              Then in IntelliJ:-->
+<!--                Run → Edit Configurations → + → Remote JVM Debug → port 5005 → attach-->
+<!--                Set breakpoints, click the bug icon.-->
+
+<!--              suspend=n → app starts immediately (does NOT wait for debugger).-->
+<!--              Change to suspend=y if you want the app to pause until debugger connects.-->
+<!--            &ndash;&gt;-->
+<!--            <plugin>-->
+<!--                <groupId>org.springframework.boot</groupId>-->
+<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
+<!--                <configuration>-->
+<!--                    <jvmArguments>-->
+<!--                        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${debug.port}-->
+<!--                    </jvmArguments>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
+<!--        </plugins>-->
+<!--    </build>-->
+    <profiles>
+        <profile>
+            <id>debug</id>
+            <properties>
+                <spring-boot.run.jvmArguments>
+                    -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+                </spring-boot.run.jvmArguments>
+            </properties>
+        </profile>
+    </profiles>
+
 </project>

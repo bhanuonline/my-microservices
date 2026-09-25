@@ -16,40 +16,45 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Handles Angel One SmartAPI login and caches the JWT token.
+ * Handles Angel One SmartAPI authentication.
  *
- * Two-tier cache:
- *   1. In-memory volatile — fastest, used per-call within a JVM run
- *   2. Database (angel_token table) — survives restarts so we don't burn
- *      a TOTP re-login every time the app starts
+ * Three token types are returned by Angel on login:
+ *   jwtToken     — short-lived (~24h, forced logout at 8:30 AM IST daily).
+ *                  Used as Bearer for all REST calls.
+ *   refreshToken — long-lived (~30 days). Traded for a fresh JWT with NO TOTP burn.
+ *   feedToken    — WebSocket streaming; ignored for now.
  *
  * Resolution flow on {@link #getJwtToken()}:
- *   1. Return in-memory token if still valid
- *   2. Else try DB — hydrate memory + return if still valid
- *   3. Else generate TOTP, POST login, save token to both caches
+ *   1. Return in-memory JWT if still valid.
+ *   2. Else hydrate from DB — if JWT still valid, use it.
+ *   3. Else if a refreshToken exists (memory or DB), try {@link #refreshJwt(String)}.
+ *   4. Else generate TOTP and do a full login (last resort — burns a TOTP).
  *
- * NOTE: The persistence service is Spring-injected; if MySQL is down at
- * boot the app still runs — auth just falls back to per-restart re-login.
+ * On a stale-JWT REST failure the caller invokes {@link #invalidate()},
+ * then calls {@link #getJwtToken()} again — the resolver drops to step 3
+ * and returns a fresh JWT with no manual intervention.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AngelAuthService {
 
-    private static final String LOGIN_PATH  = "/rest/auth/angelbroking/user/v1/loginByPassword";
-    private static final String LOGOUT_PATH = "/rest/secure/angelbroking/user/v1/logout";
-    private static final Duration TOKEN_TTL = Duration.ofHours(7);   // Angel says ~8h; be conservative
+    private static final String LOGIN_PATH   = "/rest/auth/angelbroking/user/v1/loginByPassword";
+    private static final String REFRESH_PATH = "/rest/auth/angelbroking/jwt/v1/generateTokens";
+    private static final String LOGOUT_PATH  = "/rest/secure/angelbroking/user/v1/logout";
+    private static final Duration TOKEN_TTL  = Duration.ofHours(7);   // Angel says ~24h but 8:30 AM daily reset
 
     private final RestClient restClient;
     private final BrokerProperties brokerProperties;
     private final AngelTokenPersistenceService tokenPersistence;
 
     private volatile String cachedJwt;
+    private volatile String cachedRefreshToken;
     private volatile Instant tokenExpiresAt;
 
-    /** Returns a valid JWT, hydrating from DB / logging in as needed. */
+    /** Returns a valid JWT, hydrating from DB / refreshing / logging in as needed. */
     public synchronized String getJwtToken() {
-        // Tier 1 — in-memory
+        // Tier 1 — in-memory JWT
         if (cachedJwt != null && tokenExpiresAt != null && Instant.now().isBefore(tokenExpiresAt)) {
             return cachedJwt;
         }
@@ -59,15 +64,77 @@ public class AngelAuthService {
         if (tokenPersistence != null && clientCode != null && !clientCode.isBlank()) {
             Optional<CachedToken> saved = tokenPersistence.load(clientCode);
             if (saved.isPresent()) {
-                cachedJwt      = saved.get().jwt();
-                tokenExpiresAt = saved.get().expiresAt();
-                log.info("Loaded cached Angel JWT from DB — valid until {}", tokenExpiresAt);
-                return cachedJwt;
+                CachedToken t = saved.get();
+                // Always adopt the refresh token — it's useful even when the JWT is expired.
+                cachedRefreshToken = t.refreshToken();
+                if (t.jwtValid()) {
+                    cachedJwt      = t.jwt();
+                    tokenExpiresAt = t.expiresAt();
+                    log.info("Loaded cached Angel JWT from DB — valid until {}", tokenExpiresAt);
+                    return cachedJwt;
+                }
+                log.info("DB JWT expired; will attempt refresh-token renewal");
             }
         }
 
-        // Tier 3 — fresh login (burns a TOTP)
+        // Tier 3 — refresh-token renewal (no TOTP burn)
+        if (cachedRefreshToken != null && !cachedRefreshToken.isBlank()) {
+            String renewed = refreshJwt(cachedRefreshToken);
+            if (renewed != null) return renewed;
+            // Refresh failed → refresh token is dead too; fall through to full login.
+            log.warn("Refresh-token renewal failed; falling back to full TOTP login");
+        }
+
+        // Tier 4 — fresh login (burns a TOTP)
         return login();
+    }
+
+    /**
+     * Force-drop the in-memory JWT so the next {@link #getJwtToken()} refetches.
+     *
+     * Called by API clients when they receive AB1010 (Invalid Token) from Angel.
+     * The refreshToken is KEPT — the next resolution will use it to renew without TOTP.
+     */
+    public synchronized void invalidate() {
+        log.info("Angel JWT invalidated (was valid until {})", tokenExpiresAt);
+        cachedJwt      = null;
+        tokenExpiresAt = null;
+    }
+
+    /**
+     * Trade the given refresh token for a fresh JWT (no TOTP required).
+     * Returns the new JWT or null on failure.
+     */
+    private String refreshJwt(String refreshToken) {
+        BrokerProperties.Angel cfg = brokerProperties.getAngel();
+        log.info("Refreshing Angel JWT via refresh-token endpoint");
+        try {
+            AngelLoginResponse response = restClient.post()
+                    .uri(cfg.getBaseUrl() + REFRESH_PATH)
+                    .headers(h -> AngelHeaders.apply(h, cfg.getApiKey(), null))
+                    .body(Map.of("refreshToken", refreshToken))
+                    .retrieve()
+                    .body(AngelLoginResponse.class);
+
+            if (response == null || !response.status() || response.data() == null
+                    || response.data().jwtToken() == null) {
+                String msg = response == null ? "null response" : response.message();
+                log.warn("Refresh-token renewal returned no JWT: {}", msg);
+                return null;
+            }
+
+            cachedJwt          = response.data().jwtToken();
+            // Angel returns a NEW refresh token on renewal — rotate it.
+            cachedRefreshToken = response.data().refreshToken() != null
+                    ? response.data().refreshToken() : refreshToken;
+            tokenExpiresAt     = Instant.now().plus(TOKEN_TTL);
+            log.info("Angel JWT refreshed OK, valid until {}", tokenExpiresAt);
+            persistTokens(cfg.getClientCode());
+            return cachedJwt;
+        } catch (Exception e) {
+            log.warn("Refresh-token renewal threw: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String login() {
@@ -82,7 +149,7 @@ public class AngelAuthService {
         }
 
         String totp = TotpGenerator.generate(cfg.getTotpSecret());
-        log.info("Logging in to Angel One as client {}", cfg.getClientCode());
+        log.info("Logging in to Angel One as client {} (fresh TOTP)", cfg.getClientCode());
 
         AngelLoginResponse response = restClient.post()
                 .uri(cfg.getBaseUrl() + LOGIN_PATH)
@@ -100,15 +167,17 @@ public class AngelAuthService {
             throw new IllegalStateException("Angel login failed: " + msg);
         }
 
-        cachedJwt      = response.data().jwtToken();
-        tokenExpiresAt = Instant.now().plus(TOKEN_TTL);
+        cachedJwt          = response.data().jwtToken();
+        cachedRefreshToken = response.data().refreshToken();
+        tokenExpiresAt     = Instant.now().plus(TOKEN_TTL);
         log.info("Angel login OK, JWT cached until {}", tokenExpiresAt);
-
-        // Persist so a restart can skip re-login.
-        if (tokenPersistence != null) {
-            tokenPersistence.save(cfg.getClientCode(), cachedJwt, tokenExpiresAt);
-        }
+        persistTokens(cfg.getClientCode());
         return cachedJwt;
+    }
+
+    private void persistTokens(String clientCode) {
+        if (tokenPersistence == null || clientCode == null) return;
+        tokenPersistence.save(clientCode, cachedJwt, cachedRefreshToken, tokenExpiresAt);
     }
 
     /**
@@ -132,8 +201,9 @@ public class AngelAuthService {
         } catch (Exception e) {
             log.warn("Angel logout call failed (clearing local token anyway): {}", e.getMessage());
         } finally {
-            cachedJwt = null;
-            tokenExpiresAt = null;
+            cachedJwt          = null;
+            cachedRefreshToken = null;
+            tokenExpiresAt     = null;
             if (tokenPersistence != null && cfg.getClientCode() != null) {
                 tokenPersistence.delete(cfg.getClientCode());
             }
@@ -147,14 +217,11 @@ public class AngelAuthService {
      * the JWT on Angel's side, forcing the next boot to burn a TOTP.
      * The token stays valid on Angel until its natural expiry and stays
      * cached in our DB, so restarts skip re-login.
-     *
-     * Call {@link #logout()} explicitly (via a REST endpoint or a stop
-     * command) when you truly want to end the Angel session.
      */
     @PreDestroy
     public void onShutdown() {
         if (cachedJwt != null && tokenExpiresAt != null) {
-            log.info("App shutting down — Angel JWT kept in DB (valid until {}), next boot will reuse it",
+            log.info("App shutting down — Angel tokens kept in DB (JWT valid until {}), next boot will reuse",
                     tokenExpiresAt);
         }
     }
