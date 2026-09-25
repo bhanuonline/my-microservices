@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+    Common footer fragment.
+
+    Include on any page:
+        <div th:replace="~{fragments/footer :: footer}"></div>
+
+    Pages MUST have a Thymeleaf-known variable named ${user} for the
+    "Signed in as" text. If not present, "guest" is shown.
+
+    Styles are inline so callers don't need a separate <link> tag.
+    Uses generic CSS vars with dark-mode-safe fallbacks.
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<footer class="app-footer" th:fragment="footer">
+    <div class="app-footer-inner">
+        <span>AngleApp — personal trading dashboard</span>
+        <span class="app-footer-sep">·</span>
+        <span>Signed in as <b th:text="${user} ?: 'guest'">guest</b></span>
+        <span class="app-footer-sep">·</span>
+        <a th:href="@{/}">Home</a>
+        <span class="app-footer-sep">·</span>
+        <a th:href="@{/bias}">Bias</a>
+        <span class="app-footer-sep">·</span>
+        <a th:href="@{/dashboard}">Dashboard</a>
+        <span class="app-footer-sep">·</span>
+        <form th:action="@{/auth/logout}" method="post" class="app-footer-form">
+            <button type="submit" class="app-footer-signout">Sign out</button>
+        </form>
+    </div>
+
+    <style>
+        .app-footer {
+            border-top: 1px solid var(--line, var(--border, rgba(255,255,255,.08)));
+            padding: 20px 32px;
+            margin-top: 40px;
+            background: var(--panel, rgba(255,255,255,.02));
+            font-size: 12.5px;
+            color: var(--muted, var(--faint, rgba(255,255,255,.55)));
+        }
+        .app-footer-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .app-footer a {
+            color: var(--ink, var(--fg, inherit));
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .app-footer a:hover { text-decoration: underline; }
+        .app-footer-sep { opacity: .4; }
+        .app-footer-form { display: inline; margin: 0; padding: 0; }
+        .app-footer-signout {
+            background: none; border: none; padding: 0; margin: 0;
+            font: inherit; color: var(--red, #E4483A);
+            cursor: pointer; font-weight: 500;
+        }
+        .app-footer-signout:hover { text-decoration: underline; }
+    </style>
+</footer>
+
+</body>
+</html>

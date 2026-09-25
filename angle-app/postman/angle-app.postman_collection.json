@@ -1293,6 +1293,19 @@
           }
         },
         {
+          "name": "Config — hot-reload from application.properties",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Re-reads application.properties + rebuilds all @RefreshScope beans (BiasProperties, CandleCacheProperties, TradingProperties, CalendarProperties). No JVM restart. Response lists which property keys changed. Edit the properties file, save, then hit this.",
+            "url": {
+              "raw": "{{baseUrl}}/actuator/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "refresh"]
+            }
+          }
+        },
+        {
           "name": "Warmer — reset circuit breaker",
           "request": {
             "method": "POST",

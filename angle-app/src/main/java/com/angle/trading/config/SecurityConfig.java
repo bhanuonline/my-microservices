@@ -44,11 +44,30 @@ public class SecurityConfig {
     }
 
     // ============================================================
-    // Chain 2: Admin console — /admin/**
-    // Form login, requires ROLE_ADMIN, custom access-denied page
+    // Chain 1b: Actuator — /actuator/**
+    // Stateless HTTP Basic, requires ROLE_ADMIN. No CSRF (POST /refresh must work with curl).
+    // Ordered before /admin so it doesn't get pulled into the form-login chain.
     // ============================================================
     @Bean
     @Order(2)
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/actuator/**")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .anyRequest().hasRole("ADMIN"))
+                .httpBasic(Customizer.withDefaults());
+        return http.build();
+    }
+
+    // ============================================================
+    // Chain 3: Admin console — /admin/**
+    // Form login, requires ROLE_ADMIN, custom access-denied page
+    // ============================================================
+    @Bean
+    @Order(3)
     public SecurityFilterChain adminFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/admin/**")
@@ -72,11 +91,11 @@ public class SecurityConfig {
     }
 
     // ============================================================
-    // Chain 3: Web (catch-all) — everything else
+    // Chain 4: Web (catch-all) — everything else
     // Form login, session-based, CSRF enabled, public static assets
     // ============================================================
     @Bean
-    @Order(3)
+    @Order(4)
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth

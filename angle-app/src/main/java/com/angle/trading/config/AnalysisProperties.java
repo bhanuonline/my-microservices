@@ -15,6 +15,7 @@ public class AnalysisProperties {
     private Nifty nifty = new Nifty();
     private StrategyConfig strategy = new StrategyConfig();
     private Smc smc = new Smc();
+    private SuperTrendCfg superTrend = new SuperTrendCfg();
 
     @Data
     public static class Nifty {
@@ -73,5 +74,16 @@ public class AnalysisProperties {
     public static class Sweep {
         /** How many candles back a sweep is still considered "recent". */
         private int windowCandles = 10;
+    }
+
+    /**
+     * SuperTrend indicator config.
+     *   period      — ATR period. Classic 10; use 7 for faster, 14 for slower.
+     *   multiplier  — ATR band width. Classic 3.0; use 2.0 for tighter, 4.0 for wider.
+     */
+    @Data
+    public static class SuperTrendCfg {
+        private int period = 10;
+        private double multiplier = 3.0;
     }
 }

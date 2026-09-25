@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<!--
+    Sidebar CSS fragment. Include in <head> of any page using the sidebar:
+       <th:block th:replace="~{fragments/sidebar-styles :: sidebar-styles}"></th:block>
+
+    Uses CSS variables so it inherits color from the parent page's theme
+    if one is defined; otherwise falls back to a dark Bloom-style default.
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<th:block th:fragment="sidebar-styles">
+    <style>
+        :root {
+            --side-bg:      var(--panel, #14161f);
+            --side-border:  var(--border, rgba(255,255,255,.08));
+            --side-fg:      var(--fg, #eaeaef);
+            --side-faint:   var(--faint, rgba(255,255,255,.55));
+            --side-accent:  var(--accent, #8577ff);
+        }
+        body {
+            background: var(--bg, #0c0d14);
+            color: var(--side-fg);
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+        }
+        .shell {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: 100vh;
+        }
+        .side {
+            background: var(--side-bg);
+            border-right: 1px solid var(--side-border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 4px 8px 20px;
+        }
+        .logo-mark {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--side-accent), #b8a9ff);
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 18px;
+        }
+        .brand-name { font-weight: 700; font-size: 15px; }
+        .brand-sub  { font-size: 11px; color: var(--side-faint); }
+        .navlist { display: flex; flex-direction: column; gap: 2px; }
+        .navitem {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: var(--side-faint);
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 500;
+            transition: background .15s, color .15s;
+        }
+        .navitem:hover {
+            background: rgba(255,255,255,.05);
+            color: var(--side-fg);
+        }
+        .navitem.active {
+            background: rgba(133,119,255,.14);
+            color: var(--side-fg);
+        }
+        .navitem svg { flex-shrink: 0; opacity: .9; }
+        .content, .main {
+            padding: 32px 40px;
+            overflow-x: auto;
+        }
+        @media (max-width: 900px) {
+            .shell { grid-template-columns: 1fr; }
+            .side { display: none; }
+            .content, .main { padding: 20px 16px 60px; }
+        }
+    </style>
+</th:block>
+</head>
+</html>

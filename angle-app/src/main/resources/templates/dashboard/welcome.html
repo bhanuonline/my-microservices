@@ -1,128 +1,867 @@
 <!DOCTYPE html>
+<!--
+    /dashboard — Landmark-style System Overview.
+
+    4 KPI cards + donut on top, grid of 12 subsystem status cards below.
+    Bright multi-color palette. Auto-refresh every 30 sec.
+
+    All data injected by DashboardController from live app state.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — Meridian</title>
-    <link rel="stylesheet" th:href="@{/js/style.css}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard — AngleApp</title>
+    <meta http-equiv="refresh" content="30">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --lm-bg:        #F1F5FB;
+            --lm-surface:   #FFFFFF;
+            --lm-border:    #E3E9F2;
+            --lm-hair:      #EEF2F8;
+            --lm-ink:       #1A2540;
+            --lm-muted:     #6B7A99;
+            --lm-faint:     #A0AAC2;
+            --lm-primary:   #2563EB;      /* blue */
+            --lm-primary-2: #DBEAFE;
+            --lm-good:      #16A34A;      /* green */
+            --lm-good-2:    #D1FAE5;
+            --lm-warn:      #F59E0B;      /* orange */
+            --lm-warn-2:    #FEF3C7;
+            --lm-bad:       #DC2626;      /* red */
+            --lm-bad-2:     #FEE2E2;
+            --lm-purple:    #8B5CF6;
+            --lm-purple-2:  #EDE9FE;
+            --lm-pink:      #EC4899;
+            --lm-pink-2:    #FCE7F3;
+            --lm-cyan:      #06B6D4;
+            --lm-cyan-2:    #CFFAFE;
+            --lm-shadow-sm: 0 1px 2px rgba(26, 37, 64, .04);
+            --lm-shadow:    0 4px 12px -2px rgba(26, 37, 64, .06),
+                            0 2px 4px -1px rgba(26, 37, 64, .04);
+            --lm-shadow-lg: 0 20px 40px -12px rgba(26, 37, 64, .12);
+        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            background: var(--lm-bg);
+            color: var(--lm-ink);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+        a { color: inherit; text-decoration: none; }
+
+        /* ─── Shell ─── */
+        .lm-shell {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            min-height: 100vh;
+        }
+
+        /* ─── Sidebar ─── */
+        .lm-side {
+            background: var(--lm-surface);
+            border-right: 1px solid var(--lm-border);
+            padding: 22px 16px 20px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+        .lm-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 10px 24px;
+            border-bottom: 1px solid var(--lm-hair);
+            margin-bottom: 16px;
+        }
+        .lm-logo {
+            width: 34px; height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--lm-primary), var(--lm-cyan));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 800; font-size: 16px;
+        }
+        .lm-brand-name { font-weight: 700; font-size: 16px; }
+        .lm-nav { display: flex; flex-direction: column; gap: 4px; }
+        .lm-nav a {
+            display: flex; align-items: center; gap: 11px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--lm-muted);
+            transition: all .12s ease;
+        }
+        .lm-nav a:hover { background: var(--lm-hair); color: var(--lm-ink); }
+        .lm-nav a.active { background: var(--lm-primary-2); color: var(--lm-primary); font-weight: 600; }
+        .lm-nav svg { flex: none; opacity: .9; }
+        .lm-side-spacer { flex: 1; }
+        .lm-side-promo {
+            background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+            border-radius: 14px;
+            padding: 16px 14px;
+            font-size: 12px;
+            color: #78350F;
+            line-height: 1.45;
+        }
+        .lm-side-promo b { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; color: #451A03; }
+
+        /* ─── Main ─── */
+        .lm-main { min-width: 0; }
+        .lm-topbar {
+            background: var(--lm-surface);
+            border-bottom: 1px solid var(--lm-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .lm-search {
+            flex: 1;
+            display: flex; align-items: center; gap: 10px;
+            background: var(--lm-bg);
+            border: 1px solid var(--lm-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+        }
+        .lm-search svg { color: var(--lm-faint); flex: none; }
+        .lm-search input {
+            background: none; border: none; outline: none;
+            font: inherit; color: var(--lm-ink);
+            flex: 1; font-size: 13px;
+        }
+        .lm-search input::placeholder { color: var(--lm-faint); }
+        .lm-health-badge {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: var(--lm-good-2);
+            color: var(--lm-good);
+            font-size: 12.5px;
+            font-weight: 600;
+        }
+        .lm-health-badge.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
+        .lm-health-badge.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
+        .lm-health-badge .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: currentColor;
+        }
+        .lm-user-chip {
+            display: flex; align-items: center; gap: 10px;
+            padding: 6px 6px 6px 12px;
+            border-radius: 999px;
+            background: var(--lm-hair);
+            font-size: 12.5px; font-weight: 500;
+        }
+        .lm-user-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--lm-primary), var(--lm-purple));
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px;
+        }
+
+        /* ─── Content ─── */
+        .lm-content { padding: 28px 32px 40px; max-width: 1600px; }
+
+        .lm-welcome-row {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; gap: 24px;
+            margin-bottom: 24px;
+        }
+        .lm-welcome h1 {
+            font-size: 26px; font-weight: 700;
+            margin: 0 0 4px;
+            letter-spacing: -0.02em;
+        }
+        .lm-welcome h1 .wave { display: inline-block; animation: lm-wave 2.5s ease-in-out infinite; }
+        @keyframes lm-wave {
+            0%, 60%, 100% { transform: rotate(0deg); }
+            10%, 30% { transform: rotate(14deg); }
+            20% { transform: rotate(-8deg); }
+        }
+        .lm-welcome p { color: var(--lm-muted); margin: 0; font-size: 13.5px; }
+        .lm-time-card {
+            background: var(--lm-surface);
+            border: 1px solid var(--lm-border);
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: var(--lm-shadow-sm);
+        }
+        .lm-time-card .lbl { font-size: 11px; color: var(--lm-faint); text-transform: uppercase; letter-spacing: .05em; }
+        .lm-time-card .val { font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+        /* ─── KPI cards ─── */
+        .lm-kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr) 320px;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+        .lm-kpi {
+            background: var(--lm-surface);
+            border: 1px solid var(--lm-border);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: var(--lm-shadow-sm);
+            transition: all .15s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .lm-kpi:hover { box-shadow: var(--lm-shadow); transform: translateY(-2px); }
+        .lm-kpi-top {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .lm-kpi-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lm-kpi-icon svg { width: 20px; height: 20px; }
+        .lm-kpi.total   .lm-kpi-icon { background: var(--lm-primary-2); color: var(--lm-primary); }
+        .lm-kpi.healthy .lm-kpi-icon { background: var(--lm-good-2);    color: var(--lm-good); }
+        .lm-kpi.warn    .lm-kpi-icon { background: var(--lm-warn-2);    color: var(--lm-warn); }
+        .lm-kpi.bad     .lm-kpi-icon { background: var(--lm-bad-2);     color: var(--lm-bad); }
+        .lm-kpi-value {
+            font-size: 42px; font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            margin: 4px 0 10px;
+        }
+        .lm-kpi-label { font-size: 13px; color: var(--lm-muted); font-weight: 500; }
+        .lm-kpi-trend {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        /* Donut */
+        .lm-donut-card {
+            background: var(--lm-surface);
+            border: 1px solid var(--lm-border);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: var(--lm-shadow-sm);
+            display: flex; align-items: center; gap: 20px;
+        }
+        .lm-donut-ring { position: relative; width: 120px; height: 120px; flex: none; }
+        .lm-donut-mid {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .lm-donut-mid b { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+        .lm-donut-mid span { font-size: 10.5px; color: var(--lm-faint); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+        .lm-donut-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; font-size: 12.5px; }
+        .lm-donut-key { display: flex; align-items: center; gap: 8px; }
+        .lm-donut-key i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+        .lm-donut-key b { font-weight: 600; margin-left: auto; }
+
+        /* ─── System overview grid ─── */
+        .lm-overview-h {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 18px;
+        }
+        .lm-overview-h h2 {
+            font-size: 18px; font-weight: 700; margin: 0;
+            letter-spacing: -0.01em;
+        }
+        .lm-refresh-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: var(--lm-primary);
+            color: #fff;
+            font-size: 13px; font-weight: 600;
+            transition: all .15s ease;
+            box-shadow: var(--lm-shadow-sm);
+        }
+        .lm-refresh-btn:hover { background: #1D4ED8; transform: translateY(-1px); box-shadow: var(--lm-shadow); }
+
+        .lm-svc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .lm-svc {
+            background: var(--lm-surface);
+            border: 1px solid var(--lm-border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: var(--lm-shadow-sm);
+            transition: all .15s ease;
+            position: relative;
+        }
+        .lm-svc:hover { box-shadow: var(--lm-shadow); transform: translateY(-2px); }
+
+        .lm-svc-top {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .lm-svc-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .lm-svc-icon svg { width: 17px; height: 17px; }
+        .lm-svc-name { font-size: 13.5px; font-weight: 700; flex: 1; }
+
+        /* Color themes per service (rotates by position) */
+        .lm-svc.c-blue   .lm-svc-icon { background: var(--lm-primary-2); color: var(--lm-primary); }
+        .lm-svc.c-green  .lm-svc-icon { background: var(--lm-good-2);    color: var(--lm-good); }
+        .lm-svc.c-orange .lm-svc-icon { background: var(--lm-warn-2);    color: var(--lm-warn); }
+        .lm-svc.c-purple .lm-svc-icon { background: var(--lm-purple-2);  color: var(--lm-purple); }
+        .lm-svc.c-pink   .lm-svc-icon { background: var(--lm-pink-2);    color: var(--lm-pink); }
+        .lm-svc.c-cyan   .lm-svc-icon { background: var(--lm-cyan-2);    color: var(--lm-cyan); }
+
+        .lm-svc-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 10.5px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .04em;
+        }
+        .lm-svc-badge.ok   { background: var(--lm-good-2); color: var(--lm-good); }
+        .lm-svc-badge.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
+        .lm-svc-badge.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
+        .lm-svc-badge.off  { background: var(--lm-hair);   color: var(--lm-muted); }
+        .lm-svc-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+        .lm-svc-metrics { display: flex; flex-direction: column; gap: 6px; }
+        .lm-svc-metric  { display: flex; justify-content: space-between; font-size: 12px; }
+        .lm-svc-metric .k { color: var(--lm-muted); }
+        .lm-svc-metric .v { font-weight: 600; color: var(--lm-ink); }
+        .lm-svc-metric .v.good { color: var(--lm-good); }
+        .lm-svc-metric .v.warn { color: var(--lm-warn); }
+        .lm-svc-metric .v.bad  { color: var(--lm-bad); }
+        .lm-svc-metric .v.off  { color: var(--lm-faint); }
+
+        .lm-svc-trend {
+            margin-top: 12px; height: 30px;
+        }
+        .lm-svc-trend svg { width: 100%; height: 100%; }
+
+        /* Bottom rows: recent changes + alerts */
+        .lm-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 28px;
+        }
+        .lm-panel {
+            background: var(--lm-surface);
+            border: 1px solid var(--lm-border);
+            border-radius: 14px;
+            box-shadow: var(--lm-shadow-sm);
+            overflow: hidden;
+        }
+        .lm-panel-h {
+            padding: 18px 20px;
+            font-size: 14px; font-weight: 700;
+            border-bottom: 1px solid var(--lm-hair);
+        }
+        .lm-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--lm-hair);
+        }
+        .lm-item:last-child { border-bottom: none; }
+        .lm-item-icon {
+            width: 32px; height: 32px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; flex: none;
+        }
+        .lm-item-icon svg { width: 15px; height: 15px; }
+        .lm-item-icon.ok   { background: var(--lm-good-2); color: var(--lm-good); }
+        .lm-item-icon.info { background: var(--lm-primary-2); color: var(--lm-primary); }
+        .lm-item-icon.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
+        .lm-item-icon.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
+        .lm-item-body { flex: 1; min-width: 0; }
+        .lm-item-title { font-size: 13.5px; font-weight: 600; margin-bottom: 3px; }
+        .lm-item-detail { font-size: 12px; color: var(--lm-muted); line-height: 1.5; }
+        .lm-item-when { font-size: 11px; color: var(--lm-faint); font-weight: 600; margin-left: auto; padding-top: 2px; white-space: nowrap; }
+        .lm-empty {
+            padding: 40px 20px; text-align: center;
+            color: var(--lm-faint); font-size: 13px;
+        }
+
+        @media (max-width: 1200px) {
+            .lm-kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .lm-donut-card { grid-column: 1 / -1; }
+        }
+        @media (max-width: 900px) {
+            .lm-shell { grid-template-columns: 1fr; }
+            .lm-side { display: none; }
+            .lm-content { padding: 20px 16px; }
+            .lm-kpi-row { grid-template-columns: 1fr 1fr; }
+            .lm-donut-card { grid-column: 1 / -1; }
+            .lm-bottom { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 640px) {
+            .lm-kpi-row { grid-template-columns: 1fr; }
+            .lm-welcome-row { flex-direction: column; }
+        }
+    </style>
 </head>
-<body class="shell">
+<body>
+<div class="lm-shell">
 
-<header class="navbar">
-    <div class="navbar-brand"><span class="dot"></span>Meridian</div>
-    <nav class="navbar-links">
-        <a th:href="@{/dashboard/welcome}" class="active">Dashboard</a>
-        <a th:href="@{/auth/admin}" th:if="${isAdmin}">Admin</a>
-        <a th:href="@{/auth/audit-log}">Audit log</a>
-    </nav>
-    <div class="navbar-user">
-        <div class="notif-wrap">
-            <button class="notif-bell" id="notifBell" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
-                <span class="notif-count" th:text="${notifCount} ?: (${isAdmin} ? '4' : '2')">2</span>
-            </button>
-            <div class="notif-panel" id="notifPanel">
-                <div class="notif-panel-title">Notifications</div>
+    <!-- ═════════════════════════════════════════ SIDEBAR ═════════════════════════════════════════ -->
+    <aside class="lm-side">
+        <div class="lm-brand">
+            <div class="lm-logo">A</div>
+            <div class="lm-brand-name">AngleApp</div>
+        </div>
 
-                <div class="notif-item" th:if="${isAdmin}">
-                    <svg class="danger" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-                    <div>
-                        <div class="notif-text">Account locked: <b>jordan</b> (5 failed attempts)</div>
-                        <div class="notif-time">12 min ago</div>
-                    </div>
-                </div>
-                <div class="notif-item" th:if="${isAdmin}">
-                    <svg class="pro" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2.5 20c0-3.5 2.8-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M17 8v6M20 11h-6" stroke-linecap="round"/></svg>
-                    <div>
-                        <div class="notif-text">New user registered: <b>sam</b></div>
-                        <div class="notif-time">1 hour ago</div>
-                    </div>
-                </div>
+        <nav class="lm-nav">
+            <a th:href="@{/dashboard}" class="active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                <span>Dashboard</span>
+            </a>
+            <a th:href="@{/bias}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 13 8 13 10 8 14 18 16 13 21 13"/></svg>
+                <span>Bias</span>
+            </a>
+            <a th:href="@{/api/paper/sessions}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>Sessions</span>
+            </a>
+            <a th:href="@{/api/reports/today}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M16 4v4h4"/></svg>
+                <span>Reports</span>
+            </a>
+            <a th:href="@{/api/paper/history}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/></svg>
+                <span>History</span>
+            </a>
+            <a th:href="@{/api/instruments/status}" target="_blank">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+                <span>Instruments</span>
+            </a>
+            <a th:href="@{/}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+                <span>Home</span>
+            </a>
+            <a th:if="${isAdmin}" th:href="@{/auth/admin}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L20 6 V12 C20 17 16.5 20.7 12 22 C7.5 20.7 4 17 4 12 V6 Z"/></svg>
+                <span>Admin</span>
+            </a>
+        </nav>
 
-                <div class="notif-item">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4" stroke-linecap="round"/></svg>
-                    <div>
-                        <div class="notif-text">New sign-in from Chrome · Windows</div>
-                        <div class="notif-time">2 min ago</div>
-                    </div>
-                </div>
-                <div class="notif-item">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 4h4v4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    <div>
-                        <div class="notif-text">Password changed successfully</div>
-                        <div class="notif-time">Yesterday</div>
-                    </div>
-                </div>
+        <div class="lm-side-spacer"></div>
+
+        <div class="lm-side-promo">
+            <b>🚀 Keep your system running smoothly</b>
+            Auto-warmer keeps caches hot during market hours. Circuit breaker guards against Angel outages.
+        </div>
+    </aside>
+
+    <!-- ═════════════════════════════════════════ MAIN ═════════════════════════════════════════ -->
+    <div class="lm-main">
+
+        <!-- Topbar: search + health + user -->
+        <div class="lm-topbar">
+            <label class="lm-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search subsystems, metrics, keywords…">
+            </label>
+
+            <div th:class="'lm-health-badge ' + (${healthCounts.critical} > 0 ? 'bad' : (${healthCounts.warning} > 0 ? 'warn' : ''))"
+                 th:with="hc=${healthCounts}">
+                <span class="dot"></span>
+                <span th:if="${hc.critical == 0 and hc.warning == 0}">System Healthy</span>
+                <span th:if="${hc.critical > 0}"
+                      th:text="${hc.critical} + ' critical'">1 critical</span>
+                <span th:if="${hc.critical == 0 and hc.warning > 0}"
+                      th:text="${hc.warning} + ' warning'">1 warning</span>
+            </div>
+
+            <div class="lm-user-chip">
+                <span th:text="${user}">admin</span>
+                <div class="lm-user-avatar"
+                     th:text="${#strings.toUpperCase(#strings.substring(user, 0, 2))}">AD</div>
             </div>
         </div>
-        <span class="who">Signed in as <b th:text="${user}">alex</b></span>
-        <form th:action="@{/auth/logout}" method="post">
-            <button type="submit" class="signout">
-                Sign out
-            </button>
-        </form>
-    </div>
-</header>
 
-<div class="shell-content">
-    <div class="wrap card-lg" style="margin:0;">
-        <div class="card">
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
-                <h1 style="margin-bottom:0;">Welcome, <span th:text="${user}">User</span></h1>
-                <span class="badge badge-admin" th:if="${isAdmin}">Admin</span>
-                <span class="badge badge-user" th:unless="${isAdmin}">User</span>
-            </div>
-            <p class="subtitle">You are signed in.</p>
+        <div class="lm-content">
 
-            <div class="warning-banner" th:if="${isAdmin}">
-                <span th:text="${lockedCount} ?: 2">2</span> accounts locked ·
-                <span th:text="${failedLogins} ?: 5">5</span> failed logins today
-            </div>
-
-            <div class="info-grid">
-                <div class="info">
-                    <div class="info-label">Username</div>
-                    <div class="info-value" th:text="${user}">alex</div>
+            <!-- ═════════════════════════════════════════ WELCOME + TIME ═════════════════════════════════════════ -->
+            <div class="lm-welcome-row">
+                <div class="lm-welcome">
+                    <h1>Welcome, <span th:text="${user}">admin</span> <span class="wave">👋</span></h1>
+                    <p>Here's what's happening with your system today.</p>
                 </div>
-                <div class="info">
-                    <div class="info-label">Current time</div>
-                    <div class="info-value mono" id="clock">--:--:--</div>
-                </div>
-                <div class="info">
-                    <div class="info-label">Auth method</div>
-                    <div class="info-value" th:text="${authMethod} ?: 'Form login'">Form login</div>
-                </div>
-                <div class="info">
-                    <div class="info-label">Session started</div>
-                    <div class="info-value mono" th:text="${sessionStart} ?: '--:--:--'">10:42:03</div>
+                <div class="lm-time-card">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--lm-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <div>
+                        <div class="lbl">Current time</div>
+                        <div class="val" th:text="${#temporals.format(generatedAt, 'dd MMM yyyy, HH:mm')}">25 Sep 2026, 10:24 AM</div>
+                    </div>
                 </div>
             </div>
 
-            <label style="display:block; margin-bottom:8px;">Quick links</label>
-            <div class="quick-links" style="margin-bottom:24px;">
-                <a th:href="@{/auth/admin}" class="quick-link emph" th:if="${isAdmin}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 L20 6 V12 C20 17 16.5 20.7 12 22 C7.5 20.7 4 17 4 12 V6 Z" stroke-linejoin="round"/></svg>
-                    Admin panel
-                </a>
-                <a th:href="@{/auth/audit-log}" class="quick-link">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>
-                    Audit log
-                </a>
-                <a href="#" class="quick-link">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
-                    Settings
-                </a>
+            <!-- ═════════════════════════════════════════ KPI ROW ═════════════════════════════════════════ -->
+            <div class="lm-kpi-row" th:with="hc=${healthCounts}">
+
+                <div class="lm-kpi total">
+                    <div class="lm-kpi-top">
+                        <div class="lm-kpi-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                        </div>
+                        <span style="font-size:11px;color:var(--lm-faint);font-weight:600">TOTAL</span>
+                    </div>
+                    <div class="lm-kpi-label">Total Services</div>
+                    <div class="lm-kpi-value" th:text="${hc.total}">12</div>
+                    <svg class="lm-kpi-trend" viewBox="0 0 200 40" preserveAspectRatio="none">
+                        <polyline points="0,30 25,25 50,28 75,20 100,22 125,15 150,18 175,10 200,12" fill="none" stroke="var(--lm-primary)" stroke-width="2"/>
+                    </svg>
+                </div>
+
+                <div class="lm-kpi healthy">
+                    <div class="lm-kpi-top">
+                        <div class="lm-kpi-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <span style="font-size:11px;color:var(--lm-good);font-weight:600">HEALTHY</span>
+                    </div>
+                    <div class="lm-kpi-label">Healthy</div>
+                    <div class="lm-kpi-value" style="color:var(--lm-good)" th:text="${hc.healthy}">10</div>
+                    <svg class="lm-kpi-trend" viewBox="0 0 200 40" preserveAspectRatio="none">
+                        <polyline points="0,25 25,20 50,22 75,15 100,17 125,10 150,12 175,8 200,10" fill="none" stroke="var(--lm-good)" stroke-width="2"/>
+                    </svg>
+                </div>
+
+                <div class="lm-kpi warn">
+                    <div class="lm-kpi-top">
+                        <div class="lm-kpi-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L2 21 H22 Z"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg>
+                        </div>
+                        <span style="font-size:11px;color:var(--lm-warn);font-weight:600">WARN</span>
+                    </div>
+                    <div class="lm-kpi-label">Warning</div>
+                    <div class="lm-kpi-value" style="color:var(--lm-warn)" th:text="${hc.warning}">1</div>
+                    <svg class="lm-kpi-trend" viewBox="0 0 200 40" preserveAspectRatio="none">
+                        <polyline points="0,20 25,18 50,25 75,20 100,15 125,18 150,10 175,15 200,12" fill="none" stroke="var(--lm-warn)" stroke-width="2"/>
+                    </svg>
+                </div>
+
+                <div class="lm-kpi bad">
+                    <div class="lm-kpi-top">
+                        <div class="lm-kpi-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                        </div>
+                        <span style="font-size:11px;color:var(--lm-bad);font-weight:600">CRITICAL</span>
+                    </div>
+                    <div class="lm-kpi-label">Critical</div>
+                    <div class="lm-kpi-value" style="color:var(--lm-bad)" th:text="${hc.critical}">0</div>
+                </div>
+
+                <!-- Donut -->
+                <div class="lm-donut-card">
+                    <div class="lm-donut-ring" th:with="hc=${healthCounts}">
+                        <svg width="120" height="120" viewBox="0 0 120 120" style="transform:rotate(-90deg)">
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--lm-hair)" stroke-width="10"/>
+                            <!-- healthy arc -->
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--lm-good)" stroke-width="10"
+                                    stroke-linecap="round"
+                                    th:attr="stroke-dasharray=${hc.healthy * 314 / hc.total} + ' 314',stroke-dashoffset='0'"/>
+                            <!-- warning arc -->
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--lm-warn)" stroke-width="10"
+                                    stroke-linecap="round"
+                                    th:attr="stroke-dasharray=${hc.warning * 314 / hc.total} + ' 314',stroke-dashoffset=${-1 * hc.healthy * 314 / hc.total}"/>
+                            <!-- critical arc -->
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--lm-bad)" stroke-width="10"
+                                    stroke-linecap="round"
+                                    th:attr="stroke-dasharray=${hc.critical * 314 / hc.total} + ' 314',stroke-dashoffset=${-1 * (hc.healthy + hc.warning) * 314 / hc.total}"/>
+                        </svg>
+                        <div class="lm-donut-mid">
+                            <b th:text="${hc.total}">12</b>
+                            <span>services</span>
+                        </div>
+                    </div>
+                    <div class="lm-donut-legend">
+                        <div class="lm-donut-key"><i style="background:var(--lm-good)"></i>Healthy <b th:text="${hc.healthy}">10</b></div>
+                        <div class="lm-donut-key"><i style="background:var(--lm-warn)"></i>Warning <b th:text="${hc.warning}">1</b></div>
+                        <div class="lm-donut-key"><i style="background:var(--lm-bad)"></i>Critical <b th:text="${hc.critical}">0</b></div>
+                    </div>
+                </div>
             </div>
 
-            <form th:action="@{/auth/logout}" method="post">
-                <button type="submit" class="submit logout">
-                    Sign out
+            <!-- ═════════════════════════════════════════ SYSTEM OVERVIEW GRID ═════════════════════════════════════════ -->
+            <div class="lm-overview-h">
+                <h2>System Overview</h2>
+                <button type="button" class="lm-refresh-btn" onclick="location.reload()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg>
+                    Refresh
                 </button>
-            </form>
+            </div>
+
+            <div class="lm-svc-grid">
+
+                <!-- 1. App -->
+                <div class="lm-svc c-blue" th:with="a=${app}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+                        <div class="lm-svc-name">App Service</div>
+                        <span th:class="'lm-svc-badge ' + (${a.healthy} ? 'ok' : 'warn')">
+                            <span class="dot"></span><span th:text="${a.healthy} ? 'Healthy' : 'Warning'">Healthy</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Uptime</span><span class="v" th:text="${a.uptime}">2h 34min</span></div>
+                        <div class="lm-svc-metric"><span class="k">Heap used</span><span class="v" th:text="${a.heapUsedMB} + ' MB'">245 MB</span></div>
+                        <div class="lm-svc-metric"><span class="k">Heap max</span><span class="v" th:text="${a.heapMaxMB} + ' MB'">4096 MB</span></div>
+                    </div>
+                </div>
+
+                <!-- 2. Broker -->
+                <div class="lm-svc c-green" th:with="b=${broker}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12 L12 3 L22 12"/><path d="M4 10v10h16V10"/></svg></div>
+                        <div class="lm-svc-name">Broker Service</div>
+                        <span th:class="'lm-svc-badge ' + (${b.angelEnabled} ? 'ok' : 'bad')">
+                            <span class="dot"></span><span th:text="${b.angelEnabled} ? 'Connected' : 'Down'">Connected</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Angel</span><span th:class="'v ' + (${b.angelEnabled} ? 'good' : 'off')" th:text="${b.angelEnabled} ? 'enabled' : 'off'">enabled</span></div>
+                        <div class="lm-svc-metric"><span class="k">Client code</span><span class="v" th:text="${b.clientCode} ?: '—'">B324101</span></div>
+                        <div class="lm-svc-metric"><span class="k">Upstox / Kite</span><span class="v off" th:text="(${b.upstoxEnabled} ? 'on' : 'off') + ' / ' + (${b.kiteEnabled} ? 'on' : 'off')">off / off</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. Cache -->
+                <div class="lm-svc c-orange" th:with="c=${cache}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14a8 3 0 0 0 16 0V5"/></svg></div>
+                        <div class="lm-svc-name">Cache Service</div>
+                        <span class="lm-svc-badge ok"><span class="dot"></span>Active</span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Provider</span><span class="v" th:text="${c.provider}">caffeine-mysql</span></div>
+                        <div class="lm-svc-metric"><span class="k">Hit rate</span><span class="v good" th:text="${c.hitRate} + '%'">87.3%</span></div>
+                        <div class="lm-svc-metric"><span class="k">Entries</span><span class="v" th:text="${c.size} + ' / ' + ${c.maxSize}">27 / 500</span></div>
+                    </div>
+                </div>
+
+                <!-- 4. Warmer -->
+                <div class="lm-svc c-purple" th:with="w=${warmer}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/><circle cx="12" cy="12" r="5"/></svg></div>
+                        <div class="lm-svc-name">Warmer Job</div>
+                        <span th:class="'lm-svc-badge ' + (${w.circuitState} == 'OPEN' ? 'bad' : (${w.consecutiveFailures} > 0 ? 'warn' : 'ok'))">
+                            <span class="dot"></span><span th:text="${w.circuitState}">CLOSED</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Success rounds</span><span class="v good" th:text="${w.successfulRounds}">45</span></div>
+                        <div class="lm-svc-metric"><span class="k">Failed</span><span th:class="'v ' + (${w.failedRounds} > 0 ? 'bad' : 'off')" th:text="${w.failedRounds}">0</span></div>
+                        <div class="lm-svc-metric"><span class="k">Avg duration</span><span class="v" th:text="${w.avgDurationMs} + 'ms'">483ms</span></div>
+                    </div>
+                </div>
+
+                <!-- 5. Market -->
+                <div class="lm-svc c-pink" th:with="m=${market}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                        <div class="lm-svc-name">Market Calendar</div>
+                        <span th:class="'lm-svc-badge ' + (${m.openToday} ? 'ok' : 'off')">
+                            <span class="dot"></span><span th:text="${m.openToday} ? 'Open' : 'Closed'">Open</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Instruments</span><span class="v" th:text="${m.instrumentCount}">5</span></div>
+                        <div class="lm-svc-metric"><span class="k">Holidays</span><span class="v" th:text="${m.holidayCount}">11</span></div>
+                        <div class="lm-svc-metric"><span class="k">Reason</span><span class="v off" th:text="${m.closedReason} ?: 'trading day'">trading day</span></div>
+                    </div>
+                </div>
+
+                <!-- 6. Bias Config -->
+                <div class="lm-svc c-cyan" th:with="cf=${config}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1"/></svg></div>
+                        <div class="lm-svc-name">Bias Engine</div>
+                        <span th:class="'lm-svc-badge ' + (${cf.biasEnabled} ? 'ok' : 'warn')">
+                            <span class="dot"></span><span th:text="${cf.biasEnabled} ? 'Enabled' : 'Disabled'">Enabled</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Refresh</span><span class="v" th:text="${cf.refreshMinutes} + ' min'">15 min</span></div>
+                        <div class="lm-svc-metric"><span class="k">Lookback</span><span class="v" th:text="${cf.lookbackDays} + ' days'">90 days</span></div>
+                        <div class="lm-svc-metric"><span class="k">Change alerts</span><span th:class="'v ' + (${cf.changeAlertsEnabled} ? 'good' : 'off')" th:text="${cf.changeAlertsEnabled} ? 'ON' : 'OFF'">ON</span></div>
+                    </div>
+                </div>
+
+                <!-- 7. Trading -->
+                <div class="lm-svc c-blue" th:with="t=${trading}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                        <div class="lm-svc-name">Trading Config</div>
+                        <span class="lm-svc-badge ok"><span class="dot"></span>Ready</span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Capital</span><span class="v" th:text="'₹' + ${#numbers.formatInteger(t.capital, 3, 'COMMA')}">₹5,00,000</span></div>
+                        <div class="lm-svc-metric"><span class="k">Risk %</span><span class="v" th:text="${t.riskPercent} + '%'">1.0%</span></div>
+                        <div class="lm-svc-metric"><span class="k">Max risk</span><span class="v" th:text="'₹' + ${#numbers.formatInteger(t.maxRiskPerTrade, 3, 'COMMA')}">₹5,000</span></div>
+                    </div>
+                </div>
+
+                <!-- 8. Database -->
+                <div class="lm-svc c-green" th:with="d=${db}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6a8 3 0 0 0 16 0V5"/><path d="M4 11v6a8 3 0 0 0 16 0v-6"/></svg></div>
+                        <div class="lm-svc-name">Database</div>
+                        <span th:class="'lm-svc-badge ' + (${d.available} ? 'ok' : 'bad')">
+                            <span class="dot"></span><span th:text="${d.available} ? 'Connected' : 'Down'">Connected</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Candle rows</span><span class="v" th:text="${d.available} ? ${#numbers.formatInteger(d.candleRowCount, 3, 'COMMA')} : 'N/A'">24,532</span></div>
+                        <div class="lm-svc-metric"><span class="k">Retention</span><span th:class="'v ' + (${d.retentionEnabled} ? 'good' : 'off')" th:text="${d.retentionEnabled} ? (${d.retentionDays} + ' days') : 'off'">365 days</span></div>
+                    </div>
+                </div>
+
+                <!-- 9. Alerts -->
+                <div class="lm-svc c-orange" th:with="al=${alerts}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.8 1.8 0 0 0 3.4 0"/></svg></div>
+                        <div class="lm-svc-name">Alerts</div>
+                        <span th:class="'lm-svc-badge ' + (${al.masterEnabled} ? 'ok' : 'off')">
+                            <span class="dot"></span><span th:text="${al.masterEnabled} ? 'Active' : 'Off'">Off</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Telegram</span><span th:class="'v ' + (${al.telegramEnabled} ? 'good' : 'off')" th:text="${al.telegramEnabled} ? 'ON' : 'OFF'">OFF</span></div>
+                        <div class="lm-svc-metric"><span class="k">WhatsApp</span><span th:class="'v ' + (${al.whatsappEnabled} ? 'good' : 'off')" th:text="${al.whatsappEnabled} ? 'ON' : 'OFF'">OFF</span></div>
+                        <div class="lm-svc-metric"><span class="k">On errors</span><span th:class="'v ' + (${al.onErrors} ? 'good' : 'off')" th:text="${al.onErrors} ? 'yes' : 'no'">yes</span></div>
+                    </div>
+                </div>
+
+                <!-- 10. Bias Modules -->
+                <div class="lm-svc c-purple" th:with="bs=${biasSub}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+                        <div class="lm-svc-name">Bias Modules</div>
+                        <span class="lm-svc-badge ok"><span class="dot"></span>Loaded</span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">VIX</span><span th:class="'v ' + (${bs.vixEnabled} ? 'good' : 'off')" th:text="${bs.vixEnabled} ? 'ON' : 'OFF'">ON</span></div>
+                        <div class="lm-svc-metric"><span class="k">Correlated</span><span th:class="'v ' + (${bs.correlatedEnabled} ? 'good' : 'off')" th:text="${bs.correlatedEnabled} ? 'ON' : 'OFF'">ON</span></div>
+                        <div class="lm-svc-metric"><span class="k">Breadth</span><span th:class="'v ' + (${bs.breadthEnabled} ? 'good' : 'off')" th:text="${bs.breadthEnabled} ? 'ON' : 'OFF'">ON</span></div>
+                    </div>
+                </div>
+
+                <!-- 11. Reports -->
+                <div class="lm-svc c-pink" th:with="r=${reports}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+                        <div class="lm-svc-name">Daily Reports</div>
+                        <span th:class="'lm-svc-badge ' + (${r.enabled} ? 'ok' : 'off')">
+                            <span class="dot"></span><span th:text="${r.enabled} ? 'Scheduled' : 'Off'">Scheduled</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Output</span><span class="v" th:text="${r.outputDir}">reports</span></div>
+                        <div class="lm-svc-metric"><span class="k">Auto write</span><span th:class="'v ' + (${r.autoWriteAtClose} ? 'good' : 'off')" th:text="${r.autoWriteAtClose} ? 'yes' : 'no'">yes</span></div>
+                        <div class="lm-svc-metric"><span class="k">Cron</span><span class="v" style="font-size:10.5px" th:text="${r.closeCron}">0 35 15 * MON-FRI</span></div>
+                    </div>
+                </div>
+
+                <!-- 12. Paper Trading -->
+                <div class="lm-svc c-cyan" th:with="p=${paper}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg></div>
+                        <div class="lm-svc-name">Paper Trading</div>
+                        <span th:class="'lm-svc-badge ' + (${p.autostartEnabled} ? 'ok' : 'off')">
+                            <span class="dot"></span><span th:text="${p.autostartEnabled} ? 'Active' : 'Standby'">Standby</span>
+                        </span>
+                    </div>
+                    <div class="lm-svc-metrics">
+                        <div class="lm-svc-metric"><span class="k">Autostart</span><span th:class="'v ' + (${p.autostartEnabled} ? 'good' : 'off')" th:text="${p.autostartEnabled} ? 'ON' : 'OFF'">OFF</span></div>
+                        <div class="lm-svc-metric"><span class="k">Sessions</span><span class="v" th:text="${p.sessionCount}">0</span></div>
+                    </div>
+                </div>
+
+                <!-- 13. Bias Instruments — lists each configured instrument with a quick-jump link -->
+                <div class="lm-svc c-blue" style="grid-column: span 2" th:with="ins=${instruments}">
+                    <div class="lm-svc-top">
+                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+                        <div class="lm-svc-name">Bias Instruments</div>
+                        <span class="lm-svc-badge ok"><span class="dot"></span>
+                            <span th:text="${#lists.size(ins)} + ' tracked'">5 tracked</span>
+                        </span>
+                    </div>
+                    <div th:if="${#lists.isEmpty(ins)}" style="color:var(--lm-faint);font-size:12.5px;padding:8px 0">
+                        No instruments configured in application.properties
+                    </div>
+                    <div th:unless="${#lists.isEmpty(ins)}"
+                         style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+                        <a th:each="i : ${ins}" th:href="@{'/bias/' + ${i.symbolToken}}"
+                           style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;background:var(--lm-hair);text-decoration:none;transition:all .12s ease"
+                           onmouseover="this.style.background='var(--lm-primary-2)';this.style.transform='translateY(-1px)'"
+                           onmouseout="this.style.background='var(--lm-hair)';this.style.transform=''">
+                            <div style="width:26px;height:26px;border-radius:7px;background:var(--lm-primary);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none"
+                                 th:text="${#strings.toUpperCase(#strings.substring(i.symbol, 0, 2))}">NI</div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:12px;font-weight:600;color:var(--lm-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                                     th:text="${i.symbol}">Nifty 50</div>
+                                <div style="font-size:10.5px;color:var(--lm-faint);font-weight:500"
+                                     th:text="${i.exchange} + ' · ' + ${i.intradayInterval}">NSE · 5M</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ═════════════════════════════════════════ BOTTOM: recent + alerts ═════════════════════════════════════════ -->
+            <div class="lm-bottom">
+                <div class="lm-panel">
+                    <div class="lm-panel-h">Recent bias changes</div>
+                    <div th:if="${#lists.isEmpty(recentChanges)}" class="lm-empty">
+                        No bias changes recorded yet.
+                    </div>
+                    <div th:each="c : ${recentChanges}" class="lm-item">
+                        <div class="lm-item-icon info">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 6"/></svg>
+                        </div>
+                        <div class="lm-item-body">
+                            <div class="lm-item-title" th:text="${c.symbol}">Nifty 50</div>
+                            <div class="lm-item-detail" th:text="${#strings.arrayJoin(c.changes, ' · ')}">bias flip · score jump</div>
+                        </div>
+                        <div class="lm-item-when" th:text="${#temporals.format(c.at, 'HH:mm')}">09:30</div>
+                    </div>
+                </div>
+
+                <div class="lm-panel">
+                    <div class="lm-panel-h">Needs a decision</div>
+                    <div th:each="a : ${systemAlerts}" class="lm-item">
+                        <div th:class="'lm-item-icon ' + ${a.kind}">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".5"/></svg>
+                        </div>
+                        <div class="lm-item-body">
+                            <div class="lm-item-title" th:text="${a.title}">All systems green</div>
+                            <div class="lm-item-detail" th:text="${a.detail}">Nothing needs attention.</div>
+                        </div>
+                        <div class="lm-item-when" th:text="${a.when}">now</div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
 
-<script th:src="@{/js/app.js}"></script>
+<!-- Common footer -->
+<div th:replace="~{fragments/footer :: footer}"></div>
+
 </body>
 </html>

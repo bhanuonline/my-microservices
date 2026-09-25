@@ -41,6 +41,7 @@ import java.util.Map;
  *     "candleCount": 100,
  *     "latest": {
  *       "close":  24680.75,
+ *       "ema9":   24660.40,
  *       "ema20":  24610.25,
  *       "ema50":  24540.10,
  *       "ema200": 24310.50,
@@ -90,6 +91,8 @@ public class IndicatorController {
         }
 
         int last = candles.size() - 1;
+        // Intraday-tuned set (ema9/20/50) surfaced first; classic long-term ema200 kept for backward compat.
+        List<BigDecimal> ema9   = new ExponentialMovingAverage(9).compute(candles);
         List<BigDecimal> ema20  = new ExponentialMovingAverage(20).compute(candles);
         List<BigDecimal> ema50  = new ExponentialMovingAverage(50).compute(candles);
         List<BigDecimal> ema200 = new ExponentialMovingAverage(200).compute(candles);
@@ -103,6 +106,7 @@ public class IndicatorController {
         Map<String, Object> latest = new LinkedHashMap<>();
         latest.put("timestamp",     candles.get(last).timestamp());
         latest.put("close",         candles.get(last).close());
+        latest.put("ema9",          ema9.get(last));
         latest.put("ema20",         ema20.get(last));
         latest.put("ema50",         ema50.get(last));
         latest.put("ema200",        ema200.get(last));

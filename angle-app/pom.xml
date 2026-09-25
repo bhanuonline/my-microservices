@@ -130,6 +130,13 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- Spring Cloud Context: enables @RefreshScope for live property reload.
+             Trigger reload with POST /actuator/refresh (no app restart needed). -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+        </dependency>
+
         <!-- Persistence: Spring Data JPA + MySQL driver -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

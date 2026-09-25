@@ -51,10 +51,8 @@ public class BiasController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime asOf
     ) {
-        //BiasProperties.Instrument cfg = firstConfiguredOrDefault();
-        //return renderDashboard(model, cfg, asOf);
-        System.out.println("hello");
-        return "hello";
+        BiasProperties.Instrument cfg = firstConfiguredOrDefault();
+        return renderDashboard(model, cfg, asOf);
     }
 
     @GetMapping("/bias/{symbolToken}")

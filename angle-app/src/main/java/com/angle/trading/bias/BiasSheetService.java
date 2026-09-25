@@ -67,6 +67,7 @@ public class BiasSheetService {
     private static final MathContext MC = MathContext.DECIMAL64;
 
     private final BiasProperties biasProperties;
+    private final com.angle.trading.config.AnalysisProperties analysisProperties;
     private final MarketDataService marketDataService;
     private final AnalystService analystService;
     private final MarketContextBuilder marketContextBuilder;
@@ -209,22 +210,53 @@ public class BiasSheetService {
     private TrendFilters buildTrendFilters(List<Candle> candles) {
         if (candles.isEmpty()) {
             return new TrendFilters(null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null);
         }
         int i = candles.size() - 1;
         BigDecimal price = candles.get(i).close();
 
+        // EMA 9 / 20 / 50 — tuned for intraday. Fast set beats classic 20/50/200 on 5M-1H charts.
+        BigDecimal ema9   = last(new ExponentialMovingAverage(9).compute(candles));
         BigDecimal ema20  = last(new ExponentialMovingAverage(20).compute(candles));
         BigDecimal ema50  = last(new ExponentialMovingAverage(50).compute(candles));
-        BigDecimal ema200 = last(new ExponentialMovingAverage(200).compute(candles));
         BigDecimal vwap   = last(new VwapIndicator().compute(candles));
         BigDecimal rsi    = last(new RelativeStrengthIndex(14).compute(candles));
         BigDecimal adx    = last(new AverageDirectionalIndex(14).compute(candles));
         BigDecimal atr    = last(new AverageTrueRange(14).compute(candles));
         MACD.MacdValue macd = last(new MACD(12, 26, 9).computeSeries(candles));
 
-        Boolean ema20AboveEma50 = (ema20 != null && ema50 != null) ? ema20.compareTo(ema50) > 0 : null;
-        Boolean priceAboveEma200 = (ema200 != null) ? price.compareTo(ema200) > 0 : null;
+        // SuperTrend — trailing line + trend direction (period/multiplier from config).
+        var stCfg = analysisProperties.getSuperTrend();
+        com.angle.trading.indicator.SuperTrend.Value st = last(
+                new com.angle.trading.indicator.SuperTrend(stCfg.getPeriod(), stCfg.getMultiplier())
+                        .compute(candles));
+        BigDecimal superTrendLine    = st == null ? null : st.line();
+        Boolean    superTrendBullish = st == null ? null : st.bullish();
+
+        // Volume analysis — confirms whether the latest price move has conviction.
+        Long currentVolume = candles.get(i).volume();
+        Long avgVolume20 = null;
+        BigDecimal volumeRatio = null;
+        Boolean volumeBullish = null;
+        if (candles.size() >= 20) {
+            long sum = 0;
+            for (int k = candles.size() - 20; k < candles.size(); k++) sum += candles.get(k).volume();
+            avgVolume20 = sum / 20;
+            if (avgVolume20 > 0) {
+                volumeRatio = BigDecimal.valueOf(currentVolume)
+                        .divide(BigDecimal.valueOf(avgVolume20), 2, RoundingMode.HALF_UP);
+                // "Bullish" = above-average volume on a green candle
+                if (candles.size() >= 2) {
+                    boolean greenCandle = price.compareTo(candles.get(i - 1).close()) > 0;
+                    boolean aboveAvg = currentVolume > avgVolume20;
+                    volumeBullish = aboveAvg && greenCandle;
+                }
+            }
+        }
+
+        Boolean ema9AboveEma20 = (ema9 != null && ema20 != null) ? ema9.compareTo(ema20) > 0 : null;
+        Boolean priceAboveEma50 = (ema50 != null) ? price.compareTo(ema50) > 0 : null;
         Boolean priceAboveVwap = (vwap != null) ? price.compareTo(vwap) > 0 : null;
 
         String adxStrength = null;
@@ -244,7 +276,7 @@ public class BiasSheetService {
         Boolean macdBullish = (macd != null && macd.histogram() != null) ? macd.histogram().signum() > 0 : null;
 
         return new TrendFilters(
-                ema20, ema50, ema200, ema20AboveEma50, priceAboveEma200,
+                ema9, ema20, ema50, ema9AboveEma20, priceAboveEma50,
                 vwap, priceAboveVwap,
                 adx, adxStrength,
                 atr, atrPct,
@@ -252,7 +284,9 @@ public class BiasSheetService {
                 macd == null ? null : macd.macd(),
                 macd == null ? null : macd.signal(),
                 macd == null ? null : macd.histogram(),
-                macdBullish
+                macdBullish,
+                superTrendLine, superTrendBullish,
+                currentVolume, avgVolume20, volumeRatio, volumeBullish
         );
     }
 
@@ -289,7 +323,9 @@ public class BiasSheetService {
                                                      BreadthSection breadth) {
         Map<String, Integer> scores = new LinkedHashMap<>();
         scores.put("MultiTF",    scoreMultiTf(multiTf));
-        scores.put("EMA",        toScore(trend.ema20AboveEma50()));
+        scores.put("EMA",        toScore(trend.ema9AboveEma20()));
+        scores.put("SuperTrend", toScore(trend.superTrendBullish()));
+        scores.put("Volume",     toScore(trend.volumeBullish()));
         scores.put("VWAP",       toScore(trend.priceAboveVwap()));
         scores.put("ADX",        scoreAdx(trend));
         scores.put("Structure",  scoreStructure(structure));
@@ -334,8 +370,8 @@ public class BiasSheetService {
     private static int scoreAdx(TrendFilters t) {
         if (t.adxStrength() == null) return 0;
         if (!"STRONG".equals(t.adxStrength()) && !"VERY_STRONG".equals(t.adxStrength())) return 0;
-        if (t.ema20AboveEma50() == null) return 0;
-        return t.ema20AboveEma50() ? 1 : -1;
+        if (t.ema9AboveEma20() == null) return 0;
+        return t.ema9AboveEma20() ? 1 : -1;
     }
 
     private static int scoreStructure(StructureSection s) {
