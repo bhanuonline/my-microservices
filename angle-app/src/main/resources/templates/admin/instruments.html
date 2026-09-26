@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Instruments — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2; --hair:#F0F3F8;
+            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
+            --primary:#2563EB; --primary-2:#DBEAFE;
+            --good:#16A34A; --good-2:#DCFCE7;
+            --bad:#DC2626;  --bad-2:#FEE2E2;
+            --warn:#F59E0B;
+            --shadow-sm:0 1px 2px rgba(26,37,64,.04);
+            --shadow-md:0 4px 12px -2px rgba(26,37,64,.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin:0; background:var(--bg); color:var(--ink);
+            font-family:'Inter',-apple-system,sans-serif; font-size:14px;
+        }
+        .wrap { max-width:1400px; margin:0 auto; padding:32px; }
+
+        .head { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+        .head h1 { margin:0; font-size:26px; font-weight:700; letter-spacing:-.02em; }
+        .head p  { margin:4px 0 0; color:var(--muted); font-size:13.5px; }
+
+        .btn {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:10px 18px; border-radius:8px;
+            font:inherit; font-size:13.5px; font-weight:600;
+            cursor:pointer; border:1px solid transparent;
+            transition:all .15s ease;
+        }
+        .btn.primary { background:var(--primary); color:#fff; }
+        .btn.primary:hover { background:#1D4ED8; transform:translateY(-1px); box-shadow:var(--shadow-md); }
+        .btn.ghost { background:var(--surface); color:var(--ink); border-color:var(--border); }
+        .btn.ghost:hover { background:var(--hair); }
+        .btn.danger { background:var(--bad); color:#fff; }
+
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow-sm); overflow:hidden; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:14px 18px; text-align:left; }
+        thead th {
+            font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;
+            font-weight:600; border-bottom:1px solid var(--border); background:var(--hair);
+        }
+        tbody td { border-bottom:1px solid var(--hair); font-size:13.5px; }
+        tbody tr:last-child td { border-bottom:none; }
+        tbody tr:hover { background:var(--hair); }
+        .mono { font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--muted); }
+        .sym-cell { display:flex; align-items:center; gap:10px; }
+        .sym-badge { width:32px; height:32px; border-radius:8px; background:var(--primary-2); color:var(--primary);
+                     font-weight:700; font-size:11px; display:flex; align-items:center; justify-content:center; }
+        .status-pill {
+            display:inline-flex; align-items:center; gap:6px;
+            padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700;
+            text-transform:uppercase; letter-spacing:.04em;
+        }
+        .status-pill.on { background:var(--good-2); color:var(--good); }
+        .status-pill.off { background:var(--hair); color:var(--muted); }
+        .row-actions { display:flex; gap:6px; }
+        .icon-btn {
+            width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+            background:var(--surface); color:var(--muted); cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            transition:all .12s ease;
+        }
+        .icon-btn:hover { color:var(--ink); background:var(--hair); }
+        .icon-btn.del:hover { color:var(--bad); border-color:var(--bad); }
+
+        /* Toggle switch */
+        .switch { position:relative; width:38px; height:22px; cursor:pointer; }
+        .switch input { opacity:0; width:0; height:0; }
+        .switch-slider {
+            position:absolute; inset:0; background:#CBD5E1; border-radius:22px; transition:background .15s;
+        }
+        .switch-slider::before {
+            content:''; position:absolute; height:16px; width:16px; left:3px; top:3px;
+            background:#fff; border-radius:50%; transition:transform .15s;
+        }
+        .switch input:checked + .switch-slider { background:var(--good); }
+        .switch input:checked + .switch-slider::before { transform:translateX(16px); }
+
+        /* Modal */
+        .modal-backdrop {
+            position:fixed; inset:0; background:rgba(26,37,64,.5);
+            display:none; align-items:center; justify-content:center; z-index:100;
+        }
+        .modal-backdrop.open { display:flex; }
+        .modal {
+            background:var(--surface); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.2);
+            width:520px; max-width:calc(100vw - 32px); padding:28px;
+        }
+        .modal h2 { margin:0 0 20px; font-size:18px; font-weight:700; }
+        .modal .field { margin-bottom:14px; position:relative; }
+        .modal label {
+            display:block; font-size:12px; color:var(--muted); font-weight:600;
+            margin-bottom:6px; letter-spacing:.03em;
+        }
+        .modal input, .modal select {
+            width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:8px;
+            font:inherit; font-size:13.5px; color:var(--ink); background:var(--surface);
+        }
+        .modal input:focus, .modal select:focus { outline:none; border-color:var(--primary); }
+        .modal .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+
+        /* Autocomplete dropdown */
+        .autocomplete {
+            position:absolute; top:100%; left:0; right:0; z-index:10;
+            background:var(--surface); border:1px solid var(--border); border-radius:8px;
+            margin-top:4px; max-height:280px; overflow-y:auto; box-shadow:var(--shadow-md);
+            display:none;
+        }
+        .autocomplete.open { display:block; }
+        .ac-item {
+            padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--hair);
+            display:flex; align-items:center; gap:10px;
+        }
+        .ac-item:last-child { border-bottom:none; }
+        .ac-item:hover, .ac-item.active { background:var(--primary-2); }
+        .ac-sym { font-weight:600; font-size:13px; }
+        .ac-name { font-size:11.5px; color:var(--muted); }
+        .ac-token { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--faint); margin-left:auto; }
+
+        .empty { text-align:center; padding:60px 20px; color:var(--faint); font-size:13px; }
+
+        .toast {
+            position:fixed; bottom:24px; right:24px; z-index:200;
+            background:var(--ink); color:#fff; padding:12px 18px;
+            border-radius:8px; font-size:13px; box-shadow:0 12px 32px rgba(0,0,0,.2);
+            opacity:0; transform:translateY(10px); transition:all .2s ease;
+        }
+        .toast.show { opacity:1; transform:translateY(0); }
+        .toast.error { background:var(--bad); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="head">
+        <div>
+            <h1>Instruments Management</h1>
+            <p>Add, remove, or toggle instruments tracked by the bias engine.</p>
+        </div>
+        <div style="display:flex;gap:10px">
+            <a class="btn ghost" th:href="@{/dashboard}">← Dashboard</a>
+            <button class="btn primary" onclick="openAdd()">+ Add Instrument</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:40px">#</th>
+                    <th>Symbol</th>
+                    <th>Broker</th>
+                    <th>Exchange</th>
+                    <th>Token</th>
+                    <th>Interval</th>
+                    <th>Priority</th>
+                    <th>Enabled</th>
+                    <th style="text-align:right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tbody">
+                <tr th:each="i, iter : ${instruments}" th:attr="data-id=${i.id}">
+                    <td class="mono" th:text="${iter.index + 1}">1</td>
+                    <td>
+                        <div class="sym-cell">
+                            <div class="sym-badge" th:text="${#strings.toUpperCase(#strings.substring(i.symbol, 0, 2))}">NI</div>
+                            <div>
+                                <div style="font-weight:600" th:text="${i.symbol}">Nifty 50</div>
+                                <div class="mono" th:if="${i.notes}" th:text="${i.notes}"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td th:text="${i.broker}">ANGEL</td>
+                    <td th:text="${i.exchange}">NSE</td>
+                    <td class="mono" th:text="${i.symbolToken}">99926000</td>
+                    <td class="mono" th:text="${i.intervalType}">FIVE_MINUTE</td>
+                    <td class="mono" th:text="${i.priority}">10</td>
+                    <td>
+                        <label class="switch">
+                            <input type="checkbox" th:checked="${i.enabled}"
+                                   th:attr="data-id=${i.id}" onchange="toggle(this)">
+                            <span class="switch-slider"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <div class="row-actions" style="justify-content:flex-end">
+                            <button class="icon-btn" title="Edit"
+                                    th:attr="onclick=|openEdit(${i.id})|">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button class="icon-btn del" title="Delete"
+                                    th:attr="onclick=|delRow(${i.id}, '${#strings.escapeJavaScript(i.symbol)}')|">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(instruments)}">
+                    <td colspan="9" class="empty">
+                        No instruments yet. Click <b>+ Add Instrument</b> to create one.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="modal-backdrop" id="mBd">
+    <div class="modal">
+        <h2 id="mTitle">Add Instrument</h2>
+        <form id="mForm" onsubmit="save(event)">
+            <input type="hidden" id="fId">
+            <div class="field">
+                <label>Symbol name</label>
+                <input id="fSymbol" required placeholder="Nifty 50">
+            </div>
+            <div class="field">
+                <label>Symbol token (type to search)</label>
+                <input id="fToken" required autocomplete="off" placeholder="99926000 or NIFTY"
+                       oninput="onTokenInput(this.value)" onblur="setTimeout(hideAc, 200)">
+                <div class="autocomplete" id="ac"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <div class="field">
+                    <label>Broker</label>
+                    <select id="fBroker">
+                        <option value="ANGEL" selected>ANGEL</option>
+                        <option value="UPSTOX">UPSTOX</option>
+                        <option value="KITE">KITE</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Exchange</label>
+                    <select id="fExchange">
+                        <option value="NSE" selected>NSE</option>
+                        <option value="BSE">BSE</option>
+                        <option value="NFO">NFO</option>
+                        <option value="MCX">MCX</option>
+                        <option value="CDS">CDS</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Interval</label>
+                    <select id="fInterval">
+                        <option value="ONE_MINUTE">1M</option>
+                        <option value="FIVE_MINUTE" selected>5M</option>
+                        <option value="FIFTEEN_MINUTE">15M</option>
+                        <option value="THIRTY_MINUTE">30M</option>
+                        <option value="ONE_HOUR">1H</option>
+                        <option value="ONE_DAY">1D</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+                <div class="field">
+                    <label>Priority (lower = higher)</label>
+                    <input id="fPriority" type="number" value="100" min="1" max="9999">
+                </div>
+                <div class="field">
+                    <label>Notes (optional)</label>
+                    <input id="fNotes" placeholder="e.g. Front-month · rolls Sep 24">
+                </div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn ghost" onclick="closeM()">Cancel</button>
+                <button type="submit" class="btn primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = '/admin/instruments';
+
+function toast(msg, error = false) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', error);
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ---------- CRUD ----------
+async function toggle(cb) {
+    const id = cb.dataset.id;
+    const enabled = cb.checked;
+    try {
+        const r = await fetch(`${API}/${id}/toggle?enabled=${enabled}`, {method:'PUT'});
+        if (!r.ok) throw new Error('Toggle failed');
+        toast(enabled ? 'Enabled' : 'Disabled');
+    } catch (e) {
+        cb.checked = !enabled;
+        toast(e.message, true);
+    }
+}
+
+async function delRow(id, symbol) {
+    if (!confirm(`Delete "${symbol}"?`)) return;
+    const r = await fetch(`${API}/${id}`, {method:'DELETE'});
+    if (r.ok) { toast('Deleted'); setTimeout(()=>location.reload(), 400); }
+    else toast('Delete failed', true);
+}
+
+// ---------- modal ----------
+function openAdd() {
+    $('mTitle').textContent = 'Add Instrument';
+    $('mForm').reset();
+    $('fId').value = '';
+    $('fBroker').value = 'ANGEL';
+    $('fExchange').value = 'NSE';
+    $('fInterval').value = 'FIVE_MINUTE';
+    $('fPriority').value = 100;
+    $('mBd').classList.add('open');
+    $('fSymbol').focus();
+}
+
+async function openEdit(id) {
+    const r = await fetch(`${API}/data`);
+    const list = await r.json();
+    const row = list.find(x => x.id === id);
+    if (!row) return toast('Not found', true);
+    $('mTitle').textContent = 'Edit Instrument';
+    $('fId').value = row.id;
+    $('fSymbol').value = row.symbol;
+    $('fBroker').value = row.broker;
+    $('fExchange').value = row.exchange;
+    $('fToken').value = row.symbolToken;
+    $('fInterval').value = row.intervalType;
+    $('fPriority').value = row.priority;
+    $('fNotes').value = row.notes || '';
+    $('mBd').classList.add('open');
+}
+
+function closeM() { $('mBd').classList.remove('open'); hideAc(); }
+
+async function save(e) {
+    e.preventDefault();
+    const id = $('fId').value;
+    const body = {
+        symbol: $('fSymbol').value.trim(),
+        broker: $('fBroker').value,
+        exchange: $('fExchange').value,
+        symbolToken: $('fToken').value.trim(),
+        intervalType: $('fInterval').value,
+        priority: parseInt($('fPriority').value, 10) || 100,
+        notes: $('fNotes').value.trim() || null,
+        enabled: true
+    };
+    const url = id ? `${API}/${id}` : API;
+    const method = id ? 'PUT' : 'POST';
+    const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if (r.ok) { toast(id ? 'Updated' : 'Created'); setTimeout(()=>location.reload(), 400); }
+    else {
+        const msg = await r.text().catch(()=>'Save failed');
+        toast(msg.slice(0, 100), true);
+    }
+}
+
+// ---------- autocomplete ----------
+let acTimer;
+function onTokenInput(v) {
+    clearTimeout(acTimer);
+    if (!v || v.length < 2) { hideAc(); return; }
+    acTimer = setTimeout(() => fetchLookup(v), 250);
+}
+
+async function fetchLookup(q) {
+    try {
+        const r = await fetch(`${API}/lookup?q=${encodeURIComponent(q)}`);
+        const list = await r.json();
+        renderAc(list);
+    } catch (e) { hideAc(); }
+}
+
+function renderAc(list) {
+    const ac = $('ac');
+    if (!list || list.length === 0) { hideAc(); return; }
+    ac.innerHTML = list.map(x => `
+        <div class="ac-item" onclick="pickAc('${x.token}', '${(x.symbol||'').replace(/'/g,"\\'")}', '${x.exchange||''}')">
+            <div>
+                <div class="ac-sym">${x.symbol || '—'}</div>
+                <div class="ac-name">${x.name || ''} ${x.exchange ? '· ' + x.exchange : ''}</div>
+            </div>
+            <div class="ac-token">${x.token}</div>
+        </div>`).join('');
+    ac.classList.add('open');
+}
+
+function pickAc(token, symbol, exchange) {
+    $('fToken').value = token;
+    if (!$('fSymbol').value) $('fSymbol').value = symbol;
+    if (exchange && ['NSE','BSE','NFO','MCX','CDS'].includes(exchange)) $('fExchange').value = exchange;
+    hideAc();
+}
+
+function hideAc() { $('ac').classList.remove('open'); }
+
+// Close modal on backdrop click
+$('mBd').addEventListener('click', (e) => { if (e.target === $('mBd')) closeM(); });
+// ESC key
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeM(); });
+</script>
+
+<!-- Common footer -->
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

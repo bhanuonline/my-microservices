@@ -32,7 +32,7 @@ public class AngelTokenPersistenceService {
     public Optional<CachedToken> load(String clientCode) {
         try {
             return repo.findById(clientCode)
-                    .map(e -> new CachedToken(e.getJwtToken(), e.getRefreshToken(), e.getExpiresAt()));
+                    .map(e -> new CachedToken(e.getJwtToken(), e.getRefreshToken(), e.getFeedToken(), e.getExpiresAt()));
         } catch (Exception ex) {
             log.warn("Failed to load Angel token from DB: {}", ex.getMessage());
             return Optional.empty();
@@ -40,9 +40,9 @@ public class AngelTokenPersistenceService {
     }
 
     @Transactional
-    public void save(String clientCode, String jwt, String refreshToken, Instant expiresAt) {
+    public void save(String clientCode, String jwt, String refreshToken, String feedToken, Instant expiresAt) {
         try {
-            repo.save(new AngelTokenEntity(clientCode, jwt, refreshToken, expiresAt));
+            repo.save(new AngelTokenEntity(clientCode, jwt, refreshToken, feedToken, expiresAt));
             log.debug("Persisted Angel tokens for {} (expires {})", clientCode, expiresAt);
         } catch (Exception ex) {
             log.warn("Failed to persist Angel token: {}", ex.getMessage());
@@ -59,7 +59,7 @@ public class AngelTokenPersistenceService {
         }
     }
 
-    public record CachedToken(String jwt, String refreshToken, Instant expiresAt) {
+    public record CachedToken(String jwt, String refreshToken, String feedToken, Instant expiresAt) {
         public boolean jwtValid() {
             return jwt != null && expiresAt != null && Instant.now().isBefore(expiresAt);
         }

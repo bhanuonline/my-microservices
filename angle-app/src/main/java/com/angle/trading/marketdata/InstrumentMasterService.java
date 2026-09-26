@@ -163,6 +163,34 @@ public class InstrumentMasterService {
         return Optional.ofNullable(byToken.get(token));
     }
 
+    /**
+     * Case-insensitive substring search across symbol + name.
+     * Cheap linear scan — the scrip master is hot in memory.
+     * Returns exact matches first, then partial matches. Caps at {@code limit}.
+     */
+    public List<Instrument> searchByNameOrSymbol(String query, int limit) {
+        if (query == null || query.isBlank()) return List.of();
+        String q = query.toLowerCase();
+        java.util.List<Instrument> exact = new java.util.ArrayList<>();
+        java.util.List<Instrument> partial = new java.util.ArrayList<>();
+        for (Instrument i : bySymbol.values()) {
+            String sym  = i.symbol() == null ? "" : i.symbol().toLowerCase();
+            String name = i.name()   == null ? "" : i.name().toLowerCase();
+            if (sym.equals(q) || name.equals(q)) {
+                exact.add(i);
+            } else if (sym.contains(q) || name.contains(q)) {
+                partial.add(i);
+            }
+            if (exact.size() + partial.size() >= limit * 4) break;   // early cap
+        }
+        java.util.List<Instrument> merged = new java.util.ArrayList<>(exact);
+        for (Instrument p : partial) {
+            if (merged.size() >= limit) break;
+            merged.add(p);
+        }
+        return merged.size() > limit ? merged.subList(0, limit) : merged;
+    }
+
     public Optional<Instrument> findOption(String underlying, LocalDate expiry,
                                            BigDecimal strike, OptionType type) {
         return bySymbol.values().stream()

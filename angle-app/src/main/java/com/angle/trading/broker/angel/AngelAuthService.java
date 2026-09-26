@@ -50,7 +50,11 @@ public class AngelAuthService {
 
     private volatile String cachedJwt;
     private volatile String cachedRefreshToken;
+    private volatile String cachedFeedToken;
     private volatile Instant tokenExpiresAt;
+
+    /** Feed token for WebSocket streaming. May be null if never logged in. */
+    public String getFeedToken() { return cachedFeedToken; }
 
     /** Returns a valid JWT, hydrating from DB / refreshing / logging in as needed. */
     public synchronized String getJwtToken() {
@@ -65,12 +69,15 @@ public class AngelAuthService {
             Optional<CachedToken> saved = tokenPersistence.load(clientCode);
             if (saved.isPresent()) {
                 CachedToken t = saved.get();
-                // Always adopt the refresh token — it's useful even when the JWT is expired.
+                // Adopt refresh + feed tokens — useful even when the JWT is expired
+                // (refresh renewals + WebSocket streaming both need them).
                 cachedRefreshToken = t.refreshToken();
+                cachedFeedToken    = t.feedToken();
                 if (t.jwtValid()) {
                     cachedJwt      = t.jwt();
                     tokenExpiresAt = t.expiresAt();
-                    log.info("Loaded cached Angel JWT from DB — valid until {}", tokenExpiresAt);
+                    log.info("Loaded cached Angel JWT from DB — valid until {} (feedToken: {})",
+                            tokenExpiresAt, cachedFeedToken != null ? "present" : "MISSING");
                     return cachedJwt;
                 }
                 log.info("DB JWT expired; will attempt refresh-token renewal");
@@ -127,6 +134,7 @@ public class AngelAuthService {
             // Angel returns a NEW refresh token on renewal — rotate it.
             cachedRefreshToken = response.data().refreshToken() != null
                     ? response.data().refreshToken() : refreshToken;
+            if (response.data().feedToken() != null) cachedFeedToken = response.data().feedToken();
             tokenExpiresAt     = Instant.now().plus(TOKEN_TTL);
             log.info("Angel JWT refreshed OK, valid until {}", tokenExpiresAt);
             persistTokens(cfg.getClientCode());
@@ -169,6 +177,7 @@ public class AngelAuthService {
 
         cachedJwt          = response.data().jwtToken();
         cachedRefreshToken = response.data().refreshToken();
+        cachedFeedToken    = response.data().feedToken();
         tokenExpiresAt     = Instant.now().plus(TOKEN_TTL);
         log.info("Angel login OK, JWT cached until {}", tokenExpiresAt);
         persistTokens(cfg.getClientCode());
@@ -177,7 +186,7 @@ public class AngelAuthService {
 
     private void persistTokens(String clientCode) {
         if (tokenPersistence == null || clientCode == null) return;
-        tokenPersistence.save(clientCode, cachedJwt, cachedRefreshToken, tokenExpiresAt);
+        tokenPersistence.save(clientCode, cachedJwt, cachedRefreshToken, cachedFeedToken, tokenExpiresAt);
     }
 
     /**

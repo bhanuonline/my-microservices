@@ -44,6 +44,38 @@ public class BiasProperties {
     /** Instruments to build the sheet for. */
     private List<Instrument> instruments = new ArrayList<>();
 
+    /**
+     * Set by InstrumentService at boot (via IntrumentServiceBridge).
+     * When set, {@link #getInstruments()} delegates to the DB instead of the
+     * properties list — that way the properties list becomes seed data only
+     * and admin UI edits take effect immediately.
+     * Kept as a runtime holder (not a bean field) so ConfigurationProperties
+     * binding is unaffected.
+     */
+    private transient java.util.function.Supplier<List<Instrument>> dbSource;
+
+    public void bindDbSource(java.util.function.Supplier<List<Instrument>> supplier) {
+        this.dbSource = supplier;
+    }
+
+    /**
+     * Returns the LIVE instrument list. Delegates to DB via the bound supplier
+     * when available (post-boot); falls back to the properties list otherwise
+     * (during boot, before service is wired).
+     */
+    public List<Instrument> getInstruments() {
+        if (dbSource != null) {
+            try { return dbSource.get(); }
+            catch (Exception ignored) { /* fall back to properties on failure */ }
+        }
+        return instruments;
+    }
+
+    /** Direct access to the properties-declared list — used only by the seeder. */
+    public List<Instrument> getInstrumentsFromProperties() {
+        return instruments;
+    }
+
     /** Timeframes for the multi-TF bias section (in order top → bottom). */
     private List<Interval> timeframes = List.of(
             Interval.ONE_DAY,

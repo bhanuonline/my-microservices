@@ -21,7 +21,8 @@ import java.time.Instant;
  *                  Used as Bearer on every REST call.
  *   refreshToken — long-lived (~30 days). Traded for a fresh jwtToken via
  *                  /rest/auth/angelbroking/jwt/v1/generateTokens — no TOTP.
- *   feedToken    — WebSocket auth for SmartStream. Not stored (we don't stream yet).
+ *   feedToken    — WebSocket auth for SmartStream. Persisted so a restart
+ *                  doesn't leave the stream client without credentials.
  *
  * Security note: These are session-scoped credentials. Losing them lets
  * someone act as this client until they expire. Password and TOTP secret
@@ -47,16 +48,22 @@ public class AngelTokenEntity {
     @Column(name = "refresh_token", length = 2048)
     private String refreshToken;
 
+    /** Feed token for WebSocket streaming. Nullable for pre-existing rows. */
+    @Column(name = "feed_token", length = 2048)
+    private String feedToken;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
     @Column(name = "saved_at", nullable = false)
     private Instant savedAt;
 
-    public AngelTokenEntity(String clientCode, String jwtToken, String refreshToken, Instant expiresAt) {
+    public AngelTokenEntity(String clientCode, String jwtToken, String refreshToken,
+                             String feedToken, Instant expiresAt) {
         this.clientCode   = clientCode;
         this.jwtToken     = jwtToken;
         this.refreshToken = refreshToken;
+        this.feedToken    = feedToken;
         this.expiresAt    = expiresAt;
         this.savedAt      = Instant.now();
     }

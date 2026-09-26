@@ -137,6 +137,12 @@
             <artifactId>spring-cloud-context</artifactId>
         </dependency>
 
+        <!-- WebSocket client — for Angel SmartStream real-time tick feed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- Persistence: Spring Data JPA + MySQL driver -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

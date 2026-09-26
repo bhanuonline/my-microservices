@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<!--
+    /live/ticker — real-time price grid backed by SSE stream.
+    Opens EventSource on /api/live/stream, renders rows, flashes on tick.
+    Zero polling. Zero page reload.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Live Ticker — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2; --hair:#F0F3F8;
+            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
+            --up:#16A34A; --up-2:#DCFCE7;
+            --down:#DC2626; --down-2:#FEE2E2;
+            --primary:#2563EB; --primary-2:#DBEAFE;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin:0; background:var(--bg); color:var(--ink);
+            font-family:'Inter',-apple-system,sans-serif; font-size:14px;
+        }
+        .wrap { max-width:1200px; margin:0 auto; padding:32px; }
+
+        .head {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:24px;
+        }
+        .head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+        .head p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+
+        .status-pill {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:8px 14px; border-radius:999px;
+            font-size:12.5px; font-weight:600;
+            background:var(--hair); color:var(--muted);
+        }
+        .status-pill.on { background:var(--up-2); color:var(--up); }
+        .status-pill.off { background:var(--down-2); color:var(--down); }
+        .status-pill .dot { width:8px; height:8px; border-radius:50%; background:currentColor; animation:pulse 1.6s ease infinite; }
+        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+
+        .grid {
+            display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+            gap:16px;
+        }
+        .card {
+            background:var(--surface); border:1px solid var(--border); border-radius:14px;
+            padding:20px; box-shadow:0 1px 2px rgba(26,37,64,.04);
+            transition:background .8s ease, border-color .3s ease;
+            position:relative; overflow:hidden;
+        }
+        .card::before {
+            content:''; position:absolute; top:0; left:0; right:0; height:3px;
+            background:var(--faint); transition:background .3s ease;
+        }
+        .card.up::before   { background:var(--up); }
+        .card.down::before { background:var(--down); }
+        .card.flash-up   { background:var(--up-2); border-color:var(--up); }
+        .card.flash-down { background:var(--down-2); border-color:var(--down); }
+
+        .sym { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+        .name { font-size:15px; font-weight:700; margin-top:2px; }
+        .ltp {
+            font-family:'IBM Plex Mono', monospace;
+            font-size:32px; font-weight:600; letter-spacing:-.01em;
+            margin:14px 0 6px;
+        }
+        .ltp.up   { color:var(--up); }
+        .ltp.down { color:var(--down); }
+        .meta { display:flex; justify-content:space-between; font-size:11.5px; color:var(--faint); }
+        .meta .n { font-family:'IBM Plex Mono', monospace; }
+        .waiting { color:var(--faint); font-style:italic; font-size:13px; padding:20px 0; text-align:center; }
+
+        .footer-note { margin-top:32px; padding:16px 20px; background:var(--surface); border:1px solid var(--border);
+                       border-radius:12px; font-size:12.5px; color:var(--muted); line-height:1.6; }
+        .footer-note code { background:var(--hair); padding:2px 6px; border-radius:4px;
+                            font-family:'IBM Plex Mono', monospace; font-size:11.5px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="head">
+        <div>
+            <h1>Live Ticker</h1>
+            <p>Real-time prices pushed via Server-Sent Events. No polling.</p>
+        </div>
+        <div class="status-pill" id="status">
+            <span class="dot"></span>
+            <span id="statusText">Connecting…</span>
+        </div>
+    </div>
+
+    <div class="grid" id="grid">
+        <div class="waiting" id="waiting">
+            Waiting for first tick… (during market hours the grid populates within seconds)
+        </div>
+    </div>
+
+    <div class="footer-note">
+        Backed by <code>GET /api/live/stream</code> — an SSE endpoint that fans out
+        ticks + closed candles from Angel's WebSocket feed.
+        Rows appear on the first tick per instrument. Cards flash green/red on price change.
+    </div>
+</div>
+
+<script>
+    const grid = document.getElementById('grid');
+    const waiting = document.getElementById('waiting');
+    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const cards = new Map();   // token → { el, ltpEl, lastLtp, flashTimer }
+
+    function setStatus(state, text) {
+        statusEl.className = 'status-pill ' + state;
+        statusText.textContent = text;
+    }
+
+    function fmt(n) {
+        return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    }
+
+    function timeAgo(ts) {
+        const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+        return s + 's ago';
+    }
+
+    function upsertTick(msg) {
+        if (waiting) waiting.remove();
+        let card = cards.get(msg.token);
+        if (!card) {
+            const el = document.createElement('div');
+            el.className = 'card';
+            el.innerHTML = `
+                <div class="sym">token</div>
+                <div class="name">${msg.token}</div>
+                <div class="ltp" data-ltp>${fmt(msg.ltp)}</div>
+                <div class="meta">
+                    <span data-updated>updated just now</span>
+                    <span class="n" data-ts>${new Date(msg.ts).toLocaleTimeString()}</span>
+                </div>`;
+            grid.appendChild(el);
+            card = { el, ltpEl: el.querySelector('[data-ltp]'), updatedEl: el.querySelector('[data-updated]'),
+                     tsEl: el.querySelector('[data-ts]'), lastLtp: msg.ltp, flashTimer: null };
+            cards.set(msg.token, card);
+            return;
+        }
+        const prev = card.lastLtp;
+        const now = msg.ltp;
+        card.lastLtp = now;
+        card.ltpEl.textContent = fmt(now);
+        card.tsEl.textContent = new Date(msg.ts).toLocaleTimeString();
+        card.updatedEl.textContent = 'updated just now';
+
+        if (now > prev) {
+            card.ltpEl.classList.add('up'); card.ltpEl.classList.remove('down');
+            card.el.classList.add('flash-up', 'up'); card.el.classList.remove('flash-down', 'down');
+            card.el.classList.remove('down'); card.el.classList.add('up');
+        } else if (now < prev) {
+            card.ltpEl.classList.add('down'); card.ltpEl.classList.remove('up');
+            card.el.classList.add('flash-down', 'down'); card.el.classList.remove('flash-up', 'up');
+            card.el.classList.remove('up'); card.el.classList.add('down');
+        }
+        clearTimeout(card.flashTimer);
+        card.flashTimer = setTimeout(() => {
+            card.el.classList.remove('flash-up', 'flash-down');
+        }, 700);
+    }
+
+    // Update "updated Ns ago" every second
+    setInterval(() => {
+        cards.forEach(card => {
+            const tsText = card.tsEl.textContent;
+            // pull from data-ts of the msg — simple: just show approximate seconds
+        });
+    }, 1000);
+
+    // ---------- SSE ----------
+    let es;
+    function connect() {
+        setStatus('', 'Connecting…');
+        es = new EventSource('/api/live/stream');
+        es.onopen = () => setStatus('on', 'Connected');
+        es.onerror = () => {
+            setStatus('off', 'Disconnected — retrying');
+            // EventSource retries automatically; nothing else to do.
+        };
+        es.addEventListener('hello', e => console.log('[SSE hello]', e.data));
+        es.addEventListener('tick', e => {
+            try { upsertTick(JSON.parse(e.data)); }
+            catch (err) { console.error('bad tick', err); }
+        });
+        es.addEventListener('candle', e => {
+            try { console.log('[SSE candle]', JSON.parse(e.data)); }
+            catch (err) { console.error('bad candle', err); }
+        });
+    }
+    connect();
+</script>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

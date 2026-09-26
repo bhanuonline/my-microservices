@@ -29,6 +29,8 @@ public class AnalysisProperties {
         private Rsi       rsi      = new Rsi();
         private Macd      macd     = new Macd();
         private Ensemble  ensemble = new Ensemble();
+        private VolumeBreakout volumeBreakout = new VolumeBreakout();
+        private Bollinger bollinger = new Bollinger();
     }
 
     @Data
@@ -55,6 +57,34 @@ public class AnalysisProperties {
     @Data
     public static class Ensemble {
         private int minAgreement = 2;
+    }
+
+    /**
+     * Volume-breakout strategy.
+     *   lookback         — N candles to define the recent range (breakout above/below)
+     *   volumeAvgPeriod  — M candles to compute average volume
+     *   volumeMultiplier — current vol must exceed avgVol × this to confirm (1.5 = 50% above avg)
+     *   riskReward       — target distance = riskReward × stop distance (2.0 = 2:1)
+     */
+    @Data
+    public static class VolumeBreakout {
+        private int    lookback         = 20;
+        private int    volumeAvgPeriod  = 20;
+        private double volumeMultiplier = 1.5;
+        private double riskReward       = 2.0;
+    }
+
+    /**
+     * Bollinger Bounce (mean-reversion) strategy.
+     *   period            — Bollinger SMA period (default 20)
+     *   stdMultiplier     — band width (2.0 covers ~95% of price action)
+     *   stopBufferPercent — extra padding below/above reversal low/high (0.1 = 0.1%)
+     */
+    @Data
+    public static class Bollinger {
+        private int    period            = 20;
+        private double stdMultiplier     = 2.0;
+        private double stopBufferPercent = 0.1;
     }
 
     /** Smart Money Concepts settings. */

@@ -361,6 +361,34 @@
           }
         },
         {
+          "name": "Backtest — Volume Breakout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Volume-confirmed range breakout. Config: analysis.strategy.volume-breakout.* (lookback, vol-avg-period, vol-multiplier, risk-reward).",
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=volume-breakout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "volume-breakout" }]
+            }
+          }
+        },
+        {
+          "name": "Backtest — Bollinger Bounce",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Mean-reversion. Enters after price pierces a band and closes back inside on a reversal candle. Target = middle band.",
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/backtest?strategy=bollinger-bounce",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "backtest"],
+              "query": [{ "key": "strategy", "value": "bollinger-bounce" }]
+            }
+          }
+        },
+        {
           "name": "Backtest — Ensemble (tune minAgreement)",
           "request": {
             "method": "GET",
@@ -1346,6 +1374,282 @@
               "raw": "{{baseUrl}}/admin/warmer/stats",
               "host": ["{{baseUrl}}"],
               "path": ["admin", "warmer", "stats"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Instruments Admin (CRUD)",
+      "description": "MySQL-backed instrument management. All requests require ROLE_ADMIN (basic auth). Web UI at /admin/instruments.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Open web UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Full HTML admin page — table + add/edit modal + autocomplete.",
+            "url": { "raw": "{{baseUrl}}/admin/instruments", "host": ["{{baseUrl}}"], "path": ["admin", "instruments"] }
+          }
+        },
+        {
+          "name": "List (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "All instruments (enabled and disabled) with priority + timestamps.",
+            "url": { "raw": "{{baseUrl}}/admin/instruments/data", "host": ["{{baseUrl}}"], "path": ["admin", "instruments", "data"] }
+          }
+        },
+        {
+          "name": "Create new instrument",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"Fin Nifty\",\n  \"symbolToken\": \"99926037\",\n  \"broker\": \"ANGEL\",\n  \"exchange\": \"NSE\",\n  \"intervalType\": \"FIVE_MINUTE\",\n  \"enabled\": true,\n  \"priority\": 15,\n  \"notes\": \"Weekly expiry\"\n}"
+            },
+            "description": "Add a new instrument. symbolToken must be unique (409 if exists).",
+            "url": { "raw": "{{baseUrl}}/admin/instruments", "host": ["{{baseUrl}}"], "path": ["admin", "instruments"] }
+          }
+        },
+        {
+          "name": "Update instrument (change any field)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"Nifty 50\",\n  \"intervalType\": \"ONE_MINUTE\",\n  \"priority\": 5,\n  \"enabled\": true,\n  \"notes\": \"Primary — tightened to 1M\"\n}"
+            },
+            "description": "Update an instrument by its DB id (path). Only fields present in body are changed.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/instruments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "instruments", "1"]
+            }
+          }
+        },
+        {
+          "name": "Toggle enabled/disabled",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "description": "Flip an instrument on/off without deleting it. Warmer + dashboard skip disabled ones on next iteration.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/instruments/1/toggle?enabled=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "instruments", "1", "toggle"],
+              "query": [{ "key": "enabled", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Delete instrument",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "description": "Remove permanently. Cached data in candle_history stays until retention purge.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/instruments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "instruments", "1"]
+            }
+          }
+        },
+        {
+          "name": "Autocomplete lookup (scrip master)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Search scrip master by symbol/name substring or exact token. Used by the Add modal in the UI.",
+            "url": {
+              "raw": "{{baseUrl}}/admin/instruments/lookup?q=TATA",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "instruments", "lookup"],
+              "query": [{ "key": "q", "value": "TATA", "description": "symbol or name substring, or exact token" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Live Stream (SSE + Charts)",
+      "description": "Real-time tick + candle push via Angel WebSocket → Server-Sent Events. SSE endpoint requires basic auth; browser pages use session cookie.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "SSE stream — ALL tokens",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/event-stream" }],
+            "description": "Long-lived SSE connection. Emits 'tick' + 'candle' events for every enabled instrument. Ctrl+C in curl to disconnect.\n\nBest tested with: curl -N -u admin:admin123 http://localhost:9010/api/live/stream",
+            "url": { "raw": "{{baseUrl}}/api/live/stream", "host": ["{{baseUrl}}"], "path": ["api", "live", "stream"] }
+          }
+        },
+        {
+          "name": "SSE stream — filtered by token",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "text/event-stream" }],
+            "description": "Same SSE endpoint but filters to only the tokens passed. Can pass ?token=X&token=Y for multiple.",
+            "url": {
+              "raw": "{{baseUrl}}/api/live/stream?token={{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "live", "stream"],
+              "query": [{ "key": "token", "value": "{{nifty50Token}}" }]
+            }
+          }
+        },
+        {
+          "name": "Historical candles for chart bootstrap",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Returns last N candles in TradingView format ({ time, open, high, low, close, volume }). Used by the chart page on load.",
+            "url": {
+              "raw": "{{baseUrl}}/api/live/candles?token={{nifty50Token}}&interval=FIVE_MINUTE&limit=300",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "live", "candles"],
+              "query": [
+                { "key": "token",    "value": "{{nifty50Token}}" },
+                { "key": "interval", "value": "FIVE_MINUTE", "description": "ONE_MINUTE, FIVE_MINUTE, FIFTEEN_MINUTE, ONE_HOUR, ONE_DAY" },
+                { "key": "limit",    "value": "300", "description": "10-2000 candles" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ticker page (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Live-updating grid of instrument cards. Cards flash green/red on tick. Opens the SSE stream in-browser.",
+            "url": { "raw": "{{baseUrl}}/live/ticker", "host": ["{{baseUrl}}"], "path": ["live", "ticker"] }
+          }
+        },
+        {
+          "name": "Chart page — Nifty 50 (default)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "TradingView Lightweight Charts. Loads 300 candles + subscribes to SSE for live updates.",
+            "url": { "raw": "{{baseUrl}}/live/chart", "host": ["{{baseUrl}}"], "path": ["live", "chart"] }
+          }
+        },
+        {
+          "name": "Chart page — Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/live/chart?token={{bankNiftyToken}}&interval=FIVE_MINUTE",
+              "host": ["{{baseUrl}}"],
+              "path": ["live", "chart"],
+              "query": [
+                { "key": "token",    "value": "{{bankNiftyToken}}" },
+                { "key": "interval", "value": "FIVE_MINUTE" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Signal Suggestions (Claude)",
+      "description": "On-demand LLM analysis of the current bias sheet. Requires ANTHROPIC_API_KEY env var + ai.enabled=true. Responses are cached 5 min per (token, sheet-timestamp) so repeat calls are free.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "AI opinion — Nifty 50",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "console.log(`Action:     ${j.action} (${j.confidence} confidence)`);",
+                  "console.log(`Model:      ${j.model}${j.cached ? ' [cached]' : ''}`);",
+                  "console.log(`Rationale:  ${j.rationale}`);",
+                  "if (j.keyPoints && j.keyPoints.length) {",
+                  "  console.log('Key points:');",
+                  "  j.keyPoints.forEach(k => console.log('  • ' + k));",
+                  "}",
+                  "pm.test('has action', () => pm.expect(j).to.have.property('action'));",
+                  "pm.test('has rationale', () => pm.expect(j.rationale).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Builds Nifty 50 BiasSheet + asks Claude for a 3-sentence trade recommendation. Response includes: action (LONG/SHORT/WAIT/AVOID), confidence, rationale, keyPoints, cached flag.",
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/signal?token={{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "signal"],
+              "query": [{ "key": "token", "value": "{{nifty50Token}}" }]
+            }
+          }
+        },
+        {
+          "name": "AI opinion — Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/signal?token={{bankNiftyToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "signal"],
+              "query": [{ "key": "token", "value": "{{bankNiftyToken}}" }]
+            }
+          }
+        },
+        {
+          "name": "AI opinion — Reliance (equity)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/signal?token={{relianceToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "signal"],
+              "query": [{ "key": "token", "value": "{{relianceToken}}" }]
+            }
+          }
+        },
+        {
+          "name": "AI opinion — Crude Oil (MCX)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai/signal?token={{crudeToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai", "signal"],
+              "query": [{ "key": "token", "value": "{{crudeToken}}" }]
             }
           }
         }
