@@ -81,8 +81,8 @@ public class AiPromptBuilder {
             sb.append("MARKET CONTEXT\n");
             appendKv(sb, "Current price", sheet.marketContext().currentPrice());
             appendKv(sb, "Prev close",    sheet.marketContext().previousClose());
-            appendKv(sb, "Day high",      sheet.marketContext().dayHigh());
-            appendKv(sb, "Day low",       sheet.marketContext().dayLow());
+            appendKv(sb, "Day high",      sheet.marketContext().dayHighSoFar());
+            appendKv(sb, "Day low",       sheet.marketContext().dayLowSoFar());
             appendKv(sb, "Gap %",         sheet.marketContext().gapPercent());
             sb.append('\n');
         }

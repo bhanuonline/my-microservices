@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+    /signals — Signal Feed page.
+    Text-first list of every consensus signal. Filters + stats + auto-refresh.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signal Feed — AngleApp</title>
+    <meta th:attr="content=${autoRefresh}" http-equiv="refresh">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/signals-feed.css}">
+</head>
+<body>
+<div class="wrap">
+
+    <div class="head">
+        <div>
+            <h1>Signal Feed</h1>
+            <p>Consensus signals across all tracked instruments. Auto-updates every <span th:text="${autoRefresh}">30</span> sec.</p>
+        </div>
+        <div class="refresh-info">Auto-refresh · <span th:text="${autoRefresh} + 's'">30s</span></div>
+    </div>
+
+    <div class="stats" style="grid-template-columns:repeat(6, 1fr)">
+        <div class="stat open"><div class="lbl">Open</div><div class="val" th:text="${statsOpen}">3</div></div>
+        <div class="stat won"><div class="lbl">Target hit</div><div class="val" th:text="${statsWon}">12</div></div>
+        <div class="stat lost"><div class="lbl">Stop hit</div><div class="val" th:text="${statsLost}">5</div></div>
+        <div class="stat exp"><div class="lbl">Expired</div><div class="val" th:text="${statsExp}">2</div></div>
+        <div class="stat wr"><div class="lbl">Win rate</div><div class="val" th:text="${winRate} + '%'">70%</div></div>
+        <div class="stat wr"><div class="lbl">AI agrees</div>
+            <div class="val" th:text="${aiTotal == 0 ? '—' : aiAgreeRate + '%'}">78%</div>
+        </div>
+    </div>
+
+    <form class="filters" method="get" action="/signals">
+        <label>Instrument
+            <select name="token">
+                <option value="">All</option>
+                <option th:each="i : ${instruments}" th:value="${i.symbolToken}"
+                        th:text="${i.symbol}" th:selected="${i.symbolToken == selToken}">Nifty 50</option>
+            </select>
+        </label>
+        <label>Status
+            <select name="status">
+                <option value=""            th:selected="${selStatus == ''}">All</option>
+                <option value="OPEN"        th:selected="${selStatus == 'OPEN'}">Open only</option>
+                <option value="HIT_TARGET"  th:selected="${selStatus == 'HIT_TARGET'}">Target hit</option>
+                <option value="HIT_STOP"    th:selected="${selStatus == 'HIT_STOP'}">Stop hit</option>
+                <option value="EXPIRED"     th:selected="${selStatus == 'EXPIRED'}">Expired</option>
+            </select>
+        </label>
+        <label>Source
+            <select name="source">
+                <option value=""          th:selected="${selSource == ''}">All</option>
+                <option value="CONSENSUS" th:selected="${selSource == 'CONSENSUS'}">Consensus only</option>
+                <option value="AI"        th:selected="${selSource == 'AI'}">AI only</option>
+            </select>
+        </label>
+        <label>Last (hours)
+            <input type="number" name="hours" min="1" max="720" th:value="${hours}" style="width:80px">
+        </label>
+        <button type="submit" class="apply">Apply</button>
+    </form>
+
+    <div th:if="${#lists.isEmpty(signals)}" class="empty">
+        No signals in the last <span th:text="${hours}">24</span> hours matching your filter.
+        Try loosening the filter, or wait for the next candle close.
+    </div>
+
+    <div th:each="s : ${signals}" th:class="'card ' + ${#strings.toLowerCase(s.action)}">
+        <div>
+            <span th:class="'badge ' + ${#strings.toLowerCase(s.action)}" th:text="${s.action}">BUY</span>
+        </div>
+        <div class="body">
+            <div class="sym">
+                <span th:text="${s.symbol} + ' · ' + ${s.intervalType}">Nifty 50 · FIVE_MINUTE</span>
+                <span th:class="'src ' + ${s.source}"
+                      th:text="${s.source == 'AI' ? 'AI' : 'Consensus'}">Consensus</span>
+                <span th:if="${s.source == 'AI' and s.aiConfidence != null}"
+                      th:class="'conf ' + ${#strings.toLowerCase(s.aiConfidence)}"
+                      th:text="${s.aiConfidence}">high</span>
+            </div>
+            <div class="row">
+                Entry <b th:text="${s.entry}">24,680</b>
+                &nbsp;·&nbsp; Target <b th:text="${s.target}">24,800</b>
+                &nbsp;·&nbsp; Stop <b th:text="${s.stop}">24,620</b>
+                <span th:if="${s.trailUpdates > 0}"
+                      style="margin-left:8px;font-size:11px;color:var(--info);font-weight:600"
+                      th:text="'· trailed ' + ${s.trailUpdates} + '× from ' + ${s.originalStop}">
+                    · trailed 2× from 24,620
+                </span>
+            </div>
+            <div class="row" th:if="${s.source == 'CONSENSUS' and s.agreedCount > 0}">
+                Agreed by <b th:text="${s.agreedCount}">4</b> strategies
+                <span th:if="${s.agreedStrategies}" th:text="' — ' + ${s.agreedStrategies}"></span>
+            </div>
+            <div class="ai-rationale" th:if="${s.source == 'AI' and s.aiRationale != null}"
+                 th:text="'&#128172; ' + ${s.aiRationale}">
+                Claude's rationale here.
+            </div>
+            <div th:if="${s.status == 'HIT_TARGET'}" class="outcome-line win"
+                 th:text="'✅ Target hit at ' + ${s.closedPrice} + ' · ' + ${s.profitPoints} + ' pts (' + ${s.profitPercent} + '%)'">
+                ✅ Target hit
+            </div>
+            <div th:if="${s.status == 'HIT_STOP'}" class="outcome-line loss"
+                 th:text="'❌ Stop hit at ' + ${s.closedPrice} + ' · ' + ${s.profitPoints} + ' pts (' + ${s.profitPercent} + '%)'">
+                ❌ Stop hit
+            </div>
+            <div th:if="${s.status == 'EXPIRED'}" class="outcome-line"
+                 th:text="'⏱️ Expired without hit'">⏱️ Expired</div>
+        </div>
+        <div style="text-align:right">
+            <div th:class="'status ' + ${s.status}" th:text="${s.status}">OPEN</div>
+            <div style="font-size:11px;color:var(--faint);margin-top:6px"
+                 th:text="${#temporals.format(s.createdAt, 'HH:mm')} + ' · ' + ${#temporals.format(s.createdAt, 'dd MMM')}">
+                09:20 · 26 Sep
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

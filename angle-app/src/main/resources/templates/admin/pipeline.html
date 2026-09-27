@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signal Pipeline — AngleApp</title>
+    <meta http-equiv="refresh" content="30">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/admin-pipeline.css}">
+</head>
+<body>
+<div class="wrap">
+
+    <div class="refresh">Auto-refresh · 30s</div>
+    <h1>Signal Pipeline Dashboard</h1>
+    <p class="sub">Every signal must pass 4 gates before it saves. Toggle any gate off to bypass it.
+        <strong th:text="'Open signals: ' + ${openCount}">Open signals: 3</strong>
+        · <span th:text="'Active trails: ' + ${activeTrails}">Active trails: 1</span>
+    </p>
+
+    <!-- Active news warning strip -->
+    <div th:each="e : ${activeNews}" class="warn-strip">
+        <div class="title" th:text="'⚠️ NEWS BLACKOUT ACTIVE — ' + ${e.name}">⚠️ NEWS BLACKOUT ACTIVE — RBI Monetary Policy</div>
+        <div class="body">
+            <span th:text="'Severity: ' + ${e.severity} + ' · scheduled at ' + ${e.dateTime}">Severity: HIGH · scheduled at 2026-10-08 10:00</span>
+        </div>
+    </div>
+
+    <!-- ─────── 4 Gate Cards ─────── -->
+    <div class="grid">
+
+        <!-- Regime -->
+        <div class="card">
+            <h2>🎯 Regime Detector
+                <span th:class="'pill ' + (${regime.masterEnabled} ? 'on' : 'off')"
+                      th:text="${regime.masterEnabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+            </h2>
+            <p class="lead">Time-of-day + India VIX + ADX trend regime gates.</p>
+
+            <dl class="kv">
+                <dt>Time gate</dt>
+                <dd>
+                    <span th:class="'check ' + (${regime.timeEnabled} ? 'ok' : 'bad')"
+                          th:text="${regime.timeEnabled} ? '✅' : '⏸️'"></span>
+                    <span th:text="' Windows: ' + ${#strings.listJoin(regime.allowedWindows, ', ')}"></span>
+                </dd>
+                <dt>Now (IST)</dt>
+                <dd th:text="${regime.nowIST}">10:37:23</dd>
+
+                <dt>VIX gate</dt>
+                <dd>
+                    <span th:class="'check ' + (${regime.vixEnabled} ? 'ok' : 'bad')"
+                          th:text="${regime.vixEnabled} ? '✅' : '⏸️'"></span>
+                    <span th:text="' current: ' + (${regime.currentVix} ?: '—') + ' / max: ' + ${regime.vixMaxAllowed}"></span>
+                </dd>
+
+                <dt>ADX gate</dt>
+                <dd>
+                    <span th:class="'check ' + (${regime.adxEnabled} ? 'ok' : 'bad')"
+                          th:text="${regime.adxEnabled} ? '✅' : '⏸️'"></span>
+                    <span th:text="' allowed: ' + ${#strings.listJoin(regime.allowedRegimes, ', ')}"></span>
+                </dd>
+            </dl>
+
+            <div class="actions">
+                <button class="btn enable"  onclick="post('/api/regime/enable?on=true')">Enable</button>
+                <button class="btn disable" onclick="post('/api/regime/enable?on=false')">Disable</button>
+                <a class="btn ghost" href="/api/regime/status" target="_blank">JSON</a>
+            </div>
+        </div>
+
+        <!-- MTF -->
+        <div class="card">
+            <h2>📈 Multi-Timeframe
+                <span th:class="'pill ' + (${mtf.enabled} ? 'on' : 'off')"
+                      th:text="${mtf.enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+            </h2>
+            <p class="lead">Signal must be confirmed by higher-TF direction.</p>
+
+            <dl class="kv">
+                <dt>Method</dt>       <dd th:text="${mtf.method}">EMA_STACK</dd>
+                <dt>Agreement</dt>    <dd th:text="${mtf.agreementMode}">ALL</dd>
+                <dt>Higher TFs</dt>   <dd th:text="${#strings.listJoin(mtf.higherTimeframes, ', ')}">FIFTEEN_MINUTE, ONE_HOUR</dd>
+                <dt>EMA periods</dt>  <dd th:text="${mtf.emaFast} + '/' + ${mtf.emaSlow}">9/20</dd>
+            </dl>
+
+            <div class="actions">
+                <button class="btn enable"  onclick="post('/api/mtf/enable?on=true')">Enable</button>
+                <button class="btn disable" onclick="post('/api/mtf/enable?on=false')">Disable</button>
+                <button class="btn ghost"   onclick="post('/api/mtf/mode?value=ALL')">Mode: ALL</button>
+                <button class="btn ghost"   onclick="post('/api/mtf/mode?value=MAJORITY')">MAJORITY</button>
+                <button class="btn ghost"   onclick="post('/api/mtf/mode?value=ANY')">ANY</button>
+                <a class="btn ghost" href="/api/mtf/status" target="_blank">JSON</a>
+            </div>
+        </div>
+
+        <!-- Trailing -->
+        <div class="card">
+            <h2>🪜 Trailing Stops
+                <span th:class="'pill ' + (${trailing.enabled} ? 'on' : 'off')"
+                      th:text="${trailing.enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+            </h2>
+            <p class="lead">Ratchets stop tighter as price moves favorably.</p>
+
+            <dl class="kv">
+                <dt>Mode</dt>          <dd th:text="${trailing.mode}">PERCENT</dd>
+                <dt>Activation</dt>    <dd th:text="${#numbers.formatDecimal(trailing.activationPercent * 100, 1, 0)} + '% of range'">30% of range</dd>
+                <dt>Trail (%)</dt>     <dd th:text="${trailing.percentDistance} + '%'">0.40%</dd>
+                <dt>Trail (fixed)</dt> <dd th:text="${trailing.fixedDistance} + ' pts'">30 pts</dd>
+                <dt>ATR × K</dt>       <dd th:text="${trailing.atrMultiplier}">2.0</dd>
+                <dt>Ladder</dt>        <dd th:text="${#strings.listJoin(trailing.milestoneLadder, ', ')}">50:0, 75:33, 90:66</dd>
+                <dt>Active now</dt>    <dd th:text="${activeTrails} + ' signals being trailed'">1 signal being trailed</dd>
+            </dl>
+
+            <div class="actions">
+                <button class="btn enable"  onclick="post('/api/trailing/enable?on=true')">Enable</button>
+                <button class="btn disable" onclick="post('/api/trailing/enable?on=false')">Disable</button>
+                <button class="btn ghost"   onclick="post('/api/trailing/mode?value=PERCENT')">PERCENT</button>
+                <button class="btn ghost"   onclick="post('/api/trailing/mode?value=MILESTONE')">MILESTONE</button>
+                <button class="btn ghost"   onclick="post('/api/trailing/mode?value=ATR')">ATR</button>
+                <a class="btn ghost" href="/api/trailing/status" target="_blank">JSON</a>
+            </div>
+        </div>
+
+        <!-- News -->
+        <div class="card">
+            <h2>📅 News Blackout
+                <span th:class="'pill ' + (${newsProps.enabled} ? 'on' : 'off')"
+                      th:text="${newsProps.enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+            </h2>
+            <p class="lead">Blocks signals during scheduled market events.</p>
+
+            <dl class="kv">
+                <dt>Severity</dt>   <dd th:text="'≥ ' + ${newsProps.blockSeverity}">≥ MEDIUM</dd>
+                <dt>Calendar</dt>   <dd th:text="${news.totalEvents} + ' events'">12 events</dd>
+                <dt>Active now</dt>
+                <dd>
+                    <span th:if="${news.activeNow == 0}" class="check ok">✅ 0 blocking</span>
+                    <span th:if="${news.activeNow > 0}" class="check bad"
+                          th:text="'❌ ' + ${news.activeNow} + ' blocking'">❌ 1 blocking</span>
+                </dd>
+                <dt>Upcoming 7d</dt> <dd th:text="${news.upcoming7d}">4</dd>
+                <dt>Source</dt>     <dd th:text="${news.loadedFrom}">classpath:news-calendar.yml</dd>
+                <dt th:if="${news.error}">Error</dt>
+                <dd th:if="${news.error}" style="color:var(--down)" th:text="${news.error}"></dd>
+            </dl>
+
+            <div class="actions">
+                <button class="btn enable"  onclick="post('/api/news/enable?on=true')">Enable</button>
+                <button class="btn disable" onclick="post('/api/news/enable?on=false')">Disable</button>
+                <button class="btn ghost"   onclick="post('/api/news/reload')">🔄 Reload</button>
+                <a class="btn primary" href="/admin/news">Manage calendar →</a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ─────── Today's activity ─────── -->
+    <div class="stats-wrap">
+        <h3 th:text="'Today (' + ${stats.day} + ') — gate activity'">Today — gate activity</h3>
+        <div class="stats">
+            <div class="stat attempted">
+                <div class="lbl">Attempted</div>
+                <div class="val" th:text="${stats.attempted}">47</div>
+                <div class="pct">candles evaluated</div>
+            </div>
+            <div class="stat blocked">
+                <div class="lbl">Regime</div>
+                <div class="val" th:text="${stats.regimeBlocked}">12</div>
+                <div class="pct" th:text="${stats.attempted > 0 ? #numbers.formatPercent(stats.regimeBlocked * 1.0 / stats.attempted, 1, 0) : '—'}">25%</div>
+            </div>
+            <div class="stat blocked">
+                <div class="lbl">Dedupe</div>
+                <div class="val" th:text="${stats.dedupeBlocked}">3</div>
+                <div class="pct" th:text="${stats.attempted > 0 ? #numbers.formatPercent(stats.dedupeBlocked * 1.0 / stats.attempted, 1, 0) : '—'}">6%</div>
+            </div>
+            <div class="stat blocked">
+                <div class="lbl">MTF</div>
+                <div class="val" th:text="${stats.mtfBlocked}">8</div>
+                <div class="pct" th:text="${stats.attempted > 0 ? #numbers.formatPercent(stats.mtfBlocked * 1.0 / stats.attempted, 1, 0) : '—'}">17%</div>
+            </div>
+            <div class="stat blocked">
+                <div class="lbl">News</div>
+                <div class="val" th:text="${stats.newsBlocked}">2</div>
+                <div class="pct" th:text="${stats.attempted > 0 ? #numbers.formatPercent(stats.newsBlocked * 1.0 / stats.attempted, 1, 0) : '—'}">4%</div>
+            </div>
+            <div class="stat passed">
+                <div class="lbl">✅ Passed</div>
+                <div class="val" th:text="${stats.passed}">22</div>
+                <div class="pct" th:text="${stats.attempted > 0 ? #numbers.formatPercent(stats.passed * 1.0 / stats.attempted, 1, 0) : '—'}">47%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-links">
+        <a href="/">← Dashboard</a>
+        <a href="/signals">Signal Feed</a>
+        <a href="/admin/news">News Calendar</a>
+        <a href="/live/chart">Live Chart</a>
+    </div>
+
+</div>
+
+<script>
+    async function post(url) {
+        const res = await fetch(url, { method: 'POST', headers: { 'Accept': 'application/json' } });
+        try {
+            const data = await res.json();
+            if (data.ok === false) { alert('Failed: ' + (data.error || 'unknown')); return; }
+        } catch (_) { /* some endpoints return non-JSON on success */ }
+        location.reload();
+    }
+</script>
+</body>
+</html>

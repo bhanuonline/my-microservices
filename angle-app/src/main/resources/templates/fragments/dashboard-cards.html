@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<!--
+    Reusable Thymeleaf fragments for dashboard cards.
+
+    Each fragment renders one card AND is HTMX-swap-safe: it has an ID
+    at the root so hx-target="#bias-engine-card" + hx-swap="outerHTML"
+    can replace exactly this element without touching the rest of the page.
+
+    Server-side pattern:
+      • Full page render     → welcome.html includes the fragment via th:replace
+      • Toggle button click  → controller returns just the fragment inline
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Styles for .card-btn / .card-actions / .mini-toggle live in static/css/dashboard.css. -->
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Bias Engine card (6th card in the services grid)
+     Toggles bias.enabled at runtime. Buttons hit /api/bias/enable via HTMX.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="biasEngineCard" id="bias-engine-card" class="lm-svc c-cyan" th:with="cf=${config}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Bias Engine</div>
+        <span th:class="'lm-svc-badge ' + (${cf.biasEnabled} ? 'ok' : 'warn')">
+            <span class="dot"></span>
+            <span th:text="${cf.biasEnabled} ? 'Enabled' : 'Disabled'">Enabled</span>
+        </span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric"><span class="k">Refresh</span><span class="v" th:text="${cf.refreshMinutes} + ' min'">15 min</span></div>
+        <div class="lm-svc-metric"><span class="k">Lookback</span><span class="v" th:text="${cf.lookbackDays} + ' days'">90 days</span></div>
+        <div class="lm-svc-metric"><span class="k">Change alerts</span>
+            <span th:class="'v ' + (${cf.changeAlertsEnabled} ? 'good' : 'off')"
+                  th:text="${cf.changeAlertsEnabled} ? 'ON' : 'OFF'">ON</span>
+        </div>
+    </div>
+    <div class="card-actions">
+        <button class="card-btn success"
+                hx-post="/api/bias/enable?on=true"
+                hx-target="#bias-engine-card" hx-swap="outerHTML" hx-indicator="#bias-engine-card">
+            ON
+        </button>
+        <button class="card-btn danger"
+                hx-post="/api/bias/enable?on=false"
+                hx-target="#bias-engine-card" hx-swap="outerHTML" hx-indicator="#bias-engine-card">
+            OFF
+        </button>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Bias Modules card (10th card)
+     Each sub-module (VIX, Correlated, Breadth, Circuit Breaker) gets a
+     click-to-toggle pill. Clicking the pill flips its flag and swaps the
+     whole card in place.
+
+     Endpoints under /api/dashboard/action/bias-module/{name}/toggle
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="biasModulesCard" id="bias-modules-card" class="lm-svc c-purple" th:with="bs=${biasSub}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Bias Modules</div>
+        <span class="lm-svc-badge ok"><span class="dot"></span>Loaded</span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric">
+            <span class="k">VIX</span>
+            <button th:class="'mini-toggle ' + (${bs.vixEnabled} ? 'on' : 'off')"
+                    th:text="${bs.vixEnabled} ? 'ON' : 'OFF'"
+                    hx-post="/api/dashboard/action/bias-module/vix/toggle"
+                    hx-target="#bias-modules-card" hx-swap="outerHTML" hx-indicator="#bias-modules-card">ON</button>
+        </div>
+        <div class="lm-svc-metric">
+            <span class="k">Correlated</span>
+            <button th:class="'mini-toggle ' + (${bs.correlatedEnabled} ? 'on' : 'off')"
+                    th:text="${bs.correlatedEnabled} ? 'ON' : 'OFF'"
+                    hx-post="/api/dashboard/action/bias-module/correlated/toggle"
+                    hx-target="#bias-modules-card" hx-swap="outerHTML" hx-indicator="#bias-modules-card">ON</button>
+        </div>
+        <div class="lm-svc-metric">
+            <span class="k">Breadth</span>
+            <button th:class="'mini-toggle ' + (${bs.breadthEnabled} ? 'on' : 'off')"
+                    th:text="${bs.breadthEnabled} ? 'ON' : 'OFF'"
+                    hx-post="/api/dashboard/action/bias-module/breadth/toggle"
+                    hx-target="#bias-modules-card" hx-swap="outerHTML" hx-indicator="#bias-modules-card">ON</button>
+        </div>
+        <div class="lm-svc-metric">
+            <span class="k">Circuit brk</span>
+            <button th:class="'mini-toggle ' + (${bs.circuitEnabled} ? 'on' : 'off')"
+                    th:text="${bs.circuitEnabled} ? 'ON' : 'OFF'"
+                    hx-post="/api/dashboard/action/bias-module/circuit/toggle"
+                    hx-target="#bias-modules-card" hx-swap="outerHTML" hx-indicator="#bias-modules-card">ON</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Cache Service card (3rd card)
+     Actions: warm the cache now, or clear all entries.
+     Both endpoints return the refreshed fragment via /api/dashboard/action/cache/*.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="cacheCard" id="cache-service-card" class="lm-svc c-orange" th:with="c=${cache}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14a8 3 0 0 0 16 0V5"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Cache Service</div>
+        <span class="lm-svc-badge ok"><span class="dot"></span>Active</span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric"><span class="k">Provider</span><span class="v" th:text="${c.provider}">caffeine-mysql</span></div>
+        <div class="lm-svc-metric"><span class="k">Hit rate</span><span class="v good" th:text="${c.hitRate} + '%'">87.3%</span></div>
+        <div class="lm-svc-metric"><span class="k">Entries</span><span class="v" th:text="${c.size} + ' / ' + ${c.maxSize}">27 / 500</span></div>
+    </div>
+    <div class="card-actions">
+        <button class="card-btn primary"
+                hx-post="/api/dashboard/action/cache/warm"
+                hx-target="#cache-service-card" hx-swap="outerHTML" hx-indicator="#cache-service-card">
+            🔥 Warm
+        </button>
+        <button class="card-btn danger"
+                hx-post="/api/dashboard/action/cache/clear"
+                hx-target="#cache-service-card" hx-swap="outerHTML" hx-indicator="#cache-service-card"
+                hx-confirm="Clear entire candle cache?">
+            🧹 Clear
+        </button>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Warmer Job card (4th card)
+     Actions: force-warm bypassing the breaker, or reset the breaker to CLOSED.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="warmerCard" id="warmer-job-card" class="lm-svc c-purple" th:with="w=${warmer}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/>
+                <circle cx="12" cy="12" r="5"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Warmer Job</div>
+        <span th:class="'lm-svc-badge ' + (${w.circuitState} == 'OPEN' ? 'bad' : (${w.consecutiveFailures} > 0 ? 'warn' : 'ok'))">
+            <span class="dot"></span><span th:text="${w.circuitState}">CLOSED</span>
+        </span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric"><span class="k">Success rounds</span><span class="v good" th:text="${w.successfulRounds}">45</span></div>
+        <div class="lm-svc-metric"><span class="k">Failed</span><span th:class="'v ' + (${w.failedRounds} > 0 ? 'bad' : 'off')" th:text="${w.failedRounds}">0</span></div>
+        <div class="lm-svc-metric"><span class="k">Avg duration</span><span class="v" th:text="${w.avgDurationMs} + 'ms'">483ms</span></div>
+    </div>
+    <div class="card-actions">
+        <button class="card-btn primary"
+                hx-post="/api/dashboard/action/warmer/force"
+                hx-target="#warmer-job-card" hx-swap="outerHTML" hx-indicator="#warmer-job-card">
+            🔥 Force
+        </button>
+        <button class="card-btn neutral"
+                hx-post="/api/dashboard/action/warmer/reset"
+                hx-target="#warmer-job-card" hx-swap="outerHTML" hx-indicator="#warmer-job-card">
+            🔧 Reset
+        </button>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Daily Reports card (11th card)
+     Actions: finalize today's report, or open today's markdown in a new tab.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="reportsCard" id="reports-card" class="lm-svc c-pink" th:with="r=${reports}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Daily Reports</div>
+        <span th:class="'lm-svc-badge ' + (${r.enabled} ? 'ok' : 'off')">
+            <span class="dot"></span><span th:text="${r.enabled} ? 'Scheduled' : 'Off'">Scheduled</span>
+        </span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric"><span class="k">Output</span><span class="v" th:text="${r.outputDir}">reports</span></div>
+        <div class="lm-svc-metric"><span class="k">Auto write</span><span th:class="'v ' + (${r.autoWriteAtClose} ? 'good' : 'off')" th:text="${r.autoWriteAtClose} ? 'yes' : 'no'">yes</span></div>
+        <div class="lm-svc-metric"><span class="k">Cron</span><span class="v" style="font-size:10.5px" th:text="${r.closeCron}">0 35 15 * MON-FRI</span></div>
+    </div>
+    <div class="card-actions">
+        <button class="card-btn primary"
+                hx-post="/api/dashboard/action/reports/finalize"
+                hx-target="#reports-card" hx-swap="outerHTML" hx-indicator="#reports-card">
+            📊 Finalize
+        </button>
+        <a class="card-btn neutral" href="/api/reports/today" target="_blank">
+            📄 View
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

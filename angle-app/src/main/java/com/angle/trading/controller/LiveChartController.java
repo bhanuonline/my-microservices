@@ -1,5 +1,7 @@
 package com.angle.trading.controller;
 
+import com.angle.trading.analysis.IndicatorSeriesService;
+import com.angle.trading.analysis.SignalMarkerService;
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
@@ -43,6 +45,8 @@ public class LiveChartController {
 
     private final MarketDataService marketDataService;
     private final InstrumentService instrumentService;
+    private final IndicatorSeriesService indicatorSeriesService;
+    private final SignalMarkerService signalMarkerService;
 
     // ---------- HTML ----------
 
@@ -128,6 +132,87 @@ public class LiveChartController {
             out.add(m);
         }
         return out;
+    }
+
+    /**
+     * All-in-one payload for the chart page — candles + every indicator series
+     * + strategy signal markers. One HTTP call powers the whole chart view.
+     *
+     * Response shape:
+     *   {
+     *     "candles":    [ { time, open, high, low, close, volume }, ... ],
+     *     "indicators": { ema9: [...], ema20: [...], vwap: [...], rsi14: [...],
+     *                     macd: [...], macdSignal: [...], macdHistogram: [...],
+     *                     superTrend: [...] },
+     *     "signals":    [ { time, position, color, shape, text, id, detail }, ... ]
+     *   }
+     */
+    @GetMapping("/api/live/candles-with-indicators")
+    @ResponseBody
+    public Map<String, Object> candlesWithIndicators(
+            @RequestParam String token,
+            @RequestParam(defaultValue = "FIVE_MINUTE") Interval interval,
+            @RequestParam(defaultValue = "300") int limit,
+            @RequestParam(defaultValue = "ensemble") String strategy,
+            @RequestParam(defaultValue = "ANGEL") String broker
+    ) {
+        int capped = Math.min(Math.max(limit, 10), MAX_LIMIT);
+        Exchange exch = instrumentService.listAll().stream()
+                .filter(i -> token.equals(i.getSymbolToken()))
+                .findFirst()
+                .map(i -> {
+                    try { return Exchange.valueOf(i.getExchange()); }
+                    catch (Exception e) { return Exchange.NSE; }
+                })
+                .orElse(Exchange.NSE);
+
+        LocalDate to   = LocalDate.now();
+        LocalDate from = to.minusDays(Math.max(2, calcLookbackDays(interval, capped)));
+
+        List<Candle> all;
+        try {
+            all = marketDataService.getCandles(broker, exch, token, interval, from, to);
+        } catch (Exception e) {
+            log.warn("candles-with-indicators fetch failed for {}:{}: {}", token, interval, e.getMessage());
+            return Map.of("candles", List.of(), "indicators", Map.of(), "signals", List.of());
+        }
+        if (all == null || all.isEmpty()) {
+            return Map.of("candles", List.of(), "indicators", Map.of(), "signals", List.of());
+        }
+
+        int start = Math.max(0, all.size() - capped);
+        List<Candle> tail = all.subList(start, all.size());
+
+        // Candles (same shape as /api/live/candles)
+        List<Map<String, Object>> candles = new ArrayList<>(tail.size());
+        for (Candle c : tail) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("time",   c.timestamp().getEpochSecond());
+            m.put("open",   c.open());
+            m.put("high",   c.high());
+            m.put("low",    c.low());
+            m.put("close",  c.close());
+            m.put("volume", c.volume());
+            candles.add(m);
+        }
+
+        // "consensus-N" is a pseudo-strategy — aggregate votes across ALL members.
+        // Falls back to normal strategy markers otherwise.
+        List<Map<String, Object>> signals;
+        if (strategy != null && strategy.startsWith("consensus-")) {
+            int min;
+            try { min = Integer.parseInt(strategy.substring("consensus-".length())); }
+            catch (Exception e) { min = 3; }
+            signals = signalMarkerService.consensusMarkers(min, tail);
+        } else {
+            signals = signalMarkerService.markers(strategy, tail);
+        }
+
+        return Map.of(
+                "candles",    candles,
+                "indicators", indicatorSeriesService.compute(tail),
+                "signals",    signals
+        );
     }
 
     /** Rough calendar-days lookback to guarantee ~N candles for the given interval. */

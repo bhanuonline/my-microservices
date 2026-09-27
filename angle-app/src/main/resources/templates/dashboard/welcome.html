@@ -16,400 +16,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --lm-bg:        #F1F5FB;
-            --lm-surface:   #FFFFFF;
-            --lm-border:    #E3E9F2;
-            --lm-hair:      #EEF2F8;
-            --lm-ink:       #1A2540;
-            --lm-muted:     #6B7A99;
-            --lm-faint:     #A0AAC2;
-            --lm-primary:   #2563EB;      /* blue */
-            --lm-primary-2: #DBEAFE;
-            --lm-good:      #16A34A;      /* green */
-            --lm-good-2:    #D1FAE5;
-            --lm-warn:      #F59E0B;      /* orange */
-            --lm-warn-2:    #FEF3C7;
-            --lm-bad:       #DC2626;      /* red */
-            --lm-bad-2:     #FEE2E2;
-            --lm-purple:    #8B5CF6;
-            --lm-purple-2:  #EDE9FE;
-            --lm-pink:      #EC4899;
-            --lm-pink-2:    #FCE7F3;
-            --lm-cyan:      #06B6D4;
-            --lm-cyan-2:    #CFFAFE;
-            --lm-shadow-sm: 0 1px 2px rgba(26, 37, 64, .04);
-            --lm-shadow:    0 4px 12px -2px rgba(26, 37, 64, .06),
-                            0 2px 4px -1px rgba(26, 37, 64, .04);
-            --lm-shadow-lg: 0 20px 40px -12px rgba(26, 37, 64, .12);
-        }
-
-        * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; }
-        body {
-            background: var(--lm-bg);
-            color: var(--lm-ink);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            -webkit-font-smoothing: antialiased;
-        }
-        button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
-        a { color: inherit; text-decoration: none; }
-
-        /* ─── Shell ─── */
-        .lm-shell {
-            display: grid;
-            grid-template-columns: 220px 1fr;
-            min-height: 100vh;
-        }
-
-        /* ─── Sidebar ─── */
-        .lm-side {
-            background: var(--lm-surface);
-            border-right: 1px solid var(--lm-border);
-            padding: 22px 16px 20px;
-            display: flex;
-            flex-direction: column;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-        }
-        .lm-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 10px 24px;
-            border-bottom: 1px solid var(--lm-hair);
-            margin-bottom: 16px;
-        }
-        .lm-logo {
-            width: 34px; height: 34px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--lm-primary), var(--lm-cyan));
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-weight: 800; font-size: 16px;
-        }
-        .lm-brand-name { font-weight: 700; font-size: 16px; }
-        .lm-nav { display: flex; flex-direction: column; gap: 4px; }
-        .lm-nav a {
-            display: flex; align-items: center; gap: 11px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            font-size: 13.5px;
-            font-weight: 500;
-            color: var(--lm-muted);
-            transition: all .12s ease;
-        }
-        .lm-nav a:hover { background: var(--lm-hair); color: var(--lm-ink); }
-        .lm-nav a.active { background: var(--lm-primary-2); color: var(--lm-primary); font-weight: 600; }
-        .lm-nav svg { flex: none; opacity: .9; }
-        .lm-side-spacer { flex: 1; }
-        .lm-side-promo {
-            background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-            border-radius: 14px;
-            padding: 16px 14px;
-            font-size: 12px;
-            color: #78350F;
-            line-height: 1.45;
-        }
-        .lm-side-promo b { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; color: #451A03; }
-
-        /* ─── Main ─── */
-        .lm-main { min-width: 0; }
-        .lm-topbar {
-            background: var(--lm-surface);
-            border-bottom: 1px solid var(--lm-border);
-            padding: 16px 32px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        .lm-search {
-            flex: 1;
-            display: flex; align-items: center; gap: 10px;
-            background: var(--lm-bg);
-            border: 1px solid var(--lm-border);
-            border-radius: 10px;
-            padding: 10px 14px;
-        }
-        .lm-search svg { color: var(--lm-faint); flex: none; }
-        .lm-search input {
-            background: none; border: none; outline: none;
-            font: inherit; color: var(--lm-ink);
-            flex: 1; font-size: 13px;
-        }
-        .lm-search input::placeholder { color: var(--lm-faint); }
-        .lm-health-badge {
-            display: inline-flex; align-items: center; gap: 7px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            background: var(--lm-good-2);
-            color: var(--lm-good);
-            font-size: 12.5px;
-            font-weight: 600;
-        }
-        .lm-health-badge.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
-        .lm-health-badge.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
-        .lm-health-badge .dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            background: currentColor;
-        }
-        .lm-user-chip {
-            display: flex; align-items: center; gap: 10px;
-            padding: 6px 6px 6px 12px;
-            border-radius: 999px;
-            background: var(--lm-hair);
-            font-size: 12.5px; font-weight: 500;
-        }
-        .lm-user-avatar {
-            width: 32px; height: 32px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--lm-primary), var(--lm-purple));
-            color: #fff; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 12px;
-        }
-
-        /* ─── Content ─── */
-        .lm-content { padding: 28px 32px 40px; max-width: 1600px; }
-
-        .lm-welcome-row {
-            display: flex; align-items: flex-start;
-            justify-content: space-between; gap: 24px;
-            margin-bottom: 24px;
-        }
-        .lm-welcome h1 {
-            font-size: 26px; font-weight: 700;
-            margin: 0 0 4px;
-            letter-spacing: -0.02em;
-        }
-        .lm-welcome h1 .wave { display: inline-block; animation: lm-wave 2.5s ease-in-out infinite; }
-        @keyframes lm-wave {
-            0%, 60%, 100% { transform: rotate(0deg); }
-            10%, 30% { transform: rotate(14deg); }
-            20% { transform: rotate(-8deg); }
-        }
-        .lm-welcome p { color: var(--lm-muted); margin: 0; font-size: 13.5px; }
-        .lm-time-card {
-            background: var(--lm-surface);
-            border: 1px solid var(--lm-border);
-            border-radius: 12px;
-            padding: 12px 18px;
-            display: flex; align-items: center; gap: 12px;
-            box-shadow: var(--lm-shadow-sm);
-        }
-        .lm-time-card .lbl { font-size: 11px; color: var(--lm-faint); text-transform: uppercase; letter-spacing: .05em; }
-        .lm-time-card .val { font-size: 14px; font-weight: 600; margin-top: 2px; }
-
-        /* ─── KPI cards ─── */
-        .lm-kpi-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr) 320px;
-            gap: 18px;
-            margin-bottom: 24px;
-        }
-        .lm-kpi {
-            background: var(--lm-surface);
-            border: 1px solid var(--lm-border);
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: var(--lm-shadow-sm);
-            transition: all .15s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        .lm-kpi:hover { box-shadow: var(--lm-shadow); transform: translateY(-2px); }
-        .lm-kpi-top {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 12px;
-        }
-        .lm-kpi-icon {
-            width: 40px; height: 40px; border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .lm-kpi-icon svg { width: 20px; height: 20px; }
-        .lm-kpi.total   .lm-kpi-icon { background: var(--lm-primary-2); color: var(--lm-primary); }
-        .lm-kpi.healthy .lm-kpi-icon { background: var(--lm-good-2);    color: var(--lm-good); }
-        .lm-kpi.warn    .lm-kpi-icon { background: var(--lm-warn-2);    color: var(--lm-warn); }
-        .lm-kpi.bad     .lm-kpi-icon { background: var(--lm-bad-2);     color: var(--lm-bad); }
-        .lm-kpi-value {
-            font-size: 42px; font-weight: 800;
-            letter-spacing: -0.02em;
-            line-height: 1;
-            margin: 4px 0 10px;
-        }
-        .lm-kpi-label { font-size: 13px; color: var(--lm-muted); font-weight: 500; }
-        .lm-kpi-trend {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
-            opacity: 0.35;
-            pointer-events: none;
-        }
-
-        /* Donut */
-        .lm-donut-card {
-            background: var(--lm-surface);
-            border: 1px solid var(--lm-border);
-            border-radius: 14px;
-            padding: 20px;
-            box-shadow: var(--lm-shadow-sm);
-            display: flex; align-items: center; gap: 20px;
-        }
-        .lm-donut-ring { position: relative; width: 120px; height: 120px; flex: none; }
-        .lm-donut-mid {
-            position: absolute; inset: 0;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .lm-donut-mid b { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
-        .lm-donut-mid span { font-size: 10.5px; color: var(--lm-faint); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
-        .lm-donut-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; font-size: 12.5px; }
-        .lm-donut-key { display: flex; align-items: center; gap: 8px; }
-        .lm-donut-key i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-        .lm-donut-key b { font-weight: 600; margin-left: auto; }
-
-        /* ─── System overview grid ─── */
-        .lm-overview-h {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 18px;
-        }
-        .lm-overview-h h2 {
-            font-size: 18px; font-weight: 700; margin: 0;
-            letter-spacing: -0.01em;
-        }
-        .lm-refresh-btn {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: var(--lm-primary);
-            color: #fff;
-            font-size: 13px; font-weight: 600;
-            transition: all .15s ease;
-            box-shadow: var(--lm-shadow-sm);
-        }
-        .lm-refresh-btn:hover { background: #1D4ED8; transform: translateY(-1px); box-shadow: var(--lm-shadow); }
-
-        .lm-svc-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 16px;
-        }
-
-        .lm-svc {
-            background: var(--lm-surface);
-            border: 1px solid var(--lm-border);
-            border-radius: 14px;
-            padding: 18px;
-            box-shadow: var(--lm-shadow-sm);
-            transition: all .15s ease;
-            position: relative;
-        }
-        .lm-svc:hover { box-shadow: var(--lm-shadow); transform: translateY(-2px); }
-
-        .lm-svc-top {
-            display: flex; align-items: center; gap: 10px;
-            margin-bottom: 14px;
-        }
-        .lm-svc-icon {
-            width: 34px; height: 34px; border-radius: 9px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .lm-svc-icon svg { width: 17px; height: 17px; }
-        .lm-svc-name { font-size: 13.5px; font-weight: 700; flex: 1; }
-
-        /* Color themes per service (rotates by position) */
-        .lm-svc.c-blue   .lm-svc-icon { background: var(--lm-primary-2); color: var(--lm-primary); }
-        .lm-svc.c-green  .lm-svc-icon { background: var(--lm-good-2);    color: var(--lm-good); }
-        .lm-svc.c-orange .lm-svc-icon { background: var(--lm-warn-2);    color: var(--lm-warn); }
-        .lm-svc.c-purple .lm-svc-icon { background: var(--lm-purple-2);  color: var(--lm-purple); }
-        .lm-svc.c-pink   .lm-svc-icon { background: var(--lm-pink-2);    color: var(--lm-pink); }
-        .lm-svc.c-cyan   .lm-svc-icon { background: var(--lm-cyan-2);    color: var(--lm-cyan); }
-
-        .lm-svc-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 10.5px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: .04em;
-        }
-        .lm-svc-badge.ok   { background: var(--lm-good-2); color: var(--lm-good); }
-        .lm-svc-badge.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
-        .lm-svc-badge.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
-        .lm-svc-badge.off  { background: var(--lm-hair);   color: var(--lm-muted); }
-        .lm-svc-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-
-        .lm-svc-metrics { display: flex; flex-direction: column; gap: 6px; }
-        .lm-svc-metric  { display: flex; justify-content: space-between; font-size: 12px; }
-        .lm-svc-metric .k { color: var(--lm-muted); }
-        .lm-svc-metric .v { font-weight: 600; color: var(--lm-ink); }
-        .lm-svc-metric .v.good { color: var(--lm-good); }
-        .lm-svc-metric .v.warn { color: var(--lm-warn); }
-        .lm-svc-metric .v.bad  { color: var(--lm-bad); }
-        .lm-svc-metric .v.off  { color: var(--lm-faint); }
-
-        .lm-svc-trend {
-            margin-top: 12px; height: 30px;
-        }
-        .lm-svc-trend svg { width: 100%; height: 100%; }
-
-        /* Bottom rows: recent changes + alerts */
-        .lm-bottom {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-            margin-top: 28px;
-        }
-        .lm-panel {
-            background: var(--lm-surface);
-            border: 1px solid var(--lm-border);
-            border-radius: 14px;
-            box-shadow: var(--lm-shadow-sm);
-            overflow: hidden;
-        }
-        .lm-panel-h {
-            padding: 18px 20px;
-            font-size: 14px; font-weight: 700;
-            border-bottom: 1px solid var(--lm-hair);
-        }
-        .lm-item {
-            display: flex; align-items: flex-start; gap: 12px;
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--lm-hair);
-        }
-        .lm-item:last-child { border-bottom: none; }
-        .lm-item-icon {
-            width: 32px; height: 32px; border-radius: 9px;
-            display: flex; align-items: center; justify-content: center; flex: none;
-        }
-        .lm-item-icon svg { width: 15px; height: 15px; }
-        .lm-item-icon.ok   { background: var(--lm-good-2); color: var(--lm-good); }
-        .lm-item-icon.info { background: var(--lm-primary-2); color: var(--lm-primary); }
-        .lm-item-icon.warn { background: var(--lm-warn-2); color: var(--lm-warn); }
-        .lm-item-icon.bad  { background: var(--lm-bad-2);  color: var(--lm-bad); }
-        .lm-item-body { flex: 1; min-width: 0; }
-        .lm-item-title { font-size: 13.5px; font-weight: 600; margin-bottom: 3px; }
-        .lm-item-detail { font-size: 12px; color: var(--lm-muted); line-height: 1.5; }
-        .lm-item-when { font-size: 11px; color: var(--lm-faint); font-weight: 600; margin-left: auto; padding-top: 2px; white-space: nowrap; }
-        .lm-empty {
-            padding: 40px 20px; text-align: center;
-            color: var(--lm-faint); font-size: 13px;
-        }
-
-        @media (max-width: 1200px) {
-            .lm-kpi-row { grid-template-columns: repeat(2, 1fr); }
-            .lm-donut-card { grid-column: 1 / -1; }
-        }
-        @media (max-width: 900px) {
-            .lm-shell { grid-template-columns: 1fr; }
-            .lm-side { display: none; }
-            .lm-content { padding: 20px 16px; }
-            .lm-kpi-row { grid-template-columns: 1fr 1fr; }
-            .lm-donut-card { grid-column: 1 / -1; }
-            .lm-bottom { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 640px) {
-            .lm-kpi-row { grid-template-columns: 1fr; }
-            .lm-welcome-row { flex-direction: column; }
-        }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <!-- HTMX — 14 KB library. Turns hx-* attributes into partial-refresh AJAX calls. -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"
+            integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+            crossorigin="anonymous"></script>
 </head>
 <body>
 <div class="lm-shell">
@@ -437,6 +48,18 @@
             <a th:href="@{/live/ticker}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
                 <span>Live Ticker</span>
+            </a>
+            <a th:href="@{/signals}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 L4 14 h7 l-1 8 10-13 h-7 z"/></svg>
+                <span>Signal Feed</span>
+            </a>
+            <a th:href="@{/admin/pipeline}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="18" y1="8" x2="18" y2="16"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                <span>Pipeline Dashboard</span>
+            </a>
+            <a th:href="@{/admin/news}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>News Calendar</span>
             </a>
             <a th:href="@{/admin/instruments}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="12" width="18" height="4" rx="1"/><line x1="7" y1="4" x2="7" y2="8"/><line x1="17" y1="12" x2="17" y2="16"/></svg>
@@ -650,35 +273,11 @@
                     </div>
                 </div>
 
-                <!-- 3. Cache -->
-                <div class="lm-svc c-orange" th:with="c=${cache}">
-                    <div class="lm-svc-top">
-                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14a8 3 0 0 0 16 0V5"/></svg></div>
-                        <div class="lm-svc-name">Cache Service</div>
-                        <span class="lm-svc-badge ok"><span class="dot"></span>Active</span>
-                    </div>
-                    <div class="lm-svc-metrics">
-                        <div class="lm-svc-metric"><span class="k">Provider</span><span class="v" th:text="${c.provider}">caffeine-mysql</span></div>
-                        <div class="lm-svc-metric"><span class="k">Hit rate</span><span class="v good" th:text="${c.hitRate} + '%'">87.3%</span></div>
-                        <div class="lm-svc-metric"><span class="k">Entries</span><span class="v" th:text="${c.size} + ' / ' + ${c.maxSize}">27 / 500</span></div>
-                    </div>
-                </div>
+                <!-- 3. Cache — HTMX fragment. Warm/Clear buttons refresh only this card. -->
+                <div th:replace="~{fragments/dashboard-cards :: cacheCard}"></div>
 
-                <!-- 4. Warmer -->
-                <div class="lm-svc c-purple" th:with="w=${warmer}">
-                    <div class="lm-svc-top">
-                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/><circle cx="12" cy="12" r="5"/></svg></div>
-                        <div class="lm-svc-name">Warmer Job</div>
-                        <span th:class="'lm-svc-badge ' + (${w.circuitState} == 'OPEN' ? 'bad' : (${w.consecutiveFailures} > 0 ? 'warn' : 'ok'))">
-                            <span class="dot"></span><span th:text="${w.circuitState}">CLOSED</span>
-                        </span>
-                    </div>
-                    <div class="lm-svc-metrics">
-                        <div class="lm-svc-metric"><span class="k">Success rounds</span><span class="v good" th:text="${w.successfulRounds}">45</span></div>
-                        <div class="lm-svc-metric"><span class="k">Failed</span><span th:class="'v ' + (${w.failedRounds} > 0 ? 'bad' : 'off')" th:text="${w.failedRounds}">0</span></div>
-                        <div class="lm-svc-metric"><span class="k">Avg duration</span><span class="v" th:text="${w.avgDurationMs} + 'ms'">483ms</span></div>
-                    </div>
-                </div>
+                <!-- 4. Warmer — HTMX fragment. Force-warm / Reset breaker refresh only this card. -->
+                <div th:replace="~{fragments/dashboard-cards :: warmerCard}"></div>
 
                 <!-- 5. Market -->
                 <div class="lm-svc c-pink" th:with="m=${market}">
@@ -696,21 +295,8 @@
                     </div>
                 </div>
 
-                <!-- 6. Bias Config -->
-                <div class="lm-svc c-cyan" th:with="cf=${config}">
-                    <div class="lm-svc-top">
-                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1"/></svg></div>
-                        <div class="lm-svc-name">Bias Engine</div>
-                        <span th:class="'lm-svc-badge ' + (${cf.biasEnabled} ? 'ok' : 'warn')">
-                            <span class="dot"></span><span th:text="${cf.biasEnabled} ? 'Enabled' : 'Disabled'">Enabled</span>
-                        </span>
-                    </div>
-                    <div class="lm-svc-metrics">
-                        <div class="lm-svc-metric"><span class="k">Refresh</span><span class="v" th:text="${cf.refreshMinutes} + ' min'">15 min</span></div>
-                        <div class="lm-svc-metric"><span class="k">Lookback</span><span class="v" th:text="${cf.lookbackDays} + ' days'">90 days</span></div>
-                        <div class="lm-svc-metric"><span class="k">Change alerts</span><span th:class="'v ' + (${cf.changeAlertsEnabled} ? 'good' : 'off')" th:text="${cf.changeAlertsEnabled} ? 'ON' : 'OFF'">ON</span></div>
-                    </div>
-                </div>
+                <!-- 6. Bias Config — HTMX-swappable fragment. Toggle buttons refresh only this card. -->
+                <div th:replace="~{fragments/dashboard-cards :: biasEngineCard}"></div>
 
                 <!-- 7. Trading -->
                 <div class="lm-svc c-blue" th:with="t=${trading}">
@@ -757,35 +343,11 @@
                     </div>
                 </div>
 
-                <!-- 10. Bias Modules -->
-                <div class="lm-svc c-purple" th:with="bs=${biasSub}">
-                    <div class="lm-svc-top">
-                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
-                        <div class="lm-svc-name">Bias Modules</div>
-                        <span class="lm-svc-badge ok"><span class="dot"></span>Loaded</span>
-                    </div>
-                    <div class="lm-svc-metrics">
-                        <div class="lm-svc-metric"><span class="k">VIX</span><span th:class="'v ' + (${bs.vixEnabled} ? 'good' : 'off')" th:text="${bs.vixEnabled} ? 'ON' : 'OFF'">ON</span></div>
-                        <div class="lm-svc-metric"><span class="k">Correlated</span><span th:class="'v ' + (${bs.correlatedEnabled} ? 'good' : 'off')" th:text="${bs.correlatedEnabled} ? 'ON' : 'OFF'">ON</span></div>
-                        <div class="lm-svc-metric"><span class="k">Breadth</span><span th:class="'v ' + (${bs.breadthEnabled} ? 'good' : 'off')" th:text="${bs.breadthEnabled} ? 'ON' : 'OFF'">ON</span></div>
-                    </div>
-                </div>
+                <!-- 10. Bias Modules — HTMX fragment. Inline pill toggles per sub-module. -->
+                <div th:replace="~{fragments/dashboard-cards :: biasModulesCard}"></div>
 
-                <!-- 11. Reports -->
-                <div class="lm-svc c-pink" th:with="r=${reports}">
-                    <div class="lm-svc-top">
-                        <div class="lm-svc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
-                        <div class="lm-svc-name">Daily Reports</div>
-                        <span th:class="'lm-svc-badge ' + (${r.enabled} ? 'ok' : 'off')">
-                            <span class="dot"></span><span th:text="${r.enabled} ? 'Scheduled' : 'Off'">Scheduled</span>
-                        </span>
-                    </div>
-                    <div class="lm-svc-metrics">
-                        <div class="lm-svc-metric"><span class="k">Output</span><span class="v" th:text="${r.outputDir}">reports</span></div>
-                        <div class="lm-svc-metric"><span class="k">Auto write</span><span th:class="'v ' + (${r.autoWriteAtClose} ? 'good' : 'off')" th:text="${r.autoWriteAtClose} ? 'yes' : 'no'">yes</span></div>
-                        <div class="lm-svc-metric"><span class="k">Cron</span><span class="v" style="font-size:10.5px" th:text="${r.closeCron}">0 35 15 * MON-FRI</span></div>
-                    </div>
-                </div>
+                <!-- 11. Reports — HTMX fragment. Finalize/View buttons. -->
+                <div th:replace="~{fragments/dashboard-cards :: reportsCard}"></div>
 
                 <!-- 12. Paper Trading -->
                 <div class="lm-svc c-cyan" th:with="p=${paper}">

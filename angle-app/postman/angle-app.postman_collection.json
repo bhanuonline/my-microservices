@@ -1534,6 +1534,68 @@
           }
         },
         {
+          "name": "Candles + Indicators + Signals (one-shot)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const candles = (j.candles || []).length;",
+                  "const inds = Object.keys(j.indicators || {});",
+                  "const sigs = (j.signals || []).length;",
+                  "console.log(`Candles:    ${candles}`);",
+                  "console.log(`Indicators: ${inds.join(', ')}`);",
+                  "console.log(`Signals:    ${sigs}`);",
+                  "if (sigs > 0) {",
+                  "  console.log('First signal:');",
+                  "  const s = j.signals[0];",
+                  "  console.log(`  ${s.text} @ time=${s.time}  ${s.detail?.rationale || ''}`);",
+                  "}",
+                  "pm.test('has candles',    () => pm.expect(candles).to.be.above(0));",
+                  "pm.test('has indicators', () => pm.expect(inds).to.include('ema9'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "All-in-one payload for the chart page. Returns: candles + every indicator series (ema9/20/50, vwap, superTrend, rsi14, macd/signal/histogram) + BUY/SELL markers for the chosen strategy.\n\nChange ?strategy= to any of: ensemble, moving-average-crossover, rsi-mean-reversion, macd-crossover, ob-retest, sweep-fvg, volume-breakout, bollinger-bounce.",
+            "url": {
+              "raw": "{{baseUrl}}/api/live/candles-with-indicators?token={{nifty50Token}}&interval=FIVE_MINUTE&strategy=ensemble&limit=300",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "live", "candles-with-indicators"],
+              "query": [
+                { "key": "token",    "value": "{{nifty50Token}}" },
+                { "key": "interval", "value": "FIVE_MINUTE" },
+                { "key": "strategy", "value": "ensemble", "description": "ensemble | moving-average-crossover | rsi-mean-reversion | macd-crossover | ob-retest | sweep-fvg | volume-breakout | bollinger-bounce" },
+                { "key": "limit",    "value": "300" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Candles + Indicators + Signals — Volume Breakout on Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Same endpoint, different instrument + strategy. Handy for comparing signals per strategy.",
+            "url": {
+              "raw": "{{baseUrl}}/api/live/candles-with-indicators?token={{bankNiftyToken}}&interval=FIFTEEN_MINUTE&strategy=volume-breakout&limit=200",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "live", "candles-with-indicators"],
+              "query": [
+                { "key": "token",    "value": "{{bankNiftyToken}}" },
+                { "key": "interval", "value": "FIFTEEN_MINUTE" },
+                { "key": "strategy", "value": "volume-breakout" },
+                { "key": "limit",    "value": "200" }
+              ]
+            }
+          }
+        },
+        {
           "name": "Ticker page (HTML)",
           "request": {
             "method": "GET",
@@ -1650,6 +1712,990 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "ai", "signal"],
               "query": [{ "key": "token", "value": "{{crudeToken}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Signal Feed (lifecycle)",
+      "description": "Persistent BUY/SELL signals with target/stop tracking. Every consensus signal from SignalDetector is saved to bias_signal table with status=OPEN, then LiveSignalMonitor closes it when target/stop hits. If signals.detector.ai-confirm=true, Claude is also called and a second row with source=AI is saved. Both are shown side-by-side on /signals.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Feed page (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Full HTML page with stats header, filters, and cards for every signal. Auto-refreshes every signals.feed.auto-refresh-seconds. Open in browser.",
+            "url": {
+              "raw": "{{baseUrl}}/signals",
+              "host": ["{{baseUrl}}"],
+              "path": ["signals"]
+            }
+          }
+        },
+        {
+          "name": "Feed (JSON) — all signals last 24h",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "console.log(`Total signals: ${arr.length}`);",
+                  "const by = (k, v) => arr.filter(s => s[k] === v).length;",
+                  "console.log(`  OPEN: ${by('status','OPEN')}  WON: ${by('status','HIT_TARGET')}  LOST: ${by('status','HIT_STOP')}  EXP: ${by('status','EXPIRED')}`);",
+                  "console.log(`  CONSENSUS: ${by('source','CONSENSUS')}  AI: ${by('source','AI')}`);",
+                  "pm.test('is array', () => pm.expect(arr).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "JSON feed. Newest first. Fields per signal: id, createdAt, symbol, symbolToken, exchange, intervalType, action (BUY/SELL), entry, stop, target, agreedStrategies, agreedCount, status (OPEN/HIT_TARGET/HIT_STOP/EXPIRED/CANCELLED), closedAt, closedPrice, profitPoints, profitPercent, source (CONSENSUS/AI), aiConfidence, aiRationale.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"]
+            }
+          }
+        },
+        {
+          "name": "Feed — OPEN only (live watch list)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Signals still waiting for target/stop. Monitor these — they're your active trades.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?status=OPEN",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [{ "key": "status", "value": "OPEN" }]
+            }
+          }
+        },
+        {
+          "name": "Feed — CONSENSUS signals only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Only technical strategy consensus signals (source=CONSENSUS). Excludes AI opinions.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?source=CONSENSUS",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [{ "key": "source", "value": "CONSENSUS" }]
+            }
+          }
+        },
+        {
+          "name": "Feed — AI signals only",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "console.log(`AI signals: ${arr.length}`);",
+                  "arr.slice(0, 5).forEach(s => {",
+                  "  console.log(`  ${s.action} ${s.symbol} @ ${s.entry} (${s.aiConfidence}) — ${s.aiRationale ? s.aiRationale.slice(0, 80) : ''}`);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Only Claude AI signals (source=AI). Each has aiConfidence (high/medium/low) and aiRationale (2-4 sentence explanation).",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?source=AI",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [{ "key": "source", "value": "AI" }]
+            }
+          }
+        },
+        {
+          "name": "Feed — for one instrument (Nifty 50)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "All signals for a specific token. Use to focus on one instrument.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?token={{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [{ "key": "token", "value": "{{nifty50Token}}" }]
+            }
+          }
+        },
+        {
+          "name": "Feed — target hits last 7 days (winners)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Trade wins in the last week. Use to measure strategy performance.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?status=HIT_TARGET&hours=168",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [
+                { "key": "status", "value": "HIT_TARGET" },
+                { "key": "hours",  "value": "168" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Feed — stop hits last 7 days (losers)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Trade losses in the last week. Compare to winners for win-rate analysis.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?status=HIT_STOP&hours=168",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [
+                { "key": "status", "value": "HIT_STOP" },
+                { "key": "hours",  "value": "168" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Feed — AI vs Consensus win-rate compare",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "const cw = arr.filter(s => s.source==='CONSENSUS' && s.status==='HIT_TARGET').length;",
+                  "const cl = arr.filter(s => s.source==='CONSENSUS' && s.status==='HIT_STOP').length;",
+                  "const aw = arr.filter(s => s.source==='AI'        && s.status==='HIT_TARGET').length;",
+                  "const al = arr.filter(s => s.source==='AI'        && s.status==='HIT_STOP').length;",
+                  "const rate = (w,l) => (w+l)===0 ? '—' : Math.round(100*w/(w+l)) + '%';",
+                  "console.log('=== 7-day performance ===');",
+                  "console.log(`  Consensus: ${cw}W / ${cl}L → ${rate(cw,cl)} win rate`);",
+                  "console.log(`  AI:        ${aw}W / ${al}L → ${rate(aw,al)} win rate`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Pulls last 7 days and computes win-rate for CONSENSUS vs AI in Postman test-script console. Great for A/B evaluation.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?hours=168",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [{ "key": "hours", "value": "168" }]
+            }
+          }
+        },
+        {
+          "name": "Feed — OPEN AI signals for Nifty (focused watch)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Combined filter — only OPEN + only AI + only Nifty 50 + last 4 hours. Tight watch list.",
+            "url": {
+              "raw": "{{baseUrl}}/api/signals/feed?token={{nifty50Token}}&source=AI&status=OPEN&hours=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "signals", "feed"],
+              "query": [
+                { "key": "token",  "value": "{{nifty50Token}}" },
+                { "key": "source", "value": "AI" },
+                { "key": "status", "value": "OPEN" },
+                { "key": "hours",  "value": "4" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Regime Detector (signal gates)",
+      "description": "Config-toggleable market-condition gates that filter signals BEFORE they save. Three independent gates: ADX regime (trend/range/mixed), India VIX ceiling, time-of-day windows. Any disabled gate always passes. Master switch: regime.enabled=false bypasses everything.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Status snapshot (what's enabled now)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log(`Master: ${s.masterEnabled ? 'ON' : 'OFF'}`);",
+                  "console.log(`  ADX gate:  ${s.adxEnabled}  allowed=${s.allowedRegimes}`);",
+                  "console.log(`  VIX gate:  ${s.vixEnabled}  current=${s.currentVix} max=${s.vixMaxAllowed}`);",
+                  "console.log(`  Time gate: ${s.timeEnabled}  now=${s.nowIST}  windows=${s.allowedWindows}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Returns current state: which gates are on, ADX allowed regimes, current India VIX vs ceiling, current IST time vs allowed windows.",
+            "url": { "raw": "{{baseUrl}}/api/regime/status", "host": ["{{baseUrl}}"], "path": ["api", "regime", "status"] }
+          }
+        },
+        {
+          "name": "Check gate for Nifty 50 (dry-run)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "console.log(`Regime: ${r.regime}`);",
+                  "console.log(`Allowed: ${r.allowed ? 'YES ✅' : 'NO ❌'}`);",
+                  "console.log(`Reason: ${r.reason}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Dry-run: tells you whether a Nifty signal RIGHT NOW would be allowed to fire. No signal is saved; safe to poll.",
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/check?token={{nifty50Token}}&exchange=NSE&interval=FIVE_MINUTE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "check"],
+              "query": [
+                { "key": "token",    "value": "{{nifty50Token}}" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "interval", "value": "FIVE_MINUTE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Check gate for Bank Nifty",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/check?token={{bankNiftyToken}}&exchange=NSE&interval=FIFTEEN_MINUTE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "check"],
+              "query": [
+                { "key": "token",    "value": "{{bankNiftyToken}}" },
+                { "key": "exchange", "value": "NSE" },
+                { "key": "interval", "value": "FIFTEEN_MINUTE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reload config (after property edit)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Re-parses allowed-regimes and allowed-windows CSVs. Also flushes the regime cache. Use this after editing application.properties and hot-reloading them (or use /admin/config-reload).",
+            "url": { "raw": "{{baseUrl}}/api/regime/reload", "host": ["{{baseUrl}}"], "path": ["api", "regime", "reload"] }
+          }
+        },
+        {
+          "name": "Flip master switch OFF (bypass all gates)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Runtime toggle. Once off, EVERY signal fires (as before regime was added). Useful to sanity-check that regime is what's filtering signals.",
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Flip master switch ON",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Toggle ADX gate only",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Disable just the ADX regime gate while keeping VIX + time filters active.",
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/gate/adx?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "gate", "adx"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Toggle VIX gate only",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/gate/vix?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "gate", "vix"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Toggle time-of-day gate only",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Disable the time filter to allow signals at ANY hour (useful for testing outside market hours).",
+            "url": {
+              "raw": "{{baseUrl}}/api/regime/gate/time?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "regime", "gate", "time"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trailing Stops (ratchet)",
+      "description": "Config-toggleable trailing-stop engine. Runs on every tick; tightens each OPEN signal's stop when price moves favorably. Never loosens. Modes: NONE / FIXED / PERCENT / MILESTONE / ATR.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Status snapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log(`Trailing: ${s.enabled ? 'ON' : 'OFF'} · mode=${s.mode}`);",
+                  "console.log(`  activation: ${s.activationPercent * 100}% of entry→target`);",
+                  "console.log(`  PERCENT distance: ${s.percentDistance}%`);",
+                  "console.log(`  FIXED distance: ${s.fixedDistance} pts`);",
+                  "console.log(`  ATR: ${s.atrMultiplier} × ATR14`);",
+                  "console.log(`  MILESTONE ladder: ${s.milestoneLadder.join(', ')}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/trailing/status", "host": ["{{baseUrl}}"], "path": ["api", "trailing", "status"] }
+          }
+        },
+        {
+          "name": "Master switch OFF (disable trailing)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Reverts to classic fixed-stop behavior. All OPEN signals keep their current stop (last-known trailed value stays).",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Master switch ON",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Switch mode → PERCENT",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/mode?value=PERCENT",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "mode"],
+              "query": [{ "key": "value", "value": "PERCENT" }]
+            }
+          }
+        },
+        {
+          "name": "Switch mode → MILESTONE (breakeven ladder)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Discrete profit-locking. Default ladder locks breakeven at 50%, 33% at 75%, 66% at 90% of the move.",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/mode?value=MILESTONE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "mode"],
+              "query": [{ "key": "value", "value": "MILESTONE" }]
+            }
+          }
+        },
+        {
+          "name": "Switch mode → ATR (volatility-adaptive)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Best for gappy or high-vol instruments. Trail = K × ATR14 behind peak.",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/mode?value=ATR",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "mode"],
+              "query": [{ "key": "value", "value": "ATR" }]
+            }
+          }
+        },
+        {
+          "name": "Switch mode → NONE (equivalent to disabled)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/mode?value=NONE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "mode"],
+              "query": [{ "key": "value", "value": "NONE" }]
+            }
+          }
+        },
+        {
+          "name": "Tune — tighter PERCENT (0.25% trail, activate at 20%)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Aggressive: engages sooner (20% into move) and trails closer (0.25%). More trades stopped early, but locks in profit faster.",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/tune?percentDistance=0.25&activationPercent=0.20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "tune"],
+              "query": [
+                { "key": "percentDistance",   "value": "0.25" },
+                { "key": "activationPercent", "value": "0.20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tune — looser PERCENT (0.6% trail, activate at 50%)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Conservative: waits until halfway, gives price more room. Fewer stop-outs, less profit locked.",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/tune?percentDistance=0.60&activationPercent=0.50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "tune"],
+              "query": [
+                { "key": "percentDistance",   "value": "0.60" },
+                { "key": "activationPercent", "value": "0.50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tune — custom milestone ladder",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Set your own ladder. Format: CSV of 'moveAt%:stopAt%'. Example below: at 40%→BE, at 70%→50% locked, at 90%→80% locked.",
+            "url": {
+              "raw": "{{baseUrl}}/api/trailing/tune?milestoneLadder=40:0,70:50,90:80",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "trailing", "tune"],
+              "query": [{ "key": "milestoneLadder", "value": "40:0,70:50,90:80" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Multi-Timeframe Confirmation",
+      "description": "After consensus + dedupe fire but BEFORE save: verify higher timeframes agree in direction. Signal on 5M BUY only saves if 15M + 1H both agree UP. Modes ALL/MAJORITY/ANY. Methods EMA_STACK / PRICE_VS_EMA / SUPERTREND. Master switch: mtf.enabled=false bypasses.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Status snapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log(`MTF: ${s.enabled ? 'ON' : 'OFF'}`);",
+                  "console.log(`  method:        ${s.method}  (EMA ${s.emaFast}/${s.emaSlow})`);",
+                  "console.log(`  agreement:     ${s.agreementMode}`);",
+                  "console.log(`  higherTFs:     ${s.higherTimeframes.join(', ')}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/mtf/status", "host": ["{{baseUrl}}"], "path": ["api", "mtf", "status"] }
+          }
+        },
+        {
+          "name": "Dry-run — would Nifty 5m BUY be confirmed?",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "console.log(`5m ${r.action} on ${r.token}: ${r.allowed ? 'ALLOWED ✅' : 'BLOCKED ❌'}`);",
+                  "console.log(`Reason: ${r.reason}`);",
+                  "Object.entries(r.perTf).forEach(([tf, dir]) => console.log(`  ${tf} → ${dir}`));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Reports whether a hypothetical BUY signal on Nifty 5m would pass MTF right now. Shows each higher-TF direction so you can see why.",
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/check?token={{nifty50Token}}&interval=FIVE_MINUTE&action=BUY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "check"],
+              "query": [
+                { "key": "token",    "value": "{{nifty50Token}}" },
+                { "key": "interval", "value": "FIVE_MINUTE" },
+                { "key": "action",   "value": "BUY" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dry-run — would Nifty 5m SELL be confirmed?",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/check?token={{nifty50Token}}&interval=FIVE_MINUTE&action=SELL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "check"],
+              "query": [
+                { "key": "token",    "value": "{{nifty50Token}}" },
+                { "key": "interval", "value": "FIVE_MINUTE" },
+                { "key": "action",   "value": "SELL" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Master switch OFF (bypass MTF)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Master switch ON",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Set mode → ALL (strictest)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/mode?value=ALL",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "mode"],
+              "query": [{ "key": "value", "value": "ALL" }]
+            }
+          }
+        },
+        {
+          "name": "Set mode → MAJORITY (balanced)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/mode?value=MAJORITY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "mode"],
+              "query": [{ "key": "value", "value": "MAJORITY" }]
+            }
+          }
+        },
+        {
+          "name": "Set mode → ANY (loosest)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/mode?value=ANY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "mode"],
+              "query": [{ "key": "value", "value": "ANY" }]
+            }
+          }
+        },
+        {
+          "name": "Set method → EMA_STACK",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/method?value=EMA_STACK",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "method"],
+              "query": [{ "key": "value", "value": "EMA_STACK" }]
+            }
+          }
+        },
+        {
+          "name": "Set method → PRICE_VS_EMA",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/method?value=PRICE_VS_EMA",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "method"],
+              "query": [{ "key": "value", "value": "PRICE_VS_EMA" }]
+            }
+          }
+        },
+        {
+          "name": "Set method → SUPERTREND",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/method?value=SUPERTREND",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "method"],
+              "query": [{ "key": "value", "value": "SUPERTREND" }]
+            }
+          }
+        },
+        {
+          "name": "Replace higher-TF list (15m + 1h + 1d)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Widen to 3 higher timeframes. With mode=ALL this becomes strictest — 3-of-3 must agree.",
+            "url": {
+              "raw": "{{baseUrl}}/api/mtf/tfs?value=FIFTEEN_MINUTE,ONE_HOUR,ONE_DAY",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "mtf", "tfs"],
+              "query": [{ "key": "value", "value": "FIFTEEN_MINUTE,ONE_HOUR,ONE_DAY" }]
+            }
+          }
+        },
+        {
+          "name": "Reload (flush direction cache + re-parse)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/mtf/reload", "host": ["{{baseUrl}}"], "path": ["api", "mtf", "reload"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "News Blackout Calendar",
+      "description": "Skip signals within window around scheduled events (RBI, FOMC, earnings, expiry). YAML calendar at src/main/resources/news-calendar.yml. Edit → POST /api/news/reload (or auto-reloads every 5 min). Master: news.enabled. Severity threshold: news.block-severity.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Calendar status snapshot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log(`Total events: ${s.totalEvents}`);",
+                  "console.log(`  Active NOW:      ${s.activeNow}`);",
+                  "console.log(`  Upcoming (7d):   ${s.upcoming7d}`);",
+                  "console.log(`  Loaded from:     ${s.loadedFrom}`);",
+                  "if (s.error) console.log(`  ⚠️  Error: ${s.error}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/news/status", "host": ["{{baseUrl}}"], "path": ["api", "news", "status"] }
+          }
+        },
+        {
+          "name": "Admin UI (HTML page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Open in browser: active/upcoming/all events, reload button, enable/disable toggles.",
+            "url": { "raw": "{{baseUrl}}/admin/news", "host": ["{{baseUrl}}"], "path": ["admin", "news"] }
+          }
+        },
+        {
+          "name": "Events active NOW (blocking signals)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "if (arr.length === 0) { console.log('✅ No active blackouts — signals free to fire.'); }",
+                  "else { arr.forEach(e => console.log(`🔴 ${e.name} (${e.severity}) at ${e.dateTime}`)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/news/active", "host": ["{{baseUrl}}"], "path": ["api", "news", "active"] }
+          }
+        },
+        {
+          "name": "Upcoming events — next 7 days",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "console.log(`${arr.length} upcoming events in 7 days:`);",
+                  "arr.forEach(e => {",
+                  "  const syms = e.affectedSymbols && e.affectedSymbols.length ? ` (only ${e.affectedSymbols.join(',')})` : '';",
+                  "  console.log(`  ${e.severity.padEnd(6)} ${e.dateTime}  ${e.name}${syms}`);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/upcoming?days=7",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "upcoming"],
+              "query": [{ "key": "days", "value": "7" }]
+            }
+          }
+        },
+        {
+          "name": "Upcoming events — next 30 days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/upcoming?days=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "upcoming"],
+              "query": [{ "key": "days", "value": "30" }]
+            }
+          }
+        },
+        {
+          "name": "All events in calendar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/news/all", "host": ["{{baseUrl}}"], "path": ["api", "news", "all"] }
+          }
+        },
+        {
+          "name": "Check — is Nifty blocked NOW?",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "console.log(`Nifty ${r.allowed ? 'ALLOWED ✅' : 'BLOCKED ❌'}`);",
+                  "console.log(`Reason: ${r.reason}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/check?token={{nifty50Token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "check"],
+              "query": [{ "key": "token", "value": "{{nifty50Token}}" }]
+            }
+          }
+        },
+        {
+          "name": "Check — Reliance (earnings-targeted)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Reliance-only earnings events in the sample YAML block only Reliance token, not Nifty.",
+            "url": {
+              "raw": "{{baseUrl}}/api/news/check?token={{relianceToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "check"],
+              "query": [{ "key": "token", "value": "{{relianceToken}}" }]
+            }
+          }
+        },
+        {
+          "name": "Reload calendar (after editing YAML)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Edit src/main/resources/news-calendar.yml (or your absolute-path file), then POST here. No restart needed.",
+            "url": { "raw": "{{baseUrl}}/api/news/reload", "host": ["{{baseUrl}}"], "path": ["api", "news", "reload"] }
+          }
+        },
+        {
+          "name": "Master switch OFF (allow signals during news)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Master switch ON",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Severity → HIGH (block only HIGH events)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/severity?value=HIGH",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "severity"],
+              "query": [{ "key": "value", "value": "HIGH" }]
+            }
+          }
+        },
+        {
+          "name": "Severity → MEDIUM (default — block MEDIUM + HIGH)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/severity?value=MEDIUM",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "severity"],
+              "query": [{ "key": "value", "value": "MEDIUM" }]
+            }
+          }
+        },
+        {
+          "name": "Severity → LOW (paranoid — block everything)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/news/severity?value=LOW",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "news", "severity"],
+              "query": [{ "key": "value", "value": "LOW" }]
             }
           }
         }

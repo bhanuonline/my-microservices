@@ -1,0 +1,67 @@
+# =====================================================
+# News blackout calendar — signals are SKIPPED within the window around
+# any event whose severity ≥ news.block-severity (default MEDIUM).
+#
+# Fields per event:
+#   name             free-text label
+#   dateTime         IST wall-clock "yyyy-MM-dd HH:mm"
+#   severity         LOW / MEDIUM / HIGH
+#   windowBefore     minutes to block BEFORE event (optional → default 30)
+#   windowAfter      minutes to block AFTER  event (optional → default 60)
+#   affectedSymbols  list of symbol tokens; empty/omitted = block ALL symbols
+#
+# Reload: POST /api/news/reload  or wait for auto-reload every 5 min.
+# Edit this file then hit the endpoint — no restart needed.
+# =====================================================
+
+events:
+
+  # ─── HIGH severity — always block regardless of block-severity ─────────
+
+  - name: "RBI Monetary Policy"
+    dateTime: "2026-10-08 10:00"
+    severity: HIGH
+    windowBefore: 30
+    windowAfter: 60
+
+  - name: "US FOMC Rate Decision"
+    dateTime: "2026-10-29 23:30"        # 11:30 PM IST = 2 PM ET
+    severity: HIGH
+    windowBefore: 30
+    windowAfter: 90
+
+  - name: "Weekly F&O Expiry"
+    dateTime: "2026-10-01 15:00"
+    severity: MEDIUM
+    windowBefore: 60
+    windowAfter: 30
+
+  # ─── MEDIUM severity — economic data ──────────────────────────────────
+
+  - name: "India CPI Inflation"
+    dateTime: "2026-10-13 17:30"
+    severity: MEDIUM
+    windowBefore: 15
+    windowAfter: 30
+
+  - name: "US Non-Farm Payrolls"
+    dateTime: "2026-10-03 18:00"        # 6 PM IST = 8:30 AM ET
+    severity: MEDIUM
+    windowBefore: 15
+    windowAfter: 30
+
+  # ─── Symbol-targeted (only Reliance affected) ─────────────────────────
+
+  - name: "Reliance Q2 FY26 Earnings"
+    dateTime: "2026-10-20 16:00"
+    severity: HIGH
+    windowBefore: 60
+    windowAfter: 120
+    affectedSymbols:
+      - "2885"   # Reliance NSE token
+
+  # ─── LOW severity — will be ignored unless block-severity=LOW ─────────
+
+  - name: "India IIP Data"
+    dateTime: "2026-10-12 17:30"
+    severity: LOW

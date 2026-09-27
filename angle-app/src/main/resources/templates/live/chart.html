@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <!--
-    /live/chart — professional-grade chart backed by TradingView Lightweight Charts.
+    /live/chart — professional-grade chart with indicators + signals + live update.
 
     Load flow:
-      1. Fetch last ~300 candles via GET /api/live/candles → seed chart
-      2. Open SSE /api/live/stream?token=X for live updates
-      3. On each 'tick' event → update the in-progress bar's O/H/L/C in place
-      4. On each 'candle' event (closed bar) → append new bar
+      1. Fetch /api/live/candles-with-indicators?token=X&interval=Y&strategy=Z
+      2. Render candles + all indicator overlays + BUY/SELL markers
+      3. Open SSE /api/live/stream for live updates (ticks + closed candles)
 
-    Zero polling. 60 FPS Canvas rendering. Same library as tradingview.com.
+    Layout:
+      Main pane   — candles + EMA lines + VWAP + SuperTrend + signal markers
+      RSI pane    — 14-period RSI (0-100 scale)
+      MACD pane   — MACD line + signal line + histogram
+      Volume pane — volume bars
 -->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -18,79 +21,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-    <style>
-        :root {
-            --bg:#0C0D14; --surface:#15161F; --surface-2:#1B1C28;
-            --border:#262838; --hair:#20222F;
-            --ink:#F1F1FA; --muted:#9497B5; --faint:#5C5F7C;
-            --primary:#8577FF; --primary-2:rgba(133,119,255,.14);
-            --up:#31D39B; --up-2:rgba(49,211,155,.13);
-            --down:#FF6B70; --down-2:rgba(255,107,112,.13);
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin:0; background:var(--bg); color:var(--ink);
-            font-family:'Inter',-apple-system,sans-serif; font-size:14px;
-        }
-        .wrap { max-width:1400px; margin:0 auto; padding:24px; }
-
-        .head {
-            display:flex; justify-content:space-between; align-items:flex-start;
-            margin-bottom:20px; flex-wrap:wrap; gap:16px;
-        }
-        .head-left { display:flex; flex-direction:column; gap:4px; }
-        .head-left h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
-        .subtitle { color:var(--muted); font-size:12.5px; }
-        .subtitle .mono { font-family:'IBM Plex Mono', monospace; color:var(--faint); }
-
-        .head-right { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-        select {
-            background:var(--surface); color:var(--ink); border:1px solid var(--border);
-            border-radius:8px; padding:8px 12px; font:inherit; font-size:13px; cursor:pointer;
-        }
-
-        .interval-tabs { display:flex; gap:2px; background:var(--surface-2); padding:3px; border-radius:10px; border:1px solid var(--border); }
-        .interval-tabs a {
-            padding:7px 14px; border-radius:7px; text-decoration:none;
-            color:var(--muted); font-size:12.5px; font-weight:600;
-        }
-        .interval-tabs a:hover { color:var(--ink); }
-        .interval-tabs a.on { background:var(--primary); color:#fff; }
-
-        .price-hero {
-            display:flex; align-items:baseline; gap:16px; margin-bottom:16px;
-        }
-        .price-hero .ltp {
-            font-family:'IBM Plex Mono', monospace;
-            font-size:38px; font-weight:600; letter-spacing:-.01em;
-        }
-        .price-hero .ltp.up   { color:var(--up); }
-        .price-hero .ltp.down { color:var(--down); }
-        .price-hero .change {
-            font-family:'IBM Plex Mono', monospace;
-            font-size:15px; padding:5px 12px; border-radius:6px;
-        }
-        .price-hero .change.up   { background:var(--up-2);   color:var(--up); }
-        .price-hero .change.down { background:var(--down-2); color:var(--down); }
-
-        .chart-card {
-            background:var(--surface); border:1px solid var(--border);
-            border-radius:14px; padding:8px; box-shadow:0 4px 12px rgba(0,0,0,.3);
-        }
-        #chart { width:100%; height:520px; }
-        #volChart { width:100%; height:120px; margin-top:4px; }
-
-        .status-bar {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-top:12px; padding:10px 14px;
-            background:var(--surface); border:1px solid var(--border); border-radius:8px;
-            font-size:12px; color:var(--muted);
-        }
-        .status-bar .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-        .status-bar .live .dot { background:var(--up); animation:pulse 1.6s ease infinite; }
-        .status-bar .off  .dot { background:var(--down); }
-        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/live-chart.css}">
 </head>
 <body>
 <div class="wrap">
@@ -99,31 +30,21 @@
         <div class="head-left">
             <h1 th:text="${selectedSymbol}">Nifty 50</h1>
             <div class="subtitle">
-                <span th:text="${selectedExchange}">NSE</span>
-                <span>·</span>
-                <span class="mono" th:text="${selectedToken}">99926000</span>
+                <span th:text="${selectedExchange}">NSE</span> · <span th:text="${selectedToken}">99926000</span>
             </div>
         </div>
         <div class="head-right">
             <select id="instrSel" onchange="switchInstrument(this.value)">
-                <option th:each="i : ${instruments}"
-                        th:value="${i.symbolToken}"
+                <option th:each="i : ${instruments}" th:value="${i.symbolToken}"
                         th:text="${i.symbol} + ' (' + ${i.exchange} + ')'"
-                        th:selected="${i.symbolToken == selectedToken}">
-                    Nifty 50 (NSE)
-                </option>
+                        th:selected="${i.symbolToken == selectedToken}">Nifty 50 (NSE)</option>
             </select>
-            <div class="interval-tabs" id="intervalTabs" th:with="cur=${selectedInterval}">
-                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_MINUTE'}"
-                   th:classappend="${cur == 'ONE_MINUTE'} ? 'on'">1M</a>
-                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=FIVE_MINUTE'}"
-                   th:classappend="${cur == 'FIVE_MINUTE'} ? 'on'">5M</a>
-                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=FIFTEEN_MINUTE'}"
-                   th:classappend="${cur == 'FIFTEEN_MINUTE'} ? 'on'">15M</a>
-                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_HOUR'}"
-                   th:classappend="${cur == 'ONE_HOUR'} ? 'on'">1H</a>
-                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_DAY'}"
-                   th:classappend="${cur == 'ONE_DAY'} ? 'on'">1D</a>
+            <div class="interval-tabs" th:with="cur=${selectedInterval}">
+                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_MINUTE'}"     th:classappend="${cur == 'ONE_MINUTE'} ? 'on'">1M</a>
+                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=FIVE_MINUTE'}"    th:classappend="${cur == 'FIVE_MINUTE'} ? 'on'">5M</a>
+                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=FIFTEEN_MINUTE'}" th:classappend="${cur == 'FIFTEEN_MINUTE'} ? 'on'">15M</a>
+                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_HOUR'}"       th:classappend="${cur == 'ONE_HOUR'} ? 'on'">1H</a>
+                <a th:href="@{'/live/chart?token=' + ${selectedToken} + '&interval=ONE_DAY'}"        th:classappend="${cur == 'ONE_DAY'} ? 'on'">1D</a>
             </div>
         </div>
     </div>
@@ -133,9 +54,59 @@
         <div class="change" id="chg">—</div>
     </div>
 
+    <div class="toolbar">
+        <span class="lbl">Overlays:</span>
+        <label><input type="checkbox" id="tEma9"  checked onchange="toggleSeries('ema9', this.checked)"> EMA 9</label>
+        <label><input type="checkbox" id="tEma20" checked onchange="toggleSeries('ema20', this.checked)"> EMA 20</label>
+        <label><input type="checkbox" id="tEma50" checked onchange="toggleSeries('ema50', this.checked)"> EMA 50</label>
+        <label><input type="checkbox" id="tVwap"  checked onchange="toggleSeries('vwap', this.checked)"> VWAP</label>
+        <label><input type="checkbox" id="tSt"    checked onchange="toggleSeries('superTrend', this.checked)"> SuperTrend</label>
+        <span class="sep"></span>
+        <span class="lbl">Panes:</span>
+        <label><input type="checkbox" id="tRsi"  checked onchange="togglePane('rsi',  this.checked)"> RSI</label>
+        <label><input type="checkbox" id="tMacd" checked onchange="togglePane('macd', this.checked)"> MACD</label>
+        <label><input type="checkbox" id="tVol"  checked onchange="togglePane('vol',  this.checked)"> Volume</label>
+        <span class="sep"></span>
+        <span class="lbl">Preset:</span>
+        <button type="button" class="preset-btn" onclick="applyPreset('compact')">Compact</button>
+        <button type="button" class="preset-btn" onclick="applyPreset('full')">Full</button>
+        <button type="button" class="preset-btn" onclick="applyPreset('priceOnly')">Price only</button>
+        <span class="sep"></span>
+        <span class="lbl">Signals:</span>
+        <select id="stratSel" onchange="reloadStrategy()">
+            <optgroup label="Consensus (filter false signals)">
+                <option value="consensus-2">Consensus · 2+ agree (loose)</option>
+                <option value="consensus-3" selected>Consensus · 3+ agree (default)</option>
+                <option value="consensus-4">Consensus · 4+ agree (tight)</option>
+                <option value="consensus-5">Consensus · 5+ agree (very strict)</option>
+            </optgroup>
+            <optgroup label="Single strategy">
+                <option value="ensemble">ensemble</option>
+                <option value="moving-average-crossover">MA crossover</option>
+                <option value="rsi-mean-reversion">RSI reversion</option>
+                <option value="macd-crossover">MACD crossover</option>
+                <option value="ob-retest">OB retest (SMC)</option>
+                <option value="sweep-fvg">Sweep+FVG (SMC)</option>
+                <option value="volume-breakout">Volume breakout</option>
+                <option value="bollinger-bounce">Bollinger bounce</option>
+            </optgroup>
+        </select>
+    </div>
+
     <div class="chart-card">
         <div id="chart"></div>
-        <div id="volChart"></div>
+        <div id="rsiPane">
+            <div class="pane-label">RSI (14)</div>
+            <div id="rsiChart"></div>
+        </div>
+        <div id="macdPane">
+            <div class="pane-label">MACD (12,26,9)</div>
+            <div id="macdChart"></div>
+        </div>
+        <div id="volPane">
+            <div class="pane-label">Volume</div>
+            <div id="volChart"></div>
+        </div>
     </div>
 
     <div class="status-bar">
@@ -144,85 +115,132 @@
     </div>
 </div>
 
+<div class="marker-popover" id="popover"></div>
+
 <script th:inline="javascript">
     const TOKEN    = /*[[${selectedToken}]]*/    '99926000';
     const INTERVAL = /*[[${selectedInterval}]]*/ 'FIVE_MINUTE';
     const SYMBOL   = /*[[${selectedSymbol}]]*/   'Nifty 50';
-
     const fmt = n => new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-    // ---------- Chart setup ----------
-    const chartEl = document.getElementById('chart');
-    const chart = LightweightCharts.createChart(chartEl, {
-        layout: { background: { color: '#15161F' }, textColor: '#9497B5' },
-        grid:   { vertLines: { color: '#20222F' }, horzLines: { color: '#20222F' } },
-        rightPriceScale: { borderColor: '#262838' },
-        timeScale:      { borderColor: '#262838', timeVisible: true, secondsVisible: false },
-        crosshair:      { mode: 1 },
+    // ---------- charts ----------
+    function makeChart(elId, extraOpts) {
+        const el = document.getElementById(elId);
+        const c = LightweightCharts.createChart(el, Object.assign({
+            layout: { background: { color: '#15161F' }, textColor: '#9497B5' },
+            grid:   { vertLines: { color: '#20222F' }, horzLines: { color: '#20222F' } },
+            rightPriceScale: { borderColor: '#262838' },
+            timeScale:      { borderColor: '#262838', timeVisible: true, secondsVisible: false },
+            crosshair:      { mode: 1 },
+        }, extraOpts || {}));
+        new ResizeObserver(entries => { for (const e of entries) c.applyOptions({ width: e.contentRect.width }); }).observe(el);
+        return c;
+    }
+
+    const chart     = makeChart('chart');
+    const rsiChart  = makeChart('rsiChart',  { timeScale: { visible: false, borderColor: '#262838' } });
+    const macdChart = makeChart('macdChart', { timeScale: { visible: false, borderColor: '#262838' } });
+    const volChart  = makeChart('volChart',  { timeScale: { borderColor: '#262838', timeVisible: true, secondsVisible: false } });
+
+    // Sync all time-axis panning
+    [chart, rsiChart, macdChart, volChart].forEach(src => {
+        src.timeScale().subscribeVisibleTimeRangeChange(r => {
+            [chart, rsiChart, macdChart, volChart].forEach(dst => { if (dst !== src && r) dst.timeScale().setVisibleRange(r); });
+        });
     });
 
+    // Series
     const candleSeries = chart.addCandlestickSeries({
-        upColor: '#31D39B', downColor: '#FF6B70',
-        borderUpColor: '#31D39B', borderDownColor: '#FF6B70',
-        wickUpColor: '#31D39B', wickDownColor: '#FF6B70',
+        upColor:'#31D39B', downColor:'#FF6B70',
+        borderUpColor:'#31D39B', borderDownColor:'#FF6B70',
+        wickUpColor:'#31D39B', wickDownColor:'#FF6B70',
     });
+    const overlaySeries = {
+        ema9:       chart.addLineSeries({ color:'#F0A63E', lineWidth:1, title:'EMA9',  priceLineVisible:false, lastValueVisible:false }),
+        ema20:      chart.addLineSeries({ color:'#8577FF', lineWidth:1, title:'EMA20', priceLineVisible:false, lastValueVisible:false }),
+        ema50:      chart.addLineSeries({ color:'#4DD9C6', lineWidth:1, title:'EMA50', priceLineVisible:false, lastValueVisible:false }),
+        vwap:       chart.addLineSeries({ color:'#7BB4FF', lineWidth:1, lineStyle:2, title:'VWAP', priceLineVisible:false, lastValueVisible:false }),
+        superTrend: chart.addLineSeries({ color:'#31D39B', lineWidth:2, title:'SuperTrend', priceLineVisible:false, lastValueVisible:false }),
+    };
 
-    // Volume histogram on a separate chart underneath, sharing x-axis via manual sync
-    const volEl = document.getElementById('volChart');
-    const volChart = LightweightCharts.createChart(volEl, {
-        layout: { background: { color: '#15161F' }, textColor: '#9497B5' },
-        grid:   { vertLines: { color: '#20222F' }, horzLines: { visible: false } },
-        rightPriceScale: { borderColor: '#262838' },
-        timeScale:      { borderColor: '#262838', timeVisible: true, secondsVisible: false, visible: false },
-        crosshair:      { mode: 1 },
-    });
-    const volSeries = volChart.addHistogramSeries({
-        color: '#8577FF', priceFormat: { type: 'volume' }, priceScaleId: '',
-    });
-    volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.1, bottom: 0 } });
+    // RSI pane
+    const rsiSeries    = rsiChart.addLineSeries({ color:'#8577FF', lineWidth:1, title:'RSI14' });
+    rsiChart.addLineSeries({ color:'rgba(255,107,112,.35)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false })
+        .setData([]);  // 70 line drawn manually below after data loads
+    const rsi70 = rsiChart.addLineSeries({ color:'rgba(255,107,112,.4)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+    const rsi30 = rsiChart.addLineSeries({ color:'rgba(49,211,155,.4)',  lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
 
-    // Sync time-axis panning between the two charts
-    chart.timeScale().subscribeVisibleTimeRangeChange(r => volChart.timeScale().setVisibleRange(r));
-    volChart.timeScale().subscribeVisibleTimeRangeChange(r => chart.timeScale().setVisibleRange(r));
+    // MACD pane
+    const macdSeries   = macdChart.addLineSeries({ color:'#8577FF', lineWidth:1, title:'MACD' });
+    const macdSigSer   = macdChart.addLineSeries({ color:'#F0A63E', lineWidth:1, title:'Signal' });
+    const macdHistSer  = macdChart.addHistogramSeries({ base:0, priceLineVisible:false });
 
-    // Responsive resize
-    new ResizeObserver(entries => {
-        for (const e of entries) {
-            if (e.target === chartEl) chart.applyOptions({ width: e.contentRect.width });
-            if (e.target === volEl)   volChart.applyOptions({ width: e.contentRect.width });
-        }
-    }).observe(chartEl);
-    new ResizeObserver(entries => {
-        for (const e of entries) volChart.applyOptions({ width: e.contentRect.width });
-    }).observe(volEl);
+    // Volume pane
+    const volSeries    = volChart.addHistogramSeries({ color:'#8577FF', priceFormat:{ type:'volume' } });
 
-    // ---------- Bootstrap: fetch history ----------
-    async function loadHistory() {
+    // ---------- data ----------
+    let allSignals = [];
+    let candleData = [];
+
+    async function loadAll() {
+        const strat = document.getElementById('stratSel').value;
         try {
-            const r = await fetch(`/api/live/candles?token=${TOKEN}&interval=${INTERVAL}&limit=300`);
-            const data = await r.json();
-            if (!data || data.length === 0) {
-                document.getElementById('tickInfo').textContent = 'No historical data returned';
-                return;
-            }
-            const candles = data.map(c => ({
-                time: c.time, open: +c.open, high: +c.high, low: +c.low, close: +c.close
-            }));
-            const vols = data.map(c => ({
-                time: c.time, value: +c.volume || 0,
-                color: (+c.close >= +c.open) ? 'rgba(49,211,155,.5)' : 'rgba(255,107,112,.5)'
-            }));
-            candleSeries.setData(candles);
-            volSeries.setData(vols);
-            chart.timeScale().fitContent();
-
-            const last = candles[candles.length - 1];
-            const first = candles[0];
-            updatePriceHero(last.close, first.close);
+            const r = await fetch(`/api/live/candles-with-indicators?token=${TOKEN}&interval=${INTERVAL}&strategy=${strat}&limit=300`);
+            const j = await r.json();
+            renderAll(j);
         } catch (e) {
-            console.error('History fetch failed', e);
-            document.getElementById('tickInfo').textContent = 'History fetch failed: ' + e.message;
+            console.error('Load failed', e);
+            document.getElementById('tickInfo').textContent = 'Load failed: ' + e.message;
         }
+    }
+
+    function renderAll(j) {
+        const candles = (j.candles || []).map(c => ({ time:c.time, open:+c.open, high:+c.high, low:+c.low, close:+c.close }));
+        const vols    = (j.candles || []).map(c => ({
+            time:c.time, value:+c.volume || 0,
+            color:(+c.close >= +c.open) ? 'rgba(49,211,155,.5)' : 'rgba(255,107,112,.5)'
+        }));
+        candleData = candles;
+        candleSeries.setData(candles);
+        volSeries.setData(vols);
+
+        // Indicators
+        const ind = j.indicators || {};
+        ['ema9','ema20','ema50','vwap'].forEach(k => {
+            const arr = (ind[k] || []).map(p => ({ time:p.time, value:+p.value }));
+            overlaySeries[k].setData(arr);
+        });
+        // SuperTrend — color by bullish flag
+        const stArr = (ind.superTrend || []).map(p => ({ time:p.time, value:+p.value, bullish:p.bullish }));
+        overlaySeries.superTrend.setData(stArr);
+
+        // RSI + 70/30 guide lines
+        rsiSeries.setData((ind.rsi14 || []).map(p => ({ time:p.time, value:+p.value })));
+        if ((ind.rsi14 || []).length > 0) {
+            const first = ind.rsi14[0].time, last = ind.rsi14[ind.rsi14.length-1].time;
+            rsi70.setData([{time:first, value:70},{time:last, value:70}]);
+            rsi30.setData([{time:first, value:30},{time:last, value:30}]);
+        }
+        // MACD
+        macdSeries.setData((ind.macd || []).map(p => ({ time:p.time, value:+p.value })));
+        macdSigSer.setData((ind.macdSignal || []).map(p => ({ time:p.time, value:+p.value })));
+        macdHistSer.setData((ind.macdHistogram || []).map(p => ({ time:p.time, value:+p.value, color:p.color })));
+
+        // Signals — markers on candle series
+        allSignals = j.signals || [];
+        candleSeries.setMarkers(allSignals.map(m => ({
+            time:     m.time,
+            position: m.position,
+            color:    m.color,
+            shape:    m.shape,
+            text:     m.text,
+            id:       m.id
+        })));
+
+        chart.timeScale().fitContent();
+
+        // Price hero
+        if (candles.length > 0) updatePriceHero(candles[candles.length-1].close, candles[0].close);
     }
 
     function updatePriceHero(current, reference) {
@@ -237,44 +255,112 @@
         chgEl.textContent = (up ? '+' : '') + fmt(diff) + ' (' + (up ? '+' : '') + pct.toFixed(2) + '%)';
     }
 
-    // ---------- SSE live updates ----------
-    let referencePrice = null;   // day's open (approximation: first candle's open)
+    // ---------- toggle overlays ----------
+    function toggleSeries(key, visible) {
+        overlaySeries[key].applyOptions({ visible: visible });
+    }
 
+    // ---------- toggle sub-panes (RSI / MACD / Volume) ----------
+    // Hides the container div. The chart instance stays in memory so re-showing
+    // is instant — no data reload needed.
+    function togglePane(name, visible) {
+        const paneMap = { rsi: 'rsiPane', macd: 'macdPane', vol: 'volPane' };
+        const el = document.getElementById(paneMap[name]);
+        if (!el) return;
+        el.style.display = visible ? 'block' : 'none';
+    }
+
+    // ---------- layout presets ----------
+    // Each preset is a bulk config: which overlays + which sub-panes to show.
+    // Applied by driving the checkboxes (so state stays consistent + change events fire).
+    const PRESETS = {
+        // Everything on — the default view.
+        full:      { overlays: { ema9:true,  ema20:true,  ema50:true,  vwap:true,  st:true },
+                     panes:    { rsi:true,  macd:true,  vol:true  } },
+        // Overlays kept, sub-panes off. Focused chart with EMAs + VWAP + SuperTrend on candles.
+        compact:   { overlays: { ema9:true,  ema20:true,  ema50:true,  vwap:true,  st:true },
+                     panes:    { rsi:false, macd:false, vol:false } },
+        // Bare candles — no lines, no sub-panes. Pure price action.
+        priceOnly: { overlays: { ema9:false, ema20:false, ema50:false, vwap:false, st:false },
+                     panes:    { rsi:false, macd:false, vol:false } }
+    };
+
+    function applyPreset(name) {
+        const p = PRESETS[name];
+        if (!p) return;
+        // Overlays — set checkbox and fire change to run toggleSeries
+        const overlayIds = { ema9:'tEma9', ema20:'tEma20', ema50:'tEma50', vwap:'tVwap', st:'tSt' };
+        Object.entries(p.overlays).forEach(([key, val]) => {
+            const cb = document.getElementById(overlayIds[key]);
+            if (cb && cb.checked !== val) { cb.checked = val; cb.dispatchEvent(new Event('change')); }
+        });
+        // Panes
+        const paneIds = { rsi:'tRsi', macd:'tMacd', vol:'tVol' };
+        Object.entries(p.panes).forEach(([key, val]) => {
+            const cb = document.getElementById(paneIds[key]);
+            if (cb && cb.checked !== val) { cb.checked = val; cb.dispatchEvent(new Event('change')); }
+        });
+        // Visual active-state on the preset button
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        const clicked = [...document.querySelectorAll('.preset-btn')]
+            .find(b => b.textContent.trim().toLowerCase().replace(' ', '') === name.toLowerCase().replace('only','only'));
+        if (clicked) clicked.classList.add('active');
+    }
+
+    // ---------- signal click popover ----------
+    const popover = document.getElementById('popover');
+    chart.subscribeClick(param => {
+        if (!param || !param.time) { popover.style.display = 'none'; return; }
+        const marker = allSignals.find(m => m.time === param.time);
+        if (!marker) { popover.style.display = 'none'; return; }
+        const d = marker.detail || {};
+        let html = `<h4>${d.action || marker.text} · ${d.strategy || ''}</h4>`;
+        if (d.agreedStrategies && d.agreedStrategies.length) {
+            html += `<div class="rationale" style="margin:0 0 8px;padding:0;border:0;color:var(--ink)">
+                Agreed: <b>${d.agreedStrategies.join(', ')}</b></div>`;
+        }
+        if (d.entry)  html += `<div class="row"><span class="k">Entry (avg)</span><span class="v">${fmt(+d.entry)}</span></div>`;
+        if (d.stop)   html += `<div class="row"><span class="k">Stop (widest)</span><span class="v">${fmt(+d.stop)}</span></div>`;
+        if (d.target) html += `<div class="row"><span class="k">Target (nearest)</span><span class="v">${fmt(+d.target)}</span></div>`;
+        if (d.rationale) html += `<div class="rationale">${d.rationale}</div>`;
+        popover.innerHTML = html;
+        popover.style.display = 'block';
+        // Position near cursor (using point offset from chart)
+        const rect = document.getElementById('chart').getBoundingClientRect();
+        popover.style.left = Math.min(window.innerWidth - 360, rect.left + (param.point?.x || 100) + 12) + 'px';
+        popover.style.top  = (rect.top + (param.point?.y || 100) + 12) + 'px';
+    });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#popover') && !e.target.closest('#chart')) popover.style.display = 'none';
+    });
+
+    // ---------- strategy switch ----------
+    function reloadStrategy() { loadAll(); }
+    function switchInstrument(newToken) { window.location.href = `/live/chart?token=${newToken}&interval=${INTERVAL}`; }
+
+    // ---------- SSE live updates ----------
+    let referencePrice = null;
     function connectStream() {
         const status = document.getElementById('status');
         const statusText = document.getElementById('statusText');
         const tickInfo = document.getElementById('tickInfo');
-
         const es = new EventSource(`/api/live/stream?token=${TOKEN}`);
-        es.onopen = () => { status.className = 'live'; statusText.textContent = 'Live'; };
-        es.onerror = () => { status.className = 'off'; statusText.textContent = 'Reconnecting…'; };
-
+        es.onopen  = () => { status.className = 'live'; statusText.textContent = 'Live'; };
+        es.onerror = () => { status.className = 'off';  statusText.textContent = 'Reconnecting…'; };
         es.addEventListener('candle', ev => {
             const c = JSON.parse(ev.data);
-            if (c.interval !== INTERVAL) return;   // ignore other intervals
-            const bar = {
-                time: Math.floor(c.ts / 1000),
-                open: +c.open, high: +c.high, low: +c.low, close: +c.close
-            };
-            candleSeries.update(bar);
+            if (c.interval !== INTERVAL) return;
+            candleSeries.update({ time:Math.floor(c.ts/1000), open:+c.open, high:+c.high, low:+c.low, close:+c.close });
         });
-
         es.addEventListener('tick', ev => {
             const t = JSON.parse(ev.data);
             tickInfo.textContent = `Last tick: ${fmt(+t.ltp)} @ ${new Date(t.ts).toLocaleTimeString()}`;
-            if (referencePrice == null) referencePrice = +t.ltp;
-            updatePriceHero(+t.ltp, referencePrice);
-            // NOTE: we do NOT update the last candle on each tick to avoid overwriting the
-            // authoritative closed-bar candle from the aggregator. Chart stays in sync via 'candle' events.
+            if (referencePrice == null && candleData.length > 0) referencePrice = candleData[0].close;
+            if (referencePrice != null) updatePriceHero(+t.ltp, referencePrice);
         });
     }
 
-    // ---------- Instrument switch ----------
-    function switchInstrument(newToken) {
-        window.location.href = `/live/chart?token=${newToken}&interval=${INTERVAL}`;
-    }
-
-    loadHistory();
+    loadAll();
     connectStream();
 </script>
 

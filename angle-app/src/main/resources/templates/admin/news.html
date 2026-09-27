@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>News Calendar — AngleApp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/admin-news.css}">
+</head>
+<body>
+<div class="wrap">
+
+    <h1>News Blackout Calendar</h1>
+    <p class="sub">
+        Signals are skipped when a scheduled event's window is active.
+        Master: <span th:class="'status-pill ' + (${enabled} ? 'on' : 'off')" th:text="${enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+        · Block severity: <b th:text="${severity}">MEDIUM</b>
+        · Defaults: <b th:text="${defaultBefore} + ' / ' + ${defaultAfter}"></b> min
+    </p>
+
+    <div class="toolbar">
+        <button onclick="post('/api/news/reload')">🔄 Reload YAML</button>
+        <button class="btn ghost" onclick="post('/api/news/enable?on=false')">Disable</button>
+        <button class="btn ghost" onclick="post('/api/news/enable?on=true')">Enable</button>
+        <a class="btn ghost" href="/">← Dashboard</a>
+    </div>
+
+    <div class="stats">
+        <div class="stat"><div class="lbl">Total events</div><div class="val" th:text="${snapshot.totalEvents}">12</div></div>
+        <div class="stat"><div class="lbl">Active now</div><div class="val" style="color:var(--hi)" th:text="${snapshot.activeNow}">1</div></div>
+        <div class="stat"><div class="lbl">Upcoming (7d)</div><div class="val" th:text="${snapshot.upcoming7d}">4</div></div>
+        <div class="stat"><div class="lbl">Loaded from</div><div class="val" style="font-size:11px" th:text="${snapshot.loadedFrom}">classpath:news-calendar.yml</div></div>
+        <div class="stat"><div class="lbl">Load error</div><div class="val" style="font-size:11px" th:text="${snapshot.error} ?: '—'">—</div></div>
+    </div>
+
+    <div class="section">
+        <h2>⚠️ Active now <span class="count" th:text="'(' + ${#lists.size(active)} + ')'">(0)</span></h2>
+        <div th:if="${#lists.isEmpty(active)}" class="empty">No events currently blocking signals.</div>
+        <div th:each="e : ${active}" class="active-banner">
+            <div th:text="'🔴 ' + ${e.name} + ' · ' + ${e.severity}"></div>
+            <div style="font-weight:400;color:var(--ink);font-size:12.5px;margin-top:4px"
+                 th:text="'Window: ' + ${e.windowBeforeOr(defaultBefore)} + ' min before / ' + ${e.windowAfterOr(defaultAfter)} + ' min after · at ' + ${e.dateTime}"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📅 Upcoming (next 7 days) <span class="count" th:text="'(' + ${#lists.size(upcoming)} + ')'">(0)</span></h2>
+        <div th:if="${#lists.isEmpty(upcoming)}" class="empty">No events scheduled in the next 7 days.</div>
+        <div th:each="e : ${upcoming}" th:class="'card ' + ${e.severity}">
+            <div><span th:class="'sev ' + ${e.severity}" th:text="${e.severity}">HIGH</span></div>
+            <div>
+                <div class="name" th:text="${e.name}">RBI Monetary Policy</div>
+                <div class="meta">
+                    <code th:text="${e.dateTime}">2026-10-08 10:00</code>
+                    · window <b th:text="${e.windowBeforeOr(defaultBefore)}">30</b>/<b th:text="${e.windowAfterOr(defaultAfter)}">60</b> min
+                    <span th:if="${e.affectedSymbols != null and !#lists.isEmpty(e.affectedSymbols)}"
+                          th:text="' · symbols: ' + ${#strings.listJoin(e.affectedSymbols, ',')}"></span>
+                    <span th:if="${e.affectedSymbols == null or #lists.isEmpty(e.affectedSymbols)}"
+                          style="color:var(--faint)"> · all symbols</span>
+                </div>
+            </div>
+            <div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📜 All events in calendar <span class="count" th:text="'(' + ${#lists.size(all)} + ')'">(0)</span></h2>
+        <div th:if="${#lists.isEmpty(all)}" class="empty">Calendar is empty. Add events to <code>news-calendar.yml</code>.</div>
+        <div th:each="e : ${all}" th:class="'card ' + ${e.severity}">
+            <div><span th:class="'sev ' + ${e.severity}" th:text="${e.severity}">HIGH</span></div>
+            <div>
+                <div class="name" th:text="${e.name}">Event name</div>
+                <div class="meta">
+                    <code th:text="${e.dateTime}">2026-10-08 10:00</code>
+                    · window <b th:text="${e.windowBeforeOr(defaultBefore)}">30</b>/<b th:text="${e.windowAfterOr(defaultAfter)}">60</b> min
+                    <span th:if="${e.affectedSymbols != null and !#lists.isEmpty(e.affectedSymbols)}"
+                          th:text="' · symbols: ' + ${#strings.listJoin(e.affectedSymbols, ',')}"></span>
+                    <span th:if="${e.affectedSymbols == null or #lists.isEmpty(e.affectedSymbols)}"
+                          style="color:var(--faint)"> · all symbols</span>
+                </div>
+            </div>
+            <div></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    async function post(url) {
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) location.reload();
+        else alert('Failed: ' + (data.error || 'unknown'));
+    }
+</script>
+</body>
+</html>

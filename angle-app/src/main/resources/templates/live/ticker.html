@@ -11,76 +11,7 @@
     <title>Live Ticker — AngleApp</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2; --hair:#F0F3F8;
-            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
-            --up:#16A34A; --up-2:#DCFCE7;
-            --down:#DC2626; --down-2:#FEE2E2;
-            --primary:#2563EB; --primary-2:#DBEAFE;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin:0; background:var(--bg); color:var(--ink);
-            font-family:'Inter',-apple-system,sans-serif; font-size:14px;
-        }
-        .wrap { max-width:1200px; margin:0 auto; padding:32px; }
-
-        .head {
-            display:flex; justify-content:space-between; align-items:center;
-            margin-bottom:24px;
-        }
-        .head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
-        .head p { margin:4px 0 0; color:var(--muted); font-size:13px; }
-
-        .status-pill {
-            display:inline-flex; align-items:center; gap:8px;
-            padding:8px 14px; border-radius:999px;
-            font-size:12.5px; font-weight:600;
-            background:var(--hair); color:var(--muted);
-        }
-        .status-pill.on { background:var(--up-2); color:var(--up); }
-        .status-pill.off { background:var(--down-2); color:var(--down); }
-        .status-pill .dot { width:8px; height:8px; border-radius:50%; background:currentColor; animation:pulse 1.6s ease infinite; }
-        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.4 } }
-
-        .grid {
-            display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
-            gap:16px;
-        }
-        .card {
-            background:var(--surface); border:1px solid var(--border); border-radius:14px;
-            padding:20px; box-shadow:0 1px 2px rgba(26,37,64,.04);
-            transition:background .8s ease, border-color .3s ease;
-            position:relative; overflow:hidden;
-        }
-        .card::before {
-            content:''; position:absolute; top:0; left:0; right:0; height:3px;
-            background:var(--faint); transition:background .3s ease;
-        }
-        .card.up::before   { background:var(--up); }
-        .card.down::before { background:var(--down); }
-        .card.flash-up   { background:var(--up-2); border-color:var(--up); }
-        .card.flash-down { background:var(--down-2); border-color:var(--down); }
-
-        .sym { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
-        .name { font-size:15px; font-weight:700; margin-top:2px; }
-        .ltp {
-            font-family:'IBM Plex Mono', monospace;
-            font-size:32px; font-weight:600; letter-spacing:-.01em;
-            margin:14px 0 6px;
-        }
-        .ltp.up   { color:var(--up); }
-        .ltp.down { color:var(--down); }
-        .meta { display:flex; justify-content:space-between; font-size:11.5px; color:var(--faint); }
-        .meta .n { font-family:'IBM Plex Mono', monospace; }
-        .waiting { color:var(--faint); font-style:italic; font-size:13px; padding:20px 0; text-align:center; }
-
-        .footer-note { margin-top:32px; padding:16px 20px; background:var(--surface); border:1px solid var(--border);
-                       border-radius:12px; font-size:12.5px; color:var(--muted); line-height:1.6; }
-        .footer-note code { background:var(--hair); padding:2px 6px; border-radius:4px;
-                            font-family:'IBM Plex Mono', monospace; font-size:11.5px; }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/live-ticker.css}">
 </head>
 <body>
 <div class="wrap">

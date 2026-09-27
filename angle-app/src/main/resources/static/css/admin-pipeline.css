@@ -1,0 +1,84 @@
+        :root {
+            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2; --hair:#F0F3F8;
+            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
+            --primary:#2563EB; --primary-2:#DBEAFE;
+            --up:#16A34A; --up-2:#DCFCE7;
+            --down:#DC2626; --down-2:#FEE2E2;
+            --warn:#F59E0B; --warn-2:#FEF3C7;
+            --info:#8B5CF6; --info-2:#EDE9FE;
+        }
+        * { box-sizing: border-box; }
+        body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+        .wrap { max-width:1300px; margin:0 auto; padding:32px; }
+        h1 { margin:0; font-size:26px; font-weight:700; letter-spacing:-.02em; }
+        .sub { color:var(--muted); font-size:13px; margin:6px 0 0; }
+        .refresh { font-size:11px; color:var(--faint); float:right; margin-top:8px; }
+
+        .warn-strip {
+            background:var(--down-2); border:1px solid var(--down); border-radius:10px;
+            padding:12px 16px; margin:16px 0; color:var(--down);
+        }
+        .warn-strip .title { font-weight:700; font-size:13px; margin-bottom:4px; }
+        .warn-strip .body { font-weight:500; font-size:12.5px; color:var(--ink); }
+
+        /* ── Grid of 4 cards ──────────────────────────────────────────── */
+        .grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:16px; margin-top:20px; }
+        @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
+
+        .card {
+            background:var(--surface); border:1px solid var(--border); border-radius:12px;
+            padding:20px; display:flex; flex-direction:column;
+        }
+        .card h2 { margin:0 0 4px; font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; }
+        .card .lead { font-size:12px; color:var(--muted); margin-bottom:14px; }
+
+        .pill {
+            display:inline-flex; padding:3px 10px; border-radius:999px;
+            font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+        }
+        .pill.on  { background:var(--up-2);   color:var(--up); }
+        .pill.off { background:var(--down-2); color:var(--down); }
+
+        .kv { display:grid; grid-template-columns:110px 1fr; gap:6px 12px; font-size:13px; margin-bottom:16px; }
+        .kv dt { color:var(--muted); font-weight:500; }
+        .kv dd { margin:0; color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:12.5px; }
+        .kv .check.ok  { color:var(--up);   font-weight:700; }
+        .kv .check.bad { color:var(--down); font-weight:700; }
+
+        .actions { margin-top:auto; display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--hair); flex-wrap:wrap; }
+        .btn {
+            padding:6px 12px; font:inherit; font-size:12px; font-weight:600;
+            border-radius:6px; border:0; cursor:pointer; text-decoration:none;
+            display:inline-flex; align-items:center; gap:5px;
+        }
+        .btn.enable  { background:var(--up-2);   color:var(--up); }
+        .btn.disable { background:var(--down-2); color:var(--down); }
+        .btn.ghost   { background:var(--surface); color:var(--ink); border:1px solid var(--border); }
+        .btn.primary { background:var(--primary); color:#fff; }
+
+        .gate-status {
+            font-size:11px; font-weight:700; letter-spacing:.05em;
+            padding:5px 12px; border-radius:6px; text-transform:uppercase;
+        }
+        .gate-status.open   { background:var(--up-2);   color:var(--up); }
+        .gate-status.closed { background:var(--down-2); color:var(--down); }
+        .gate-status.warn   { background:var(--warn-2); color:var(--warn); }
+
+        /* ── Stats strip ──────────────────────────────────────────────── */
+        .stats-wrap { margin-top:28px; }
+        .stats-wrap h3 { font-size:14px; font-weight:700; margin:0 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+        .stats {
+            display:grid; grid-template-columns:repeat(6, 1fr); gap:12px;
+            background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px;
+        }
+        .stat { text-align:center; }
+        .stat .lbl { font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+        .stat .val { font-size:24px; font-weight:700; margin-top:4px; }
+        .stat .pct { font-size:11px; color:var(--faint); margin-top:2px; }
+        .stat.attempted .val { color:var(--ink); }
+        .stat.passed    .val { color:var(--up); }
+        .stat.blocked   .val { color:var(--down); }
+
+        .footer-links { margin-top:24px; text-align:center; color:var(--muted); font-size:12px; }
+        .footer-links a { color:var(--primary); text-decoration:none; margin:0 8px; }
+    
