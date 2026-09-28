@@ -1,12 +1,5 @@
-        :root {
-            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2;
-            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
-            --hi:#DC2626; --hi-2:#FEE2E2;
-            --md:#F59E0B; --md-2:#FEF3C7;
-            --lo:#16A34A; --lo-2:#DCFCE7;
-            --primary:#2563EB; --primary-2:#DBEAFE;
-        }
-        * { box-sizing: border-box; }
+/* tokens in theme.css */
+* { box-sizing: border-box; }
         body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
         .wrap { max-width:1200px; margin:0 auto; padding:32px; }
         h1 { font-size:26px; font-weight:700; letter-spacing:-.02em; margin:0 0 6px; }

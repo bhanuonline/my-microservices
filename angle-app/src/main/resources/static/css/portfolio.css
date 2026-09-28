@@ -1,0 +1,105 @@
+/* ═════════════════════════════════════════════════════════════════════════
+   Portfolio page — AI stock picks + scorecard.
+   Depends on theme tokens (--bg, --surface, --ink, --up, --down, etc.)
+   ═════════════════════════════════════════════════════════════════════════ */
+
+body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+
+.pf-head { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+.pf-head h1 { font-size:26px; font-weight:700; letter-spacing:-.02em; margin:0; }
+.pf-head .sub { font-size:13px; color:var(--muted); margin:4px 0 0; }
+
+.pf-btn {
+    padding:9px 16px; font:600 13px 'Inter',sans-serif;
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--border); border-radius:8px; cursor:pointer;
+    transition:background .15s, border-color .15s;
+}
+.pf-btn:hover { border-color:var(--primary); color:var(--primary); }
+.pf-btn-primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.pf-btn-primary:hover { background:color-mix(in srgb, var(--primary) 85%, black); color:#fff; }
+.pf-btn:disabled { opacity:.55; cursor:wait; }
+
+.pf-stats {
+    display:grid; grid-template-columns:repeat(6, 1fr); gap:12px;
+    margin-bottom:24px;
+}
+.pf-stat {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:14px 12px; text-align:center;
+}
+.pf-stat .lbl { font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+.pf-stat .val { font-size:22px; font-weight:700; margin-top:4px; letter-spacing:-.01em; }
+.pf-stat.won  .val { color:var(--good); }
+.pf-stat.lost .val { color:var(--bad); }
+.pf-stat.exp  .val { color:var(--faint); }
+.pf-stat.wr   .val { color:var(--info); }
+.pf-stat.ret  .val { color:var(--primary); }
+
+.pf-empty {
+    text-align:center; padding:60px 20px; color:var(--muted);
+    background:var(--surface); border:1px dashed var(--border); border-radius:12px;
+}
+
+.pf-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px; margin-bottom:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+    transition:box-shadow .15s ease;
+}
+.pf-card:hover { box-shadow:0 4px 12px -2px rgba(0,0,0,.08); }
+.pf-card.buy   { border-left:4px solid var(--good); }
+.pf-card.sell  { border-left:4px solid var(--bad); }
+.pf-card.hit_target { opacity:.85; }
+.pf-card.hit_stop   { opacity:.85; }
+.pf-card.expired    { opacity:.7; }
+
+.pf-card-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+.pf-symbol   { font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.pf-exchange { font-size:11px; color:var(--muted); padding:2px 8px; background:var(--hair); border-radius:5px; }
+.pf-spacer   { flex:1; }
+
+.pf-badge {
+    padding:4px 12px; border-radius:8px;
+    font-weight:800; font-size:13px; letter-spacing:.03em;
+}
+.pf-badge.buy   { background:var(--good-2); color:var(--good); }
+.pf-badge.sell  { background:var(--bad-2);  color:var(--bad); }
+.pf-badge.hold  { background:var(--warn-2); color:var(--warn); }
+.pf-badge.avoid { background:var(--faint);  color:var(--surface); }
+
+.pf-conf {
+    padding:3px 8px; border-radius:5px; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.05em;
+}
+.pf-conf.high   { background:var(--good-2); color:var(--good); }
+.pf-conf.medium { background:var(--warn-2); color:var(--warn); }
+.pf-conf.low    { background:var(--bad-2);  color:var(--bad); }
+
+.pf-status {
+    padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.05em;
+}
+.pf-status.OPEN       { background:var(--primary-2); color:var(--primary); }
+.pf-status.HIT_TARGET { background:var(--good-2);    color:var(--good); }
+.pf-status.HIT_STOP   { background:var(--bad-2);     color:var(--bad); }
+.pf-status.EXPIRED    { background:var(--hair);      color:var(--faint); }
+.pf-status.CANCELLED  { background:var(--warn-2);    color:var(--warn); }
+
+.pf-numbers { display:flex; gap:22px; font-size:13px; color:var(--muted); margin-bottom:8px; flex-wrap:wrap; }
+.pf-numbers b { color:var(--ink); font-family:'IBM Plex Mono', monospace; font-weight:600; }
+
+.pf-rationale {
+    background:color-mix(in srgb, var(--info) 5%, transparent);
+    border-left:3px solid var(--info);
+    border-radius:0 6px 6px 0;
+    padding:8px 12px; margin:8px 0;
+    font-size:13px; font-style:italic; color:var(--ink); line-height:1.5;
+}
+
+.pf-outcome { font-size:12.5px; font-weight:600; margin-top:6px; }
+.pf-outcome.win     { color:var(--good); }
+.pf-outcome.loss    { color:var(--bad); }
+.pf-outcome.neutral { color:var(--muted); }
+
+.pf-meta { font-size:11px; color:var(--faint); margin-top:6px; }

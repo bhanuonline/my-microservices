@@ -216,5 +216,133 @@
     </div>
 </div>
 
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Backtest card (13th card)
+     Always visible. Inline ON/OFF toggle via HTMX — swaps this whole card
+     in place, no full-page reload. Disabled state greys the card and makes
+     the Run button inert.
+     Endpoint: POST /api/backtest-card/enable?on=... returns this fragment.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="backtestCard"
+     id="backtest-card"
+     th:class="'lm-svc c-green' + (${backtestCard.enabled} ? '' : ' bt-card-off')">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/><path d="M7 17l3-6 4 4 4-8"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Backtest</div>
+        <span th:class="'lm-svc-badge ' + (${backtestCard.enabled} ? 'ok' : 'off')">
+            <span class="dot"></span>
+            <span th:text="${backtestCard.enabled} ? 'Ready' : 'Disabled'">Ready</span>
+        </span>
+    </div>
+    <div class="lm-svc-metrics">
+        <div class="lm-svc-metric"><span class="k">Pipeline</span><span class="v good">Consensus + trail</span></div>
+        <div class="lm-svc-metric"><span class="k">Look-back</span>
+            <span class="v" th:text="${backtestCard.lookBackMin} + '–' + ${backtestCard.lookBackMax} + ' days'">30–365 days</span>
+        </div>
+        <div class="lm-svc-metric"><span class="k">Default</span>
+            <span class="v" th:text="${backtestCard.defaultDays} + ' days'">30 days</span>
+        </div>
+    </div>
+
+    <div class="card-actions" style="align-items:center">
+        <a th:if="${backtestCard.enabled}"
+           class="card-btn primary" style="flex:1"
+           th:href="@{/admin/backtest(daysBack=${backtestCard.defaultDays})}">
+            ▶️ Run
+        </a>
+        <span th:unless="${backtestCard.enabled}"
+              class="card-btn neutral" style="flex:1;cursor:not-allowed;opacity:.6">
+            ▶️ Run (disabled)
+        </span>
+        <!-- Gear (edit) button only makes sense while the card is enabled.
+             When disabled, hide it so users must ON the card before configuring. -->
+        <button th:if="${backtestCard.enabled}"
+                type="button"
+                class="card-btn neutral"
+                style="flex:0 0 auto;padding:5px 10px"
+                hx-get="/api/backtest-card/edit"
+                hx-target="#backtest-card"
+                hx-swap="outerHTML"
+                hx-indicator="#backtest-card"
+                title="Edit look-back range and default days">
+            ⚙️
+        </button>
+        <button type="button"
+                th:class="'card-btn ' + (${backtestCard.enabled} ? 'success' : 'danger')"
+                style="flex:0 0 auto;min-width:56px"
+                th:hx-post="'/api/backtest-card/enable?on=' + (${backtestCard.enabled} ? 'false' : 'true')"
+                hx-target="#backtest-card"
+                hx-swap="outerHTML"
+                hx-indicator="#backtest-card"
+                th:text="${backtestCard.enabled} ? 'ON' : 'OFF'"
+                th:title="${backtestCard.enabled} ? 'Click to disable' : 'Click to enable'">ON</button>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Backtest card — EDIT MODE
+     Shown when gear icon is clicked. HTMX POST /api/backtest-card/save
+     swaps back to the normal backtestCard fragment on Save (or Cancel).
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="backtestCardEdit"
+     id="backtest-card"
+     class="lm-svc c-green">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Backtest — Edit</div>
+        <span class="lm-svc-badge warn"><span class="dot"></span>Editing</span>
+    </div>
+
+    <form hx-post="/api/backtest-card/save"
+          hx-target="#backtest-card"
+          hx-swap="outerHTML"
+          hx-indicator="#backtest-card"
+          class="lm-svc-metrics"
+          style="display:grid;gap:8px">
+        <label style="display:grid;grid-template-columns:1fr 90px;align-items:center;font-size:12px">
+            <span class="k">Look-back min (days)</span>
+            <input type="number" name="lookBackMin"
+                   th:value="${backtestCard.lookBackMin}"
+                   min="1" max="3650"
+                   style="padding:5px 8px;border:1px solid #E4E9F2;border-radius:5px;font:inherit;font-size:12px;text-align:right">
+        </label>
+        <label style="display:grid;grid-template-columns:1fr 90px;align-items:center;font-size:12px">
+            <span class="k">Look-back max (days)</span>
+            <input type="number" name="lookBackMax"
+                   th:value="${backtestCard.lookBackMax}"
+                   min="1" max="3650"
+                   style="padding:5px 8px;border:1px solid #E4E9F2;border-radius:5px;font:inherit;font-size:12px;text-align:right">
+        </label>
+        <label style="display:grid;grid-template-columns:1fr 90px;align-items:center;font-size:12px">
+            <span class="k">Default days</span>
+            <input type="number" name="defaultDays"
+                   th:value="${backtestCard.defaultDays}"
+                   min="1" max="3650"
+                   style="padding:5px 8px;border:1px solid #E4E9F2;border-radius:5px;font:inherit;font-size:12px;text-align:right">
+        </label>
+
+        <div class="card-actions" style="margin-top:4px">
+            <button type="submit" class="card-btn success" style="flex:1">💾 Save</button>
+            <button type="button" class="card-btn neutral" style="flex:1"
+                    hx-get="/api/backtest-card/view"
+                    hx-target="#backtest-card"
+                    hx-swap="outerHTML">
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>
+
 </body>
 </html>

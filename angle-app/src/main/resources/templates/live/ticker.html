@@ -11,18 +11,31 @@
     <title>Live Ticker — AngleApp</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
     <link rel="stylesheet" th:href="@{/css/live-ticker.css}">
 </head>
 <body>
-<div class="wrap">
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='ticker')}"></div>
+<main class="app-main">
+<div class="wrap" style="max-width:none;padding:0">
     <div class="head">
         <div>
             <h1>Live Ticker</h1>
             <p>Real-time prices pushed via Server-Sent Events. No polling.</p>
         </div>
-        <div class="status-pill" id="status">
-            <span class="dot"></span>
-            <span id="statusText">Connecting…</span>
+        <div style="display:flex;align-items:center;gap:10px">
+            <button type="button" id="themeBtn"
+                    onclick="var n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('angle-theme',n);document.getElementById('themeBtn').textContent=n==='dark'?'🌙 Dark':'☀️ Light';"
+                    style="padding:6px 12px;font:600 12px 'Inter',sans-serif;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+                ☀️ Light
+            </button>
+            <script>document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('themeBtn');if(b)b.textContent=document.documentElement.dataset.theme==='dark'?'🌙 Dark':'☀️ Light';});</script>
+            <div class="status-pill" id="status">
+                <span class="dot"></span>
+                <span id="statusText">Connecting…</span>
+            </div>
         </div>
     </div>
 
@@ -37,6 +50,8 @@
         ticks + closed candles from Angel's WebSocket feed.
         Rows appear on the first tick per instrument. Cards flash green/red on price change.
     </div>
+</div>
+</main>
 </div>
 
 <script>

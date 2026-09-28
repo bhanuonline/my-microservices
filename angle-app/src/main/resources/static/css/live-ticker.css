@@ -1,11 +1,5 @@
-        :root {
-            --bg:#F7F9FC; --surface:#FFFFFF; --border:#E4E9F2; --hair:#F0F3F8;
-            --ink:#1A2540; --muted:#6B7A99; --faint:#A0AAC2;
-            --up:#16A34A; --up-2:#DCFCE7;
-            --down:#DC2626; --down-2:#FEE2E2;
-            --primary:#2563EB; --primary-2:#DBEAFE;
-        }
-        * { box-sizing: border-box; }
+/* tokens in theme.css */
+* { box-sizing: border-box; }
         body {
             margin:0; background:var(--bg); color:var(--ink);
             font-family:'Inter',-apple-system,sans-serif; font-size:14px;

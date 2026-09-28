@@ -1,0 +1,84 @@
+/* ═════════════════════════════════════════════════════════════════════════
+   App shell — sidebar + main area layout used by every non-dashboard page.
+   Pairs with fragments/app-sidebar.html.
+   Depends on theme.css tokens (--bg, --surface, --border, --ink, etc.)
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+.app-side {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 22px 0 20px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.app-brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 22px 22px;
+    border-bottom: 1px solid var(--hair);
+    margin-bottom: 14px;
+}
+.app-logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--primary), var(--info));
+    color: #fff; font-weight: 800; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px -2px color-mix(in srgb, var(--primary) 45%, transparent);
+}
+.app-brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+
+/* ── Nav ────────────────────────────────────────────────────────────── */
+.app-nav {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 0 12px;
+}
+.app-nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px; font-weight: 500;
+    transition: background .12s ease, color .12s ease;
+}
+.app-nav a svg { width: 18px; height: 18px; flex: none; }
+.app-nav a:hover {
+    background: var(--hair);
+    color: var(--ink);
+}
+.app-nav a.active {
+    background: var(--primary-2);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.app-side-spacer { flex: 1; }
+
+/* ── Main content area ─────────────────────────────────────────────── */
+.app-main {
+    flex: 1;
+    min-width: 0;                     /* prevent flex overflow */
+    padding: 28px 32px;
+    background: var(--bg);
+    color: var(--ink);
+}
+
+/* ── Responsive: hide sidebar on narrow screens ────────────────────── */
+@media (max-width: 900px) {
+    .app-side { display: none; }
+    .app-main { padding: 20px; }
+}

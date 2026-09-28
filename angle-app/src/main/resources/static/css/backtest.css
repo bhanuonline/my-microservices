@@ -1,0 +1,68 @@
+body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+
+.bt-head { margin-bottom:20px; }
+.bt-head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+.bt-head .sub { font-size:13px; color:var(--muted); margin:4px 0 0; }
+
+.bt-form {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; margin-bottom:24px;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px 14px; align-items:end;
+}
+.bt-form label { display:flex; flex-direction:column; gap:4px; font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+.bt-form input, .bt-form select {
+    padding:7px 10px; font:inherit; font-size:13px;
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--border); border-radius:6px;
+}
+.bt-form select { min-width:0; }
+
+.bt-btn {
+    padding:9px 16px; font:600 13px 'Inter',sans-serif;
+    border:0; border-radius:8px; cursor:pointer;
+    background:var(--surface); color:var(--ink); border:1px solid var(--border);
+}
+.bt-btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); grid-column:span 2; }
+
+.bt-empty {
+    background:var(--surface); border:1px dashed var(--border);
+    padding:60px 20px; border-radius:12px; text-align:center; color:var(--muted);
+}
+.bt-warn {
+    background:var(--warn-2); color:var(--warn); font-size:12.5px;
+    padding:10px 14px; border-radius:8px; margin-bottom:14px;
+    border-left:3px solid var(--warn);
+}
+
+.bt-result h2 { font-size:16px; font-weight:700; margin:0 0 14px; letter-spacing:-.01em; }
+.bt-result h3 { font-size:14px; font-weight:700; margin:24px 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+
+.bt-stats {
+    display:grid; grid-template-columns:repeat(6, 1fr); gap:10px; margin-bottom:20px;
+}
+.bt-stat {
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:12px 10px; text-align:center;
+}
+.bt-stat .lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+.bt-stat .val { font-size:20px; font-weight:700; margin-top:4px; letter-spacing:-.01em; }
+.bt-stat .val.up   { color:var(--good); }
+.bt-stat .val.down { color:var(--bad); }
+.bt-stat.win  .val   { color:var(--good); }
+.bt-stat.loss .val   { color:var(--bad); }
+.bt-stat.trail .val  { color:var(--info); }
+.bt-stat.highlight   { border-color:var(--primary); }
+
+.bt-trades {
+    width:100%; border-collapse:separate; border-spacing:0;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    font-size:12.5px; overflow:hidden;
+}
+.bt-trades th, .bt-trades td {
+    padding:8px 12px; text-align:right;
+    border-bottom:1px solid var(--hair); font-family:'IBM Plex Mono', monospace;
+}
+.bt-trades th { text-align:right; font-weight:700; text-transform:uppercase; letter-spacing:.05em; font-size:10.5px; color:var(--muted); background:var(--bg); }
+.bt-trades td:nth-child(2), .bt-trades td:nth-child(3), .bt-trades td:nth-child(8), .bt-trades td:nth-child(10) { text-align:left; }
+.bt-trades tr.win-row td:last-child   { color:var(--good); font-weight:600; }
+.bt-trades tr.loss-row td:last-child  { color:var(--bad); font-weight:600; }

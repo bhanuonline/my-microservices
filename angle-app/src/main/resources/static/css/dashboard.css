@@ -1,30 +1,4 @@
-        :root {
-            --lm-bg:        #F1F5FB;
-            --lm-surface:   #FFFFFF;
-            --lm-border:    #E3E9F2;
-            --lm-hair:      #EEF2F8;
-            --lm-ink:       #1A2540;
-            --lm-muted:     #6B7A99;
-            --lm-faint:     #A0AAC2;
-            --lm-primary:   #2563EB;      /* blue */
-            --lm-primary-2: #DBEAFE;
-            --lm-good:      #16A34A;      /* green */
-            --lm-good-2:    #D1FAE5;
-            --lm-warn:      #F59E0B;      /* orange */
-            --lm-warn-2:    #FEF3C7;
-            --lm-bad:       #DC2626;      /* red */
-            --lm-bad-2:     #FEE2E2;
-            --lm-purple:    #8B5CF6;
-            --lm-purple-2:  #EDE9FE;
-            --lm-pink:      #EC4899;
-            --lm-pink-2:    #FCE7F3;
-            --lm-cyan:      #06B6D4;
-            --lm-cyan-2:    #CFFAFE;
-            --lm-shadow-sm: 0 1px 2px rgba(26, 37, 64, .04);
-            --lm-shadow:    0 4px 12px -2px rgba(26, 37, 64, .06),
-                            0 2px 4px -1px rgba(26, 37, 64, .04);
-            --lm-shadow-lg: 0 20px 40px -12px rgba(26, 37, 64, .12);
-        }
+        /* Design tokens (--lm-*) live in theme.css. Loaded first by welcome.html. */
 
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
@@ -274,29 +248,82 @@
             gap: 16px;
         }
 
+        /* ───────── Elevated card (glass-morphism) ───────── */
         .lm-svc {
             background: var(--lm-surface);
             border: 1px solid var(--lm-border);
             border-radius: 14px;
-            padding: 18px;
-            box-shadow: var(--lm-shadow-sm);
-            transition: all .15s ease;
+            padding: 22px 18px 18px;                  /* extra top padding for accent stripe */
+            box-shadow: var(--lm-shadow);              /* stronger shadow than before */
+            transition: transform .18s ease, box-shadow .18s ease;
             position: relative;
+            overflow: hidden;                          /* clips the accent stripe corners */
         }
-        .lm-svc:hover { box-shadow: var(--lm-shadow); transform: translateY(-2px); }
+
+        /* Colored accent stripe across the top — 3px, matches the card's color class */
+        .lm-svc::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px;
+            background: var(--lm-primary);             /* default; per-color override below */
+            opacity: .85;
+        }
+
+        /* Subtle gradient tint from top-left; picks up the accent color faintly */
+        .lm-svc::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg,
+                        color-mix(in srgb, var(--lm-primary) 6%, transparent) 0%,
+                        transparent 55%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .lm-svc > * { position: relative; z-index: 1; }   /* content sits above the tint */
+
+        .lm-svc:hover {
+            box-shadow: var(--lm-shadow-lg);
+            transform: translateY(-3px);
+        }
 
         .lm-svc-top {
             display: flex; align-items: center; gap: 10px;
             margin-bottom: 14px;
         }
         .lm-svc-icon {
-            width: 34px; height: 34px; border-radius: 9px;
+            width: 36px; height: 36px; border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 6px -1px color-mix(in srgb, currentColor 30%, transparent);
         }
-        .lm-svc-icon svg { width: 17px; height: 17px; }
-        .lm-svc-name { font-size: 13.5px; font-weight: 700; flex: 1; }
+        .lm-svc-icon svg { width: 18px; height: 18px; }
+        .lm-svc-name { font-size: 13.5px; font-weight: 700; flex: 1; letter-spacing: -.01em; }
 
-        /* Color themes per service (rotates by position) */
+        /* Color themes per service — sets accent stripe + gradient tint + icon */
+        .lm-svc.c-blue   { --card-accent: var(--lm-primary); }
+        .lm-svc.c-green  { --card-accent: var(--lm-good); }
+        .lm-svc.c-orange { --card-accent: var(--lm-warn); }
+        .lm-svc.c-purple { --card-accent: var(--lm-purple); }
+        .lm-svc.c-pink   { --card-accent: var(--lm-pink); }
+        .lm-svc.c-cyan   { --card-accent: var(--lm-cyan); }
+
+        .lm-svc.c-blue::before,
+        .lm-svc.c-green::before,
+        .lm-svc.c-orange::before,
+        .lm-svc.c-purple::before,
+        .lm-svc.c-pink::before,
+        .lm-svc.c-cyan::before { background: var(--card-accent); }
+
+        .lm-svc.c-blue::after,
+        .lm-svc.c-green::after,
+        .lm-svc.c-orange::after,
+        .lm-svc.c-purple::after,
+        .lm-svc.c-pink::after,
+        .lm-svc.c-cyan::after {
+            background: linear-gradient(135deg,
+                        color-mix(in srgb, var(--card-accent) 8%, transparent) 0%,
+                        transparent 55%);
+        }
+
         .lm-svc.c-blue   .lm-svc-icon { background: var(--lm-primary-2); color: var(--lm-primary); }
         .lm-svc.c-green  .lm-svc-icon { background: var(--lm-good-2);    color: var(--lm-good); }
         .lm-svc.c-orange .lm-svc-icon { background: var(--lm-warn-2);    color: var(--lm-warn); }
@@ -435,3 +462,8 @@
 .mini-toggle.on:hover  { background: #BBF7D0; }
 .mini-toggle.off { background: #FEE2E2; color: #DC2626; }
 .mini-toggle.off:hover { background: #FECACA; }
+
+/* Disabled-state modifier — card stays visible but muted.
+   Used by Backtest card (and reusable for other togglable cards). */
+.bt-card-off { opacity: 0.55; transition: opacity .15s ease; }
+.bt-card-off .lm-svc-icon { filter: grayscale(1); }

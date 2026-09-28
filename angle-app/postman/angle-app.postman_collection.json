@@ -2702,6 +2702,469 @@
       ]
     },
     {
+      "name": "Portfolio (AI Stock Picks)",
+      "description": "AI-driven medium-term stock recommendations. Claude analyzes each enabled instrument's price history + basic technicals, returns BUY/HOLD/AVOID with entry/target/stop. Every pick persisted for outcome tracking. Set ai-picks.enabled=true and ANTHROPIC_API_KEY env var.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Generate new AI picks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "console.log('OK:', j.ok, '·', j.message);",
+                  "console.log('Universe:', j.universeSize, 'Parsed:', j.parsedPicks, 'Saved:', j.savedPicks);",
+                  "console.log('Skipped: confidence=' + j.skippedByConfidence + ' dedupe=' + j.skippedByDedupe);",
+                  "(j.picks || []).forEach(p => console.log(`  ${p.action} ${p.symbol} @ ${p.entryPrice} → ${p.targetPrice} · ${p.confidence}`));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Scans enabled instruments (up to ai-picks.max-universe-size), sends context to Claude, saves picks passing the confidence + dedupe filters. Costs ~$0.05-0.15 per run.",
+            "url": { "raw": "{{baseUrl}}/api/ai-picks/generate", "host": ["{{baseUrl}}"], "path": ["api", "ai-picks", "generate"] }
+          }
+        },
+        {
+          "name": "Check outcomes (manual trigger)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Runs the outcome tracker now (same logic as the daily 3:45 PM IST cron). Walks OPEN picks, closes any whose target/stop hit or horizon elapsed.",
+            "url": { "raw": "{{baseUrl}}/api/ai-picks/check", "host": ["{{baseUrl}}"], "path": ["api", "ai-picks", "check"] }
+          }
+        },
+        {
+          "name": "List all picks (last 180 days)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const arr = pm.response.json();",
+                  "console.log('Total picks:', arr.length);",
+                  "const by = k => arr.filter(p => p.status === k).length;",
+                  "console.log('  OPEN:', by('OPEN'), 'WON:', by('HIT_TARGET'), 'LOST:', by('HIT_STOP'), 'EXP:', by('EXPIRED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/ai-picks", "host": ["{{baseUrl}}"], "path": ["api", "ai-picks"] }
+          }
+        },
+        {
+          "name": "List OPEN picks (active watchlist)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-picks?status=OPEN",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-picks"],
+              "query": [{ "key": "status", "value": "OPEN" }]
+            }
+          }
+        },
+        {
+          "name": "List winning picks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ai-picks?status=HIT_TARGET&days=180",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ai-picks"],
+              "query": [
+                { "key": "status", "value": "HIT_TARGET" },
+                { "key": "days",   "value": "180" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Portfolio HTML page (open in browser)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/portfolio", "host": ["{{baseUrl}}"], "path": ["portfolio"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Backtest (pipeline replay)",
+      "description": "Full-pipeline backtest — replay historical candles through consensus + trailing stops. Measure real win rate before risking capital. Look-ahead bias prevented (strategies only see past + current bars). Not persistent; results are ephemeral.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Nifty 5m · 30 days · min-agreement 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "console.log(`${r.symbol} · ${r.interval} · ${r.fromDate} → ${r.toDate}`);",
+                  "console.log(`  Signals fired: ${r.signalsFired} · Won ${r.wins} · Lost ${r.losses} · Trailed ${r.trailed} · Expired ${r.expired}`);",
+                  "console.log(`  Win rate: ${r.winRate}%  ·  Total return: ${r.totalReturnPct}%  ·  Max drawdown: ${r.maxDrawdownPct}%`);",
+                  "console.log(`  Profit factor: ${r.profitFactor}  ·  Expectancy: ₹${r.expectancy}  ·  Final capital: ₹${r.finalCapital}`);",
+                  "if (r.warnings) console.log(`  ⚠️  ${r.warnings}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{nifty50Token}}&interval=FIVE_MINUTE&daysBack=30&minAgreement=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",  "value": "{{nifty50Token}}" },
+                { "key": "interval",     "value": "FIVE_MINUTE" },
+                { "key": "daysBack",     "value": "30" },
+                { "key": "minAgreement", "value": "3" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Nifty 15m · 90 days · min-agreement 4 (stricter)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{nifty50Token}}&interval=FIFTEEN_MINUTE&daysBack=90&minAgreement=4&trailingPercent=0.35",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",     "value": "{{nifty50Token}}" },
+                { "key": "interval",        "value": "FIFTEEN_MINUTE" },
+                { "key": "daysBack",        "value": "90" },
+                { "key": "minAgreement",    "value": "4" },
+                { "key": "trailingPercent", "value": "0.35" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Nifty daily · 365 days (long-horizon test)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "How would the pipeline have performed on daily bars over the last year? Different rhythm than intraday.",
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{nifty50Token}}&interval=ONE_DAY&daysBack=365&minAgreement=3&expiryBars=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",  "value": "{{nifty50Token}}" },
+                { "key": "interval",     "value": "ONE_DAY" },
+                { "key": "daysBack",     "value": "365" },
+                { "key": "minAgreement", "value": "3" },
+                { "key": "expiryBars",   "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bank Nifty 5m · 30 days · aggressive trailing",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{bankNiftyToken}}&interval=FIVE_MINUTE&daysBack=30&trailingPercent=0.25&trailingActivation=0.20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",        "value": "{{bankNiftyToken}}" },
+                { "key": "interval",           "value": "FIVE_MINUTE" },
+                { "key": "daysBack",           "value": "30" },
+                { "key": "trailingPercent",    "value": "0.25" },
+                { "key": "trailingActivation", "value": "0.20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reliance daily · 180 days (equity backtest)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{relianceToken}}&interval=ONE_DAY&daysBack=180&minAgreement=3&riskPercent=1.5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",  "value": "{{relianceToken}}" },
+                { "key": "interval",     "value": "ONE_DAY" },
+                { "key": "daysBack",     "value": "180" },
+                { "key": "minAgreement", "value": "3" },
+                { "key": "riskPercent",  "value": "1.5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "No trailing (classic fixed stop) — baseline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "console.log('Baseline (no trailing):');",
+                  "console.log(`  Win rate: ${r.winRate}%  · PF ${r.profitFactor}  · Total ${r.totalReturnPct}%`);",
+                  "console.log('Compare vs the PERCENT-trailing run to see if trailing helps or hurts.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Same setup as first request but trailing OFF. Use to compare: does trailing actually improve your expectancy?",
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest/pipeline?symbolToken={{nifty50Token}}&interval=FIVE_MINUTE&daysBack=30&trailingMode=NONE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest", "pipeline"],
+              "query": [
+                { "key": "symbolToken",  "value": "{{nifty50Token}}" },
+                { "key": "interval",     "value": "FIVE_MINUTE" },
+                { "key": "daysBack",     "value": "30" },
+                { "key": "trailingMode", "value": "NONE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Open backtest form (HTML page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin/backtest", "host": ["{{baseUrl}}"], "path": ["admin", "backtest"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Bias Toggle",
+      "description": "Master switch for the bias engine + individual sub-modules (VIX, correlated, breadth, circuit breaker). Powers the HTMX toggle buttons on the dashboard.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Get bias enabled status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/bias/status", "host": ["{{baseUrl}}"], "path": ["api", "bias", "status"] }
+          }
+        },
+        {
+          "name": "Enable bias engine",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Disable bias engine",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bias/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bias", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Toggle VIX sub-module",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Flips bias.vix.enabled. VIX section is skipped from the bias sheet when off.",
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/action/bias-module/vix/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "action", "bias-module", "vix", "toggle"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Correlated sub-module",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/action/bias-module/correlated/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "action", "bias-module", "correlated", "toggle"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Breadth sub-module",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/action/bias-module/breadth/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "action", "bias-module", "breadth", "toggle"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Circuit-breaker sub-module",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/dashboard/action/bias-module/circuit/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "dashboard", "action", "bias-module", "circuit", "toggle"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Card Settings",
+      "description": "Runtime editor for dashboard card visibility + parameters (backtest card, and future cards). Runtime-only — resets on app restart. Edit application.properties for permanent defaults.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Open Backtest card settings (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin/backtest-card", "host": ["{{baseUrl}}"], "path": ["admin", "backtest-card"] }
+          }
+        },
+        {
+          "name": "Hide Backtest card",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Card disappears from the dashboard immediately. Revert with the ON version.",
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest-card/enable?on=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest-card", "enable"],
+              "query": [{ "key": "on", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "Show Backtest card",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest-card/enable?on=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest-card", "enable"],
+              "query": [{ "key": "on", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "Set look-back range 7 – 90 days",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Changes the range label on the card and clamps default days into the new bounds.",
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest-card/save?lookBackMin=7&lookBackMax=90&defaultDays=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest-card", "save"],
+              "query": [
+                { "key": "lookBackMin",  "value": "7" },
+                { "key": "lookBackMax",  "value": "90" },
+                { "key": "defaultDays",  "value": "30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Set look-back range 30 – 365 (default reset)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest-card/save?lookBackMin=30&lookBackMax=365&defaultDays=30",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest-card", "save"],
+              "query": [
+                { "key": "lookBackMin",  "value": "30" },
+                { "key": "lookBackMax",  "value": "365" },
+                { "key": "defaultDays",  "value": "30" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Set only default days (leave range untouched)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Only defaultDays parameter passed — min/max unchanged. Useful when you just want to pre-fill a different value in the backtest form.",
+            "url": {
+              "raw": "{{baseUrl}}/api/backtest-card/save?defaultDays=60",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "backtest-card", "save"],
+              "query": [{ "key": "defaultDays", "value": "60" }]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Home",
       "auth": { "type": "noauth" },
       "item": [

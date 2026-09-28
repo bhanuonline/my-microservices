@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!--
+    /portfolio — AI stock picks (MVP)
+    Lists every AI-generated pick + running scorecard. Uses shared app-shell.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portfolio — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/portfolio.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='portfolio')}"></div>
+<main class="app-main">
+
+    <div class="pf-head">
+        <div>
+            <h1>AI Stock Picks</h1>
+            <p class="sub">Medium-term recommendations from Claude. Every pick is tracked so you can see actual win rate over time.</p>
+        </div>
+        <button class="pf-btn pf-btn-primary" onclick="runGenerate()">🤖 Generate new picks</button>
+    </div>
+
+    <div class="pf-stats">
+        <div class="pf-stat"><div class="lbl">Open</div><div class="val" th:text="${openCount}">3</div></div>
+        <div class="pf-stat won"><div class="lbl">Target hit</div><div class="val" th:text="${wonCount}">12</div></div>
+        <div class="pf-stat lost"><div class="lbl">Stop hit</div><div class="val" th:text="${lostCount}">5</div></div>
+        <div class="pf-stat exp"><div class="lbl">Expired</div><div class="val" th:text="${expCount}">2</div></div>
+        <div class="pf-stat wr"><div class="lbl">Win rate</div><div class="val" th:text="${winRate} + '%'">70%</div></div>
+        <div class="pf-stat ret"><div class="lbl">Avg return</div><div class="val" th:text="${avgReturn} + '%'">+8%</div></div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(picks)}" class="pf-empty">
+        No picks yet. Click <b>🤖 Generate new picks</b> to ask Claude to analyze your watchlist.
+    </div>
+
+    <div th:each="p : ${picks}" th:class="'pf-card ' + ${#strings.toLowerCase(p.status)}">
+        <div class="pf-card-head">
+            <span th:class="'pf-badge ' + ${#strings.toLowerCase(p.action)}" th:text="${p.action}">BUY</span>
+            <span class="pf-symbol" th:text="${p.symbol}">Bandhan Bank</span>
+            <span class="pf-exchange" th:text="${p.exchange}">NSE</span>
+            <span th:class="'pf-conf ' + ${#strings.toLowerCase(p.confidence)}" th:text="${p.confidence}">HIGH</span>
+            <span class="pf-spacer"></span>
+            <span th:class="'pf-status ' + ${p.status}" th:text="${p.status}">OPEN</span>
+        </div>
+
+        <div class="pf-numbers">
+            <span>Entry <b th:text="${p.entryPrice}">185</b></span>
+            <span th:if="${p.targetPrice}">Target <b th:text="${p.targetPrice}">230</b></span>
+            <span th:if="${p.stopLoss}">Stop <b th:text="${p.stopLoss}">170</b></span>
+            <span th:if="${p.horizonDays}">Horizon <b th:text="${p.horizonDays} + 'd'">60d</b></span>
+        </div>
+
+        <div class="pf-rationale" th:if="${p.rationale}" th:text="${p.rationale}">
+            Trading at 10-year low P/E, NPAs stabilizing.
+        </div>
+
+        <div th:if="${p.status == 'HIT_TARGET'}" class="pf-outcome win"
+             th:text="'✅ Target hit at ' + ${p.closedPrice} + ' · ' + ${p.returnPercent} + '%'">✅ won</div>
+        <div th:if="${p.status == 'HIT_STOP'}" class="pf-outcome loss"
+             th:text="'❌ Stop hit at ' + ${p.closedPrice} + ' · ' + ${p.returnPercent} + '%'">❌ lost</div>
+        <div th:if="${p.status == 'EXPIRED'}" class="pf-outcome neutral"
+             th:text="'⏱️ Expired at ' + ${p.closedPrice} + ' · ' + ${p.returnPercent} + '%'">expired</div>
+
+        <div class="pf-meta">
+            <span th:text="${#temporals.format(p.createdAt, 'dd MMM yyyy HH:mm')}">12 Oct 2026</span>
+            <span th:if="${p.model}" th:text="' · ' + ${p.model}"></span>
+        </div>
+    </div>
+
+</main>
+</div>
+
+<script>
+    async function runGenerate() {
+        if (!confirm('Ask Claude to analyze your instruments and generate new picks?\n(Costs ~$0.05-0.15 in API credit)')) return;
+        var btn = event.target;
+        btn.disabled = true; btn.textContent = '🔄 Generating…';
+        try {
+            var res = await fetch('/api/ai-picks/generate', { method: 'POST' });
+            var data = await res.json();
+            if (data.ok) {
+                alert('✅ Done. Saved ' + data.savedPicks + ' new picks.\n\n' +
+                      'Universe scanned: ' + data.universeSize + '\n' +
+                      'Parsed picks: ' + data.parsedPicks + '\n' +
+                      'Skipped (confidence): ' + data.skippedByConfidence + '\n' +
+                      'Skipped (dedupe): ' + data.skippedByDedupe);
+                location.reload();
+            } else {
+                alert('❌ ' + (data.message || 'Generation failed'));
+            }
+        } catch (e) {
+            alert('❌ Error: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.textContent = '🤖 Generate new picks';
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -176,7 +176,8 @@
                 </div>
                 <div class="ai-error" id="aiError" style="display:none"></div>
             </section>
-            <link rel="stylesheet" th:href="@{/css/bias-dashboard.css}">
+            <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/bias-dashboard.css}">
             <script>
                 async function fetchAiOpinion() {
                     const btn = document.getElementById('aiBtn');

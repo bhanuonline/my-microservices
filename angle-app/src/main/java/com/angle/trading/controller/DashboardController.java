@@ -4,6 +4,7 @@ import com.angle.trading.bias.BiasChangeHistory;
 import com.angle.trading.bias.BiasWarmer;
 import com.angle.trading.bias.MarketCalendar;
 import com.angle.trading.cache.CandleCache;
+import com.angle.trading.config.BacktestCardProperties;
 import com.angle.trading.cache.CandleCacheProperties;
 import com.angle.trading.cache.CandleStore;
 import com.angle.trading.config.AlertsProperties;
@@ -63,6 +64,7 @@ public class DashboardController {
     private final PaperAutostartProperties paperProperties;
     private final CalendarProperties calendarProperties;
     private final BiasChangeHistory changeHistory;
+    private final BacktestCardProperties backtestCardProperties;
 
     @GetMapping
     public String home(Model model, Authentication authentication) {
@@ -90,6 +92,7 @@ public class DashboardController {
         model.addAttribute("recentChanges", changeHistory.recent());
         model.addAttribute("systemAlerts",  buildSystemAlerts());
         model.addAttribute("healthCounts",  buildHealthCounts(model));
+        model.addAttribute("backtestCard",  backtestCardProperties);
 
         return "dashboard/welcome";
     }

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<!--
+    /admin/backtest — replay the pipeline over historical bars.
+    Uses shared app-shell.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Backtest — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/backtest.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='backtest')}"></div>
+<main class="app-main">
+
+    <div class="bt-head">
+        <div>
+            <h1>Pipeline Backtest</h1>
+            <p class="sub">Replay historical candles through the consensus + trailing pipeline. Measure real win rate before risking capital.</p>
+        </div>
+    </div>
+
+    <!-- Disabled banner (feature turned off on the dashboard card) -->
+    <div th:if="${enabled == false}" class="bt-disabled-banner">
+        <div class="bt-disabled-title">🚫 Backtest is disabled</div>
+        <div class="bt-disabled-body">
+            The Backtest feature is currently turned off. Go to the
+            <a th:href="@{/dashboard}">dashboard</a> and click the <b>OFF</b> button on the
+            Backtest card to switch it back <b>ON</b>. Or run:
+            <br>
+            <code>curl -X POST -u admin:admin123 'http://localhost:9010/api/backtest-card/enable?on=true'</code>
+        </div>
+    </div>
+    <div th:if="${disabledError}" class="bt-disabled-banner">
+        <div class="bt-disabled-title">🚫 Cannot run</div>
+        <div class="bt-disabled-body" th:text="${disabledError}">Backtest is disabled.</div>
+    </div>
+    <style>
+        .bt-disabled-banner {
+            background:var(--bad-2); color:var(--bad); border-left:3px solid var(--bad);
+            border-radius:10px; padding:14px 18px; margin-bottom:20px;
+        }
+        .bt-disabled-title { font-weight:700; font-size:14px; margin-bottom:6px; }
+        .bt-disabled-body  { color:var(--ink); font-size:13px; line-height:1.6; }
+        .bt-disabled-body code {
+            display:inline-block; margin-top:4px;
+            background:var(--surface); border:1px solid var(--border);
+            padding:2px 8px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:11.5px;
+        }
+    </style>
+
+    <form th:if="${enabled}" class="bt-form" method="post" action="/admin/backtest/run">
+        <!-- CSRF token — Spring Security admin chain requires this on all POSTs -->
+        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <label>Instrument
+            <select name="symbolToken" required>
+                <option th:each="i : ${instruments}" th:value="${i.symbolToken}"
+                        th:selected="${i.symbolToken == selToken}"
+                        th:text="${i.symbol} + ' (' + ${i.symbolToken} + ')'">Nifty 50</option>
+            </select>
+        </label>
+        <label>Interval
+            <select name="interval">
+                <option value="FIVE_MINUTE"    th:selected="${selInterval == 'FIVE_MINUTE'}">5 min</option>
+                <option value="FIFTEEN_MINUTE" th:selected="${selInterval == 'FIFTEEN_MINUTE'}">15 min</option>
+                <option value="ONE_HOUR"       th:selected="${selInterval == 'ONE_HOUR'}">1 hour</option>
+                <option value="ONE_DAY"        th:selected="${selInterval == 'ONE_DAY'}">Daily</option>
+            </select>
+        </label>
+        <label>Days back
+            <input type="number" name="daysBack" th:value="${selDays} ?: 30" min="5" max="365">
+        </label>
+        <label>Min agreement
+            <input type="number" name="minAgreement" th:value="${selMinAgreement} ?: 3" min="1" max="7">
+        </label>
+        <label>Trailing mode
+            <select name="trailingMode">
+                <option value="NONE">None</option>
+                <option value="PERCENT" selected>Percent (0.4%)</option>
+            </select>
+        </label>
+        <label>Trail activation
+            <input type="number" step="0.01" name="trailingActivation" value="0.30" min="0" max="1">
+        </label>
+        <label>Expiry bars
+            <input type="number" name="expiryBars" value="48" min="4" max="500">
+        </label>
+        <label>Capital (₹)
+            <input type="number" name="capital" value="500000" min="10000" step="10000">
+        </label>
+        <label>Risk %
+            <input type="number" step="0.1" name="riskPercent" value="1.0" min="0.1" max="5">
+        </label>
+        <label>Lot size
+            <input type="number" name="lotSize" th:value="${selLotSize} ?: 1" min="1"
+                   title="Units per contract. Nifty=75, BankNifty=15, cash equity=1">
+        </label>
+        <label>Sizing mode
+            <select name="sizingMode">
+                <option value="RISK_BASED" th:selected="${selSizingMode == 'RISK_BASED' or selSizingMode == null}">Risk-based (capital × risk%)</option>
+                <option value="FIXED_LOTS" th:selected="${selSizingMode == 'FIXED_LOTS'}">Fixed lots per trade</option>
+            </select>
+        </label>
+        <label>Fixed lots
+            <input type="number" name="fixedLots" th:value="${selFixedLots} ?: 1" min="1" max="100"
+                   title="Only used when sizing mode = FIXED_LOTS">
+        </label>
+        <button type="submit" class="bt-btn primary">▶️ Run backtest</button>
+    </form>
+
+    <div th:if="${result == null and enabled}" class="bt-empty">
+        Pick an instrument and click Run to backtest the pipeline.
+        Nothing is saved to DB — results are ephemeral.
+    </div>
+
+    <div th:if="${result != null}" class="bt-result">
+
+        <div th:if="${result.warnings}" class="bt-warn" th:text="${result.warnings}">warning</div>
+
+        <h2 th:text="${result.symbol} + ' · ' + ${result.interval} + ' · ' + ${result.fromDate} + ' → ' + ${result.toDate}">
+            Nifty 50 · FIVE_MINUTE · 2026-08-27 → 2026-09-27
+        </h2>
+
+        <div class="bt-stats">
+            <div class="bt-stat">
+                <div class="lbl">Signals fired</div>
+                <div class="val" th:text="${result.signalsFired}">42</div>
+            </div>
+            <div class="bt-stat win">
+                <div class="lbl">Target hit</div>
+                <div class="val" th:text="${result.wins}">18</div>
+            </div>
+            <div class="bt-stat loss">
+                <div class="lbl">Stop hit</div>
+                <div class="val" th:text="${result.losses}">12</div>
+            </div>
+            <div class="bt-stat trail">
+                <div class="lbl">Trailed exit</div>
+                <div class="val" th:text="${result.trailed}">8</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Expired</div>
+                <div class="val" th:text="${result.expired}">4</div>
+            </div>
+            <div class="bt-stat highlight">
+                <div class="lbl">Win rate</div>
+                <div class="val" th:text="${result.winRate} + '%'">57%</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Avg return / trade</div>
+                <div class="val"
+                     th:classappend="${result.avgReturn > 0 ? 'up' : 'down'}"
+                     th:text="${result.avgReturn} + '%'">+0.4%</div>
+            </div>
+            <div class="bt-stat highlight">
+                <div class="lbl">Total return</div>
+                <div class="val"
+                     th:classappend="${result.totalReturnPct > 0 ? 'up' : 'down'}"
+                     th:text="${result.totalReturnPct} + '%'">+15.3%</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Max drawdown</div>
+                <div class="val down" th:text="${result.maxDrawdownPct} + '%'">-4.2%</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Profit factor</div>
+                <div class="val" th:text="${result.profitFactor}">1.85</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Expectancy ₹</div>
+                <div class="val"
+                     th:classappend="${result.expectancy > 0 ? 'up' : 'down'}"
+                     th:text="'₹' + ${result.expectancy}">₹185</div>
+            </div>
+            <div class="bt-stat">
+                <div class="lbl">Final capital</div>
+                <div class="val" th:text="'₹' + ${result.finalCapital}">₹576,432</div>
+            </div>
+        </div>
+
+        <h3>Trades (<span th:text="${#lists.size(result.trades)}">42</span>)</h3>
+        <table class="bt-trades">
+            <thead>
+                <tr>
+                    <th>#</th><th>Entry time</th><th>Action</th><th>Entry</th><th>Target</th><th>Stop</th>
+                    <th title="How many strategies agreed">Agreed</th>
+                    <th>Strategies</th>
+                    <th title="Lots taken">Lots</th>
+                    <th title="Total units (lots × lot size)">Units</th>
+                    <th title="Notional value in ₹ = units × entry">Notional ₹</th>
+                    <th>Exit time</th><th>Exit</th><th>Reason</th><th>Return %</th><th>P&amp;L ₹</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="t : ${result.trades}"
+                    th:classappend="${t.pnlRupees.signum() >= 0 ? 'win-row' : 'loss-row'}">
+                    <td th:text="${t.index}">1</td>
+                    <td th:text="${#temporals.format(t.entryAt, 'dd MMM HH:mm')}">28 Aug 09:20</td>
+                    <td th:text="${t.action}">BUY</td>
+                    <td th:text="${t.entryPrice}">24680</td>
+                    <td th:text="${t.targetPrice}">24800</td>
+                    <td th:text="${t.stopPrice}">24620</td>
+                    <td th:text="${t.agreedStrategies}">4</td>
+                    <td th:text="${t.agreedStrategyNames}"
+                        th:title="${t.agreedStrategyNames}"
+                        style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                        moving-average-crossover, rsi-mean-reversion
+                    </td>
+                    <td th:text="${t.lots}">1</td>
+                    <td th:text="${t.units}">75</td>
+                    <td th:text="${t.notional}">1,851,000</td>
+                    <td th:text="${#temporals.format(t.exitAt, 'dd MMM HH:mm')}">28 Aug 10:15</td>
+                    <td th:text="${t.exitPrice}">24800</td>
+                    <td th:text="${t.exitReason}">TARGET</td>
+                    <td th:text="${t.returnPercent} + '%'">+0.49%</td>
+                    <td th:text="${t.pnlRupees}">245.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

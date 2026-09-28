@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+    Reusable <head> block for the theme system.
+
+    Include on any page's <head> like this:
+
+        <head>
+            <meta charset="UTF-8">
+            <title>My Page</title>
+            <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+            <link rel="stylesheet" th:href="@{/css/my-page.css}">
+        </head>
+
+    Order matters — theme-head first (loads theme.css + sets data-theme),
+    THEN the page's own CSS so it sees the tokens.
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+
+<!--
+    Anti-flash init: reads saved theme (or OS preference) and stamps
+    data-theme on <html> BEFORE first paint so the correct palette is used.
+-->
+<th:block th:fragment="themeHead">
+    <link rel="stylesheet" th:href="@{/css/theme.css}">
+    <script th:inline="none">
+        (function () {
+            var saved = localStorage.getItem('angle-theme');
+            var osDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.dataset.theme = saved || (osDark ? 'dark' : 'light');
+        })();
+    </script>
+</th:block>
+
+<!--
+    Reusable toggle BUTTON. Drop this anywhere in <body>:
+
+        <div th:replace="~{fragments/theme-head :: themeToggleButton}"></div>
+
+    The button flips light ↔ dark, saves the choice in localStorage,
+    and updates its icon accordingly (icons hidden/shown via theme.css).
+-->
+<th:block th:fragment="themeToggleButton">
+    <button type="button" class="theme-toggle" onclick="toggleAppTheme()" title="Toggle light/dark theme">
+        <svg class="icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg class="icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <span class="icon-light">Light</span>
+        <span class="icon-dark">Dark</span>
+    </button>
+    <script th:inline="none">
+        (function () {
+            if (window.toggleAppTheme) return;
+            window.toggleAppTheme = function () {
+                var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                document.documentElement.dataset.theme = next;
+                localStorage.setItem('angle-theme', next);
+            };
+        })();
+    </script>
+</th:block>
+
+</head>
+</html>

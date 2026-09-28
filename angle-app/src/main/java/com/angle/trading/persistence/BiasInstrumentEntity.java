@@ -61,6 +61,14 @@ public class BiasInstrumentEntity {
     @Column(nullable = false)
     private int priority = 100;
 
+    /**
+     * Exchange-defined lot size for one contract.
+     * Nifty=75, Bank Nifty=15, Reliance=250 (2026 lot sizes; check NSE for current values).
+     * Cash equities: 1. Used by backtest for position sizing.
+     */
+    @Column(name = "lot_size", nullable = false)
+    private int lotSize = 1;
+
     @Column(length = 255)
     private String notes;
 
