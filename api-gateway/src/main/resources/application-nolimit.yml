@@ -1,0 +1,24 @@
+# Profile: nolimit
+# Run with: -Dspring.profiles.active=nolimit
+# Overrides routes to remove the RequestRateLimiter filter entirely.
+# Also disables the master switch so no Redis beans are created.
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/v1/products/**
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/v1/orders/**
+
+gateway:
+  ratelimit:
+    enabled: false

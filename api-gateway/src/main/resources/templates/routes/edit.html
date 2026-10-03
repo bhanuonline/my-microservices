@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Edit route')}"></head>
+<body>
+<div th:replace="~{layout :: topbar('routes')}"></div>
+
+<main class="content">
+    <h1>Edit route: <code th:text="${routeId}"></code></h1>
+
+    <div th:if="${param.error}" class="flash error" th:text="${param.error[0]}"></div>
+
+    <div class="actions">
+        <a class="btn secondary" th:href="@{/admin/ui/routes}">← Back to routes</a>
+    </div>
+
+    <div class="card">
+        <form method="post" th:action="@{'/admin/ui/routes/' + ${routeId} + '/update'}">
+            <label>
+                Route ID (immutable)
+                <input type="text" name="id" th:value="${routeId}" readonly/>
+            </label>
+            <label>
+                URI
+                <input type="text" name="uri" th:value="${uri}" required/>
+            </label>
+            <label>
+                Order
+                <input type="number" name="order" th:value="${order}"/>
+            </label>
+            <label>
+                Predicates (JSON array)
+                <textarea name="predicatesJson" rows="8" spellcheck="false" th:text="${predicatesJson}"></textarea>
+            </label>
+            <label>
+                Filters (JSON array)
+                <textarea name="filtersJson" rows="6" spellcheck="false" th:text="${filtersJson}"></textarea>
+            </label>
+            <button type="submit">Save changes</button>
+            <a class="btn secondary" th:href="@{/admin/ui/routes}">Cancel</a>
+        </form>
+    </div>
+</main>
+</body>
+</html>

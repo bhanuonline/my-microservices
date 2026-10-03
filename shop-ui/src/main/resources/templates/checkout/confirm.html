@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head>
+    <title>Order confirmed</title>
+    <!--
+      Auto-refresh every 3s until the saga reaches a terminal state.
+      The terminal statuses here are what order-service exposes today.
+      For true-push, swap this for the SSE endpoint built in Tier 4
+      (see docs/microservices/shop-ui.md).
+    -->
+    <meta th:if="${status == 'PENDING' or status == 'STARTED' or status == 'PAYMENT_RESERVED'}"
+          http-equiv="refresh" content="3"/>
+</head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Order placed</h1>
+
+    <div class="bg-white rounded-3 shadow-sm p-4">
+        <p class="mb-1 text-muted small">Order id</p>
+        <h2 class="h5" th:text="${orderId}">o-?</h2>
+
+        <p class="mt-3">Current status:
+            <span class="badge"
+                  th:classappend="${status == 'PAID' or status == 'COMPLETED'} ? 'bg-success'
+                                : (${status == 'CANCELLED' or status == 'FAILED'} ? 'bg-danger' : 'bg-warning text-dark')"
+                  th:text="${status}">PENDING</span>
+        </p>
+
+        <div th:if="${status == 'PENDING' or status == 'STARTED' or status == 'PAYMENT_RESERVED'}"
+             class="alert alert-info">
+            Waiting for the payment saga to complete… this page refreshes every
+            3 seconds. Watch <code>/admin/sagas</code> on the gateway for the
+            full step history.
+        </div>
+
+        <div th:if="${status == 'PAID' or status == 'COMPLETED'}" class="alert alert-success">
+            ✅ Payment confirmed. You'll receive a notification shortly.
+        </div>
+
+        <div th:if="${status == 'CANCELLED' or status == 'FAILED'}" class="alert alert-danger">
+            ❌ The order was cancelled.
+            <span th:if="${order?.has('failureReason')}"
+                  th:text="|Reason: ${order.failureReason.asText()}|">reason</span>
+        </div>
+
+        <a th:href="@{/products}" class="btn btn-outline-primary mt-2">Continue shopping</a>
+    </div>
+
+    <details class="mt-3">
+        <summary class="small text-muted">Raw order JSON</summary>
+        <pre class="small bg-white p-3 rounded border"
+             th:text="${order}">{...}</pre>
+    </details>
+</div>
+</body>
+</html>

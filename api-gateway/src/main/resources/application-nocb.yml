@@ -1,0 +1,26 @@
+# Profile: nocb
+# Run with: -Dspring-boot.run.profiles=nocb
+# Disables both circuit breaker and rate limit filters.
+# Routes are redefined without any resilience filters — direct passthrough.
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/v1/products/**
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/v1/orders/**
+
+gateway:
+  ratelimit:
+    enabled: false
+  circuitbreaker:
+    enabled: false

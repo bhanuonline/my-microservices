@@ -3,15 +3,49 @@ spring:
     name: notification
   cloud:
     function:
-      definition: userRegistered;notifyUserCommand
+      definition: userRegistered;notifyUserCommand;productStockLow;productStockInsufficient
     stream:
+      # In-process retry: 3 attempts with exponential backoff.
+      # After exhaustion, the Kafka binder routes to <topic>.DLT (set below).
+      default:
+        consumer:
+          max-attempts: 3
+          back-off-initial-interval: 500
+          back-off-multiplier: 2.0
+          back-off-max-interval: 10000
       kafka:
         binder:
           brokers: ${KAFKA_BROKERS:localhost:9092}
+          # Skip aborted/in-flight transactional messages — producers now use
+          # transaction-id-prefix so committed batches are atomic.
+          consumer-properties:
+            isolation.level: read_committed
+        default:
+          consumer:
+            enableDlq: true
+            autoCommitOnError: true    # commit the poisoned offset so we don't loop forever
+            dlqPartitions: 1
+            # Raw byte serializers so DLQ send succeeds for deserialization failures.
+            dlqProducerProperties:
+              configuration:
+                key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+                value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
       bindings:
         # ---- User event flow (existing) ----
         userRegistered-in-0:
           destination: user.registered
+          group: notification-service
+          content-type: application/json
+
+        # ---- Low stock alert ----
+        productStockLow-in-0:
+          destination: product.stock.low
+          group: notification-service
+          content-type: application/json
+
+        # ---- Order rejected (insufficient stock) ----
+        productStockInsufficient-in-0:
+          destination: product.stock.insufficient
           group: notification-service
           content-type: application/json
 

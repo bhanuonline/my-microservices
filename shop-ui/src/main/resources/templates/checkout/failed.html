@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Checkout failed</title></head>
+<body>
+<div layout:fragment="content">
+    <div class="alert alert-danger">
+        Checkout failed: <span th:text="${error}">reason</span>.
+    </div>
+    <a th:href="@{/cart}" class="btn btn-outline-secondary">Back to cart</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,649 @@
+{
+  "info": {
+    "_postman_id": "a51cf0f0-ms-root",
+    "name": "my-microservices",
+    "description": "End-to-end collection for the Tier 1-4 microservices stack. Pair with microservices.postman_environment.json. See docs/microservices/useful-commands.md for context.\n\nConventions:\n- Collection-level HTTP Basic auth (admin:admin123). Individual requests can override.\n- Pre-request script generates `idempotencyKey` + `correlationId` per call and injects as headers (no manual UUID copy-paste).\n- Tests on write endpoints capture resource ids into env vars (lastOrderId, lastSagaId, lastDlqId).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "{{adminUser}}", "type": "string" },
+      { "key": "password", "value": "{{adminPassword}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Per-request UUIDs — avoids manual regeneration between runs.",
+          "pm.variables.set('idempotencyKey', (crypto.randomUUID ? crypto.randomUUID() : pm.variables.replaceIn('{{$guid}}')));",
+          "pm.variables.set('correlationId', 'postman-' + Date.now() + '-' + Math.floor(Math.random() * 1e6));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health",
+      "item": [
+        {
+          "name": "Gateway health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/actuator/health", "host": ["{{gateway}}"], "path": ["actuator","health"] }
+          }
+        },
+        {
+          "name": "Eureka apps (JSON)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "auth": { "type": "noauth" },
+            "url": { "raw": "http://localhost:8761/eureka/apps", "host": ["localhost"], "port": "8761", "path": ["eureka","apps"] }
+          }
+        },
+        {
+          "name": "Prometheus targets",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{prometheus}}/api/v1/targets", "host": ["{{prometheus}}"], "path": ["api","v1","targets"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "OAuth2 — client credentials → accessToken",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) {",
+                  "  pm.environment.set('accessToken', j.access_token);",
+                  "  console.log('access token stored in env.accessToken');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
+                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+              ]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "scope", "value": "orders.read" }
+              ]
+            },
+            "url": { "raw": "{{authServer}}/oauth2/token", "host": ["{{authServer}}"], "path": ["oauth2","token"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2. Orders (write)",
+      "item": [
+        {
+          "name": "Create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 2xx', () => pm.response.code >= 200 && pm.response.code < 300);",
+                  "try {",
+                  "  const body = pm.response.json();",
+                  "  if (body.id) {",
+                  "    pm.environment.set('lastOrderId', body.id);",
+                  "    console.log('lastOrderId =', body.id);",
+                  "  }",
+                  "  const replay = pm.response.headers.get('Idempotency-Replay');",
+                  "  if (replay === 'true') console.log('IDEMPOTENCY REPLAY — handler did not re-run');",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+              { "key": "X-Correlation-Id", "value": "{{correlationId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2\n}"
+            },
+            "url": { "raw": "{{gateway}}/api/v1/orders", "host": ["{{gateway}}"], "path": ["api","v1","orders"] }
+          }
+        },
+        {
+          "name": "Replay same order (idempotency demo)",
+          "description": "Pins the same Idempotency-Key for both requests. Second call returns the stored response with `Idempotency-Replay: true` and does NOT create a new order.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Reuse the previously-created key instead of generating a new one.",
+                  "const prior = pm.variables.get('idempotencyKey');",
+                  "if (!prior) {",
+                  "  console.warn('Run \"Create order\" first to prime the key.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+              { "key": "X-Correlation-Id", "value": "{{correlationId}}-replay" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2\n}"
+            },
+            "url": { "raw": "{{gateway}}/api/v1/orders", "host": ["{{gateway}}"], "path": ["api","v1","orders"] }
+          }
+        },
+        {
+          "name": "Get order by id",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}", "host": ["{{gateway}}"], "path": ["api","v1","orders","{{lastOrderId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3. Order search (CQRS)",
+      "item": [
+        {
+          "name": "Search — all",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{orderQuery}}/orders/search", "host": ["{{orderQuery}}"], "path": ["orders","search"] }
+          }
+        },
+        {
+          "name": "Search — by status",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{orderQuery}}/orders/search?status=CREATED",
+              "host": ["{{orderQuery}}"],
+              "path": ["orders","search"],
+              "query": [{ "key": "status", "value": "CREATED" }]
+            }
+          }
+        },
+        {
+          "name": "Search — by product",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{orderQuery}}/orders/search?productId={{productId}}",
+              "host": ["{{orderQuery}}"],
+              "path": ["orders","search"],
+              "query": [{ "key": "productId", "value": "{{productId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get doc by id",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{orderQuery}}/orders/search/{{lastOrderId}}", "host": ["{{orderQuery}}"], "path": ["orders","search","{{lastOrderId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4. Products",
+      "item": [
+        {
+          "name": "List products",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products", "host": ["{{gateway}}"], "path": ["api","v1","products"] }
+          }
+        },
+        {
+          "name": "Get product (cached, Tier 4)",
+          "description": "First call hits MySQL; second comes from Redis cache. Watch product-service logs for 'Cache MISS' vs silence.",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/{{productId}}", "host": ["{{gateway}}"], "path": ["api","v1","products","{{productId}}"] }
+          }
+        },
+        {
+          "name": "Product availability",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/{{productId}}/availability", "host": ["{{gateway}}"], "path": ["api","v1","products","{{productId}}","availability"] }
+          }
+        },
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Widget\",\n  \"description\": \"shiny\",\n  \"price\": 9.99,\n  \"stock\": 100\n}"
+            },
+            "url": { "raw": "{{gateway}}/api/v1/products", "host": ["{{gateway}}"], "path": ["api","v1","products"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5. Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": ["{{gateway}}"], "path": ["api","v1","users"] }
+          }
+        },
+        {
+          "name": "Me (JWT required)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+            },
+            "url": { "raw": "{{gateway}}/api/v1/users/me", "host": ["{{gateway}}"], "path": ["api","v1","users","me"] }
+          }
+        },
+        {
+          "name": "Register user (direct, public)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"secret\",\n  \"email\": \"a@b.c\"\n}"
+            },
+            "url": { "raw": "http://localhost:8081/api/v1/users/registerUser", "host": ["localhost"], "port": "8081", "path": ["api","v1","users","registerUser"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "6. Admin — DLQ (Tier 2)",
+      "item": [
+        {
+          "name": "List DLQ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const page = pm.response.json();",
+                  "  const first = (page.content || page)[0];",
+                  "  if (first && first.id) pm.environment.set('lastDlqId', first.id);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/admin/dlq", "host": ["{{gateway}}"], "path": ["admin","dlq"] }
+          }
+        },
+        {
+          "name": "List DLQ (NEW only)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway}}/admin/dlq?status=NEW",
+              "host": ["{{gateway}}"],
+              "path": ["admin","dlq"],
+              "query": [{ "key": "status", "value": "NEW" }]
+            }
+          }
+        },
+        {
+          "name": "Get DLQ entry",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}"] }
+          }
+        },
+        {
+          "name": "Replay DLQ entry",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/replay", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}","replay"] }
+          }
+        },
+        {
+          "name": "Ack DLQ entry",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/ack", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}","ack"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "7. Admin — Saga (Tier 4)",
+      "item": [
+        {
+          "name": "List sagas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const list = pm.response.json();",
+                  "  if (list.length && list[0].id) pm.environment.set('lastSagaId', list[0].id);",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/admin/sagas", "host": ["{{gateway}}"], "path": ["admin","sagas"] }
+          }
+        },
+        {
+          "name": "List sagas (by state)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway}}/admin/sagas?state=STARTED",
+              "host": ["{{gateway}}"],
+              "path": ["admin","sagas"],
+              "query": [{ "key": "state", "value": "STARTED" }]
+            }
+          }
+        },
+        {
+          "name": "Saga detail (with step history)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}", "host": ["{{gateway}}"], "path": ["admin","sagas","{{lastSagaId}}"] }
+          }
+        },
+        {
+          "name": "Force compensate",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}/compensate?reason=stuck-manual",
+              "host": ["{{gateway}}"],
+              "path": ["admin","sagas","{{lastSagaId}}","compensate"],
+              "query": [{ "key": "reason", "value": "stuck-manual" }]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "8. Admin — Feature flags (Tier 4)",
+      "item": [
+        {
+          "name": "List flags",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/admin/flags", "host": ["{{gateway}}"], "path": ["admin","flags"] }
+          }
+        },
+        {
+          "name": "Create/update flag",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"shadow the new payment provider for 25% of users\",\n  \"enabled\": true,\n  \"rulesJson\": \"{\\\"percentage\\\":25,\\\"tenantWhitelist\\\":[],\\\"userWhitelist\\\":[]}\"\n}"
+            },
+            "url": { "raw": "{{gateway}}/admin/flags/new-payment-provider", "host": ["{{gateway}}"], "path": ["admin","flags","new-payment-provider"] }
+          }
+        },
+        {
+          "name": "Toggle flag",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{gateway}}/admin/flags/new-payment-provider/toggle", "host": ["{{gateway}}"], "path": ["admin","flags","new-payment-provider","toggle"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "9. GraphQL BFF (Tier 4)",
+      "item": [
+        {
+          "name": "GraphiQL UI",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{bff}}/graphiql", "host": ["{{bff}}"], "path": ["graphiql"] }
+          }
+        },
+        {
+          "name": "Query — product by id",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($id: ID!) { product(id: $id) { id name price description } }\",\n  \"variables\": { \"id\": \"{{productId}}\" }\n}"
+            },
+            "url": { "raw": "{{bff}}/graphql", "host": ["{{bff}}"], "path": ["graphql"] }
+          }
+        },
+        {
+          "name": "Query — order with nested product (DataLoader)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query($id: ID!) { order(id: $id) { id status amount product { id name price } } }\",\n  \"variables\": { \"id\": \"{{lastOrderId}}\" }\n}"
+            },
+            "url": { "raw": "{{bff}}/graphql", "host": ["{{bff}}"], "path": ["graphql"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "10. Notifications SSE (Tier 4)",
+      "item": [
+        {
+          "name": "Subscribe (keep connection open)",
+          "description": "Postman tends to buffer SSE. Prefer `curl -N` for live streaming — see useful-commands.md §10.",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Accept", "value": "text/event-stream" }],
+            "url": { "raw": "{{notification}}/notifications/stream/{{lastOrderId}}", "host": ["{{notification}}"], "path": ["notifications","stream","{{lastOrderId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "11. Observability",
+      "item": [
+        {
+          "name": "Prometheus — query req rate",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum by (application) (rate(http_server_requests_seconds_count[1m]))",
+              "host": ["{{prometheus}}"],
+              "path": ["api","v1","query"],
+              "query": [{ "key": "query", "value": "sum by (application) (rate(http_server_requests_seconds_count[1m]))" }]
+            }
+          }
+        },
+        {
+          "name": "Prometheus — breaker state",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=resilience4j_circuitbreaker_state",
+              "host": ["{{prometheus}}"],
+              "path": ["api","v1","query"],
+              "query": [{ "key": "query", "value": "resilience4j_circuitbreaker_state" }]
+            }
+          }
+        },
+        {
+          "name": "Loggers — flip to DEBUG",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"configuredLevel\": \"DEBUG\" }"
+            },
+            "url": {
+              "raw": "http://localhost:8083/actuator/loggers/com.example.orderservice",
+              "host": ["localhost"], "port": "8083",
+              "path": ["actuator","loggers","com.example.orderservice"]
+            }
+          }
+        },
+        {
+          "name": "Hot-reload Prometheus config",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{prometheus}}/-/reload", "host": ["{{prometheus}}"], "path": ["-","reload"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "12. Schema Registry (Tier 2)",
+      "item": [
+        {
+          "name": "List subjects",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{schemaRegistry}}/subjects", "host": ["{{schemaRegistry}}"], "path": ["subjects"] }
+          }
+        },
+        {
+          "name": "Latest schema (order.created-value)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{schemaRegistry}}/subjects/order.created-value/versions/latest",
+              "host": ["{{schemaRegistry}}"],
+              "path": ["subjects","order.created-value","versions","latest"]
+            }
+          }
+        },
+        {
+          "name": "Set BACKWARD compatibility",
+          "request": {
+            "method": "PUT",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/vnd.schemaregistry.v1+json" }],
+            "body": { "mode": "raw", "raw": "{\"compatibility\":\"BACKWARD\"}" },
+            "url": {
+              "raw": "{{schemaRegistry}}/config/order.created-value",
+              "host": ["{{schemaRegistry}}"],
+              "path": ["config","order.created-value"]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "13. Debezium / Kafka Connect (Tier 2)",
+      "item": [
+        {
+          "name": "List connectors",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{kafkaConnect}}/connectors", "host": ["{{kafkaConnect}}"], "path": ["connectors"] }
+          }
+        },
+        {
+          "name": "Connector status",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{kafkaConnect}}/connectors/order-outbox-connector/status",
+              "host": ["{{kafkaConnect}}"],
+              "path": ["connectors","order-outbox-connector","status"]
+            }
+          }
+        },
+        {
+          "name": "Restart connector",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{kafkaConnect}}/connectors/order-outbox-connector/restart",
+              "host": ["{{kafkaConnect}}"],
+              "path": ["connectors","order-outbox-connector","restart"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

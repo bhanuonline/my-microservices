@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    stack: my-microservices
+
+scrape_configs:
+  - job_name: 'microservices'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'api-gateway:8080'
+          - 'auth-server:8095'
+          - 'resource-server:8096'
+          - 'user-service:8081'
+          - 'product-service:8082'
+          - 'order-service:8083'
+          - 'order-query:8086'       # Tier 2 CQRS read side
+          - 'graphql-bff:8087'       # Tier 4 BFF
+          - 'product-query:8088'     # Phase 7 — exposes product_search_* custom metrics
+        labels:
+          stack: 'my-microservices'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

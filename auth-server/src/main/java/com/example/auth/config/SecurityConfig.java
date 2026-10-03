@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
@@ -62,8 +63,34 @@ public class SecurityConfig {
      */
     @Bean
     @Order(1)
-    SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain authServerSecurityFilterChain(
+            HttpSecurity http,
+            org.springframework.beans.factory.ObjectProvider<FeatureFlags> flagsProvider
+    ) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+
+        // FEATURE 8: swap in our custom consent page when the flag is on.
+        // (Only affects clients with requireAuthorizationConsent=true.)
+        FeatureFlags flags = flagsProvider.getIfAvailable();
+        if (flags != null && flags.getConsentPage().isEnabled()) {
+            http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+                    .authorizationEndpoint(e -> e.consentPage("/oauth2/consent"));
+            log.info("FEATURE 8: custom consent page enabled at /oauth2/consent");
+        }
+
+        // FEATURE 12: enable Spring's built-in Dynamic Client Registration.
+        // Spring Auth Server 1.2.x exposes DCR through the OIDC subpath, not a
+        // bare RFC 7591 endpoint. The actual URL is still /connect/register.
+        // Callers need a Bearer token with scope client.create — see V10 migration
+        // for the seeded 'registrar' bootstrap client.
+        if (flags != null && flags.getDcr().isEnabled()) {
+            http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+                    .oidc(oidc -> oidc.clientRegistrationEndpoint(reg -> {}));
+            // The DCR endpoint authenticates via Bearer JWT (scope=client.create).
+            // Add a resource-server JWT verifier to chain 1 so the bearer token is validated.
+            http.oauth2ResourceServer(rs -> rs.jwt(org.springframework.security.config.Customizer.withDefaults()));
+            log.info("FEATURE 12: DCR endpoint enabled at /connect/register (OIDC-flavoured)");
+        }
 
         http.exceptionHandling(ex -> ex
                 .defaultAuthenticationEntryPointFor(
@@ -87,34 +114,89 @@ public class SecurityConfig {
      */
     @Bean
     @Order(2)
-    public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain defaultSecurityFilterChain(
+            HttpSecurity http,
+            org.springframework.beans.factory.ObjectProvider<
+                com.example.auth.security.LockoutAuthenticationHandler> lockoutHandlerProvider
+    ) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/error", "/actuator/**").permitAll()
+                .requestMatchers("/login", "/error", "/actuator/**", "/webjars/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(Customizer.withDefaults())
+            .formLogin(fl -> {
+                // FEATURE 5: on jdbc profile the handler bean exists → wire it.
+                // On inmemory it doesn't → getIfAvailable() returns null → default behaviour.
+                var handler = lockoutHandlerProvider.getIfAvailable();
+                if (handler != null) {
+                    fl.successHandler(handler).failureHandler(handler);
+                }
+            })
             .csrf(csrf -> csrf.ignoringRequestMatchers("/actuator/**"));
         return http.build();
     }
 
     @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer() {
+    public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(
+            org.springframework.beans.factory.ObjectProvider<FeatureFlags> flagsProvider,
+            org.springframework.beans.factory.ObjectProvider<
+                    com.example.auth.metrics.AuthMetrics> metricsProvider) {
         return context -> {
             log.info("🪙  Issuing token for client={} principal={} scopes={}",
                     context.getRegisteredClient().getClientId(),
                     context.getPrincipal().getName(),
                     context.getAuthorizedScopes());
 
-            // Enrich JWT with a custom claim — useful for downstream services
+            // Legacy claim (Phase 0 / pre-Feature 7) — always emit.
             context.getClaims().claim("custom-issuer", "ExampleAuthServer");
-            // NOTE: removed 'user_ip' claim — it was serializing WebAuthenticationDetails
-            //   which contains non-JSON-safe objects. Add safe scalar claims only.
+
+            // FEATURE 10: increment counter (no-op on inmemory profile / when flag off)
+            var metrics = metricsProvider.getIfAvailable();
+            if (metrics != null) {
+                metrics.tokenIssued(
+                        context.getAuthorizationGrantType().getValue(),
+                        context.getRegisteredClient().getClientId());
+            }
+
+            // FEATURE 7: enrich token with subject-specific claims (feature-flagged).
+            FeatureFlags flags = flagsProvider.getIfAvailable();
+            if (flags == null || !flags.getCustomClaims().isEnabled()) return;
+
+            org.springframework.security.core.Authentication auth = context.getPrincipal();
+            Object principal = auth.getPrincipal();
+
+            if (principal instanceof com.example.auth.user.CustomUserDetails cud) {
+                // authorization_code / refresh_token grants — a real user is present.
+                com.example.auth.entity.AppUser u = cud.getAppUser();
+                var cc = flags.getCustomClaims();
+                if (cc.isIncludeEmail() && u.getEmail() != null) {
+                    context.getClaims().claim("email", u.getEmail());
+                }
+                if (cc.isIncludeRoles()) {
+                    context.getClaims().claim("roles", u.getRoles());
+                }
+                if (cc.isIncludeUserId() && u.getId() != null) {
+                    context.getClaims().claim("uid", u.getId());
+                }
+            } else {
+                // client_credentials — the client IS the subject.
+                // RegisteredClient has no GrantedAuthority collection like UserDetails,
+                // so we emit a marker + explicit grant type so downstream services can
+                // distinguish M2M from user tokens.
+                context.getClaims().claim("subject_type", "client");
+                java.util.List<String> authorities = auth.getAuthorities().stream()
+                        .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                        .toList();
+                if (!authorities.isEmpty()) {
+                    context.getClaims().claim("authorities", authorities);
+                }
+            }
         };
     }
 
     // Register OAuth clients
     @Bean
+    @Profile("inmemory")
     public RegisteredClientRepository registeredClientRepository() {
 
         // Client 1: for real user login flows (browser redirect).
@@ -170,11 +252,13 @@ public class SecurityConfig {
                 c.getRedirectUris());
     }
     @Bean
+    @Profile("inmemory")
     public OAuth2AuthorizationService authorizationService() {
         return new InMemoryOAuth2AuthorizationService();
     }
 
     @Bean
+    @Profile("inmemory")
     public JWKSource<SecurityContext> jwkSource() {
         KeyPair keyPair = generateRsaKey();
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
@@ -237,6 +321,7 @@ public class SecurityConfig {
 //    }
 
     @Bean
+    @Profile("inmemory")
     public UserDetailsService userDetailsService() {
         UserDetails userDetails = User.withDefaultPasswordEncoder()
                 .username("user")

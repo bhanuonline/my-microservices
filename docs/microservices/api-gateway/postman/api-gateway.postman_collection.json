@@ -1,0 +1,709 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "API Gateway — Full Feature Sweep",
+    "description": "Consolidated Postman collection covering every feature built in the api-gateway project.\n\n**Import both this collection and `api-gateway.postman_environment.json`. Select the environment before running any request.**\n\nAuth is handled automatically — the collection's pre-request script fetches a JWT via client_credentials and refreshes it before expiry. Just click any request; it works.\n\nFolder tree matches the doc structure (`docs/microservices/api-gateway/*.md`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{jwt}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-refresh JWT via client_credentials grant.",
+          "// Runs before EVERY request. Skips fetch if token still fresh (>60s to expiry).",
+          "const jwt = pm.environment.get('jwt');",
+          "const expiresAt = parseInt(pm.environment.get('jwt_expires_at') || '0');",
+          "const now = Date.now();",
+          "if (jwt && expiresAt && now < (expiresAt - 60000)) { return; }",
+          "",
+          "const clientId = pm.environment.get('admin_client_id');",
+          "const clientSecret = pm.environment.get('admin_client_secret');",
+          "const authBase = pm.environment.get('auth_base_url');",
+          "if (!clientId || !clientSecret || !authBase) {",
+          "  console.warn('Environment not set — skipping JWT fetch. Import the env file.');",
+          "  return;",
+          "}",
+          "",
+          "pm.sendRequest({",
+          "  url: authBase + '/oauth2/token',",
+          "  method: 'POST',",
+          "  header: {",
+          "    'Content-Type': 'application/x-www-form-urlencoded',",
+          "    'Authorization': 'Basic ' + Buffer.from(clientId + ':' + clientSecret).toString('base64')",
+          "  },",
+          "  body: {",
+          "    mode: 'urlencoded',",
+          "    urlencoded: [",
+          "      { key: 'grant_type', value: 'client_credentials' },",
+          "      { key: 'scope', value: 'read' }",
+          "    ]",
+          "  }",
+          "}, (err, res) => {",
+          "  if (err) { console.error('JWT fetch error:', err); return; }",
+          "  if (res.code !== 200) { console.error('JWT fetch failed', res.code, res.text()); return; }",
+          "  const body = res.json();",
+          "  pm.environment.set('jwt', body.access_token);",
+          "  pm.environment.set('jwt_expires_at', String(Date.now() + (body.expires_in * 1000)));",
+          "  console.log('JWT refreshed, expires in', body.expires_in, 's');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "gateway_base_url", "value": "http://localhost:8080" },
+    { "key": "auth_base_url",    "value": "http://localhost:9010" }
+  ],
+  "item": [
+    {
+      "name": "00 · Setup",
+      "description": "Run these first. `Get JWT` populates the `jwt` env var; every other folder uses it via the collection auth.",
+      "item": [
+        {
+          "name": "Get JWT token (client_credentials)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.expect(body.access_token).to.be.a('string');",
+              "pm.environment.set('jwt', body.access_token);",
+              "pm.environment.set('jwt_expires_at', String(Date.now() + (body.expires_in * 1000)));",
+              "console.log('JWT set — expires in', body.expires_in, 's');"
+            ]}
+          }],
+          "request": {
+            "auth": { "type": "basic", "basic": [
+              { "key": "username", "value": "{{admin_client_id}}", "type": "string" },
+              { "key": "password", "value": "{{admin_client_secret}}", "type": "string" }
+            ]},
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "grant_type", "value": "client_credentials" },
+              { "key": "scope", "value": "read" }
+            ]},
+            "url": { "raw": "{{auth_base_url}}/oauth2/token", "host": ["{{auth_base_url}}"], "path": ["oauth2","token"] }
+          }
+        },
+        {
+          "name": "Health check (/actuator/health)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/health", "host": ["{{gateway_base_url}}"], "path": ["actuator","health"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('status = UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "01 · Rate limiting",
+      "description": "Redis token-bucket per route. `user-service`: replenish 10/s, burst 20. Blast 30 requests to see 429s.",
+      "item": [
+        {
+          "name": "GET /users/me — single",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('has X-RateLimit-Remaining', () => pm.expect(pm.response.headers.get('X-RateLimit-Remaining')).to.exist);"
+          ]}}]
+        },
+        {
+          "name": "Burst — run this via Runner (30 iterations)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "// Expected: ~20 x 200 (burst), then 429s until refill. Run 30 iterations via Postman Runner.",
+            "const code = pm.response.code;",
+            "console.log('iteration status:', code);",
+            "pm.test('either 200 or 429', () => pm.expect([200, 429]).to.include(code));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "02 · Circuit breaker + Bulkhead",
+      "description": "Stop `user-service`, hit repeatedly — CB opens after threshold, fallback returns X-Fallback-Reason.",
+      "item": [
+        {
+          "name": "CB state — /actuator/circuitbreakers",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/circuitbreakers", "host": ["{{gateway_base_url}}"], "path": ["actuator","circuitbreakers"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const cb = pm.response.json().circuitBreakers;",
+            "console.log('CBs:', Object.keys(cb || {}));"
+          ]}}]
+        },
+        {
+          "name": "CB events — /actuator/circuitbreakerevents/userCB",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/circuitbreakerevents/userCB", "host": ["{{gateway_base_url}}"], "path": ["actuator","circuitbreakerevents","userCB"] }
+          }
+        },
+        {
+          "name": "Bulkhead metric — via /actuator/metrics",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_base_url}}/actuator/metrics/resilience4j.bulkhead.available.concurrent.calls?tag=name:userCB",
+              "host": ["{{gateway_base_url}}"],
+              "path": ["actuator","metrics","resilience4j.bulkhead.available.concurrent.calls"],
+              "query": [{ "key": "tag", "value": "name:userCB" }]
+            }
+          }
+        },
+        {
+          "name": "Direct fallback (bypass auth)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/fallback/users", "host": ["{{gateway_base_url}}"], "path": ["fallback","users"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('503 SERVICE_UNAVAILABLE', () => pm.response.to.have.status(503));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "03 · Retry + Timeout",
+      "item": [
+        {
+          "name": "GET (retryable) — /users/me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "// If downstream fails transiently, gateway retries GET automatically (3x backoff). Success = user data.",
+            "pm.test('either success or fallback', () => pm.expect([200, 503]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "POST (never retried) — /orders",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"item\":\"retry-test\",\"qty\":1}" },
+            "url": { "raw": "{{gateway_base_url}}/api/v1/orders", "host": ["{{gateway_base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "console.log('POST timing:', pm.response.responseTime, 'ms — should be FAST (no retry backoff)');"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "04 · Custom filters",
+      "description": "AddTenantHeader / RequestFingerprint — verify headers reach downstream and propagate back.",
+      "item": [
+        {
+          "name": "GET /users/me — inspect custom headers",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('has X-Correlation-Id', () => pm.expect(pm.response.headers.get('X-Correlation-Id')).to.exist);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "05 · Idempotency",
+      "description": "Stripe pattern — same Idempotency-Key returns cached response. Different body → 422. Runs concurrently → 409.",
+      "item": [
+        {
+          "name": "First POST — creates + caches",
+          "event": [{
+            "listen": "prerequest",
+            "script": { "type": "text/javascript", "exec": [
+              "// Pin a stable idempotency key for this folder run.",
+              "if (!pm.environment.get('idem_key')) {",
+              "  pm.environment.set('idem_key', 'idem-' + Date.now());",
+              "}"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idem_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"item\":\"widget\",\"qty\":1}" },
+            "url": { "raw": "{{gateway_base_url}}/api/v1/orders", "host": ["{{gateway_base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('no X-Idempotent-Replay on first hit', () => pm.expect(pm.response.headers.get('X-Idempotent-Replay')).to.be.null);"
+          ]}}]
+        },
+        {
+          "name": "Repeat with SAME key + SAME body — cached replay",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idem_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"item\":\"widget\",\"qty\":1}" },
+            "url": { "raw": "{{gateway_base_url}}/api/v1/orders", "host": ["{{gateway_base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('X-Idempotent-Replay: true', () => pm.expect(pm.response.headers.get('X-Idempotent-Replay')).to.eql('true'));"
+          ]}}]
+        },
+        {
+          "name": "SAME key + DIFFERENT body — 422 mismatch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{idem_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"item\":\"gadget\",\"qty\":9}" },
+            "url": { "raw": "{{gateway_base_url}}/api/v1/orders", "host": ["{{gateway_base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+            "pm.test('error = idempotency_key_mismatch', () => pm.expect(pm.response.json().error).to.eql('idempotency_key_mismatch'));"
+          ]}}]
+        },
+        {
+          "name": "Reset idem_key (for next run)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/health", "host": ["{{gateway_base_url}}"], "path": ["actuator","health"] }
+          },
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+            "pm.environment.unset('idem_key');",
+            "console.log('idem_key reset for next run');"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "06 · Response cache",
+      "description": "Warm the cache, kill downstream, verify fallback replays stale response with Warning: 110.",
+      "item": [
+        {
+          "name": "Warm cache — GET /products/all",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/products/all", "host": ["{{gateway_base_url}}"], "path": ["api","v1","products","all"] }
+          }
+        },
+        {
+          "name": "After downstream down — cached fallback",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/products/all", "host": ["{{gateway_base_url}}"], "path": ["api","v1","products","all"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "// If CB is open + cache is warm, response is 200 with X-Cache: STALE.",
+            "const cache = pm.response.headers.get('X-Cache');",
+            "if (cache === 'STALE') {",
+            "  pm.test('Warning header present', () => pm.expect(pm.response.headers.get('Warning')).to.include('110'));",
+            "  console.log('Stale cache served, age:', pm.response.headers.get('X-Cache-Age'), 's');",
+            "} else {",
+            "  console.log('Live response — no fallback triggered');",
+            "}"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "07 · Dynamic routes (admin)",
+      "description": "CRUD via /admin/routes. Requires JWT with SCOPE_admin. Validation rejects bad routes before persist.",
+      "item": [
+        {
+          "name": "List routes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/admin/routes", "host": ["{{gateway_base_url}}"], "path": ["admin","routes"] }
+          }
+        },
+        {
+          "name": "Create route (valid)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"{{demo_route_id}}\",\n  \"uri\": \"lb://product-service\",\n  \"order\": 0,\n  \"predicates\": [\n    { \"name\": \"Path\", \"args\": { \"_genkey_0\": \"/api/v1/products-preview/**\" } }\n  ],\n  \"filters\": [\n    { \"name\": \"RewritePath\", \"args\": {\n        \"regexp\": \"/api/v1/products-preview/(?<seg>.*)\",\n        \"replacement\": \"/api/v1/products/${seg}\"\n    }}\n  ]\n}" },
+            "url": { "raw": "{{gateway_base_url}}/admin/routes", "host": ["{{gateway_base_url}}"], "path": ["admin","routes"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));"
+          ]}}]
+        },
+        {
+          "name": "Create route (bad predicate) — 400",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"bad-route-{{$timestamp}}\",\n  \"uri\": \"lb://user-service\",\n  \"predicates\": [{\"name\":\"NotAPredicate\",\"args\":{\"_genkey_0\":\"/x\"}}]\n}" },
+            "url": { "raw": "{{gateway_base_url}}/admin/routes", "host": ["{{gateway_base_url}}"], "path": ["admin","routes"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+            "pm.test('error = invalid_route', () => pm.expect(pm.response.json().error).to.eql('invalid_route'));"
+          ]}}]
+        },
+        {
+          "name": "Update route",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"uri\": \"lb://product-service\",\n  \"order\": 10,\n  \"predicates\": [\n    { \"name\": \"Path\", \"args\": { \"_genkey_0\": \"/api/v1/products-preview/**\" } }\n  ],\n  \"filters\": []\n}" },
+            "url": { "raw": "{{gateway_base_url}}/admin/routes/{{demo_route_id}}", "host": ["{{gateway_base_url}}"], "path": ["admin","routes","{{demo_route_id}}"] }
+          }
+        },
+        {
+          "name": "Delete route",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{gateway_base_url}}/admin/routes/{{demo_route_id}}", "host": ["{{gateway_base_url}}"], "path": ["admin","routes","{{demo_route_id}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+          ]}}]
+        },
+        {
+          "name": "Force refresh",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{gateway_base_url}}/admin/routes/refresh", "host": ["{{gateway_base_url}}"], "path": ["admin","routes","refresh"] }
+          }
+        },
+        {
+          "name": "Audit — recent 100",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/admin/routes/audit", "host": ["{{gateway_base_url}}"], "path": ["admin","routes","audit"] }
+          }
+        },
+        {
+          "name": "Audit — per route",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/admin/routes/{{demo_route_id}}/audit", "host": ["{{gateway_base_url}}"], "path": ["admin","routes","{{demo_route_id}}","audit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 · API key auth",
+      "description": "SHA-256 keys stored in Redis. Raw key shown ONCE at creation.",
+      "item": [
+        {
+          "name": "Create API key",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ownerId\": \"partner-corp\",\n  \"name\": \"Postman demo key\",\n  \"scopes\": [\"read\",\"write\"],\n  \"rateLimitTier\": \"standard\"\n}" },
+            "url": { "raw": "{{gateway_base_url}}/admin/apikeys", "host": ["{{gateway_base_url}}"], "path": ["admin","apikeys"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const body = pm.response.json();",
+            "pm.expect(body.rawKey).to.match(/^sk_live_/);",
+            "pm.environment.set('api_key', body.rawKey);",
+            "pm.environment.set('api_key_id', body.keyId);",
+            "console.log('Saved api_key =', body.rawKey.substring(0, 12) + '...', 'id =', body.keyId);"
+          ]}}]
+        },
+        {
+          "name": "Use API key (X-Api-Key header)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "X-Api-Key", "value": "{{api_key}}" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK — API key auth accepted', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "Wrong prefix — 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "X-Api-Key", "value": "wrong_prefix_xyz" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('401 (falls through to JWT which also missing)', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "Invalid key (right prefix) — 401",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [{ "key": "X-Api-Key", "value": "sk_live_deadbeef" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "Revoke API key",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{gateway_base_url}}/admin/apikeys/{{api_key_id}}", "host": ["{{gateway_base_url}}"], "path": ["admin","apikeys","{{api_key_id}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+            "pm.environment.unset('api_key');",
+            "pm.environment.unset('api_key_id');"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "10 · CORS",
+      "description": "Preflight and real cross-origin requests. Postman doesn't enforce CORS (only browsers do), but you can verify server-side headers.",
+      "item": [
+        {
+          "name": "Preflight — allowed origin",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "OPTIONS",
+            "header": [
+              { "key": "Origin", "value": "http://localhost:5173" },
+              { "key": "Access-Control-Request-Method", "value": "GET" },
+              { "key": "Access-Control-Request-Headers", "value": "Authorization" }
+            ],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Access-Control-Allow-Origin echoes request Origin', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.eql('http://localhost:5173'));",
+            "pm.test('Access-Control-Allow-Credentials: true', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Credentials')).to.eql('true'));"
+          ]}}]
+        },
+        {
+          "name": "Preflight — disallowed origin",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "OPTIONS",
+            "header": [
+              { "key": "Origin", "value": "http://evil.example.com" },
+              { "key": "Access-Control-Request-Method", "value": "GET" }
+            ],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('no Access-Control-Allow-Origin returned', () => pm.expect(pm.response.headers.get('Access-Control-Allow-Origin')).to.be.null);"
+          ]}}]
+        },
+        {
+          "name": "Real request with Origin",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Origin", "value": "http://localhost:5173" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Access-Control-Expose-Headers present', () => pm.expect(pm.response.headers.get('Access-Control-Expose-Headers')).to.exist);",
+            "console.log('Exposed headers:', pm.response.headers.get('Access-Control-Expose-Headers'));"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "11 · WebSocket (native Postman WS)",
+      "description": "Postman v10+ supports WebSocket. Right-click → Add → WebSocket Request to try `ws://localhost:8080/ws/echo` with `Authorization: Bearer {{jwt}}` header.\n\nAlternative — wscat CLI:\n```\nwscat -c 'ws://localhost:8080/ws/echo' -H 'Authorization: Bearer <jwt>'\n> hello\n< echo@2026-...: hello\n```\n\nThis folder holds the parameters as reference; add the WS request manually in Postman UI.",
+      "item": []
+    },
+    {
+      "name": "12 · Canary routing",
+      "description": "95/5 weighted split between user-service-v1 and user-service-v2. Same JVM; v2 endpoint at /api/v2/users/**. Force v2 via X-Canary: force-v2.",
+      "item": [
+        {
+          "name": "Single request (v1 or v2 by random)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const version = pm.response.json().canaryVersion || 'v1';",
+            "const route = pm.response.headers.get('X-Canary-Route');",
+            "console.log('canary version =', version, ', X-Canary-Route =', route);"
+          ]}}]
+        },
+        {
+          "name": "Force v2 via X-Canary: force-v2",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Canary", "value": "force-v2" }],
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('canaryVersion = v2', () => pm.expect(pm.response.json().canaryVersion).to.eql('v2'));",
+            "pm.test('X-Canary-Route = v2-override', () => pm.expect(pm.response.headers.get('X-Canary-Route')).to.eql('v2-override'));"
+          ]}}]
+        },
+        {
+          "name": "Reset canary counters",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/health", "host": ["{{gateway_base_url}}"], "path": ["actuator","health"] }
+          },
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+            "pm.environment.set('canary_v1_count', '0');",
+            "pm.environment.set('canary_v2_count', '0');",
+            "console.log('canary counters reset');"
+          ]}}]
+        },
+        {
+          "name": "Canary burst — run this via Runner N times",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const version = pm.response.json().canaryVersion || 'v1';",
+            "let v1 = parseInt(pm.environment.get('canary_v1_count') || '0');",
+            "let v2 = parseInt(pm.environment.get('canary_v2_count') || '0');",
+            "if (version === 'v2') v2++; else v1++;",
+            "pm.environment.set('canary_v1_count', String(v1));",
+            "pm.environment.set('canary_v2_count', String(v2));",
+            "console.log(`running total → v1: ${v1}, v2: ${v2} (share v2 = ${(v2/(v1+v2)*100).toFixed(1)}%)`);"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "13 · Admin UI",
+      "description": "Toggle via gateway.admin.ui = REACT | THYMELEAF | NONE. Restart required.",
+      "item": [
+        {
+          "name": "GET /admin/ui — redirect (REACT mode)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/admin/ui", "host": ["{{gateway_base_url}}"], "path": ["admin","ui"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "// REACT mode: 302 to reactUrl. THYMELEAF: 302 to /admin/ui/routes (with Basic auth). NONE: 404.",
+            "console.log('status', pm.response.code, ', Location:', pm.response.headers.get('Location'));"
+          ]}}]
+        },
+        {
+          "name": "GET /admin/ui/routes (THYMELEAF mode + Basic auth)",
+          "request": {
+            "auth": { "type": "basic", "basic": [
+              { "key": "username", "value": "{{admin_client_id}}", "type": "string" },
+              { "key": "password", "value": "{{admin_client_secret}}", "type": "string" }
+            ]},
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/admin/ui/routes", "host": ["{{gateway_base_url}}"], "path": ["admin","ui","routes"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 · Observability",
+      "description": "Prometheus scrape endpoint + assertions that all custom metrics are present.",
+      "item": [
+        {
+          "name": "Prometheus scrape — full dump",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/prometheus", "host": ["{{gateway_base_url}}"], "path": ["actuator","prometheus"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const text = pm.response.text();",
+            "const required = [",
+            "  'jvm_memory_used_bytes',",
+            "  'spring_cloud_gateway_requests_seconds',",
+            "  'resilience4j_circuitbreaker_state',",
+            "  'resilience4j_bulkhead_available_concurrent_calls'",
+            "];",
+            "required.forEach(m => {",
+            "  pm.test('has metric: ' + m, () => pm.expect(text).to.include(m));",
+            "});",
+            "// Custom metrics only appear AFTER their filters have run at least once.",
+            "console.log('custom metrics present:',",
+            "  ['gateway_idempotency_result_total', 'gateway_response_cache_result_total',",
+            "   'gateway_canary_routed_total', 'gateway_apikey_auth_total',",
+            "   'gateway_fallback_served_total', 'gateway_route_audit_persist_total']",
+            "  .filter(m => text.includes(m)).join(', ') || '(trigger the filters first)');"
+          ]}}]
+        },
+        {
+          "name": "CB state via /actuator/health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/actuator/health", "host": ["{{gateway_base_url}}"], "path": ["actuator","health"] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const body = pm.response.json();",
+            "if (body.components && body.components.circuitBreakers) {",
+            "  console.log('CB details:', JSON.stringify(body.components.circuitBreakers.details, null, 2));",
+            "}"
+          ]}}]
+        }
+      ]
+    },
+    {
+      "name": "15 · Runbooks",
+      "description": "Composite scenarios. Read the description of each request for the sequence to follow.",
+      "item": [
+        {
+          "name": "Full canary rollout — verify traffic split",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "description": "Reset canary counters (in folder 12), then run THIS request 100 times via Runner. Expected split: ~95 v1, ~5 v2 (matches Weight=95:5 in application.yml). Grafana 'Canary rollout' row should reflect the same.\n\nBonus: change weight to 75:25 in application.yml, restart, re-run — split should shift accordingly."
+        },
+        {
+          "name": "Trigger + verify a fallback (bulkhead saturation)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway_base_url}}/api/v1/users/me", "host": ["{{gateway_base_url}}"], "path": ["api","v1","users","me"] }
+          },
+          "description": "1. Add Thread.sleep(3000) to a v1 user-service endpoint. Restart.\n2. Run THIS request 30 times in parallel via Postman Runner (Delay: 0, iterations: 30).\n3. Expected: ~15 slow 200s (bulkhead=15), rest fast 503 with X-Fallback-Reason: bulkhead-full.\n4. Verify in Grafana → Bulkhead saturation reaches 1.0 briefly.\n\nRemove the sleep + restart to reset."
+        },
+        {
+          "name": "Idempotency race — same key, parallel requests",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "race-{{$timestamp}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\"item\":\"race\",\"qty\":1}" },
+            "url": { "raw": "{{gateway_base_url}}/api/v1/orders", "host": ["{{gateway_base_url}}"], "path": ["api","v1","orders"] }
+          },
+          "description": "Run 5x in parallel via Postman Runner (Iterations: 5, Delay: 0). NOTE: {{$timestamp}} generates ONE value at each iteration, so use a static value instead to trigger the race.\n\nExpected: 1 x 201 (first wins the Redis lock), 4 x 409 Conflict (duplicate_request_in_flight).\n\nVerify: Grafana → Idempotency outcomes shows conflict counter climbing."
+        }
+      ]
+    }
+  ]
+}

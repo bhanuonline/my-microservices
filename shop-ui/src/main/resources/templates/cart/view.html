@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Cart</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Your cart</h1>
+
+    <div th:if="${cart.isEmpty()}" class="alert alert-info">
+        Cart is empty. <a th:href="@{/products}">Keep shopping</a>.
+    </div>
+
+    <div th:unless="${cart.isEmpty()}" class="bg-white rounded-3 shadow-sm p-3">
+        <table class="table align-middle">
+            <thead class="small text-muted">
+                <tr>
+                    <th>Product</th>
+                    <th class="text-end">Price</th>
+                    <th>Qty</th>
+                    <th class="text-end">Subtotal</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="line : ${cart.lines}">
+                    <td>
+                        <a th:href="@{'/products/' + ${line.productId}}"
+                           th:text="${line.name}">name</a>
+                    </td>
+                    <td class="text-end"
+                        th:text="|$${#numbers.formatDecimal(line.price, 1, 2)}|">$0.00</td>
+                    <td>
+                        <form th:action="@{/cart/update}" method="post"
+                              class="d-flex gap-2 align-items-center">
+                            <input type="hidden" name="productId" th:value="${line.productId}"/>
+                            <input type="number" name="qty"
+                                   th:value="${line.qty}"
+                                   min="1" max="99"
+                                   class="form-control form-control-sm" style="width:5rem"/>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    type="submit">Update</button>
+                        </form>
+                    </td>
+                    <td class="text-end"
+                        th:text="|$${#numbers.formatDecimal(line.subtotal(), 1, 2)}|">$0.00</td>
+                    <td>
+                        <form th:action="@{/cart/remove}" method="post">
+                            <input type="hidden" name="productId" th:value="${line.productId}"/>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    type="submit">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total</th>
+                    <th class="text-end"
+                        th:text="|$${#numbers.formatDecimal(cart.totalPrice(), 1, 2)}|">$0.00</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="d-flex justify-content-between">
+            <form th:action="@{/cart/clear}" method="post">
+                <button class="btn btn-outline-secondary">Clear cart</button>
+            </form>
+            <a th:href="@{/checkout}" class="btn btn-primary btn-lg">
+                Proceed to checkout
+            </a>
+        </div>
+
+        <div class="alert alert-warning mt-3 small">
+            Note: the current <code>POST /api/v1/orders</code> accepts
+            <strong>one productId per order</strong>. Checkout will submit
+            the first line in your cart. Multi-line checkout needs an API
+            change (see <code>docs/microservices/shop-ui.md</code>).
+        </div>
+    </div>
+</div>
+</body>
+</html>

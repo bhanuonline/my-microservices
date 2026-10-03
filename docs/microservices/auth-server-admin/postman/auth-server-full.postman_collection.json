@@ -1,0 +1,842 @@
+{
+  "info": {
+    "_postman_id": "c7d9e5b0-2222-4333-8444-555566667777",
+    "name": "auth-server FULL (features 1-14)",
+    "description": "Consolidated Postman collection for every feature shipped on the auth-server.\n\nOrganized by feature. Each folder contains the requests + a description of what to observe.\n\nDefaults:\n  base_url         http://localhost:8095\n  zipkin_url       http://localhost:9411\n  vault_url        http://localhost:8200\n  admin_user       admin\n  admin_pass       password\n  m2m_client_id    m2m-client\n  m2m_client_sec   m2m-secret\n  demo_client_id   demo-client\n  demo_client_sec  secret\n  registrar_id     registrar\n  registrar_sec    registrar-secret\n  api_admin_id     api-admin\n  api_admin_sec    api-admin-secret\n\nAuto-cached tokens:\n  admin_token           (JWT for API mirror — cached by pre-request scripts)\n  registrar_token       (JWT for DCR endpoint)\n\nRun order recommendation:\n  1. Setup → Discovery + JWKS  (see the server is up)\n  2. OAuth2 core → m2m token   (populates access_token)\n  3. Any feature folder in any order — token caching handles auth.\n\nBrowser-only sections (marked with *) need a real browser + interactive login:\n  - Feature 8 Consent screen\n  - Feature 5 Account lockout via login form",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Setup — Discovery + Health",
+      "item": [
+        {
+          "name": "GET /.well-known/openid-configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/openid-configuration",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "OIDC discovery document — proves the auth-server is reachable and returns metadata (token endpoint, JWKS URL, supported grants)."
+          }
+        },
+        {
+          "name": "GET /oauth2/jwks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('has at least 1 key', () => pm.expect(body.keys.length).to.be.greaterThan(0));",
+                  "const kid = body.keys[0].kid;",
+                  "console.log('primary kid:', kid);",
+                  "// Feature 11 marker — kid starts with 'vault:' when Vault backend is active",
+                  "pm.collectionVariables.set('current_kid', kid);",
+                  "if (kid.startsWith('vault:')) {",
+                  "  console.log('Feature 11: Vault backend active');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth2/jwks",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Public keys for JWT signature verification. Feature 3 adds SECONDARY keys after rotation (multiple entries); Feature 11 (Vault backend) prefixes the kid with 'vault:auth-server:v'."
+          }
+        },
+        {
+          "name": "GET /actuator/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. OAuth2 core (token endpoints)",
+      "item": [
+        {
+          "name": "POST /oauth2/token — m2m (client_credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.access_token) {",
+                  "  pm.collectionVariables.set('m2m_token', b.access_token);",
+                  "  console.log('m2m_token cached');",
+                  "}",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has access_token', () => pm.expect(b).to.have.property('access_token'));",
+                  "",
+                  "// Decode + show custom claims (Feature 7)",
+                  "const payload = JSON.parse(atob(b.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));",
+                  "console.log('JWT payload:', payload);",
+                  "pm.test('Feature 7: subject_type=client claim present', () => pm.expect(payload.subject_type).to.equal('client'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "read", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Machine-to-machine token. Test script:\n  - Caches m2m_token variable\n  - Decodes JWT payload and asserts Feature 7's subject_type=client claim"
+          }
+        },
+        {
+          "name": "POST /oauth2/introspect",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{m2m_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token/../oauth2/introspect",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token", "..", "oauth2", "introspect"]
+            },
+            "description": "Verifies the token's signature and returns claims. On Feature 11 (Vault backend) this proves the round-trip: Vault signed → Nimbus verified using Vault's public JWKS."
+          }
+        },
+        {
+          "name": "POST /oauth2/revoke",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{m2m_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "revoke"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Dynamic Client Registration (RFC 7591)",
+      "item": [
+        {
+          "name": "Step 1 — bootstrap: registrar token (scope=client.create)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('registrar_token', b.access_token);",
+                  "pm.test('has client.create scope', () => pm.expect(b.scope).to.include('client.create'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{registrar_id}}", "type": "string" },
+                { "key": "password", "value": "{{registrar_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "client.create", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            }
+          }
+        },
+        {
+          "name": "Step 2 — POST /connect/register (create dcr-test-app)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "pm.test('client_id returned', () => pm.expect(b).to.have.property('client_id'));",
+                  "pm.test('plaintext client_secret returned ONCE', () => pm.expect(b).to.have.property('client_secret'));",
+                  "pm.test('registration_access_token returned', () => pm.expect(b).to.have.property('registration_access_token'));",
+                  "pm.collectionVariables.set('dcr_client_id', b.client_id);",
+                  "pm.collectionVariables.set('dcr_reg_token', b.registration_access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{registrar_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_name\": \"dcr-test-app\",\n  \"redirect_uris\": [\"https://myapp.example.com/callback\"],\n  \"grant_types\": [\"authorization_code\", \"refresh_token\"],\n  \"response_types\": [\"code\"],\n  \"scope\": \"openid profile\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/connect/register",
+              "host": ["{{base_url}}"],
+              "path": ["connect", "register"]
+            },
+            "description": "Feature 12: RFC 7591 dynamic client registration. Test script asserts 201 + presence of client_id/client_secret/registration_access_token, and caches them."
+          }
+        },
+        {
+          "name": "Step 3 — RFC 7592 read (verify)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{dcr_reg_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/connect/register?client_id={{dcr_client_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["connect", "register"],
+              "query": [
+                { "key": "client_id", "value": "{{dcr_client_id}}" }
+              ]
+            },
+            "description": "Uses the registration_access_token from step 2. Returns client metadata (secret now BCrypt-hashed, no plaintext)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. REST API mirror",
+      "item": [
+        {
+          "name": "Step 1 — bootstrap: admin token (admin.read + admin.write)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('admin_token', b.access_token);",
+                  "pm.test('has admin.write', () => pm.expect(b.scope).to.include('admin.write'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{api_admin_id}}", "type": "string" },
+                { "key": "password", "value": "{{api_admin_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "admin.read admin.write admin.unlock", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/admin/clients",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients"]
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/admin/clients (create rest-test)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 created', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.collectionVariables.set('rest_test_id', b.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"rest-test\",\n  \"clientName\": \"REST Test\",\n  \"clientSecret\": \"restsec\",\n  \"grantTypes\": [\"client_credentials\"],\n  \"authMethods\": [\"client_secret_basic\"],\n  \"scopes\": [\"read\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/admin/clients/{id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients/{{rest_test_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients", "{{rest_test_id}}"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/admin/clients/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204 no content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients/{{rest_test_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients", "{{rest_test_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/admin/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users"]
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/admin/audit",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/audit?page=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "audit"],
+              "query": [{ "key": "page", "value": "0" }]
+            },
+            "description": "Feature 4: audit log paginated. Every CRUD action from browser or REST leaves a row here. `actor` field: 'admin' = browser session, 'api-admin' = this JWT."
+          }
+        },
+        {
+          "name": "NEGATIVE — 401 without token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 unauthorized', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients"]
+            }
+          }
+        },
+        {
+          "name": "NEGATIVE — 403 wrong scope (get read-only token, try POST)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Fetch a token with ONLY admin.read; the POST should 403.",
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('base_url') + '/oauth2/token',",
+                  "  method: 'POST',",
+                  "  header: {",
+                  "    'Content-Type': 'application/x-www-form-urlencoded',",
+                  "    'Authorization': 'Basic ' + btoa(pm.collectionVariables.get('api_admin_id') + ':' + pm.collectionVariables.get('api_admin_sec'))",
+                  "  },",
+                  "  body: { mode:'urlencoded', urlencoded: [",
+                  "    {key:'grant_type', value:'client_credentials'},",
+                  "    {key:'scope', value:'admin.read'}",
+                  "  ]}",
+                  "}, (err, res) => {",
+                  "  if (!err && res.code === 200) {",
+                  "    pm.collectionVariables.set('read_only_token', res.json().access_token);",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403 forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('RFC 7807 body', () => pm.response.to.be.header('Content-Type', 'application/problem+json'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{read_only_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"scope-test\",\n  \"clientName\": \"x\",\n  \"clientSecret\": \"y\",\n  \"grantTypes\": [\"client_credentials\"],\n  \"authMethods\": [\"client_secret_basic\"],\n  \"scopes\": [\"read\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "clients"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Multi-key signing / rotation",
+      "item": [
+        {
+          "name": "GET /api/v1/admin/keys",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "keys"]
+            },
+            "description": "Feature 3 — list PRIMARY / SECONDARY / RETIRED keys."
+          }
+        },
+        {
+          "name": "POST /api/v1/admin/keys/rotate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('status=PRIMARY on new key', () => pm.expect(b.status).to.equal('PRIMARY'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/keys/rotate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "keys", "rotate"]
+            },
+            "description": "Feature 3 — new PRIMARY, previous PRIMARY demoted to SECONDARY. Verify by re-scraping /oauth2/jwks — 2 keys now."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Account lockout — unlock via REST",
+      "item": [
+        {
+          "name": "POST /api/v1/admin/users/{id}/unlock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users/1/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users", "1", "unlock"]
+            },
+            "description": "Feature 5 — clears failed_attempts + locked_until. Requires scope=admin.unlock. Replace '1' with the user id you want to unlock.\n\nTo TRIGGER a lockout, use the browser: 5 failed logins as any user via /login → account locked for 15 min → this endpoint unlocks."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Rate limiting probe",
+      "item": [
+        {
+          "name": "Blast /oauth2/token (200 sequential — bucket refills)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "console.log('Sequential requests refill the bucket. To see 429, use the shell:');",
+                  "console.log('  seq 1 200 | xargs -n1 -P50 -I{} curl -s -o /dev/null -w \"%{http_code}\\\\n\" \\\\');",
+                  "console.log('    -u m2m-client:BAD -d \"grant_type=client_credentials\" \\\\');",
+                  "console.log('    http://localhost:8095/oauth2/token | sort | uniq -c');",
+                  "console.log('Expect ~120 x 401, ~80 x 429.');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "BAD", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Feature 6 — Postman is sequential + slow enough that the token bucket refills between requests, so you won't see 429 from here alone. Test script prints a shell one-liner that DOES trigger the limit (parallel via xargs -P50)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Prometheus metrics",
+      "item": [
+        {
+          "name": "GET /actuator/prometheus (custom auth_* counters)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const text = pm.response.text();",
+                  "const lines = text.split('\\n').filter(l => l.startsWith('auth_'));",
+                  "console.log('Custom auth_ counters:');",
+                  "lines.forEach(l => console.log('  ' + l));",
+                  "pm.test('at least one auth_ metric', () => pm.expect(lines.length).to.be.greaterThan(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/actuator/prometheus",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "prometheus"]
+            },
+            "description": "Feature 10 — Prometheus text format. Test script filters to our custom counters:\n  auth_tokens_issued_total{grant, client_id}\n  auth_login_attempts_total{result}\n  auth_lockouts_total\n  auth_rate_limit_denials_total{endpoint}\n  auth_key_rotations_total"
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Zipkin tracing (external UI)",
+      "item": [
+        {
+          "name": "GET /api/v2/traces (Zipkin API — recent traces)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const traces = pm.response.json();",
+                  "console.log('trace count:', traces.length);",
+                  "if (traces.length > 0) {",
+                  "  console.log('spans in most recent trace:');",
+                  "  traces[0].forEach(s => {",
+                  "    const ms = (s.duration || 0) / 1000;",
+                  "    console.log('  ' + s.name.padEnd(40) + ms.toFixed(1) + 'ms');",
+                  "  });",
+                  "}",
+                  "pm.test('at least one trace', () => pm.expect(traces.length).to.be.greaterThan(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{zipkin_url}}/api/v2/traces?serviceName=authservice&limit=5",
+              "host": ["{{zipkin_url}}"],
+              "path": ["api", "v2", "traces"],
+              "query": [
+                { "key": "serviceName", "value": "authservice" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Feature 9 — query Zipkin directly. Also open http://localhost:9411 for the UI waterfall view. Look for the custom 'vault.sign' span (Feature 11)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. KMS-backed keys (Vault verification)",
+      "item": [
+        {
+          "name": "GET /oauth2/jwks — confirm Vault kid prefix",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "const kid = b.keys[0].kid;",
+                  "console.log('primary kid:', kid);",
+                  "if (kid.startsWith('vault:')) {",
+                  "  pm.test('Feature 11: Vault backend active (kid starts with vault:)', () => pm.expect(kid).to.match(/^vault:/));",
+                  "} else {",
+                  "  console.log('JPA backend active — set features.kms-keys.backend=vault to switch');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/oauth2/jwks",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Feature 11 signature check: on Vault backend the kid is 'vault:auth-server:v1', on JPA it's a UUID."
+          }
+        },
+        {
+          "name": "GET Vault status (health)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{vault_url}}/v1/sys/health",
+              "host": ["{{vault_url}}"],
+              "path": ["v1", "sys", "health"]
+            }
+          }
+        },
+        {
+          "name": "GET Vault transit key metadata",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Vault-Token", "value": "root" }
+            ],
+            "url": {
+              "raw": "{{vault_url}}/v1/transit/keys/auth-server",
+              "host": ["{{vault_url}}"],
+              "path": ["v1", "transit", "keys", "auth-server"]
+            },
+            "description": "Shows every version of the RSA key (public parts only — private never leaves Vault). Feature 3 rotation via /api/v1/admin/keys/rotate does NOT reach Vault yet (documented follow-up)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "BROWSER-ONLY flows (open in a real browser)",
+      "item": [
+        {
+          "name": "* Feature 8 — Consent screen",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/oauth2/authorize?response_type=code&client_id={{demo_client_id}}&redirect_uri=http://127.0.0.1:8097/login/oauth2/code/demo-client&scope=openid+profile+read&state=xyz",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{demo_client_id}}" },
+                { "key": "redirect_uri", "value": "http://127.0.0.1:8097/login/oauth2/code/demo-client" },
+                { "key": "scope", "value": "openid+profile+read" },
+                { "key": "state", "value": "xyz" }
+              ]
+            },
+            "description": "Open this URL in a browser, not Postman. Login as admin/password → land on our Bootstrap-styled consent page (Feature 8). Uncheck 'read', click Approve → redirect to 127.0.0.1:8097 with ?code=... (browser will 404 — that's expected, no client app running there).\n\nPRE-REQ: demo-client must have requireAuthorizationConsent=true. Set it via /admin/clients edit form OR via /api/v1/admin/clients PUT."
+          }
+        },
+        {
+          "name": "* Feature 5 — Account lockout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "some-user", "type": "text" },
+                { "key": "password", "value": "WRONG", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Feature 5 requires 5 sequential failed logins to lock a user. Postman + CSRF is awkward. Recommend the shell for this:\n\n```bash\nCJAR=/tmp/lockout.txt\nfor i in 1 2 3 4 5; do\n  rm -f $CJAR\n  CSRF=$(curl -s -c $CJAR http://localhost:8095/login \\\n    | grep -oE 'name=\"_csrf\"[^>]*value=\"[^\"]+\"' | head -1 \\\n    | sed 's/.*value=\"\\([^\"]*\\)\".*/\\1/')\n  curl -s -o /dev/null -w \"%{http_code}\\n\" -c $CJAR -b $CJAR \\\n    --data-urlencode \"username=locktest\" \\\n    --data-urlencode \"password=WRONG\" \\\n    --data-urlencode \"_csrf=$CSRF\" \\\n    http://localhost:8095/login\ndone\n```\n\nThen unlock via the REST endpoint in folder '5. Account lockout — unlock via REST'."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8095" },
+    { "key": "zipkin_url", "value": "http://localhost:9411" },
+    { "key": "vault_url", "value": "http://localhost:8200" },
+    { "key": "admin_user", "value": "admin" },
+    { "key": "admin_pass", "value": "password" },
+    { "key": "m2m_client_id", "value": "m2m-client" },
+    { "key": "m2m_client_sec", "value": "m2m-secret" },
+    { "key": "demo_client_id", "value": "demo-client" },
+    { "key": "demo_client_sec", "value": "secret" },
+    { "key": "registrar_id", "value": "registrar" },
+    { "key": "registrar_sec", "value": "registrar-secret" },
+    { "key": "api_admin_id", "value": "api-admin" },
+    { "key": "api_admin_sec", "value": "api-admin-secret" },
+    { "key": "m2m_token", "value": "" },
+    { "key": "registrar_token", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "read_only_token", "value": "" },
+    { "key": "dcr_client_id", "value": "" },
+    { "key": "dcr_reg_token", "value": "" },
+    { "key": "rest_test_id", "value": "" },
+    { "key": "current_kid", "value": "" }
+  ]
+}

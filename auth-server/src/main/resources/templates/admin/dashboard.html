@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — Dashboard</title>
+  <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+</head>
+<body>
+
+<div th:replace="~{admin/layout :: nav}"></div>
+
+<main class="container my-4">
+  <h1 class="h3 mb-4">Dashboard</h1>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">OAuth Clients</h5>
+          <p class="card-text text-muted small">
+            Register, edit, or delete OAuth2 clients.
+          </p>
+          <a class="btn btn-primary" th:href="@{/admin/clients}">Manage clients</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Users</h5>
+          <p class="card-text text-muted small">
+            Manage login users and their roles.
+          </p>
+          <a class="btn btn-primary" th:href="@{/admin/users}">Manage users</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

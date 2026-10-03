@@ -1,6 +1,17 @@
 spring:
   application:
     name: payment-service
+  datasource:
+    url: jdbc:h2:mem:paymentdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
   cloud:
     function:
       definition: orderCreated;paymentCommand;refundCommand
@@ -17,13 +28,22 @@ spring:
       kafka:
         binder:
           brokers: ${KAFKA_BROKERS:localhost:9092}
+          # Skip aborted/in-flight transactional messages (producers now use
+          # transaction-id-prefix). Only committed batches become visible.
+          consumer-properties:
+            isolation.level: read_committed
         # Defaults for every Kafka consumer in this app.
         default:
           consumer:
-            enableDlq: true                      # publish poison messages to <topic>.DLT
-            dlqName: ""                          # empty = default naming: <topic>.DLT
+            enableDlq: true                      # routes poison messages to error.<topic>.<group>
+            dlqName: ""                          # empty = Cloud Stream default naming
             autoCommitOnError: true              # commit offset for failed msg (else infinite loop)
             dlqPartitions: 1                     # single-partition DLQ is fine for demo
+            # Raw byte serializers so DLQ send succeeds for deserialization failures.
+            dlqProducerProperties:
+              configuration:
+                key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+                value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
       bindings:
         # ---- Old choreography ----
         orderCreated-in-0:

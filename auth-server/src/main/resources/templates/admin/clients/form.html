@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — Client Form</title>
+  <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+</head>
+<body>
+
+<div th:replace="~{admin/layout :: nav}"></div>
+
+<main class="container my-4">
+  <h1 class="h3 mb-4"
+      th:text="${mode == 'edit'} ? 'Edit Client' : 'New Client'">Client</h1>
+
+  <!-- FEATURE: PKCE soft warning for confidential clients -->
+  <div class="alert alert-info small"
+       th:if="${features != null and features.pkce.warnForConfidentialClients}">
+    <strong>OAuth 2.1 recommendation:</strong> enable Require PKCE for all clients,
+    even confidential ones. It's a defense-in-depth mitigation against authorization-code
+    interception attacks.
+  </div>
+
+  <form th:action="${mode == 'edit'}
+                   ? @{|/admin/clients/${form.id}|}
+                   : @{/admin/clients}"
+        th:object="${form}" method="post" class="row g-3">
+
+    <!-- FEATURE: PKCE enforcement — global (non-field) errors.
+         Must be INSIDE the th:object form so #fields resolves correctly. -->
+    <div class="col-12"
+         th:if="${#fields.hasGlobalErrors()}">
+      <div class="alert alert-danger"
+           th:each="err : ${#fields.globalErrors()}"
+           th:text="${err}">
+        Validation error
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Client ID</label>
+      <input type="text" class="form-control" th:field="*{clientId}" required>
+      <div class="text-danger small" th:errors="*{clientId}"></div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Client Name</label>
+      <input type="text" class="form-control" th:field="*{clientName}" required>
+      <div class="text-danger small" th:errors="*{clientName}"></div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Client Secret</label>
+      <input type="text" class="form-control" th:field="*{clientSecret}"
+             th:placeholder="${mode == 'edit'} ? 'Leave blank to keep existing' : 'Plaintext — hashed before storage'">
+      <div class="form-text">
+        Shown to client apps; stored as BCrypt.
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Scopes (comma-separated)</label>
+      <input type="text" class="form-control" name="scopesCsv"
+             th:value="${#strings.listJoin(form.scopes, ',')}">
+      <div class="form-text">
+        e.g. <code>openid,profile,read</code>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Client Authentication Methods</label>
+      <div th:each="m : ${allAuthMethods}" class="form-check">
+        <input class="form-check-input" type="checkbox"
+               th:id="'am-' + ${m}"
+               name="authMethods"
+               th:value="${m}"
+               th:checked="${form.authMethods.contains(m)}">
+        <label class="form-check-label" th:for="'am-' + ${m}" th:text="${m}"></label>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Authorization Grant Types</label>
+      <div th:each="g : ${allGrantTypes}" class="form-check">
+        <input class="form-check-input" type="checkbox"
+               th:id="'gt-' + ${g}"
+               name="grantTypes"
+               th:value="${g}"
+               th:checked="${form.grantTypes.contains(g)}">
+        <label class="form-check-label" th:for="'gt-' + ${g}" th:text="${g}"></label>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Redirect URIs (one per line)</label>
+      <textarea class="form-control" rows="3" th:field="*{redirectUris}"></textarea>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Post-Logout Redirect URIs (one per line)</label>
+      <textarea class="form-control" rows="3" th:field="*{postLogoutRedirectUris}"></textarea>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Access Token TTL (min)</label>
+      <input type="number" class="form-control" th:field="*{accessTokenTtlMin}">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Refresh Token TTL (min)</label>
+      <input type="number" class="form-control" th:field="*{refreshTokenTtlMin}">
+    </div>
+
+    <div class="col-md-6 d-flex align-items-end gap-4">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               id="requireProofKey" th:field="*{requireProofKey}">
+        <label class="form-check-label" for="requireProofKey">Require PKCE</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               id="requireAuthConsent" th:field="*{requireAuthConsent}">
+        <label class="form-check-label" for="requireAuthConsent">Require consent</label>
+      </div>
+    </div>
+
+    <!-- FEATURE: refresh token rotation — only rendered when flag on -->
+    <div class="col-md-12"
+         th:if="${features != null and features.refreshTokenRotation.enabled}">
+      <hr>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               id="rotateRefreshTokens" th:field="*{rotateRefreshTokens}">
+        <label class="form-check-label" for="rotateRefreshTokens">
+          <strong>Rotate refresh tokens</strong>
+          — issue a new refresh token on every /oauth2/token refresh call
+        </label>
+      </div>
+      <div class="form-text">
+        Recommended. Reusing an old refresh token after rotation invalidates the session —
+        automatic breach detection if a token was stolen and replayed by another client.
+      </div>
+    </div>
+
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a th:href="@{/admin/clients}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</main>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

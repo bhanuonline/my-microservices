@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Checkout</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Review &amp; place order</h1>
+
+    <div class="bg-white rounded-3 shadow-sm p-3 mb-3">
+        <table class="table small">
+            <tbody>
+                <tr th:each="line : ${cart.lines}">
+                    <td th:text="${line.name}">name</td>
+                    <td class="text-end" th:text="|$${#numbers.formatDecimal(line.price, 1, 2)}|">$0.00</td>
+                    <td class="text-end" th:text="|× ${line.qty}|">× 1</td>
+                    <td class="text-end" th:text="|$${#numbers.formatDecimal(line.subtotal(), 1, 2)}|">$0.00</td>
+                </tr>
+                <tr>
+                    <th>Total</th><th></th><th></th>
+                    <th class="text-end" th:text="|$${#numbers.formatDecimal(cart.totalPrice(), 1, 2)}|">$0.00</th>
+                </tr>
+            </tbody>
+        </table>
+
+        <p class="text-muted small mb-3">
+            Idempotency-Key for this attempt:
+            <code th:text="${idempotencyKey}">uuid</code>
+            — same key is pinned until the order is placed, so a browser retry
+            replays safely instead of double-charging.
+        </p>
+
+        <form th:action="@{/checkout}" method="post">
+            <button class="btn btn-success btn-lg">Place order</button>
+            <a th:href="@{/cart}" class="btn btn-link">Back to cart</a>
+        </form>
+    </div>
+</div>
+</body>
+</html>

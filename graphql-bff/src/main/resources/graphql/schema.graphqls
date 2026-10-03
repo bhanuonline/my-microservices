@@ -1,0 +1,31 @@
+type Query {
+    "Fetch a single order by id. Nested product/user are resolved on demand."
+    order(id: ID!): Order
+
+    "List orders — product resolution uses DataLoader to avoid N+1."
+    orders(status: String, limit: Int = 20): [Order!]!
+
+    "Direct product lookup."
+    product(id: ID!): Product
+}
+
+type Order {
+    id: ID!
+    status: String!
+    amount: String!
+    productId: ID!
+    product: Product
+}
+
+type Product {
+    id: ID!
+    name: String
+    description: String
+    price: String
+}
+
+type User {
+    id: ID!
+    name: String
+    email: String
+}

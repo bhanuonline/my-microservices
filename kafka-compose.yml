@@ -2,27 +2,39 @@ version: "3.8"
 
 services:
   kafka:
-    image: bitnami/kafka:latest
+    image: confluentinc/cp-kafka:7.6.0
     container_name: my-kafka
     ports:
-      - "9092:9092"  # Broker port for clients
+      - "9092:9092"
     environment:
-      - ALLOW_PLAINTEXT_LISTENER=yes
-
-      # Kafka KRaft mode settings
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      # Listeners (both broker & controller)
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      # External advertised listener
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-      # Single-node quorum voters (nodeID@host:controller-port)
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@my-kafka:9093
-
-    # Optional for persistence
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Two listeners: 29092 internal (container-to-container), 9092 external (host).
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,HOST://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://my-kafka:29092,HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@my-kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
     volumes:
-      - kafka_data:/bitnami/kafka
+      - kafka_data:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8085:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=my-kafka:29092
+      - DYNAMIC_CONFIG_ENABLED=true
 
 volumes:
   kafka_data:

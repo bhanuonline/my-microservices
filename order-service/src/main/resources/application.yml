@@ -23,6 +23,28 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
+  # Raw Kafka producer — used by OutboxRelay (sends pre-serialized JSON strings).
+  # Spring Cloud Stream still handles the saga bindings below; both coexist.
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Transactional producer — OutboxRelay batches N outbox rows into one Kafka
+      # transaction. Consumers with isolation.level=read_committed only see the
+      # whole batch after commit (never partials on crash).
+      # IMPORTANT: in production, suffix the prefix with a per-instance id
+      # (${HOSTNAME}, pod name) — two instances sharing the same prefix will fence
+      # each other out and alternate going offline.
+      # Suffixed with HOSTNAME (pod name in K8s) so parallel instances don't fence
+      # each other out. Two producers with the same transactional.id → the newer
+      # one wins, the older is zombie-fenced and halts. Interview talking point.
+      transaction-id-prefix: ${spring.application.name}-tx-${HOSTNAME:local}-
+      acks: all                            # required for exactly-once
+      properties:
+        enable.idempotence: true           # required alongside transactions
+        max.in.flight.requests.per.connection: 5
+
   cloud:
     config:
       enabled: false          # config-server not implemented yet
@@ -42,16 +64,23 @@ spring:
       kafka:
         binder:
           brokers: ${KAFKA_BROKERS:localhost:9092}
+          # Skip aborted/in-flight transactional messages — producers now use
+          # transaction-id-prefix so committed batches are atomic.
+          consumer-properties:
+            isolation.level: read_committed
         default:
           consumer:
-            enableDlq: true              # <topic>.DLT gets poison messages
+            enableDlq: true              # poison messages routed to error.<topic>.<group>
             autoCommitOnError: true      # advance past the poisoned offset
             dlqPartitions: 1
+            # Raw byte serializers so DLQ send succeeds for deserialization failures.
+            dlqProducerProperties:
+              configuration:
+                key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+                value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
       bindings:
-        # ---- OLD choreography (still running in parallel) ----
-        orderCreated-out-0:
-          destination: order.created
-          content-type: application/json
+        # NOTE: order.created is produced via the outbox pattern (OutboxRelay →
+        # KafkaTemplate), not Cloud Stream — no binding needed here.
         paymentCompleted-in-0:
           destination: payment.completed
           group: order-service
@@ -131,10 +160,25 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads,bulkheadevents
+        include: health,info,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads,bulkheadevents,prometheus,metrics,env,loggers
+  endpoint:
+    health:
+      show-details: always
   health:
     circuitbreakers:
       enabled: true
+  info:
+    env: { enabled: true }
+    build: { enabled: true }
+    git: { mode: full, enabled: true }
+    java: { enabled: true }
+    os: { enabled: true }
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0
@@ -142,9 +186,50 @@ management:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
 
-logging:
-  pattern:
-    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+info:
+  app:
+    name: Order Service
+    description: Order lifecycle + saga orchestration
+    port: ${server.port:8092}
+
+# HTTP Idempotency-Key — opt in per endpoint. Clients send header
+# `Idempotency-Key: <uuid>` on POST /api/v1/orders; a repeat with the same key
+# returns the stored response and does NOT create a duplicate order.
+idempotency:
+  enabled: true
+  ttl: 24h
+  endpoints:
+    - "POST /api/v1/orders"
+
+# Outbox dispatcher mode. When Debezium is running (docker-cdc profile),
+# the OutboxRelay polling job is a duplicate — disable it.
+outbox:
+  polling-enabled: ${OUTBOX_POLLING:true}
+
+# Opt into the common-lib FeatureFlagService + /admin/flags endpoints.
+feature-flags:
+  enabled: true
+
+---
+# Profile `docker-cdc`: Postgres + CDC. Debezium reads outbox_events via WAL
+# instead of OutboxRelay polling.
+spring:
+  config:
+    activate:
+      on-profile: docker-cdc
+  datasource:
+    url: jdbc:postgresql://postgres-order:5432/orderdb
+    username: order
+    password: order
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+outbox:
+  polling-enabled: false
 
 # Feign timeouts (defaults are too generous)
 feign:

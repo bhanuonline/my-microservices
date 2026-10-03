@@ -21,6 +21,59 @@
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
 
+        <!-- Reactive Redis client — backs RequestRateLimiter (token bucket via Lua) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- R2DBC + H2 — persistent store for dynamic routes (default profile) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.r2dbc</groupId>
+            <artifactId>r2dbc-h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Postgres (activated by -Dspring.profiles.active=postgres) -->
+        <!-- R2DBC driver for the reactive app path -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>r2dbc-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Blocking JDBC driver — Flyway uses this at startup for migrations -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Flyway — versioned SQL migrations for Postgres.
+             Pinning to Flyway 10 explicitly because Spring Boot 3.2.5 manages
+             Flyway 9.x (which bundles Postgres support inside flyway-core).
+             In Flyway 10+, Postgres support was extracted into a separate
+             module (flyway-database-postgresql), so we need to override the
+             Spring-Boot-managed version for BOTH artifacts to avoid a version
+             mismatch. 10.20.1 is the last release compatible with JDK 17. -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+            <version>10.20.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>10.20.1</version>
+        </dependency>
+
         <!-- Actuator for monitoring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -63,10 +116,24 @@
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
 
+        <!-- Spring Cloud CircuitBreaker (reactive) — backs the CircuitBreaker gateway filter -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+        </dependency>
+
         <!-- Distributed tracing -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+
+        <!-- Prometheus registry — exposes /actuator/prometheus scrape endpoint.
+             All Micrometer metrics (JVM, Cloud Gateway, Resilience4j, custom)
+             flow through this registry automatically once it's on the classpath. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
         <dependency>
             <groupId>io.zipkin.reporter2</groupId>
@@ -78,6 +145,13 @@
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
             <version>7.4</version>
+        </dependency>
+
+        <!-- Thymeleaf (reactive view resolver auto-wires for WebFlux gateway) -->
+        <!-- Only used when gateway.admin.ui=thymeleaf; harmless otherwise -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
     </dependencies>
 
@@ -92,11 +166,16 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <!-- Plugin executions + config inherited from parent pom pluginManagement. -->
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

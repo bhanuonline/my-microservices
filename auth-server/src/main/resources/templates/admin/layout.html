@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+
+<!-- ============================================================ -->
+<!-- Fragment: nav — included as ~{admin/layout :: nav} on pages. -->
+<!-- ============================================================ -->
+<nav th:fragment="nav" class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+  <a class="navbar-brand" th:href="@{/admin}">Auth Server Admin</a>
+  <ul class="navbar-nav me-auto">
+    <li class="nav-item">
+      <a class="nav-link" th:href="@{/admin/clients}">Clients</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" th:href="@{/admin/users}">Users</a>
+    </li>
+    <!-- FEATURE: key rotation nav link (rendered only when flag on).
+         'features' is injected by AdminGlobalModel @ControllerAdvice. -->
+    <li class="nav-item"
+        th:if="${features != null and features.keyRotation.enabled}">
+      <a class="nav-link" th:href="@{/admin/keys}">Keys</a>
+    </li>
+    <!-- FEATURE: audit nav link -->
+    <li class="nav-item"
+        th:if="${features != null and features.audit.enabled}">
+      <a class="nav-link" th:href="@{/admin/audit}">Audit</a>
+    </li>
+  </ul>
+  <span class="navbar-text text-light me-3"
+        sec:authorize="isAuthenticated()"
+        sec:authentication="name">user</span>
+  <form th:action="@{/logout}" method="post" class="d-inline">
+    <button class="btn btn-outline-light btn-sm" type="submit">Logout</button>
+  </form>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Routes — Admin')}"></head>
+<body>
+<div th:replace="~{layout :: topbar('routes')}"></div>
+
+<main class="content">
+    <h1>Routes</h1>
+
+    <div th:if="${created}" class="flash success">
+        Created route <code th:text="${created}"></code>.
+    </div>
+    <div th:if="${updated}" class="flash success">
+        Updated route <code th:text="${updated}"></code>.
+    </div>
+    <div th:if="${deleted}" class="flash success">
+        Deleted route <code th:text="${deleted}"></code>.
+    </div>
+    <div th:if="${error}" class="flash error" th:text="${error}"></div>
+
+    <div class="actions">
+        <form method="post" th:action="@{/admin/ui/routes/refresh}">
+            <button type="submit" class="secondary">Force refresh</button>
+        </form>
+        <a class="btn secondary" th:href="@{/admin/ui/routes}">Reload page</a>
+    </div>
+
+    <div th:if="${#lists.isEmpty(routes)}" class="empty">
+        No dynamic routes yet. Create one below.
+    </div>
+
+    <table class="grid" th:if="${not #lists.isEmpty(routes)}">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>URI</th>
+            <th>Order</th>
+            <th>Predicates</th>
+            <th>Filters</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="r : ${routes}">
+            <td><code th:text="${r.id}"></code></td>
+            <td><code th:text="${r.uri}"></code></td>
+            <td th:text="${r.order}">0</td>
+            <td th:text="${#strings.listJoin(r.predicates.![name], ', ')}">Path</td>
+            <td>
+                <span th:if="${r.filters == null or #lists.isEmpty(r.filters)}" class="muted">—</span>
+                <span th:unless="${r.filters == null or #lists.isEmpty(r.filters)}"
+                      th:text="${#strings.listJoin(r.filters.![name], ', ')}">Retry</span>
+            </td>
+            <td class="row-actions">
+                <a class="btn secondary" th:href="@{'/admin/ui/routes/' + ${r.id} + '/edit'}">Edit</a>
+                <form method="post" th:action="@{'/admin/ui/routes/' + ${r.id} + '/delete'}"
+                      onsubmit="return confirm('Delete this route?');">
+                    <button type="submit" class="danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h2>Create new route</h2>
+    <div class="card">
+        <form method="post" th:action="@{/admin/ui/routes}">
+            <label>
+                Route ID
+                <input type="text" name="id" required
+                       placeholder="products-preview"/>
+            </label>
+            <label>
+                URI
+                <input type="text" name="uri" required
+                       placeholder="lb://product-service"/>
+            </label>
+            <label>
+                Order
+                <input type="number" name="order" value="0"/>
+            </label>
+            <label>
+                Predicates (JSON array)
+                <textarea name="predicatesJson" rows="5" spellcheck="false">[
+  {"name":"Path","args":{"_genkey_0":"/api/v1/example/**"}}
+]</textarea>
+            </label>
+            <label>
+                Filters (JSON array)
+                <textarea name="filtersJson" rows="4" spellcheck="false">[]</textarea>
+            </label>
+            <button type="submit">Create route</button>
+        </form>
+        <p class="muted small" style="margin-top:12px;">
+            Server validates predicate and filter names — bad ones return 400.
+        </p>
+    </div>
+</main>
+</body>
+</html>

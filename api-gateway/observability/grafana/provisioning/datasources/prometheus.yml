@@ -1,0 +1,16 @@
+# Grafana datasource provisioning — auto-wires Prometheus as the default source.
+# Grafana reads this on startup; no manual clicks needed.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # Grafana runs in another container; localhost = itself. Use service name from compose.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 5s

@@ -1,0 +1,17 @@
+# Grafana dashboard provider config. Points at /var/lib/grafana/dashboards
+# (mounted from ./observability/grafana/dashboards) so any *.json in that
+# directory is loaded automatically on Grafana startup.
+
+apiVersion: 1
+
+providers:
+  - name: gateway-dashboards
+    orgId: 1
+    folder: API Gateway
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

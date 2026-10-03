@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title layout:title-pattern="$CONTENT_TITLE | my-microservices shop">my-microservices shop</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        .product-card { height: 100%; }
+        .product-card img { height: 180px; object-fit: contain; background: #f6f6f6; }
+        .facet-group h6 { text-transform: uppercase; font-size: 0.75rem; color: #666; letter-spacing: 0.05em; }
+        .facet-group a.badge-link { text-decoration: none; display: block; padding: 0.15rem 0; color: #0a58ca; }
+        .facet-group a.badge-link.active { font-weight: 600; color: #d63384; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" th:href="@{/}">microservices-shop</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" th:href="@{/products}">All products</a></li>
+                </ul>
+                <form class="d-flex me-3" th:action="@{/products}" method="get">
+                    <input class="form-control form-control-sm" type="search"
+                           name="q" placeholder="search products…"
+                           th:value="${param.q}" aria-label="Search"/>
+                </form>
+                <a class="btn btn-outline-light position-relative" th:href="@{/cart}">
+                    Cart
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                          th:text="${@cart.totalItems()}"
+                          th:classappend="${@cart.totalItems() == 0} ? 'd-none' : ''">0</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+        <div layout:fragment="content">
+            <!-- page content gets inlined here -->
+        </div>
+    </main>
+
+    <footer class="text-center text-muted small py-4">
+        <div class="container">
+            Thymeleaf + HTMX on top of the my-microservices stack ·
+            <a th:href="@{/actuator/health}" class="text-muted">health</a>
+        </div>
+    </footer>
+</body>
+</html>

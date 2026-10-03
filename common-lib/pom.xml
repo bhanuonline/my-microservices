@@ -45,5 +45,166 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <!-- ─── Observability starter (transitively pulled into every consumer) ─── -->
+
+        <!-- Actuator (health, info, metrics, prometheus endpoint) — required for
+             tracing to auto-wire and for /actuator/info to render. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Micrometer Tracing + Brave bridge → Zipkin. Auto-instruments incoming
+             HTTP, outgoing WebClient/RestTemplate/RestClient, JDBC, R2DBC. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
+        </dependency>
+
+        <!-- Prometheus registry — /actuator/prometheus scrape endpoint. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Business-level @NewSpan / @SpanTag annotations: the
+             io.micrometer.tracing.annotation.* classes are bundled directly
+             in micrometer-tracing (pulled transitively by -bridge-brave above),
+             not in a separate artefact. No extra dep needed.
+             Kafka producer/consumer span propagation is handled automatically
+             by Spring Boot's KafkaTracingAutoConfiguration when the Brave
+             bridge is on the classpath. -->
+
+        <!-- Logstash encoder — structured JSON logs with MDC keys. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
+        <!-- Auto-configuration hooks — @AutoConfiguration classes registered
+             via META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <!-- ─── Tier 4: gRPC between internal services ─── -->
+        <!-- Shared protos live under src/main/proto; protobuf-maven-plugin
+             generates Java stubs. Consumers (client + server) depend on
+             common-lib and get the generated classes transitively. -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <!-- generated gRPC stubs reference javax.annotation.Generated (not jakarta).
+             Pull the legacy annotation jar so compile succeeds on JDK 17. -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+
+        <!-- ─── Tier 2: Avro + Schema Registry ─── -->
+        <!-- Avro runtime: generated classes extend SpecificRecordBase from here. -->
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>${avro.version}</version>
+        </dependency>
+        <!-- Confluent (de)serializer: ships magic-byte + schema-id envelope and
+             talks HTTP to the registry. Services opting into Avro add
+             spring.kafka.*.value-serializer=io.confluent.kafka.serializers.KafkaAvroSerializer -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-avro-serializer</artifactId>
+            <version>${confluent.version}</version>
+            <exclusions>
+                <!-- Avoid dragging slf4j-reload4j — logback is already on the classpath. -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
     </dependencies>
+
+    <build>
+        <!-- os-maven-plugin exposes ${os.detected.classifier} needed by protoc artifact resolution -->
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <!-- Avro schemas live under src/main/avro, generate SpecificRecord classes
+                 into target/generated-sources/avro and add that root to the compile path. -->
+            <plugin>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro-maven-plugin</artifactId>
+                <version>${avro.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-avro-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>schema</goal>
+                        </goals>
+                        <configuration>
+                            <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/generated-sources/avro</outputDirectory>
+                            <stringType>String</stringType>
+                            <fieldVisibility>PRIVATE</fieldVisibility>
+                            <enableDecimalLogicalType>true</enableDecimalLogicalType>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- protoc + gRPC codegen. Reads src/main/proto, outputs to
+                 target/generated-sources/protobuf/{java,grpc-java}. -->
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${protobuf-maven-plugin.version}</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Note: build-info is NOT inherited across <dependencies>. Each service
+                 that wants build-info at /actuator/info must add the spring-boot-maven-plugin
+                 build-info exec block itself. Documented in observability-multi-service.md. -->
+        </plugins>
+    </build>
 </project>

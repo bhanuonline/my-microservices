@@ -12,11 +12,18 @@
     <artifactId>payment-service</artifactId>
 
     <dependencies>
-        <!-- Shared event contracts -->
+        <!-- Shared event contracts + generated gRPC stubs (Tier 4) -->
         <dependency>
             <groupId>com.example</groupId>
             <artifactId>common-lib</artifactId>
             <version>${project.version}</version>
+        </dependency>
+
+        <!-- gRPC Netty server (common-lib provides stub/protobuf). -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>${grpc.version}</version>
         </dependency>
 
         <!-- Web (so actuator has an HTTP surface) -->
@@ -51,6 +58,17 @@
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
+        </dependency>
+
+        <!-- JPA + H2 for consumer-side idempotency ledger (processed_events table). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 

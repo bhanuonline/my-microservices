@@ -50,6 +50,28 @@ services:
       timeout: 3s
       retries: 20
 
+  # ---------- Secrets / KMS ----------
+  # Feature 11 — HashiCorp Vault dev mode. Provides transit engine that
+  # signs JWTs without exposing the private key. Root token is fixed to 'root'
+  # for local development. NEVER use dev mode in production.
+  vault-dev:
+    image: hashicorp/vault:1.15
+    container_name: vault-dev
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # ---------- Messaging ----------
   kafka:
     image: bitnamilegacy/kafka:3.7
@@ -76,12 +98,199 @@ services:
       timeout: 5s
       retries: 30
 
+  # ---------- CDC (Tier 2) ----------
+  # Postgres with logical replication enabled — Debezium needs WAL-level=logical.
+  # order-service switches to this DB under the `docker-cdc` Spring profile.
+  postgres-order:
+    image: debezium/postgres:15
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: orderdb
+      POSTGRES_USER: order
+      POSTGRES_PASSWORD: order
+    command: ["postgres", "-c", "wal_level=logical"]
+    ports:
+      - "5433:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order -d orderdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Kafka Connect with Debezium plugins baked in. Register the connector via
+  # observability/debezium/register-outbox-connector.sh after startup.
+  kafka-connect:
+    image: debezium/connect:2.7
+    container_name: kafka-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres-order:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: order-cdc-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    networks:
+      - backend
+
+  # ---------- Cache + rate-limit backend (Tier 4) ----------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------- CQRS read store (Tier 2) ----------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # ---------- Schema Registry (Tier 2) ----------
+  # Confluent registry — stores Avro schemas by subject. Producers include a
+  # schema id in each message; consumers look it up and cache.
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8081"              # host port 8085 → container 8081 (8081 taken by user-service)
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - backend
+
   # ---------- Observability ----------
   zipkin:
     image: openzipkin/zipkin
     container_name: zipkin
     ports:
       - "9411:9411"
+    networks:
+      - backend
+
+  # Prometheus — scrapes every service's /actuator/prometheus every 15s.
+  # Targets configured in observability/prometheus.yml.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+      # Accept k6's Prometheus remote-write output.
+      - '--web.enable-remote-write-receiver'
+      # Native histograms give us real p95/p99 from k6 output.
+      - '--enable-feature=native-histograms'
+    networks:
+      - backend
+
+  # k6 — load generator. Not started by default; invoke with:
+  #   docker compose run --rm k6 run -e SCENARIO=load /scripts/orders.js
+  # Metrics stream to Prometheus via remote-write; see Grafana "k6 overview".
+  k6:
+    image: grafana/k6:0.52.0
+    container_name: k6
+    profiles: ["loadtest"]           # excluded from `docker compose up` without --profile
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
+      BASE_URL: http://api-gateway:8080
+      AUTH: admin:admin123
+      PRODUCT_IDS: "1,2,3"
+    volumes:
+      - ./load-tests/k6:/scripts:ro
+    entrypoint: ["k6"]
+    command: ["run", "--out", "experimental-prometheus-rw", "/scripts/orders.js"]
+    networks:
+      - backend
+
+  # Loki — log aggregator. Promtail ships container stdout here; queried from Grafana.
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - backend
+
+  # Promtail — tails Docker container logs, parses JSON, pushes to Loki.
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: promtail
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - backend
+
+  # Grafana — single pane for metrics (Prometheus), logs (Loki), traces (Zipkin).
+  # Dashboards auto-provisioned from observability/grafana/dashboards/.
+  # Login: admin / admin (change on first login).
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_FEATURE_TOGGLES_ENABLE: traceToMetrics,traceToLogs
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+      - zipkin
     networks:
       - backend
 

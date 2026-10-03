@@ -1,0 +1,141 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "reqps"}},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "sum by (scenario) (rate(k6_http_reqs_total[30s]))",
+          "legendFormat": "{{scenario}}",
+          "refId": "A"
+        }
+      ],
+      "title": "k6 — HTTP req/s (by scenario)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "percentunit"}},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "sum by (scenario) (rate(k6_http_req_failed_total[1m])) / sum by (scenario) (rate(k6_http_reqs_total[1m]))",
+          "legendFormat": "{{scenario}}",
+          "refId": "A"
+        }
+      ],
+      "title": "k6 — HTTP failure rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "s"}},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 7},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(k6_http_req_duration_seconds_bucket[1m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(k6_http_req_duration_seconds_bucket[1m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(k6_http_req_duration_seconds_bucket[1m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "k6 — Request duration percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "short"}},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 15},
+      "id": 4,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "k6_vus",
+          "legendFormat": "VUs",
+          "refId": "A"
+        },
+        {
+          "expr": "k6_vus_max",
+          "legendFormat": "VUs max",
+          "refId": "B"
+        }
+      ],
+      "title": "k6 — Virtual users",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "short"}},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 15},
+      "id": 5,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {
+          "expr": "increase(orders_created_total[1m])",
+          "legendFormat": "orders created /min",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(idempotency_replays_total[1m])",
+          "legendFormat": "idempotency replays /min",
+          "refId": "B"
+        }
+      ],
+      "title": "k6 — Business counters",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [
+          {"color": "green", "value": null},
+          {"color": "red",   "value": 1}
+      ]}}},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 15},
+      "id": 6,
+      "options": {"colorMode": "value", "graphMode": "area", "textMode": "value_and_name"},
+      "targets": [
+        {
+          "expr": "k6_checks{check!=\"\"}",
+          "legendFormat": "{{check}}",
+          "refId": "A"
+        }
+      ],
+      "title": "k6 — Check pass rate (last)",
+      "type": "stat"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["k6", "load-test"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "k6 — load test overview",
+  "uid": "k6-overview",
+  "version": 1,
+  "weekStart": ""
+}

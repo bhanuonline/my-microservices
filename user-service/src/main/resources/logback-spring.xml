@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Delegates to logback-observability.xml (from common-lib) for:
+    - JSON output (default) with MDC keys: traceId, spanId, correlationId
+    - Text output when -Dspring.profiles.active=local
+    - Framework noise tuning (Netty, R2DBC, etc.)
+-->
 <configuration>
-    <springProperty name="appName" source="spring.application.name"/>
+    <include resource="logback-observability.xml"/>
 
-    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <includeMdcKeyName>traceId</includeMdcKeyName>
-            <includeMdcKeyName>spanId</includeMdcKeyName>
-            <includeMdcKeyName>correlationId</includeMdcKeyName>
-            <customFields>{"service":"${appName}"}</customFields>
-        </encoder>
-    </appender>
-
-    <root level="INFO">
-        <appender-ref ref="JSON"/>
-    </root>
+    <!-- user-service-specific overrides go here.
+         Example: uncomment to trace SQL statements during local dev.
+    <springProfile name="local">
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+    </springProfile>
+    -->
 </configuration>

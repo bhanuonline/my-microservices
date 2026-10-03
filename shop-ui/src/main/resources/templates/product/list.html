@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Products</title></head>
+<body>
+<div layout:fragment="content">
+
+    <div class="row">
+        <!-- ───────── Sidebar: facets ───────── -->
+        <aside class="col-lg-3">
+            <div class="bg-white rounded-3 shadow-sm p-3 mb-3">
+                <div class="facet-group mb-3" th:if="${result.facets.containsKey('category')}">
+                    <h6>Category</h6>
+                    <a th:each="b : ${result.facets.get('category')}"
+                       class="badge-link"
+                       th:classappend="${b.key == category} ? ' active' : ''"
+                       th:href="@{/products(q=${q}, category=${b.key}, brand=${brand}, inStock=${inStock})}">
+                        <span th:text="${b.key}">cat</span>
+                        <span class="text-muted">(<span th:text="${b.count}">0</span>)</span>
+                    </a>
+                </div>
+
+                <div class="facet-group mb-3" th:if="${result.facets.containsKey('brand')}">
+                    <h6>Brand</h6>
+                    <a th:each="b : ${result.facets.get('brand')}"
+                       class="badge-link"
+                       th:classappend="${b.key == brand} ? ' active' : ''"
+                       th:href="@{/products(q=${q}, category=${category}, brand=${b.key}, inStock=${inStock})}">
+                        <span th:text="${b.key}">brand</span>
+                        <span class="text-muted">(<span th:text="${b.count}">0</span>)</span>
+                    </a>
+                </div>
+
+                <div class="facet-group mb-3" th:if="${result.facets.containsKey('price')}">
+                    <h6>Price</h6>
+                    <div th:each="b : ${result.facets.get('price')}" class="small">
+                        <span th:text="${b.key}">0-25</span>
+                        <span class="text-muted">(<span th:text="${b.count}">0</span>)</span>
+                    </div>
+                </div>
+
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="inStock"
+                           onchange="window.location = this.checked ? appendParam('inStock','true') : removeParam('inStock')"
+                           th:checked="${inStock}"/>
+                    <label class="form-check-label" for="inStock">In stock only</label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ───────── Results ───────── -->
+        <section class="col-lg-9">
+            <!-- Active filter chips -->
+            <div class="mb-3" th:if="${!activeFilters.isEmpty()}">
+                <span class="me-2 text-muted small">Filters:</span>
+                <a th:each="f : ${activeFilters}"
+                   class="badge bg-secondary text-decoration-none me-1"
+                   th:href="@{/products(q=${f.key == 'q' ? null : q},
+                                        category=${f.key == 'category' ? null : category},
+                                        brand=${f.key == 'brand' ? null : brand},
+                                        inStock=${f.key == 'inStock' ? null : inStock})}">
+                    <span th:text="|${f.key}: ${f.value}|">k: v</span> ✕
+                </a>
+                <a th:href="@{/products}" class="small text-muted ms-2">clear all</a>
+            </div>
+
+            <p class="text-muted small">
+                <span th:text="${result.total}">0</span> results
+                <span th:if="${result.totalPages() > 1}">
+                     · page <span th:text="${result.page + 1}">1</span>
+                     of <span th:text="${result.totalPages()}">1</span>
+                </span>
+            </p>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+                <div class="col" th:each="p : ${result.products}">
+                    <div class="card product-card">
+                        <img src="https://placehold.co/400x300?text=Product" th:alt="${p.name}"/>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title" th:text="${p.name}">name</h5>
+                            <p class="card-text text-muted small"
+                               th:text="${p.description}">description</p>
+                            <div class="mt-auto d-flex justify-content-between align-items-center">
+                                <strong th:text="|$${#numbers.formatDecimal(p.price, 1, 2)}|">$0.00</strong>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   th:href="@{'/products/' + ${p.id}}">View</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <nav class="mt-4" th:if="${result.totalPages() > 1}">
+                <ul class="pagination">
+                    <li class="page-item" th:classappend="${!result.hasPrev()} ? 'disabled' : ''">
+                        <a class="page-link"
+                           th:href="@{/products(q=${q}, category=${category}, brand=${brand},
+                                                inStock=${inStock}, page=${result.page - 1})}">Prev</a>
+                    </li>
+                    <li class="page-item active"><span class="page-link"
+                           th:text="${result.page + 1}">1</span></li>
+                    <li class="page-item" th:classappend="${!result.hasNext()} ? 'disabled' : ''">
+                        <a class="page-link"
+                           th:href="@{/products(q=${q}, category=${category}, brand=${brand},
+                                                inStock=${inStock}, page=${result.page + 1})}">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </section>
+    </div>
+
+    <!-- Trivial query-string helpers so the inStock checkbox can toggle via vanilla JS -->
+    <script>
+      function appendParam(k, v) {
+        const u = new URL(window.location);
+        u.searchParams.set(k, v);
+        return u.toString();
+      }
+      function removeParam(k) {
+        const u = new URL(window.location);
+        u.searchParams.delete(k);
+        return u.toString();
+      }
+    </script>
+</div>
+</body>
+</html>

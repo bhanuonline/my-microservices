@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Auth-server logback config.
+
+  Delegates to logback-observability.xml (shipped by common-lib) for JSON logs,
+  MDC keys (traceId, spanId, correlationId), profile-driven output, and
+  framework noise tuning.
+
+  Any service-specific logger overrides go BELOW the include.
+-->
+<configuration>
+    <include resource="logback-observability.xml"/>
+
+    <!-- Auth-specific loggers.
+         Keep Spring Security at DEBUG in local, WARN in prod. -->
+    <springProfile name="local">
+        <logger name="org.springframework.security" level="DEBUG"/>
+        <logger name="org.springframework.security.oauth2" level="TRACE"/>
+    </springProfile>
+    <springProfile name="!local">
+        <logger name="org.springframework.security" level="INFO"/>
+        <logger name="org.springframework.security.oauth2" level="INFO"/>
+    </springProfile>
+</configuration>

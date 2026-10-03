@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+    /briefing — Latest pre-market briefing + history.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pre-Market Briefing — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/briefing.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='briefing')}"></div>
+<main class="app-main">
+
+    <div class="br-head">
+        <div>
+            <h1>Pre-Market Briefing</h1>
+            <p class="sub">Auto-generated at 08:30 IST every trading day · combines global markets + AI-tagged news</p>
+        </div>
+        <button class="br-btn primary" onclick="generateNow()">✨ Generate now</button>
+    </div>
+
+    <div th:if="${latest == null}" class="br-empty">
+        No briefing yet. Click <b>✨ Generate now</b> to create one, or wait for tomorrow's 08:30 IST auto-run.
+    </div>
+
+    <div th:if="${latest != null}"
+         th:class="'br-latest bias-' + ${#strings.toLowerCase(latest.bias)}">
+        <div class="br-latest-head">
+            <div>
+                <div class="br-latest-date" th:text="${#temporals.format(latest.forDate, 'EEEE, dd MMMM yyyy')}">Monday, 30 Sep 2026</div>
+                <div class="br-latest-meta"
+                     th:text="'Generated ' + ${#temporals.format(latest.generatedAt, 'HH:mm')} + ' IST · ' + ${latest.model}">
+                    Generated 08:30 IST · claude-sonnet-4-5
+                </div>
+            </div>
+            <div th:class="'br-bias-badge ' + ${#strings.toLowerCase(latest.bias)}"
+                 th:text="${latest.bias}">BULLISH</div>
+        </div>
+
+        <div class="br-drivers" th:if="${latest.keyDrivers != null}">
+            <div class="br-drivers-label">🎯 Key drivers</div>
+            <pre th:text="${latest.keyDrivers}">- Dow closed up 0.9%
+- Oil down 1.5% on demand fears
+- No India domestic catalyst</pre>
+        </div>
+
+        <div class="br-summary" th:text="${latest.summary}">
+            Overnight the US markets closed higher with the Dow gaining 0.9%
+            and Nasdaq up 0.6%. Asian markets are mixed with Nikkei up 0.5%
+            but Hang Seng under pressure. Oil fell 1.5% providing relief to
+            Indian OMCs. RBI's dovish stance continues to support banks.
+            Watch 24,600 support and 24,850 resistance for Nifty. Bias: LONG
+            with tight stops.
+        </div>
+    </div>
+
+    <div class="br-history" th:if="${!#lists.isEmpty(history)}">
+        <h2>History (last 30 briefings)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Bias</th>
+                    <th>Summary preview</th>
+                    <th>Generated at</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="b : ${history}">
+                    <td th:text="${#temporals.format(b.forDate, 'dd MMM yyyy (EEE)')}">30 Sep (Mon)</td>
+                    <td><span th:class="'br-bias-badge sm ' + ${#strings.toLowerCase(b.bias)}"
+                              th:text="${b.bias}">BULLISH</span></td>
+                    <td th:text="${#strings.abbreviate(b.summary, 120)}">Overnight the US markets…</td>
+                    <td th:text="${#temporals.format(b.generatedAt, 'dd MMM HH:mm')}">30 Sep 08:30</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+</div>
+
+<script>
+    async function generateNow() {
+        if (!confirm('Generate new briefing? Costs ~$0.02 in Claude API.')) return;
+        var btn = event.target;
+        btn.disabled = true; btn.textContent = '⏳ Generating…';
+        try {
+            var res = await fetch('/api/briefing/generate', { method: 'POST' });
+            var data = await res.json();
+            if (data.ok) location.reload();
+            else alert('Failed: ' + (data.message || 'unknown'));
+        } catch (e) { alert('Error: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = '✨ Generate now'; }
+    }
+</script>
+
+</body>
+</html>

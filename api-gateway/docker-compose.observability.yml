@@ -1,0 +1,82 @@
+# Full observability stack for the api-gateway: Prometheus + Grafana + Zipkin.
+#
+# Boot:    docker-compose -f api-gateway/docker-compose.observability.yml up -d
+# Prom:    http://localhost:9090
+# Grafana: http://localhost:3000  (admin / admin)
+# Zipkin:  http://localhost:9411  (trace UI — search by traceId or service)
+# Stop:    docker-compose -f api-gateway/docker-compose.observability.yml down
+#
+# Gateway must expose /actuator/prometheus on :8080 (default in application.yml).
+# Prometheus scrapes host.docker.internal:8080 every 5s.
+# Zipkin receives spans at http://localhost:9411/api/v2/spans (default endpoint).
+#
+# Provisioning:
+#   observability/prometheus/prometheus.yml               scrape config
+#   observability/grafana/provisioning/datasources/       Prometheus datasource wired automatically
+#   observability/grafana/provisioning/dashboards/        dashboard provider config
+#   observability/grafana/dashboards/gateway-overview.json  the actual dashboard
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gateway-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus:/etc/prometheus
+      - gateway-prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=1d
+      - --web.enable-lifecycle
+    extra_hosts:
+      # Lets Prometheus reach the gateway running on the host machine
+      # (needed on Linux; already automatic on Docker Desktop Mac/Windows).
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: gateway-zipkin
+    ports:
+      - "9411:9411"
+    environment:
+      # In-memory storage (default). For persistence: STORAGE_TYPE=elasticsearch|mysql|cassandra.
+      - STORAGE_TYPE=mem
+      # Cap in-memory spans so long-running containers don't OOM.
+      - MEM_STORE_MAX_SPANS=1000000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:9411/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gateway-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # Skip the password-change dialog on first login (dev only!)
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - gateway-grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  gateway-prometheus-data:
+  gateway-grafana-data:

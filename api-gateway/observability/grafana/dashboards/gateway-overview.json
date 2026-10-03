@@ -1,0 +1,408 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "row",
+      "title": "Traffic",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Total RPS",
+      "id": 1,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "targets": [{
+        "expr": "sum(rate(spring_cloud_gateway_requests_seconds_count[1m]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {"unit": "reqps", "decimals": 2, "color": {"mode": "thresholds"}}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests per second per route",
+      "id": 2,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 6, "y": 1},
+      "targets": [{
+        "expr": "sum(rate(spring_cloud_gateway_requests_seconds_count[1m])) by (route_id)",
+        "legendFormat": "{{route_id}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Status code distribution",
+      "id": 3,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 1},
+      "targets": [
+        {"expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{status=~\"2..\"}[1m]))", "legendFormat": "2xx", "refId": "A"},
+        {"expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{status=~\"4..\"}[1m]))", "legendFormat": "4xx", "refId": "B"},
+        {"expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{status=~\"5..\"}[1m]))", "legendFormat": "5xx", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "stat",
+      "title": "5xx rate",
+      "id": 4,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 5},
+      "targets": [{
+        "expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{status=~\"5..\"}[5m])) / sum(rate(spring_cloud_gateway_requests_seconds_count[5m]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.01},
+              {"color": "red", "value": 0.05}
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "type": "row",
+      "title": "Latency",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 9},
+      "id": 200,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "p50 / p95 / p99 latency (all routes)",
+      "id": 5,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(spring_cloud_gateway_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum(rate(spring_cloud_gateway_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p95", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, sum(rate(spring_cloud_gateway_requests_seconds_bucket[5m])) by (le))", "legendFormat": "p99", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "p99 latency per route",
+      "id": 6,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, sum(rate(spring_cloud_gateway_requests_seconds_bucket[5m])) by (le, route_id))",
+        "legendFormat": "{{route_id}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+
+    {
+      "type": "row",
+      "title": "Resilience",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18},
+      "id": 300,
+      "collapsed": false
+    },
+    {
+      "type": "stat",
+      "title": "Circuit breaker state (0=closed, 1=open, 2=half-open)",
+      "id": 7,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 19},
+      "targets": [{
+        "expr": "resilience4j_circuitbreaker_state{state=\"open\"}",
+        "legendFormat": "{{name}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "CLOSED", "color": "green"}, "1": {"text": "OPEN", "color": "red"}}}
+          ]
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CB failure rate",
+      "id": 8,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
+      "targets": [{
+        "expr": "resilience4j_circuitbreaker_failure_rate",
+        "legendFormat": "{{name}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percent"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Bulkhead saturation (available / max)",
+      "id": 9,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23},
+      "targets": [{
+        "expr": "1 - (resilience4j_bulkhead_available_concurrent_calls / resilience4j_bulkhead_max_allowed_concurrent_calls)",
+        "legendFormat": "{{name}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate limiter 429s per route",
+      "id": 10,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 27},
+      "targets": [{
+        "expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{status=\"429\"}[1m])) by (route_id)",
+        "legendFormat": "{{route_id}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+
+    {
+      "type": "row",
+      "title": "Custom filters (business signals)",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35},
+      "id": 400,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Idempotency outcomes",
+      "id": 11,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+      "targets": [{
+        "expr": "sum(rate(gateway_idempotency_result_total[1m])) by (outcome)",
+        "legendFormat": "{{outcome}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "stat",
+      "title": "Idempotency hit ratio",
+      "id": 12,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 36},
+      "targets": [{
+        "expr": "sum(rate(gateway_idempotency_result_total{outcome=\"hit\"}[5m])) / sum(rate(gateway_idempotency_result_total[5m]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "decimals": 2}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Response cache outcomes",
+      "id": 13,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+      "targets": [{
+        "expr": "sum(rate(gateway_response_cache_result_total[1m])) by (outcome)",
+        "legendFormat": "{{outcome}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Fallback served by reason",
+      "id": 14,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 44},
+      "targets": [{
+        "expr": "sum(rate(gateway_fallback_served_total[1m])) by (reason, service)",
+        "legendFormat": "{{service}} · {{reason}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "API key auth outcomes",
+      "id": 15,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48},
+      "targets": [{
+        "expr": "sum(rate(gateway_apikey_auth_total[1m])) by (outcome)",
+        "legendFormat": "{{outcome}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Route audit outcomes",
+      "id": 16,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
+      "targets": [{
+        "expr": "sum(rate(gateway_route_audit_persist_total[1m])) by (outcome)",
+        "legendFormat": "{{outcome}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+
+    {
+      "type": "row",
+      "title": "Canary rollout",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 60},
+      "id": 450,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Traffic split — v1 vs v2 RPS",
+      "id": 30,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 61},
+      "targets": [{
+        "expr": "sum(rate(gateway_canary_routed_total[1m])) by (version, reason)",
+        "legendFormat": "{{version}} · {{reason}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "type": "stat",
+      "title": "Actual v2 share (last 5m)",
+      "id": 31,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 61},
+      "targets": [{
+        "expr": "sum(rate(gateway_canary_routed_total{version=\"v2\"}[5m])) / sum(rate(gateway_canary_routed_total[5m]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.20},
+              {"color": "red", "value": 0.50}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "v1 vs v2 — p99 latency per canary route",
+      "id": 32,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 65},
+      "targets": [{
+        "expr": "histogram_quantile(0.99, sum(rate(spring_cloud_gateway_requests_seconds_bucket{route_id=~\"user-service-v.*\"}[5m])) by (le, route_id))",
+        "legendFormat": "{{route_id}} p99",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "v1 vs v2 — error rate per canary route",
+      "id": 33,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 69},
+      "targets": [{
+        "expr": "sum(rate(spring_cloud_gateway_requests_seconds_count{route_id=~\"user-service-v.*\",status=~\"5..\"}[5m])) by (route_id) / sum(rate(spring_cloud_gateway_requests_seconds_count{route_id=~\"user-service-v.*\"}[5m])) by (route_id)",
+        "legendFormat": "{{route_id}} 5xx rate",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}}
+    },
+
+    {
+      "type": "row",
+      "title": "JVM",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 78},
+      "id": 500,
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap used",
+      "id": 17,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 79},
+      "targets": [{
+        "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (id)",
+        "legendFormat": "{{id}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pause time",
+      "id": 18,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 79},
+      "targets": [{
+        "expr": "rate(jvm_gc_pause_seconds_sum[1m])",
+        "legendFormat": "{{action}} · {{cause}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "stat",
+      "title": "CPU %",
+      "id": 19,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 87},
+      "targets": [{
+        "expr": "process_cpu_usage",
+        "refId": "A"
+      }],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "decimals": 2}}
+    },
+    {
+      "type": "stat",
+      "title": "Live threads",
+      "id": 20,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 87},
+      "targets": [{
+        "expr": "jvm_threads_live_threads",
+        "refId": "A"
+      }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["api-gateway", "spring-boot"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "API Gateway — Overview",
+  "uid": "gateway-overview",
+  "version": 1,
+  "weekStart": ""
+}

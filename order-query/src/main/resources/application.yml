@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: order-query
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+
+server:
+  port: 8086
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+info:
+  app:
+    name: Order Query
+    description: CQRS read side — Elasticsearch read model fed by order.created event stream
+    port: ${server.port}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  elasticsearch:
+    uris: http://elasticsearch:9200
+  kafka:
+    bootstrap-servers: kafka:29092
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

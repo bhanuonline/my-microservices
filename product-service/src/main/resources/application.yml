@@ -1,11 +1,21 @@
 spring:
   application:
     name: product-service
-  cloud:
-    config:
-      enabled: false          # config-server not implemented yet
   config:
     import: "optional:configserver:"
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m
+      cache-null-values: true          # negative caching — prevents DB storm on repeated 404s
+      use-key-prefix: true
+      key-prefix: "product-service:"
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 1s
+      connect-timeout: 500ms
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/productdb?useSSL=false&allowPublicKeyRetrieval=true
     username: root
@@ -13,7 +23,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      # validate: Hibernate checks entity ↔ schema match on startup, never alters.
+      # Schema changes MUST go through Flyway migrations in db/migration/V<n>__*.sql
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -23,11 +35,69 @@ spring:
           batch_versioned_data: true
         order_inserts: true
         order_updates: true
+  flyway:
+    enabled: true
+    # Existing DB already has the V1 schema (created by prior ddl-auto=update runs).
+    # baseline-version=1 tells Flyway "treat current state as V1 already applied",
+    # so V1 is SKIPPED and only V2+ migrations run.
+    # For a brand-new empty DB, set baseline-version=0 (or remove this line) so V1
+    # runs against the empty schema.
+    baseline-on-migrate: true
+    baseline-version: 1
+    locations: classpath:db/migration
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
+      # OutboxRelay sends pre-serialized JSON strings → both serializers = StringSerializer.
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Transactional producer — OutboxRelay batches outbox rows atomically.
+      # Suffixed with HOSTNAME (pod name in K8s) so parallel instances don't
+      # fence each other out via shared transactional.id.
+      transaction-id-prefix: ${spring.application.name}-tx-${HOSTNAME:local}-
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+  cloud:
+    config:
+      enabled: false          # config-server not implemented yet
+    function:
+      definition: orderCreated
+    stream:
+      default:
+        consumer:
+          max-attempts: 3
+          back-off-initial-interval: 500
+          back-off-multiplier: 2.0
+          back-off-max-interval: 10000
+      kafka:
+        binder:
+          brokers: ${KAFKA_BROKERS:localhost:9092}
+          # Only read messages from committed Kafka transactions. Aborted or
+          # in-flight transactional messages (e.g. from a crashed OutboxRelay
+          # mid-batch) are skipped. Required to realize the transactional
+          # producer's "all-or-nothing" guarantee on the consumer side.
+          consumer-properties:
+            isolation.level: read_committed
+        default:
+          consumer:
+            enableDlq: true
+            autoCommitOnError: true
+            dlqPartitions: 1
+            # DLQ carries the raw failed payload (byte[]). Our top-level producer
+            # uses StringSerializer which can't serialize byte[] → DLQ send fails
+            # and the message is silently dropped. Override serializers here so
+            # DLQ writes succeed for deserialization failures.
+            dlqProducerProperties:
+              configuration:
+                key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+                value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      bindings:
+        orderCreated-in-0:
+          destination: order.created
+          group: product-service
+          content-type: application/json
   security:
     oauth2:
       resourceserver:
@@ -50,7 +120,22 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics,env,loggers
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env: { enabled: true }
+    build: { enabled: true }
+    git: { mode: full, enabled: true }
+    java: { enabled: true }
+    os: { enabled: true }
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0
@@ -58,12 +143,20 @@ management:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
 
+info:
+  app:
+    name: Product Service
+    description: Product catalog REST API
+    port: ${server.port:8091}
+
+product:
+  stock:
+    low-threshold: 5
+
 logging:
   level:
-    org.hibernate.SQL: DEBUG
-    com.example.productservice: DEBUG
-  pattern:
-    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+    org.hibernate.SQL: INFO
+    com.example.productservice: INFO
 
 ---
 spring:

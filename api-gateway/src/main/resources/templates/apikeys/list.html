@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('API Keys — Admin')}"></head>
+<body>
+<div th:replace="~{layout :: topbar('apikeys')}"></div>
+
+<main class="content">
+    <h1>API Keys</h1>
+
+    <div th:if="${!apiKeyEnabled}" class="flash warn">
+        API key feature is disabled. Set <code>gateway.apikey.enabled: true</code> and restart.
+    </div>
+
+    <div th:if="${rawKey and keyId}" class="flash warn">
+        <strong>Copy this key now — it will NOT be shown again.</strong><br/>
+        Key ID: <code th:text="${keyId}"></code><br/>
+        Raw key: <code class="mono" th:text="${rawKey}"></code>
+    </div>
+
+    <div th:if="${revoked}" class="flash success">
+        Revoked key <code th:text="${revoked}"></code>.
+    </div>
+    <div th:if="${error}" class="flash error" th:text="${error}"></div>
+
+    <p class="muted">
+        API keys authenticate machine-to-machine callers with header
+        <code>X-Api-Key: sk_live_...</code>. Raw keys are shown ONCE at creation
+        and stored as SHA-256 hashes in Redis — they cannot be retrieved later.
+    </p>
+
+    <h2>Create a new key</h2>
+    <div class="card">
+        <form method="post" th:action="@{/admin/ui/apikeys}">
+            <label>
+                Owner ID
+                <input type="text" name="ownerId" required placeholder="partner-corp"/>
+            </label>
+            <label>
+                Name
+                <input type="text" name="name" required placeholder="Prod API key"/>
+            </label>
+            <label>
+                Scopes (comma-separated)
+                <input type="text" name="scopes" value="read,write"/>
+            </label>
+            <label>
+                Rate-limit tier
+                <input type="text" name="tier" value="standard"/>
+            </label>
+            <button type="submit" th:disabled="${!apiKeyEnabled}">Create key</button>
+        </form>
+    </div>
+
+    <h2>Revoke a key</h2>
+    <div class="card">
+        <p class="muted small">Enter the key ID (like <code>key_9f2a...</code>) returned at creation time.</p>
+        <form method="post" th:action="@{/admin/ui/apikeys/revoke}"
+              style="display:flex; gap:8px; align-items:center;">
+            <input type="text" name="keyId" required placeholder="key_..." style="flex:1;"/>
+            <button type="submit" class="danger" th:disabled="${!apiKeyEnabled}">Revoke</button>
+        </form>
+    </div>
+</main>
+</body>
+</html>

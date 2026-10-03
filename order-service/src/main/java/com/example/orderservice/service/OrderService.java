@@ -1,44 +1,57 @@
 package com.example.orderservice.service;
 
+import com.example.common.event.OrderCreatedEvent;
 import com.example.orderservice.model.Order;
+import com.example.orderservice.outbox.OutboxWriter;
 import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.saga.OrderSagaOrchestrator;
+import io.micrometer.tracing.annotation.NewSpan;
+import io.micrometer.tracing.annotation.SpanTag;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
- * NOTE ON PATTERN CHANGE:
- * Previously this class published an OrderCreatedEvent (choreography style).
- * Now it delegates to the saga orchestrator (orchestration style).
+ * Creates orders and triggers two things atomically with the DB write:
+ *   1) outbox row for `order.created` → relayed to Kafka → consumed by
+ *      product-service (stock), analytics, etc.
+ *   2) saga orchestrator kickoff → drives payment → notify → completion.
  *
- * The old choreography wiring (OrderEventPublisher, PaymentEventHandler,
- * PaymentEventProcessor) is left in place — it still runs in parallel.
- * In a real refactor you'd pick one and delete the other.
+ * The outbox write and the Order insert share one @Transactional, so there is
+ * no dual-write risk: if the tx rolls back, no event is leaked.
  */
 @Service
 public class OrderService {
 
     private static final BigDecimal UNIT_PRICE = new BigDecimal("9.99");
+    private static final String TOPIC_ORDER_CREATED = "order.created";
 
     private final OrderRepository orderRepo;
     private final OrderSagaOrchestrator saga;
+    private final OutboxWriter outboxWriter;
 
-    public OrderService(OrderRepository orderRepo, OrderSagaOrchestrator saga) {
+    public OrderService(OrderRepository orderRepo, OrderSagaOrchestrator saga, OutboxWriter outboxWriter) {
         this.orderRepo = orderRepo;
         this.saga = saga;
+        this.outboxWriter = outboxWriter;
     }
 
+    @NewSpan("order.create")
     @Transactional
-    public Order create(Long productId, Integer quantity) {
+    public Order create(@SpanTag("order.productId") Long productId,
+                        @SpanTag("order.quantity") Integer quantity) {
         String orderId = UUID.randomUUID().toString();
         BigDecimal amount = UNIT_PRICE.multiply(BigDecimal.valueOf(quantity));
 
         Order order = orderRepo.save(new Order(orderId, productId, quantity, amount));
 
-        // Kick off the saga. It will drive payment → notify → completion.
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                UUID.randomUUID(), orderId, productId, quantity, amount, Instant.now());
+        outboxWriter.write("order", TOPIC_ORDER_CREATED, event);
+
         saga.start(orderId, amount);
 
         return order;

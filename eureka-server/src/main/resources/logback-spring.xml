@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Eureka doesn't depend on common-lib (avoid pulling all its transitive deps
+  into a control-plane service). Ships its own minimal JSON logback config.
+
+  Two profiles:
+    default → JSON via LogstashEncoder
+    local   → human-readable text
+-->
+<configuration>
+    <springProperty name="appName" source="spring.application.name" defaultValue="eureka-server"/>
+
+    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <customFields>{"service":"${appName}"}</customFields>
+            <timeZone>UTC</timeZone>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <message>message</message>
+                <logger>logger_name</logger>
+                <thread>thread_name</thread>
+                <levelValue>level_value</levelValue>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [${appName}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!local">
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Eureka is chatty at INFO; dial down its self-registration polling logs. -->
+    <logger name="com.netflix.discovery" level="WARN"/>
+    <logger name="com.netflix.eureka.registry" level="WARN"/>
+</configuration>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — User Form</title>
+  <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}">
+</head>
+<body>
+
+<div th:replace="~{admin/layout :: nav}"></div>
+
+<main class="container my-4">
+  <h1 class="h3 mb-4"
+      th:text="${mode == 'edit'} ? 'Edit User' : 'New User'">User</h1>
+
+  <form th:action="${mode == 'edit'}
+                   ? @{|/admin/users/${form.id}|}
+                   : @{/admin/users}"
+        th:object="${form}" method="post" class="row g-3">
+
+    <div class="col-md-6">
+      <label class="form-label">Username</label>
+      <input type="text" class="form-control" th:field="*{username}" required>
+      <div class="text-danger small" th:errors="*{username}"></div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" th:field="*{email}">
+      <div class="text-danger small" th:errors="*{email}"></div>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-control" th:field="*{password}"
+             th:placeholder="${mode == 'edit'} ? 'Leave blank to keep existing' : 'Plaintext — hashed before storage'">
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Roles</label>
+      <div th:each="r : ${allRoles}" class="form-check">
+        <input class="form-check-input" type="checkbox"
+               th:id="'role-' + ${r}"
+               name="roles"
+               th:value="${r}"
+               th:checked="${form.roles.contains(r)}">
+        <label class="form-check-label" th:for="'role-' + ${r}" th:text="${r}"></label>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               id="enabled" th:field="*{enabled}">
+        <label class="form-check-label" for="enabled">Enabled</label>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <a th:href="@{/admin/users}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</main>
+
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

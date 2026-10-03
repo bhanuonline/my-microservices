@@ -1,17 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <springProperty name="appName" source="spring.application.name"/>
+<!--
+  Logback config for the api-gateway.
 
+  Two profiles:
+    default → JSON (Logstash encoder) — ready for ELK / Datadog / CloudWatch
+    local   → human-readable text (activate with -Dspring.profiles.active=local)
+
+  MDC keys included in JSON output:
+    traceId       - Zipkin/W3C trace id, set by Micrometer Tracing
+    spanId        - current span within the trace
+    correlationId - our own X-Correlation-Id, set by CorrelationIdWebFilter
+
+  All three are propagated via Reactor Context automatically (Micrometer
+  Context Propagation bridge). See CorrelationIdWebFilter for why we don't
+  do MDC.put() in doOnEach().
+-->
+<configuration>
+
+    <springProperty name="appName" source="spring.application.name" defaultValue="api-gateway"/>
+
+    <!-- JSON appender — default (prod-shaped) -->
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <includeMdcKeyName>traceId</includeMdcKeyName>
             <includeMdcKeyName>spanId</includeMdcKeyName>
             <includeMdcKeyName>correlationId</includeMdcKeyName>
             <customFields>{"service":"${appName}"}</customFields>
+            <timeZone>UTC</timeZone>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>@version</version>
+                <message>message</message>
+                <logger>logger_name</logger>
+                <thread>thread_name</thread>
+                <levelValue>level_value</levelValue>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
         </encoder>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="JSON"/>
-    </root>
+    <!-- Human-readable text appender — for local dev with `-Dspring.profiles.active=local` -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%X{traceId:-},%X{spanId:-},%X{correlationId:-}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!local">
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Framework noise tuning — same across all profiles. -->
+    <logger name="org.springframework.cloud.gateway" level="INFO"/>
+    <logger name="reactor.netty.http.client" level="INFO"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="io.r2dbc" level="INFO"/>
+    <logger name="org.springframework.web.reactive" level="INFO"/>
+
 </configuration>

@@ -1,0 +1,36 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    uid: prometheus
+
+  - name: Zipkin
+    type: zipkin
+    access: proxy
+    url: http://zipkin:9411
+    uid: zipkin
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterBySpanID: false
+        filterByTraceID: true
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    uid: loki
+    jsonData:
+      derivedFields:
+        # Click the traceId in any log line → opens trace in Zipkin datasource.
+        - name: TraceID
+          matcherRegex: '"traceId":"(\w+)"'
+          url: '${__value.raw}'
+          datasourceUid: zipkin
+          urlDisplayLabel: 'View Trace in Zipkin'

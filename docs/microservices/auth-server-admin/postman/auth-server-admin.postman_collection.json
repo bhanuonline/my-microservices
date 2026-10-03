@@ -1,0 +1,551 @@
+{
+  "info": {
+    "_postman_id": "b3f4a1c0-1111-4222-8333-444455556666",
+    "name": "auth-server admin (jdbc profile)",
+    "description": "Covers the auth-server built in docs/microservices/auth-server-admin/.\n\nGroups:\n  1. Discovery      — /.well-known + JWKS (no auth)\n  2. OAuth2 tokens  — client_credentials + refresh flows (Basic auth)\n  3. Admin login    — session-cookie flow that unlocks /admin/**\n  4. Admin CRUD     — clients + users, uses the session cookie + CSRF from step 3\n\nDefaults:\n  base_url         http://localhost:8095\n  admin_user       admin\n  admin_pass       password\n  m2m_client_id    m2m-client\n  m2m_client_sec   m2m-secret\n  demo_client_id   demo-client\n  demo_client_sec  secret\n\nAll admin CRUD requests read the CSRF token + session cookie the\n`Admin — Login (session bootstrap)` request captures. Run that\nrequest FIRST after every server restart.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Discovery",
+      "item": [
+        {
+          "name": "GET /.well-known/openid-configuration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/openid-configuration",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            },
+            "description": "OIDC discovery document. Public — no auth needed.\nResource-servers read this to find the JWKS URL, token endpoint, etc."
+          }
+        },
+        {
+          "name": "GET /oauth2/jwks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth2/jwks",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "jwks"]
+            },
+            "description": "Public keys used to verify JWT signatures.\nOn jdbc profile the `kid` here matches the row in `signing_key` and stays stable across restarts."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. OAuth2 tokens",
+      "item": [
+        {
+          "name": "POST /oauth2/token (client_credentials, m2m-client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.access_token) {",
+                  "  pm.collectionVariables.set('access_token', body.access_token);",
+                  "  console.log('Saved access_token to collection variable.');",
+                  "}",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has access_token', () => pm.expect(body).to.have.property('access_token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "read", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "token"]
+            },
+            "description": "Machine-to-machine flow. No user involved.\n\nAuth header:  Basic base64(m2m-client:m2m-secret)\nBody:         grant_type=client_credentials&scope=read\n\nTest script saves `access_token` as a collection variable — used by the \"Introspect\" and \"Revoke\" requests."
+          }
+        },
+        {
+          "name": "POST /oauth2/introspect (verify token)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{access_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/introspect",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "introspect"]
+            },
+            "description": "RFC 7662 token introspection. Returns { active: true, sub, scope, exp, ... } for a valid token, or { active: false } for expired/unknown ones."
+          }
+        },
+        {
+          "name": "POST /oauth2/revoke (invalidate token)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{m2m_client_id}}", "type": "string" },
+                { "key": "password", "value": "{{m2m_client_sec}}", "type": "string" }
+              ]
+            },
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{access_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth2/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "revoke"]
+            },
+            "description": "Deletes the token row from oauth2_authorization. After this, introspect returns { active: false } and any resource-server call using this token will fail."
+          }
+        },
+        {
+          "name": "GET /oauth2/authorize (browser flow — demo-client)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth2/authorize?response_type=code&client_id={{demo_client_id}}&redirect_uri=http://127.0.0.1:8097/login/oauth2/code/demo-client&scope=openid%20profile%20read&state=xyz",
+              "host": ["{{base_url}}"],
+              "path": ["oauth2", "authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{demo_client_id}}" },
+                { "key": "redirect_uri", "value": "http://127.0.0.1:8097/login/oauth2/code/demo-client" },
+                { "key": "scope", "value": "openid profile read" },
+                { "key": "state", "value": "xyz" }
+              ]
+            },
+            "description": "Authorization Code start URL. Copy this into a real BROWSER — not Postman.\nYou'll be redirected to /login, then back to the demo-client redirect URI with ?code=...\n\nExchange that code with POST /oauth2/token (grant_type=authorization_code)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Admin login (session bootstrap)",
+      "item": [
+        {
+          "name": "Step 1 — GET /login (capture CSRF token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Extract the CSRF token that Spring embedded in the login form.",
+                  "const html = pm.response.text();",
+                  "const m = html.match(/name=\"_csrf\"[^>]*value=\"([^\"]+)\"/);",
+                  "if (m) {",
+                  "  pm.collectionVariables.set('csrf_token', m[1]);",
+                  "  console.log('CSRF token captured (length ' + m[1].length + ')');",
+                  "} else {",
+                  "  throw new Error('CSRF token not found in /login response — did Spring render a login form?');",
+                  "}",
+                  "pm.test('login page rendered', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Fetch the default Spring login form. The test script scrapes the CSRF token from the HTML and stores it as {{csrf_token}}. Also sets a JSESSIONID cookie via Postman's cookie jar."
+          }
+        },
+        {
+          "name": "Step 2 — POST /login (submit credentials, get session)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Spring redirects to / on success (302), which then redirects to /admin.",
+                  "pm.test('302 redirect after login', () => pm.expect(pm.response.code).to.equal(302));",
+                  "pm.test('not redirected back to /login (that would mean auth failed)', () => {",
+                  "  const loc = pm.response.headers.get('Location') || '';",
+                  "  pm.expect(loc).to.not.match(/\\/login\\?error/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "{{admin_user}}", "type": "text" },
+                { "key": "password", "value": "{{admin_pass}}", "type": "text" },
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Log in as admin. After this, Postman's cookie jar holds a valid JSESSIONID.\n\nIMPORTANT: enable 'Automatically follow redirects: OFF' in Postman settings for this request, otherwise the redirect chain (/ → /admin) also gets followed and eats extra CSRF tokens."
+          }
+        },
+        {
+          "name": "Step 3 — GET /admin (verify session works, refresh CSRF)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Refresh the CSRF token — Spring rotates it after login.",
+                  "const html = pm.response.text();",
+                  "const m = html.match(/name=\"_csrf\"[^>]*value=\"([^\"]+)\"/);",
+                  "if (m) {",
+                  "  pm.collectionVariables.set('csrf_token', m[1]);",
+                  "  console.log('CSRF token refreshed post-login.');",
+                  "}",
+                  "pm.test('200 admin dashboard', () => pm.response.to.have.status(200));",
+                  "pm.test('body contains navbar', () => pm.expect(pm.response.text()).to.include('Auth Server Admin'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin",
+              "host": ["{{base_url}}"],
+              "path": ["admin"]
+            },
+            "description": "Sanity check + capture the post-login CSRF token (Spring rotates it). All admin POST requests below use this refreshed token."
+          }
+        },
+        {
+          "name": "Step 4 — POST /logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            },
+            "description": "Ends the session. After this the JSESSIONID cookie is invalidated and admin requests will 302 back to /login."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin CRUD — clients",
+      "item": [
+        {
+          "name": "GET /admin/clients (list — HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "clients"]
+            },
+            "description": "Returns the list template rendered as HTML. Not JSON. Meant to be clicked in the browser — this request just proves the endpoint is reachable with the session cookie."
+          }
+        },
+        {
+          "name": "POST /admin/clients (create)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('303 redirect to list', () => {",
+                  "  const code = pm.response.code;",
+                  "  pm.expect(code === 302 || code === 303).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "clientId", "value": "postman-created-client", "type": "text" },
+                { "key": "clientName", "value": "Created via Postman", "type": "text" },
+                { "key": "clientSecret", "value": "postman-secret", "type": "text" },
+                { "key": "scopesCsv", "value": "openid,read,write", "type": "text" },
+                { "key": "authMethods", "value": "client_secret_basic", "type": "text" },
+                { "key": "grantTypes", "value": "client_credentials", "type": "text" },
+                { "key": "redirectUris", "value": "", "type": "text" },
+                { "key": "postLogoutRedirectUris", "value": "", "type": "text" },
+                { "key": "requireProofKey", "value": "false", "type": "text" },
+                { "key": "requireAuthConsent", "value": "false", "type": "text" },
+                { "key": "accessTokenTtlMin", "value": "5", "type": "text" },
+                { "key": "refreshTokenTtlMin", "value": "60", "type": "text" },
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/clients",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "clients"]
+            },
+            "description": "Create a new OAuth client with these fields:\n  clientId = postman-created-client\n  secret   = postman-secret\n  scopes   = openid, read, write\n  grants   = client_credentials\n\nAfter this succeeds, you can immediately hit /oauth2/token with Basic postman-created-client:postman-secret to get a token."
+          }
+        },
+        {
+          "name": "GET /admin/clients/{id}/edit (open edit form)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/clients/demo-client-uuid-0000000000000001/edit",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "clients", "demo-client-uuid-0000000000000001", "edit"]
+            },
+            "description": "Load the edit form for the seeded demo-client. Replace the path segment with any real id from the list.\n\nNote: seeded UUIDs come from V6__seed.sql — demo-client-uuid-0000000000000001 and m2m-client-uuid-00000000000000002."
+          }
+        },
+        {
+          "name": "POST /admin/clients/{id} (update — blank secret keeps existing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "clientId", "value": "postman-created-client", "type": "text" },
+                { "key": "clientName", "value": "Updated by Postman", "type": "text" },
+                { "key": "clientSecret", "value": "", "type": "text", "description": "Blank = keep existing BCrypt hash" },
+                { "key": "scopesCsv", "value": "openid,read", "type": "text" },
+                { "key": "authMethods", "value": "client_secret_basic", "type": "text" },
+                { "key": "grantTypes", "value": "client_credentials", "type": "text" },
+                { "key": "redirectUris", "value": "", "type": "text" },
+                { "key": "postLogoutRedirectUris", "value": "", "type": "text" },
+                { "key": "requireProofKey", "value": "false", "type": "text" },
+                { "key": "requireAuthConsent", "value": "false", "type": "text" },
+                { "key": "accessTokenTtlMin", "value": "10", "type": "text" },
+                { "key": "refreshTokenTtlMin", "value": "120", "type": "text" },
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/clients/REPLACE_WITH_CLIENT_ID",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "clients", "REPLACE_WITH_CLIENT_ID"]
+            },
+            "description": "Update a client. REPLACE the URL segment REPLACE_WITH_CLIENT_ID with the id returned from the list (e.g. a random UUID from the create request, or 'demo-client-uuid-0000000000000001')."
+          }
+        },
+        {
+          "name": "POST /admin/clients/{id}/delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/clients/REPLACE_WITH_CLIENT_ID/delete",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "clients", "REPLACE_WITH_CLIENT_ID", "delete"]
+            },
+            "description": "Hard-delete a client from oauth2_registered_client. Any active tokens issued for it stay in oauth2_authorization but become unusable (introspection fails to find the client)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Admin CRUD — users",
+      "item": [
+        {
+          "name": "GET /admin/users (list — HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users"]
+            },
+            "description": "Lists rows from app_user (JPA repo). Rendered as HTML."
+          }
+        },
+        {
+          "name": "POST /admin/users (create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "postman-user", "type": "text" },
+                { "key": "email", "value": "postman-user@local", "type": "text" },
+                { "key": "password", "value": "test1234", "type": "text" },
+                { "key": "roles", "value": "USER", "type": "text" },
+                { "key": "enabled", "value": "true", "type": "text" },
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users"]
+            },
+            "description": "Create a new app user with role USER. Password stored as {bcrypt}$2a$10$...\nAfter creating, try logging in as postman-user / test1234 — should get 403 on /admin (not ADMIN role) but authentication itself succeeds."
+          }
+        },
+        {
+          "name": "POST /admin/users/{id} (update — blank pw keeps existing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "postman-user", "type": "text" },
+                { "key": "email", "value": "postman-user@updated.local", "type": "text" },
+                { "key": "password", "value": "", "type": "text", "description": "Blank keeps existing BCrypt hash" },
+                { "key": "roles", "value": "USER", "type": "text" },
+                { "key": "roles", "value": "ADMIN", "type": "text" },
+                { "key": "enabled", "value": "true", "type": "text" },
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/users/REPLACE_WITH_USER_ID",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "REPLACE_WITH_USER_ID"]
+            },
+            "description": "Update a user. Replace REPLACE_WITH_USER_ID with numeric id from the list.\n\nThe two `roles` params show multi-value binding: user ends up with both USER and ADMIN."
+          }
+        },
+        {
+          "name": "POST /admin/users/{id}/delete",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_csrf", "value": "{{csrf_token}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/users/REPLACE_WITH_USER_ID/delete",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users", "REPLACE_WITH_USER_ID", "delete"]
+            },
+            "description": "Delete a user. FK ON DELETE CASCADE cleans up their rows in app_user_role."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Actuator",
+      "item": [
+        {
+          "name": "GET /actuator/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            },
+            "description": "Public — no auth. Returns UP/DOWN plus DB/disk components if the mgmt endpoints expose details."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8095" },
+    { "key": "admin_user", "value": "admin" },
+    { "key": "admin_pass", "value": "password" },
+    { "key": "m2m_client_id", "value": "m2m-client" },
+    { "key": "m2m_client_sec", "value": "m2m-secret" },
+    { "key": "demo_client_id", "value": "demo-client" },
+    { "key": "demo_client_sec", "value": "secret" },
+    { "key": "csrf_token", "value": "" },
+    { "key": "access_token", "value": "" }
+  ]
+}

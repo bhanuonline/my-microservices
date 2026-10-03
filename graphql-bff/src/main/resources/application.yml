@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: graphql-bff
+  graphql:
+    graphiql:
+      enabled: true     # http://localhost:8087/graphiql — disable in prod
+    schema:
+      printer:
+        enabled: true
+
+server:
+  port: 8087
+
+bff:
+  backends:
+    order:
+      url: ${ORDER_URL:http://localhost:8083}
+    product:
+      url: ${PRODUCT_URL:http://localhost:8082}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+bff:
+  backends:
+    order:
+      url: http://order-service:8083
+    product:
+      url: http://product-service:8082
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

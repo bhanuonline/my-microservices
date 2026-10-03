@@ -1,0 +1,24 @@
+{
+  "properties": {
+    "name": {
+      "type": "text",
+      "fields": {
+        "keyword": { "type": "keyword", "ignore_above": 256 },
+        "autocomplete": {
+          "type": "text",
+          "analyzer": "autocomplete",
+          "search_analyzer": "autocomplete_search"
+        }
+      }
+    },
+    "suggest":     { "type": "completion", "max_input_length": 100 },
+    "description": { "type": "text" },
+    "price":       { "type": "double" },
+    "stock":       { "type": "integer" },
+    "sku":         { "type": "keyword" },
+    "category":    { "type": "keyword" },
+    "brand":       { "type": "keyword" },
+    "deleted":     { "type": "boolean" },
+    "updatedAt":   { "type": "date", "format": "date_time" }
+  }
+}

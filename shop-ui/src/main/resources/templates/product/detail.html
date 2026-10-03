@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title th:text="${product.name}">product</title></head>
+<body>
+<div layout:fragment="content">
+
+    <nav aria-label="breadcrumb" class="small">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">Home</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/products}">Products</a></li>
+            <li class="breadcrumb-item active" aria-current="page"
+                th:text="${product.name}">name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <div class="col-md-5">
+            <img class="img-fluid rounded shadow-sm bg-white p-3"
+                 src="https://placehold.co/600x600?text=Product"
+                 th:alt="${product.name}"/>
+        </div>
+        <div class="col-md-7">
+            <h1 class="h3" th:text="${product.name}">name</h1>
+            <p class="text-muted"
+               th:text="|${product.brand} · ${product.category}|">brand · cat</p>
+
+            <p class="display-6 fw-bold"
+               th:text="|$${#numbers.formatDecimal(product.price, 1, 2)}|">$0.00</p>
+
+            <p th:text="${product.description}">description</p>
+
+            <p class="mb-3">
+                <span th:if="${product.inStock()}" class="badge bg-success"
+                      th:text="|${product.stock} in stock|">in stock</span>
+                <span th:unless="${product.inStock()}" class="badge bg-secondary">
+                    Out of stock
+                </span>
+            </p>
+
+            <!--
+              HTMX add-to-cart. Swaps just the cart badge in the navbar on success.
+              hx-target picks the badge element by selector.
+            -->
+            <form th:action="@{/cart/add}" method="post" class="d-flex align-items-center">
+                <input type="hidden" name="productId" th:value="${product.id}"/>
+                <input type="number" name="qty" value="1" min="1" max="99"
+                       class="form-control form-control-sm me-2" style="width:5rem"/>
+                <button type="submit"
+                        class="btn btn-primary"
+                        th:disabled="${!product.inStock()}">
+                    Add to cart
+                </button>
+                <a th:href="@{/cart}" class="btn btn-outline-secondary ms-2">View cart</a>
+            </form>
+
+            <hr/>
+            <details>
+                <summary class="text-muted small">Nerdy details</summary>
+                <ul class="small text-muted">
+                    <li>PDP fetches via <code>product-service</code> through the gateway.
+                        First call hits MySQL; refresh twice to see the Redis cache hit
+                        in <code>product-service</code> logs.</li>
+                    <li>Add-to-cart uses an HTMX POST — browser session holds the cart,
+                        no DB write.</li>
+                </ul>
+            </details>
+        </div>
+    </div>
+</div>
+</body>
+</html>

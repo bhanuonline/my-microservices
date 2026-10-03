@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Not found</title></head>
+<body>
+<div layout:fragment="content">
+    <div class="alert alert-warning">
+        Product <strong th:text="${missingId}">?</strong> doesn't exist in the catalog.
+    </div>
+    <a th:href="@{/products}" class="btn btn-primary">Back to products</a>
+</div>
+</body>
+</html>

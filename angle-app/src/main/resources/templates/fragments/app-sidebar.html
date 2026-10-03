@@ -77,6 +77,28 @@
             </svg>
             <span>News Calendar</span>
         </a>
+        <a th:href="@{/briefing}"         th:classappend="${active == 'briefing'}    ? 'active' : ''" data-nav="briefing">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <span>Pre-Market Briefing</span>
+        </a>
+        <a th:href="@{/news}"             th:classappend="${active == 'newsfeed'}    ? 'active' : ''" data-nav="newsfeed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2"/>
+                <path d="M18 14h-8m0 4h3M18 6h-8"/>
+            </svg>
+            <span>News Feed</span>
+        </a>
+        <a th:href="@{/markets}"          th:classappend="${active == 'markets'}     ? 'active' : ''" data-nav="markets">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 010 20"/><path d="M12 2a15 15 0 000 20"/>
+            </svg>
+            <span>Global Markets</span>
+        </a>
         <a th:href="@{/admin/backtest}"   th:classappend="${active == 'backtest'}    ? 'active' : ''" data-nav="backtest">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 3v18h18"/><path d="M7 17l3-6 4 4 4-8"/>

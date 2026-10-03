@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Audit log — Admin')}"></head>
+<body>
+<div th:replace="~{layout :: topbar('audit')}"></div>
+
+<main class="content">
+    <h1>Audit log</h1>
+
+    <div class="actions">
+        <form method="get" th:action="@{/admin/ui/audit}" style="display:flex; gap:8px; align-items:center;">
+            <input type="text" name="routeId" th:value="${routeId}"
+                   placeholder="Filter by route id (blank = all recent)"
+                   style="width:340px;"/>
+            <button type="submit" class="secondary">Apply</button>
+            <a class="btn secondary" th:href="@{/admin/ui/audit}">Clear</a>
+        </form>
+    </div>
+
+    <div th:if="${#lists.isEmpty(entries)}" class="empty">
+        No audit entries yet.
+    </div>
+
+    <table class="grid" th:if="${not #lists.isEmpty(entries)}">
+        <thead>
+        <tr>
+            <th>Time</th>
+            <th>Route</th>
+            <th>Action</th>
+            <th>Actor</th>
+            <th>Outcome</th>
+            <th>Reason</th>
+            <th>Correlation</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="e : ${entries}">
+            <td class="mono" th:text="${e.createdAt}">2026-01-01T10:00:00</td>
+            <td><code th:text="${e.routeId}"></code></td>
+            <td>
+                <span th:classappend="'badge action-' + ${#strings.toLowerCase(e.action)}"
+                      th:text="${e.action}">CREATE</span>
+            </td>
+            <td>
+                <span th:text="${e.actor ?: '-'}">admin</span>
+                <span class="muted small">(<span th:text="${e.actorType ?: '-'}"></span>)</span>
+            </td>
+            <td>
+                <span th:classappend="'badge outcome-' + ${#strings.toLowerCase(e.outcome)}"
+                      th:text="${e.outcome}">SUCCESS</span>
+            </td>
+            <td th:text="${e.reason ?: ''}"></td>
+            <td class="mono small" th:text="${e.correlationId ?: ''}"></td>
+        </tr>
+        </tbody>
+    </table>
+</main>
+</body>
+</html>

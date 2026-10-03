@@ -19,6 +19,12 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
+		<!-- Servlet WebSocket (bundles Jakarta WebSocket API + Tomcat native impl) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
 		<!-- Bean Validation (@Valid, @NotNull, @Email) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -87,7 +93,10 @@
 			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 
-		<!-- Distributed tracing -->
+		<!-- Distributed tracing + JSON logs — now provided transitively by
+		     common-lib (spring-boot-starter-actuator, micrometer-tracing-bridge-brave,
+		     zipkin-reporter-brave, micrometer-registry-prometheus, logstash-logback-encoder).
+		     Kept below as explicit deps for readability; safe to remove after verifying. -->
 		<dependency>
 			<groupId>io.micrometer</groupId>
 			<artifactId>micrometer-tracing-bridge-brave</artifactId>
@@ -102,6 +111,20 @@
 			<version>7.4</version>
 		</dependency>
 	</dependencies>
+
+	<!-- Plugin executions + config inherited from parent pom pluginManagement. -->
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>io.github.git-commit-id</groupId>
+				<artifactId>git-commit-id-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
 
 	<profiles>
 		<profile>

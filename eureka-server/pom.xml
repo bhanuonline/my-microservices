@@ -44,6 +44,23 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
+
+        <!-- Structured JSON logs (Logstash encoder). Eureka intentionally does
+             NOT get micrometer-tracing — it's a control-plane service and its
+             own registry-query traffic would flood Zipkin. Keep it simple: JSON
+             logs + build-info. -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
+        <!-- Prometheus registry (JVM + Eureka metrics scraped by the same
+             prometheus.yml as everything else). -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -58,11 +75,16 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- Plugin executions + config inherited from parent pom pluginManagement. -->
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

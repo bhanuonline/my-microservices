@@ -60,7 +60,26 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,refresh,env,configprops,loggers   # refresh=@RefreshScope reload; loggers=runtime log level change
+        include: health,info,refresh,env,configprops,loggers,prometheus,metrics,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+  # /actuator/info population — build/git from Maven plugins, java/os built-in
+  info:
+    env: { enabled: true }
+    build: { enabled: true }
+    git: { mode: full, enabled: true }
+    java: { enabled: true }
+    os: { enabled: true }
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0
@@ -68,11 +87,55 @@ management:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
 
+info:
+  app:
+    name: User Service
+    description: User management REST API
+    port: ${server.port:8090}
+
 logging:
   level:
-    org.hibernate.SQL: DEBUG
-  pattern:
-    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+    org.hibernate.SQL: INFO   # DEBUG only in local profile; overridden in logback-spring.xml if desired
+
+# Resilience4j — protects user-service's call out to product-service.
+# Tune to your SLO. These values favour fast fail-open over slow retries so
+# user-facing latency stays bounded when product-service is degraded.
+resilience4j:
+  circuitbreaker:
+    instances:
+      productClient:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50          # open after 50% of 20 calls fail
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 30s    # cool down before HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      productClient:
+        max-attempts: 3
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # Retry ONLY transient infra errors. Never retry 4xx — those are business errors.
+        retry-exceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+  bulkhead:
+    instances:
+      productClient:
+        max-concurrent-calls: 20
+        max-wait-duration: 50ms
+  timelimiter:
+    instances:
+      productClient:
+        timeout-duration: 3s
+        cancel-running-future: true
 
 ---
 # Profile: docker — overrides for running fully inside docker

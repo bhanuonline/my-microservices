@@ -7,6 +7,7 @@ import com.example.common.saga.PaymentReply;
 import com.example.common.saga.RefundCommand;
 import com.example.orderservice.model.Order;
 import com.example.orderservice.repository.OrderRepository;
+import com.example.orderservice.saga.admin.SagaRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
@@ -38,13 +39,16 @@ public class OrderSagaOrchestrator {
     private final OrderSagaRepository sagaRepo;
     private final OrderRepository orderRepo;
     private final StreamBridge streamBridge;
+    private final SagaRecorder recorder;
 
     public OrderSagaOrchestrator(OrderSagaRepository sagaRepo,
                                  OrderRepository orderRepo,
-                                 StreamBridge streamBridge) {
+                                 StreamBridge streamBridge,
+                                 SagaRecorder recorder) {
         this.sagaRepo = sagaRepo;
         this.orderRepo = orderRepo;
         this.streamBridge = streamBridge;
+        this.recorder = recorder;
     }
 
     /** Kicks off the saga. Called from OrderService.create right after the Order row is saved. */
@@ -54,8 +58,9 @@ public class OrderSagaOrchestrator {
         log.info("Saga {} STARTED for orderId={}", saga.getId(), orderId);
 
         // First command: try to charge payment.
-        streamBridge.send(PAYMENT_COMMANDS,
-                new PaymentCommand(saga.getId(), orderId, amount));
+        PaymentCommand cmd = new PaymentCommand(saga.getId(), orderId, amount);
+        streamBridge.send(PAYMENT_COMMANDS, cmd);
+        recorder.recordCommand(saga.getId(), "payment.charge", cmd);
     }
 
     /** Called by consumer when payment-service replies. */
@@ -72,13 +77,15 @@ public class OrderSagaOrchestrator {
             return;
         }
 
+        recorder.recordReply(saga.getId(), "payment.charge", reply.success(), reply, reply.failureReason());
         if (reply.success()) {
             saga.markPaid(reply.paymentId());
             log.info("Saga {} → PAID, sending notify command", saga.getId());
 
-            streamBridge.send(NOTIFY_COMMANDS,
-                    new NotifyUserCommand(saga.getId(), saga.getOrderId(),
-                            "Your order " + saga.getOrderId() + " has been paid."));
+            NotifyUserCommand notify = new NotifyUserCommand(saga.getId(), saga.getOrderId(),
+                    "Your order " + saga.getOrderId() + " has been paid.");
+            streamBridge.send(NOTIFY_COMMANDS, notify);
+            recorder.recordCommand(saga.getId(), "notify.user", notify);
         } else {
             // Nothing to compensate — payment was the first step. Just fail.
             saga.markFailed("payment_failed: " + reply.failureReason());
@@ -101,6 +108,7 @@ public class OrderSagaOrchestrator {
             return;
         }
 
+        recorder.recordReply(saga.getId(), "notify.user", reply.success(), reply, reply.failureReason());
         if (reply.success()) {
             saga.markNotified();
             markOrderPaid(saga.getOrderId());
@@ -110,9 +118,10 @@ public class OrderSagaOrchestrator {
             saga.beginCompensation("notify_failed: " + reply.failureReason());
             log.warn("Saga {} → COMPENSATING, sending refund command", saga.getId());
 
-            streamBridge.send(REFUND_COMMANDS,
-                    new RefundCommand(saga.getId(), saga.getOrderId(),
-                            saga.getPaymentId(), reply.failureReason()));
+            RefundCommand refund = new RefundCommand(saga.getId(), saga.getOrderId(),
+                    saga.getPaymentId(), reply.failureReason());
+            streamBridge.send(REFUND_COMMANDS, refund);
+            recorder.recordCompensation(saga.getId(), "payment.refund", refund, reply.failureReason());
 
             // Mark order cancelled now — the refund fires and forgets.
             // In real prod, wait for RefundReply before marking terminal.

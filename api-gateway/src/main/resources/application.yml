@@ -1,39 +1,184 @@
+# Custom info exposed at /actuator/info under the "app" key.
+# Everything under `info.*` (top-level) is picked up by InfoContributor env
+# via `management.info.env.enabled: true` below.
+info:
+  app:
+    name: API Gateway
+    description: Production-shaped Spring Cloud Gateway with resilience, admin, and observability
+    encoding: UTF-8
+    java-version: '@java.version@'
+  contact:
+    team: platform-eng
+    docs: docs/microservices/api-gateway/README.md
+
 spring:
   application:
     name: api-gateway
   main:
     web-application-type: reactive     # gateway is reactive-only
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  # R2DBC + H2 (file mode) — persistent dynamic routes across restarts
+  r2dbc:
+    url: r2dbc:h2:file:///./data/gateway-routes;DB_CLOSE_DELAY=-1;MODE=LEGACY
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
   cloud:
     gateway:
       discovery:
         locator:
-          enabled: true                 # auto-create routes for every eureka service
+          enabled: false                # OFF — we own explicit routes; avoids duplicate route ids
           lower-case-service-id: true
+      httpclient:
+        connect-timeout: 1000           # ms (Reactor Netty client to downstream)
+        response-timeout: 5s            # per-request budget (bounds total wait incl. retries)
       default-filters:
         - TokenRelay                    # forward JWT to downstream services
       routes:
-        # Routes forward /api/v1/... as-is (no StripPrefix).
-        # Each service owns the /api/v1/<resource> path internally.
-        - id: user-service
+        # ─── Canary trio for user-service ─────────────────────────────
+        # 1. Override route (explicit v2 via header) — no Weight, evaluated
+        #    as a normal first-match. If Header predicate matches, this wins
+        #    regardless of the weight split below.
+        - id: user-service-v2-override
           uri: lb://user-service
           predicates:
             - Path=/api/v1/users/**
+            - Header=X-Canary,force-v2
+          filters:
+            - RewritePath=/api/v1/users/(?<seg>.*), /api/v2/users/${seg}
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - AddTenantHeader=X-Tenant-Id,tenant_id
+
+        # 2. v1 route — 95% of matching traffic via Weight predicate
+        - id: user-service-v1
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+            - Weight=userGroup,95
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - Bulkhead=userCB               # concurrent-call limit BEFORE the CB
+            - name: CircuitBreaker
+              args:
+                name: userCB
+                fallbackUri: forward:/fallback/users
+            - name: Retry                   # INSIDE the CB → retries count in CB window
+              args:
+                retries: 3
+                methods: GET,PUT,DELETE     # never POST (not idempotent by default)
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 2s
+                  factor: 2
+                  basedOnPreviousValue: false
+            - AddTenantHeader=X-Tenant-Id,tenant_id     # shortcut form (positional args)
+            - name: RequestFingerprint                  # named form (no body — fast path)
+              args:
+                header-name: X-Request-Fingerprint
+                include-body: false
+                algorithm: SHA-256
+
+        # 3. v2 canary route — 5% of matching traffic, rewrites path to /api/v2/
+        - id: user-service-v2
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+            - Weight=userGroup,5
+          filters:
+            - RewritePath=/api/v1/users/(?<seg>.*), /api/v2/users/${seg}
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - Bulkhead=userCB
+            - name: CircuitBreaker
+              args:
+                name: userCB
+                fallbackUri: forward:/fallback/users
+            - AddTenantHeader=X-Tenant-Id,tenant_id
         - id: product-service
           uri: lb://product-service
           predicates:
             - Path=/api/v1/products/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+            - Bulkhead=productCB
+            - name: CircuitBreaker
+              args:
+                name: productCB
+                fallbackUri: forward:/fallback/products
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1s
+                  factor: 2
+                  basedOnPreviousValue: false
         - id: order-service
           uri: lb://order-service
           predicates:
             - Path=/api/v1/orders/**
+          filters:
+            - Bulkhead=orderCB
+            - name: CircuitBreaker
+              args:
+                name: orderCB
+                fallbackUri: forward:/fallback/orders
+            # NO Retry filter — orders are writes; retrying POST creates duplicates
+            - AddTenantHeader=X-Tenant-Id,tenant_id
+            - name: RequestFingerprint                  # MUST run before IdempotencyKey
+              args:
+                header-name: X-Request-Fingerprint
+                include-body: true
+                algorithm: SHA-256
+            - name: IdempotencyKey                      # NEW — dedupes POST/PATCH via Redis
+
+        # ─── WebSocket route ──────────────────────────────────────────
+        # lb:ws:// tells the gateway: load-balance the target AND handle
+        # HTTP Upgrade → WebSocket. Same JVM handles both HTTP and WS.
+        # Filters that DON'T work on WS: Retry, CircuitBreaker, body filters.
+        # TokenRelay works — Authorization header passes through the upgrade.
+        - id: websocket-echo
+          uri: lb:ws://user-service
+          predicates:
+            - Path=/ws/**
+          filters:
+            - TokenRelay
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8095   # your auth-server (was pointing at Keycloak — wrong)
+          issuer-uri: http://localhost:8095   # your auth-server
 
 server:
-  port: 8080                           # standard gateway port; clients hit :8080
+  port: 8080
 
 eureka:
   client:
@@ -45,14 +190,49 @@ eureka:
 management:
   endpoint:
     gateway:
-      enabled: true                    # Spring Cloud Gateway 4.x — endpoint is off by default
+      enabled: true
+    health:
+      show-details: always
+    info:
+      # Expose all InfoContributor beans + build.* + git.* payload at /actuator/info
+      env:
+        enabled: true
+  # info.* populates the /actuator/info response body
+  info:
+    # Read info.* properties from this file (custom static values)
+    env:
+      enabled: true
+    # Populate "build" from META-INF/build-info.properties (spring-boot-maven-plugin build-info goal)
+    build:
+      enabled: true
+    # Populate "git" from META-INF/git.properties (git-commit-id-maven-plugin)
+    git:
+      mode: full         # simple = short SHA only; full = branch, commit time, dirty flag
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,gateway   # /actuator/gateway/routes to inspect live routes
+        include: health,info,gateway,circuitbreakers,circuitbreakerevents,metrics,refresh,env,prometheus
+  # Prometheus scrape settings — global tag distinguishes this app from other
+  # Spring Boot services sharing the same labels; histogram buckets enable
+  # histogram_quantile() queries for p50/p95/p99.
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        spring.cloud.gateway.requests: true
+  health:
+    circuitbreakers:
+      enabled: true
   tracing:
     sampling:
-      probability: 1.0                 # trace 100% of requests in dev
+      probability: 1.0
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
@@ -60,5 +240,298 @@ management:
 logging:
   level:
     org.springframework.cloud.gateway: INFO
+    # Uncomment to see retry attempts in logs:
+    # org.springframework.cloud.gateway.filter.factory.RetryGatewayFilterFactory: DEBUG
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+
+# ─── Rate limit switch ────────────────────────────────────────────────
+gateway:
+  ratelimit:
+    enabled: true
+    key-strategy: USER
+    defaults:
+      replenish-rate: 10
+      burst-capacity: 20
+      requested-tokens: 1
+    routes:
+      user-service:
+        enabled: true
+        limit:
+          replenish-rate: 10
+          burst-capacity: 20
+          requested-tokens: 1
+      product-service:
+        enabled: true
+        limit:
+          replenish-rate: 5
+          burst-capacity: 10
+          requested-tokens: 1
+
+# ─── Circuit breaker + Bulkhead ───────────────────────────────────────
+# Bulkhead per instance = concurrent-call cap; rejects with BulkheadFullException
+# (ignored by CB via .ignoreExceptions). max-wait-duration = 0 means fast-fail.
+  circuitbreaker:
+    enabled: true
+    defaults:
+      sliding-window-size: 10
+      minimum-number-of-calls: 5
+      failure-rate-threshold: 50
+      slow-call-rate-threshold: 50
+      slow-call-duration-threshold: 2s
+      wait-duration-in-open-state: 10s
+      permitted-calls-in-half-open-state: 3
+      bulkhead:
+        max-concurrent-calls: 10
+        max-wait-duration: 0ms
+    instances:
+      userCB:
+        failure-rate-threshold: 40
+        wait-duration-in-open-state: 15s
+        bulkhead:
+          max-concurrent-calls: 15         # more users, more concurrency
+          max-wait-duration: 50ms
+      productCB:
+        slow-call-duration-threshold: 1s
+        bulkhead:
+          max-concurrent-calls: 20         # highest volume
+          max-wait-duration: 0ms
+      orderCB:
+        failure-rate-threshold: 70
+        bulkhead:
+          max-concurrent-calls: 5          # writes — tight limit
+          max-wait-duration: 100ms         # tolerate small bursts
+
+# ─── Retry mirror config ──────────────────────────────────────────────
+# NOTE: The Retry filter is a built-in Gateway filter — actual knobs live in
+# routes above. This block mirrors them for future @RefreshScope / admin use.
+  retry:
+    enabled: true
+    defaults:
+      retries: 3
+      methods: [GET, PUT, DELETE]
+      series: [SERVER_ERROR]
+      exceptions:
+        - java.io.IOException
+        - java.util.concurrent.TimeoutException
+      backoff:
+        first-backoff: 100ms
+        max-backoff: 2s
+        factor: 2
+        based-on-previous-value: false
+    instances:
+      user-service:
+        retries: 3
+      product-service:
+        retries: 2
+      order-service:
+        retries: 0                       # never auto-retry writes
+
+# ─── Timeout switch ───────────────────────────────────────────────────
+  timeout:
+    enabled: true
+    global-response-timeout: 5s
+    connect-timeout: 1s
+
+# ─── Idempotency-Key filter (Stripe pattern) ──────────────────────────
+  idempotency:
+    enabled: true
+    header-name: Idempotency-Key
+    methods: [POST, PATCH]
+    key-ttl: 24h                    # cached response lifetime
+    lock-ttl: 30s                   # in-flight lock lifetime (must exceed slowest downstream call)
+    require-header: false           # true = reject POST/PATCH without header (415)
+    derive-from-fingerprint: true   # fallback to X-Request-Fingerprint when header missing
+    verify-fingerprint: true        # 422 on same key + different body
+    fingerprint-header: X-Request-Fingerprint
+    # Response headers stripped before caching — prevents replaying auth
+    # cookies / bearer tokens to a different client.
+    strip-headers:
+      - Set-Cookie
+      - Authorization
+      - Date
+    # Skip streaming responses (SSE, chunked downloads) — DataBufferUtils.join
+    # would buffer the entire stream and blow up memory.
+    skip-streaming-content: true
+    streaming-content-types:
+      - text/event-stream
+      - application/octet-stream
+      - application/x-ndjson
+    # true = Redis errors bypass the filter (request proceeds as if disabled).
+    # false = Redis errors → 503. Trade-off: availability vs strict correctness.
+    fail-open-on-store-error: false
+
+# ─── Dynamic routes from H2/Postgres ──────────────────────────────────
+# Admin API at /admin/routes — requires an admin authority (see gateway.admin).
+# Every mutation is:
+#   1. Validated (RouteValidator dry-runs predicate/filter factory lookup) → 400 on invalid
+#   2. Persisted to route_definition
+#   3. Recorded in route_audit (best-effort)
+#   4. Local RefreshRoutesEvent + Redis pub/sub broadcast (if enabled)
+#
+#   - pubsub.enabled=true → sub-second cross-replica sync via Redis pub/sub
+#   - refresh-interval is the eventual-consistency floor (missed messages,
+#     Redis outage). 5m is fine when pub/sub is on; drop to 30s if off.
+  dynamic-routes:
+    enabled: true
+    refresh-interval: 5m
+    pubsub:
+      enabled: true
+      channel: gateway.routes.refresh
+      # instance-id defaults to a random UUID per JVM if unset
+      instance-id: ${HOSTNAME:${random.uuid}}
+
+# ─── Admin auth (role-based access to /admin/**) ──────────────────────
+# JWT-authenticated only. required-authorities matches ANY listed authority
+# on the caller's principal — defaults accept both SCOPE_admin (from `scope`
+# claim) and ROLE_ADMIN (from `roles` claim).
+#
+# demo-admin-subs: escape hatch for dev. JWT sub matching → granted SCOPE_admin
+# even without proper claims. KEEP EMPTY IN PROD.
+  admin:
+# ─── Canary routing observability ─────────────────────────────────────
+# The actual traffic split is done by the built-in Weight predicate in the
+# route definitions above. This config only controls:
+#   - the override header (send X-Canary: force-v2 to force the v2 route)
+#   - the response header for client-side debugging
+#   - the CanaryRoutingFilter GlobalFilter that emits per-version metrics.
+  canary:
+    enabled: true
+    override-header: X-Canary
+    override-value: force-v2
+    response-header: X-Canary-Route
+
+# ─── CORS (centralized at the gateway) ────────────────────────────────
+# One place to enforce origin rules — downstream services don't need CORS.
+# Preflight OPTIONS handled here; real requests pass through with the
+# CORS headers set. Spring Security's .cors(withDefaults()) permits preflights.
+#
+# NOTE: allowed-origins CANNOT contain "*" when allow-credentials=true.
+# NOTE: exposed-headers whitelists response headers browsers can read from JS.
+  cors:
+    enabled: true
+    allowed-origins:
+      - http://localhost:5173      # React admin UI
+      - http://localhost:5174      # future admin UI
+    allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD]
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Api-Key
+      - X-Correlation-Id
+      - Idempotency-Key
+    exposed-headers:
+      - X-Correlation-Id
+      - X-Idempotent-Replay
+      - X-Cache
+      - X-Cache-Age
+      - X-Cache-Original-Url
+      - X-Fallback-Reason
+      - X-RateLimit-Remaining
+      - X-RateLimit-Burst-Capacity
+      - X-RateLimit-Replenish-Rate
+      - X-Idempotency-Bypassed
+      - Retry-After
+      - Warning
+    allow-credentials: true
+    max-age: 3600
+
+# ─── Admin UI toggle ──────────────────────────────────────────────────
+  admin:
+    # UI mode. Controls what /admin/ui serves.
+    #   REACT     — 302 redirect to react-url (default; use with `npm run dev` in api-gateway-admin)
+    #   THYMELEAF — server-rendered pages from the gateway itself; HTTP Basic auth (admin:admin123)
+    #   NONE      — /admin/ui returns 404
+    # Toggle requires a restart (controllers are @ConditionalOnProperty at bean-creation time).
+    ui: REACT
+    react-url: http://localhost:5173/
+    required-authorities:
+      - SCOPE_admin
+      - ROLE_ADMIN
+    scope-claim: scope
+    roles-claim: roles
+    demo-admin-subs:
+      - admin
+
+# ─── Cached fallback (stale-while-CB-open) ────────────────────────────
+# Captures 2xx GET/HEAD responses to Redis. When CB fallback fires on a
+# GET/HEAD, replays cached body + Warning: 110 header instead of static 503.
+# POST/PUT/DELETE/PATCH always get static 503 (writes never cached).
+  response-cache:
+    enabled: true
+    default-ttl: 1h
+    max-cached-bytes: 524288          # 512 KB
+    cacheable-methods: [GET, HEAD]
+    cacheable-content-types:
+      - application/json
+      - application/xml
+      - text/plain
+      - text/html
+    excluded-paths:
+      - /actuator/**
+      - /fallback/**
+      - /admin/**
+    strip-headers:
+      - Set-Cookie
+      - Authorization
+      - Date
+    stale-warning: true
+    routes:                            # per-route TTL overrides (optional)
+      user-service:
+        ttl: 30m
+      product-service:
+        ttl: 2h
+      order-service:
+        ttl: 5m
+
+# ─── Request/Response body logging (audit) ────────────────────────────
+# GlobalFilter that buffers, redacts, and logs request + response bodies.
+# Order = -20 (after CorrelationId, before body-consuming filters).
+# Dev defaults: sample=1.0, log all responses. Prod: sample=0.01, status-classes=[4xx,5xx].
+  body-logging:
+    enabled: true
+    sample-rate: 1.0
+    max-body-bytes: 8192
+    excluded-paths:
+      - /actuator/**
+      - /fallback/**
+      - /admin/**
+    loggable-content-types:
+      - application/json
+      - application/xml
+      - text/plain
+      - text/html
+      - application/x-www-form-urlencoded
+    redact:
+      field-names:
+        - password
+        - token
+        - secret
+        - apiKey
+        - authorization
+        - ssn
+        - cvv
+        - creditCard
+      patterns:
+        - '\d{16}'
+        - '\d{3}-\d{2}-\d{4}'
+        - 'sk_live_[a-zA-Z0-9]+'
+      replacement: '***REDACTED***'
+    response:
+      enabled: true
+      status-classes: []              # empty = log all; prod: [4xx, 5xx]
+
+# ─── API-key authentication (alongside JWT) ───────────────────────────
+# When X-Api-Key header is present, key is validated against Redis.
+# When absent, falls through to existing JWT resource-server logic.
+# Keys created via POST /admin/apikeys (JWT-authenticated).
+  apikey:
+    enabled: true
+    header-name: X-Api-Key
+    key-prefix: sk_live_
+    fall-through-to-jwt: true
+    cache-ttl: 60s
+    excluded-paths:
+      - /actuator/**
+      - /fallback/**
+      - /admin/**                     # admin API uses JWT only

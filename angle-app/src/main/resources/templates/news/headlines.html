@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!--
+    /news — Live news-headlines feed with AI sentiment tags.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>News Feed — AngleApp</title>
+    <meta th:attr="content=${refreshSeconds}" http-equiv="refresh">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/news-headlines.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='newsfeed')}"></div>
+<main class="app-main">
+
+    <div class="nh-head">
+        <div>
+            <h1>News Headlines</h1>
+            <p class="sub">Live feed from Indian financial sources · AI-tagged sentiment · auto-refresh every <span th:text="${refreshSeconds}">300</span>s</p>
+        </div>
+        <button class="nh-btn" onclick="refreshNow()">🔄 Refresh</button>
+    </div>
+
+    <div class="nh-stats">
+        <div class="nh-stat"><div class="lbl">Last 24h</div><div class="val" th:text="${total24h}">142</div></div>
+        <div class="nh-stat bullish"><div class="lbl">Bullish</div><div class="val" th:text="${bullish}">45</div></div>
+        <div class="nh-stat bearish"><div class="lbl">Bearish</div><div class="val" th:text="${bearish}">28</div></div>
+        <div class="nh-stat neutral"><div class="lbl">Neutral</div><div class="val" th:text="${neutral}">31</div></div>
+    </div>
+
+    <form class="nh-filters" method="get" action="/news">
+        <label>Source
+            <select name="source">
+                <option value="">All sources</option>
+                <option th:each="s : ${sources}" th:value="${s.name}"
+                        th:text="${s.name}" th:selected="${s.name == selSource}">MoneyControl</option>
+            </select>
+        </label>
+        <label>Sentiment
+            <select name="sentiment">
+                <option value=""         th:selected="${selSentiment == ''}">All</option>
+                <option value="BULLISH"  th:selected="${selSentiment == 'BULLISH'}">Bullish only</option>
+                <option value="BEARISH"  th:selected="${selSentiment == 'BEARISH'}">Bearish only</option>
+                <option value="NEUTRAL"  th:selected="${selSentiment == 'NEUTRAL'}">Neutral only</option>
+            </select>
+        </label>
+        <label>Sector
+            <select name="sector">
+                <option value=""          th:selected="${selSector == ''}">All sectors</option>
+                <option value="INDEX"     th:selected="${selSector == 'INDEX'}">Index (Nifty/Sensex)</option>
+                <option value="BANKING"   th:selected="${selSector == 'BANKING'}">Banking</option>
+                <option value="IT"        th:selected="${selSector == 'IT'}">IT</option>
+                <option value="OIL_GAS"   th:selected="${selSector == 'OIL_GAS'}">Oil &amp; Gas</option>
+                <option value="AUTO"      th:selected="${selSector == 'AUTO'}">Auto</option>
+                <option value="PHARMA"    th:selected="${selSector == 'PHARMA'}">Pharma</option>
+                <option value="METALS"    th:selected="${selSector == 'METALS'}">Metals</option>
+                <option value="FMCG"      th:selected="${selSector == 'FMCG'}">FMCG</option>
+                <option value="REALTY"    th:selected="${selSector == 'REALTY'}">Realty</option>
+                <option value="TELECOM"   th:selected="${selSector == 'TELECOM'}">Telecom</option>
+                <option value="POWER"     th:selected="${selSector == 'POWER'}">Power</option>
+                <option value="FINANCE"   th:selected="${selSector == 'FINANCE'}">Finance/NBFC</option>
+                <option value="GLOBAL"    th:selected="${selSector == 'GLOBAL'}">Global</option>
+                <option value="GENERAL"   th:selected="${selSector == 'GENERAL'}">General</option>
+            </select>
+        </label>
+        <label>Hours
+            <input type="number" name="hours" th:value="${selHours}" min="1" max="720" style="width:80px">
+        </label>
+        <button type="submit" class="nh-btn primary">Apply</button>
+    </form>
+
+    <div th:if="${#lists.isEmpty(headlines)}" class="nh-empty">
+        No headlines yet. If this is your first visit, wait ~5 min for the first RSS fetch,
+        or click <b>🔄 Refresh</b> above.
+    </div>
+
+    <div th:each="h : ${headlines}"
+         th:class="'nh-card ' + (${h.sentiment} != null ? ${#strings.toLowerCase(h.sentiment)} : 'untagged')">
+        <div class="nh-card-top">
+            <a class="nh-title" th:href="${h.url}" target="_blank" rel="noopener" th:text="${h.title}">
+                Headline text
+            </a>
+            <span th:if="${h.sentiment != null}"
+                  th:class="'nh-badge ' + ${#strings.toLowerCase(h.sentiment)}"
+                  th:text="${h.sentiment}">BULLISH</span>
+            <span th:unless="${h.sentiment != null}" class="nh-badge untagged">…</span>
+        </div>
+        <div class="nh-meta">
+            <span class="nh-source" th:text="${h.sourceName}">MoneyControl</span>
+            <span th:if="${h.sector != null}" class="nh-sector" th:text="${h.sector}">BANKING</span>
+            <span class="nh-time" th:text="${#temporals.format(h.publishedAt, 'dd MMM HH:mm')}">27 Sep 09:15</span>
+        </div>
+        <div class="nh-rationale" th:if="${h.rationale != null and !h.rationale.isEmpty()}"
+             th:text="${h.rationale}">
+            Rate cut boosts credit demand.
+        </div>
+    </div>
+
+</main>
+</div>
+
+<script>
+    function refreshNow() {
+        fetch('/api/news/refresh', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { alert('Fetched ' + d.inserted + ' new. Tagged ' + d.tagged + '.'); location.reload(); })
+            .catch(e => alert('Refresh failed: ' + e.message));
+    }
+</script>
+
+</body>
+</html>

@@ -20,6 +20,10 @@
         <module>order-service</module>
         <module>paymentservice</module>
         <module>notification</module>
+        <module>order-query</module>
+        <module>product-query</module>
+        <module>graphql-bff</module>
+        <module>shop-ui</module>
 
         <!-- Trading / study project — kept in the reactor so it builds with the rest. -->
         <module>angle-app</module>
@@ -51,7 +55,31 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Plugin versions centrally managed. Bumping here bumps every service. -->
+        <git-commit-id-plugin.version>7.0.0</git-commit-id-plugin.version>
+        <!-- Avro + Confluent Schema Registry (Tier 2). Pin once here. -->
+        <avro.version>1.11.3</avro.version>
+        <confluent.version>7.6.1</confluent.version>
+        <!-- gRPC (Tier 4). Match protoc-gen-grpc-java to grpc.version. -->
+        <grpc.version>1.63.0</grpc.version>
+        <protobuf.version>3.25.1</protobuf.version>
+        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     </properties>
+
+    <!-- Confluent artefacts (kafka-avro-serializer, etc.) aren't on Maven Central. -->
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencyManagement>
         <dependencies>
@@ -102,12 +130,76 @@
         </dependency>
     </dependencies>
 
+    <!--
+        pluginManagement — configure plugins CENTRALLY. Children opt-in with just:
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.github.git-commit-id</groupId>
+                        <artifactId>git-commit-id-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+
+        Version, executions, and configuration are inherited from here. To
+        override for a specific service, redeclare + override the field.
+
+        Why pluginManagement (not <build><plugins>) — plugins here are NOT active
+        by default. Each child chooses which to enable. Modules like `angle-app`
+        (frontend, no build-info) skip both; every Spring Boot service opts in.
+    -->
     <build>
         <pluginManagement>
             <plugins>
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <executions>
+                        <!-- Generates META-INF/build-info.properties → /actuator/info.build.*
+                             Runs during the `generate-resources` phase (before `compile`). -->
+                        <execution>
+                            <id>build-info</id>
+                            <goals>
+                                <goal>build-info</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>io.github.git-commit-id</groupId>
+                    <artifactId>git-commit-id-maven-plugin</artifactId>
+                    <version>${git-commit-id-plugin.version}</version>
+                    <executions>
+                        <!-- Generates META-INF/git.properties → /actuator/info.git.* -->
+                        <execution>
+                            <id>get-the-git-infos</id>
+                            <phase>initialize</phase>
+                            <goals>
+                                <goal>revision</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                    <configuration>
+                        <!-- Building from a tarball (no .git)? Skip gracefully instead of failing. -->
+                        <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                        <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                        <!-- Only expose useful fields. Full property set would leak commit messages
+                             + user names into /actuator/info which is safe but noisy. -->
+                        <includeOnlyProperties>
+                            <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+                            <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+                            <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+                            <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+                            <includeOnlyProperty>^git.commit.message.short$</includeOnlyProperty>
+                            <includeOnlyProperty>^git.dirty$</includeOnlyProperty>
+                        </includeOnlyProperties>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>

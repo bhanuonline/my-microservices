@@ -1,0 +1,29 @@
+# Profile: postgres
+# Run with: -Dspring-boot.run.arguments="--spring.profiles.active=postgres"
+#
+# Swaps H2 file → Postgres for route_definition + route_audit tables.
+# Flyway (blocking JDBC) manages schema at startup; app runs on R2DBC.
+#
+# Prereq: docker-compose -f api-gateway/docker-compose.postgres.yml up -d
+spring:
+  # Reactive path — app uses this at runtime for repository calls
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/gateway
+    username: gateway
+    password: gateway
+  # Blocking path — Flyway uses this once, at startup, to apply migrations
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gateway
+    username: gateway
+    password: gateway
+    driver-class-name: org.postgresql.Driver
+  # Turn OFF Spring's schema.sql init — Flyway owns the schema on Postgres
+  sql:
+    init:
+      mode: never
+  # Flyway config
+  flyway:
+    enabled: true
+    baseline-on-migrate: true      # adopt existing DBs without a history table
+    baseline-version: 0
+    locations: classpath:db/migration

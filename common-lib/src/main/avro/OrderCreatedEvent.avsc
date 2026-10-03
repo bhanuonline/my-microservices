@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "OrderCreatedEventAvro",
+  "namespace": "com.example.common.event.avro",
+  "doc": "Avro schema for OrderCreatedEvent — Tier 2 schema-evolution demo. Backward-compatible: add new fields as nullable (type: [null, X] with default null).",
+  "fields": [
+    {"name": "eventId",   "type": "string",                                                         "doc": "UUID string"},
+    {"name": "orderId",   "type": "string"},
+    {"name": "productId", "type": "long"},
+    {"name": "quantity",  "type": "int"},
+    {"name": "amount",    "type": {"type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2}, "doc": "Monetary amount — logical decimal, not float"},
+    {"name": "createdAt", "type": {"type": "long",  "logicalType": "timestamp-millis"}}
+  ]
+}

@@ -1,0 +1,10 @@
+CREATE TABLE app_user (
+    id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username   VARCHAR(64)  NOT NULL,
+    password   VARCHAR(200) NOT NULL,
+    email      VARCHAR(200),
+    enabled    TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_app_user_username (username)
+);

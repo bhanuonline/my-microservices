@@ -1,0 +1,70 @@
+# resource-server :8096
+#
+# Minimal OAuth2 resource server. Validates JWTs issued by auth-server (:8095)
+# using JWKS, then enforces scope/role-based authorization at the method level
+# (see SecurityConfig + ApiController).
+#
+# Observability is shared with every other service in the stack:
+#   - JSON logs via common-lib's logback-observability.xml
+#   - Distributed tracing via Micrometer Bridge Brave → Zipkin
+#   - Prometheus scrape at /actuator/prometheus
+#   - /actuator/info populated by build-info + git-commit-id plugins
+
+spring:
+  application:
+    name: resource-server
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Single source of truth for JWKS URL. Spring Security auto-configures
+          # the JwtDecoder from this — no manual bean required.
+          issuer-uri: http://localhost:8095
+
+server:
+  port: 8096
+
+# ─── Observability ────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,env,loggers
+  endpoint:
+    health:
+      show-details: always
+  # /actuator/info — build + git + jvm + os + custom info.app.*
+  info:
+    env: { enabled: true }
+    build: { enabled: true }
+    git: { mode: full, enabled: true }
+    java: { enabled: true }
+    os: { enabled: true }
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: 1.0           # 100% in dev; use 0.05–0.1 in prod
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+info:
+  app:
+    name: Resource Server
+    description: Minimal OAuth2 resource server — reference implementation
+    port: ${server.port}
+  contact:
+    docs: docs/microservices/resource-server/README.md
+
+# ─── Logging ──────────────────────────────────────────────────────────
+# JSON output + MDC enrichment (traceId, spanId, correlationId) is configured
+# in logback-spring.xml (which includes logback-observability.xml from
+# common-lib). Only package-level overrides belong here.
+logging:
+  level:
+    org.springframework.security: INFO

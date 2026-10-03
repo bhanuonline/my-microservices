@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Delegates to logback-observability.xml (from common-lib) for:
+    - JSON output (default) with MDC keys: traceId, spanId, correlationId
+    - Text output when -Dspring.profiles.active=local
+    - Framework noise tuning
+-->
+<configuration>
+    <include resource="logback-observability.xml"/>
+</configuration>

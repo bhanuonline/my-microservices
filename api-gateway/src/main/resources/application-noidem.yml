@@ -1,0 +1,84 @@
+# Profile: noidem
+# Run with: -Dspring-boot.run.profiles=noidem
+# Disables the idempotency filter while keeping everything else on.
+# Order route is redefined without the IdempotencyKey filter.
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: userCB
+                fallbackUri: forward:/fallback/users
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET,PUT,DELETE
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 2s
+                  factor: 2
+                  basedOnPreviousValue: false
+            - AddTenantHeader=X-Tenant-Id,tenant_id
+            - name: RequestFingerprint
+              args:
+                header-name: X-Request-Fingerprint
+                include-body: false
+                algorithm: SHA-256
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/v1/products/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+            - name: CircuitBreaker
+              args:
+                name: productCB
+                fallbackUri: forward:/fallback/products
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1s
+                  factor: 2
+                  basedOnPreviousValue: false
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: orderCB
+                fallbackUri: forward:/fallback/orders
+            - AddTenantHeader=X-Tenant-Id,tenant_id
+            - name: RequestFingerprint
+              args:
+                header-name: X-Request-Fingerprint
+                include-body: true
+                algorithm: SHA-256
+            # NO IdempotencyKey filter
+
+gateway:
+  idempotency:
+    enabled: false

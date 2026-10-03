@@ -1,0 +1,5 @@
+com.example.common.logging.CorrelationIdAutoConfiguration
+com.example.common.transaction.PrimaryJpaTransactionManagerConfig
+com.example.common.idempotency.http.IdempotencyAutoConfiguration
+com.example.common.tenant.TenantAutoConfiguration
+com.example.common.featureflag.FeatureFlagAutoConfiguration

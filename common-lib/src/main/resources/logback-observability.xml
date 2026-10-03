@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shared logback configuration for every service that depends on common-lib.
+
+  Usage in a service's src/main/resources/logback-spring.xml:
+
+      <configuration>
+          <include resource="logback-observability.xml"/>
+      </configuration>
+
+  Provides:
+    - JSON appender (Logstash encoder) with MDC fields: traceId, spanId, correlationId
+    - CONSOLE appender for human-readable local dev
+    - Profile-driven root: default → JSON, `local` → CONSOLE
+    - Framework noise tuning (Netty, R2DBC, Reactor Netty client)
+
+  Customise per-service by adding <logger name="..."/> lines AFTER the include,
+  or by defining a service-specific appender and overriding the root logger.
+-->
+<included>
+
+    <springProperty name="appName" source="spring.application.name" defaultValue="unknown"/>
+
+    <!-- JSON — production output, ingest-friendly for ELK / Datadog / CloudWatch -->
+    <appender name="OBS_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
+            <includeMdcKeyName>tenantId</includeMdcKeyName>
+            <customFields>{"service":"${appName}"}</customFields>
+            <timeZone>UTC</timeZone>
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>@version</version>
+                <message>message</message>
+                <logger>logger_name</logger>
+                <thread>thread_name</thread>
+                <levelValue>level_value</levelValue>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+        </encoder>
+    </appender>
+
+    <!-- Human-readable text — activate via -Dspring.profiles.active=local -->
+    <appender name="OBS_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [${appName},%X{traceId:-},%X{spanId:-},%X{correlationId:-}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="OBS_CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!local">
+        <root level="INFO">
+            <appender-ref ref="OBS_JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Framework noise tuning — sensible defaults across all services -->
+    <logger name="io.netty" level="WARN"/>
+    <logger name="reactor.netty.http.client" level="INFO"/>
+    <logger name="io.r2dbc" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
+
+</included>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+    /markets — Global Markets dashboard.
+    8 cards (oil / gold / USD-INR / Dow / Nasdaq / Nikkei / Hang Seng / VIX).
+    Uses shared app-shell for consistent navigation.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Global Markets — AngleApp</title>
+    <meta th:attr="content=${refreshSeconds}" http-equiv="refresh">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/markets.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='markets')}"></div>
+<main class="app-main">
+
+    <div class="mk-head">
+        <div>
+            <h1>Global Markets</h1>
+            <p class="sub">Overnight sentiment for Indian markets · refresh every <span th:text="${refreshMinutes}">15</span> min from Alpha Vantage</p>
+        </div>
+        <button class="mk-btn" onclick="refreshNow()">🔄 Refresh now</button>
+    </div>
+
+    <div class="mk-impact">
+        <b>📊 Impact analysis:</b>
+        <span th:text="${impact}">US closed higher (+0.9%). Oil up 1.5%.</span>
+    </div>
+
+    <div class="mk-grid">
+        <div th:each="q : ${quotes}"
+             th:class="'mk-card ' + ${#strings.toLowerCase(q.category)} + (${q.price == 0} ? ' unavailable' : ${q.change >= 0 ? ' up' : ' down'})">
+            <div class="mk-card-top">
+                <div class="mk-icon" th:text="${q.icon}">🛢️</div>
+                <div class="mk-label" th:text="${q.label}">Brent Oil</div>
+            </div>
+            <div class="mk-price" th:text="${q.currency == 'INR' ? '₹' : '$'} + ${#numbers.formatDecimal(q.price, 1, 2)}">$82.45</div>
+            <div class="mk-change" th:if="${q.price > 0}">
+                <span th:text="${q.change >= 0 ? '+' : ''} + ${#numbers.formatDecimal(q.change, 1, 2)}">+1.20</span>
+                (<span th:text="${q.changePct >= 0 ? '+' : ''} + ${#numbers.formatDecimal(q.changePct, 1, 2)} + '%'">+1.5%</span>)
+            </div>
+            <div class="mk-note" th:if="${q.note != null and !q.note.isEmpty()}" th:text="${q.note}">weak dollar</div>
+            <div class="mk-stale" th:if="${q.price == 0}">Data unavailable — awaiting first fetch</div>
+        </div>
+    </div>
+
+    <div class="mk-footer">
+        <small>Powered by Alpha Vantage free tier. Refresh limited to ~<span th:text="${refreshMinutes}">15</span>-min cache. Only fetches during 9-4 IST to conserve daily API quota.</small>
+    </div>
+
+</main>
+</div>
+
+<script>
+    function refreshNow() {
+        fetch('/api/markets/refresh', { method: 'POST' })
+            .then(r => r.ok ? location.reload() : alert('Refresh failed'));
+    }
+</script>
+
+</body>
+</html>

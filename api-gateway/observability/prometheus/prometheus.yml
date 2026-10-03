@@ -1,0 +1,57 @@
+# Prometheus scrape config for the whole gateway stack.
+# Loaded by the Prometheus container in docker-compose.observability.yml.
+#
+# All services expose /actuator/prometheus once common-lib (or explicit deps)
+# is on their classpath. Ports below match the defaults in each service's
+# application.yml — adjust if you move them.
+
+global:
+  scrape_interval:     5s        # tight interval for dev — see changes in Grafana fast
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          # host.docker.internal → the machine running docker (Mac/Win + Linux via extra_hosts)
+          - host.docker.internal:8080
+        labels:
+          service: api-gateway
+          env: local
+
+  - job_name: auth-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:9010]
+        labels: { service: auth-server, env: local }
+
+  - job_name: eureka-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:8761]
+        labels: { service: eureka-server, env: local }
+
+  - job_name: user-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:8090]
+        labels: { service: user-service, env: local }
+
+  - job_name: product-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:8091]
+        labels: { service: product-service, env: local }
+
+  - job_name: order-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:8092]
+        labels: { service: order-service, env: local }
+
+  - job_name: resource-server
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [host.docker.internal:8096]
+        labels: { service: resource-server, env: local }
