@@ -40,21 +40,25 @@ public class OrderSagaOrchestrator {
     private final OrderRepository orderRepo;
     private final StreamBridge streamBridge;
     private final SagaRecorder recorder;
+    private final SagaMetrics metrics;
 
     public OrderSagaOrchestrator(OrderSagaRepository sagaRepo,
                                  OrderRepository orderRepo,
                                  StreamBridge streamBridge,
-                                 SagaRecorder recorder) {
+                                 SagaRecorder recorder,
+                                 SagaMetrics metrics) {
         this.sagaRepo = sagaRepo;
         this.orderRepo = orderRepo;
         this.streamBridge = streamBridge;
         this.recorder = recorder;
+        this.metrics = metrics;
     }
 
     /** Kicks off the saga. Called from OrderService.create right after the Order row is saved. */
     @Transactional
     public void start(String orderId, BigDecimal amount) {
         OrderSaga saga = sagaRepo.save(new OrderSaga(orderId));
+        metrics.started();
         log.info("Saga {} STARTED for orderId={}", saga.getId(), orderId);
 
         // First command: try to charge payment.
@@ -90,6 +94,8 @@ public class OrderSagaOrchestrator {
             // Nothing to compensate — payment was the first step. Just fail.
             saga.markFailed("payment_failed: " + reply.failureReason());
             markOrderCancelled(saga.getOrderId(), reply.failureReason());
+            metrics.terminal(SagaMetrics.OUTCOME_FAILED,
+                    "payment_failed:" + reply.failureReason(), saga.getCreatedAt());
             log.info("Saga {} FAILED at payment step", saga.getId());
         }
     }
@@ -112,6 +118,7 @@ public class OrderSagaOrchestrator {
         if (reply.success()) {
             saga.markNotified();
             markOrderPaid(saga.getOrderId());
+            metrics.terminal(SagaMetrics.OUTCOME_COMPLETED, null, saga.getCreatedAt());
             log.info("Saga {} COMPLETED", saga.getId());
         } else {
             // Notification failed — compensate: refund the payment.
@@ -127,6 +134,8 @@ public class OrderSagaOrchestrator {
             // In real prod, wait for RefundReply before marking terminal.
             saga.markFailed("notify_failed_refunded");
             markOrderCancelled(saga.getOrderId(), reply.failureReason());
+            metrics.terminal(SagaMetrics.OUTCOME_COMPENSATED,
+                    "notify_failed:" + reply.failureReason(), saga.getCreatedAt());
         }
     }
 
