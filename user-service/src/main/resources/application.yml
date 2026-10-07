@@ -2,7 +2,10 @@ spring:
   application:
     name: user-service
   config:
-    import: "optional:configserver:"   # allow startup even if config-server absent
+    # `optional:` prefix = boot even if config-server is unreachable, so a
+    # dead config-server does not take down user-service. The URI is
+    # overridable via env (compose sets CONFIG_SERVER_URI=http://config-server:8888).
+    import: "optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}"
   security:
     oauth2:
       resourceserver:
@@ -28,7 +31,17 @@ spring:
 
   cloud:
     config:
-      enabled: false          # config-server not implemented yet — disable client check
+      # Boot resilience when config-server is slow/down:
+      # fail-fast=false     log the error, keep booting with whatever local defaults exist
+      # retry.max-attempts  how many times to retry before giving up (per import)
+      # The `optional:` prefix on spring.config.import is what actually
+      # allows no-config-server boots; these knobs just tune the retry window.
+      fail-fast: false
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
     stream:
       kafka:
         binder:
@@ -43,9 +56,11 @@ spring:
 server:
   port: 8081
 
-# Demo property for @RefreshScope — change this and POST /actuator/refresh
+# demo.greeting MOVED to config-repo/user-service.yml. Keep a fallback here
+# so a cold boot with config-server unreachable still answers the demo
+# endpoint with something recognizable instead of literal "default".
 demo:
-  greeting: "Hello from the ORIGINAL config"
+  greeting: "Hello from LOCAL FALLBACK (config-server unreachable)"
 
 eureka:
   client:
@@ -93,49 +108,8 @@ info:
     description: User management REST API
     port: ${server.port:8090}
 
-logging:
-  level:
-    org.hibernate.SQL: INFO   # DEBUG only in local profile; overridden in logback-spring.xml if desired
-
-# Resilience4j — protects user-service's call out to product-service.
-# Tune to your SLO. These values favour fast fail-open over slow retries so
-# user-facing latency stays bounded when product-service is degraded.
-resilience4j:
-  circuitbreaker:
-    instances:
-      productClient:
-        register-health-indicator: true
-        sliding-window-type: COUNT_BASED
-        sliding-window-size: 20
-        minimum-number-of-calls: 10
-        failure-rate-threshold: 50          # open after 50% of 20 calls fail
-        slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 2s
-        wait-duration-in-open-state: 30s    # cool down before HALF_OPEN
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-  retry:
-    instances:
-      productClient:
-        max-attempts: 3
-        wait-duration: 300ms
-        enable-exponential-backoff: true
-        exponential-backoff-multiplier: 2
-        # Retry ONLY transient infra errors. Never retry 4xx — those are business errors.
-        retry-exceptions:
-          - java.io.IOException
-          - org.springframework.web.client.ResourceAccessException
-          - java.util.concurrent.TimeoutException
-  bulkhead:
-    instances:
-      productClient:
-        max-concurrent-calls: 20
-        max-wait-duration: 50ms
-  timelimiter:
-    instances:
-      productClient:
-        timeout-duration: 3s
-        cancel-running-future: true
+# logging.level and resilience4j blocks MOVED to config-repo/user-service.yml.
+# They are tunable live via `/actuator/refresh` from there.
 
 ---
 # Profile: docker — overrides for running fully inside docker

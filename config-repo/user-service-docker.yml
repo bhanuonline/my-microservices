@@ -1,0 +1,11 @@
+# user-service, docker profile. Loaded on top of config-repo/user-service.yml
+# ONLY when user-service runs with spring.profiles.active=docker.
+#
+# Minimal example — proves the three-layer merge works:
+#   application.yml → user-service.yml → user-service-docker.yml
+#
+# curl http://localhost:8888/user-service/docker | jq '.propertySources[].name'
+# → shows all three sources in order (most specific first).
+
+demo:
+  greeting: "Hello from CONFIG-REPO (docker profile)"

@@ -463,12 +463,18 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      # Point the Spring Cloud Config client at the compose-internal config-server.
+      # user-service imports configserver:${CONFIG_SERVER_URI:...}; this env var
+      # overrides the localhost default.
+      CONFIG_SERVER_URI: http://config-server:8888
     depends_on:
       mysql-user:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      config-server:
         condition: service_healthy
     networks:
       - backend

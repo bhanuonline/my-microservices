@@ -1,0 +1,73 @@
+# user-service — served by config-server (native backend) from
+# config-repo/user-service.yml. Merged on top of config-repo/application.yml
+# (the shared layer) and under any user-service-<profile>.yml.
+#
+# To change a value live:
+#   1. Edit this file.
+#   2. If config-server is in Docker: it picks up the change immediately
+#      because /config-repo is mounted. Otherwise rebuild & restart it.
+#   3. curl -X POST http://localhost:8081/actuator/refresh
+#      → prints the keys that just rebound.
+#   4. GET /api/v1/demo/greeting           # confirm the new value.
+#
+# Only @ConfigurationProperties beans and @RefreshScope beans actually
+# re-read on refresh. Resilience4j CBs already created keep their old
+# thresholds until the next instance is built.
+
+# ---- Demo endpoint (RefreshDemoController) ----
+# Edit → /actuator/refresh → GET /api/v1/demo/greeting → see this value.
+demo:
+  greeting: "Hello from CONFIG-REPO (user-service.yml)"
+
+# ---- Logging ----
+# These rebind on /actuator/refresh via LoggersEndpoint — level changes
+# take effect without restart. Nice for live-debugging prod.
+logging:
+  level:
+    org.hibernate.SQL: INFO
+
+# ---- Resilience4j (productClient) ----
+# Protects user-service's outbound call to product-service. Tune to your
+# SLO: these favour fast fail-open over slow retries so user-facing
+# latency stays bounded when product-service is degraded.
+#
+# Changing these via refresh is subtle:
+#   - new fields on the ConfigurationProperties ARE re-read
+#   - already-created CB instances keep running with their original config
+#   - restart to force the registry to rebuild instances
+resilience4j:
+  circuitbreaker:
+    instances:
+      productClient:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50          # open after 50% of 20 calls fail
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 30s    # cool down before HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      productClient:
+        max-attempts: 3
+        wait-duration: 300ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # Retry ONLY transient infra errors. Never retry 4xx — business errors.
+        retry-exceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+          - java.util.concurrent.TimeoutException
+  bulkhead:
+    instances:
+      productClient:
+        max-concurrent-calls: 20
+        max-wait-duration: 50ms
+  timelimiter:
+    instances:
+      productClient:
+        timeout-duration: 3s
+        cancel-running-future: true
