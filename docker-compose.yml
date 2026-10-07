@@ -517,11 +517,15 @@ services:
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      # Point Spring Cloud Config client at the compose-internal config-server.
+      CONFIG_SERVER_URI: http://config-server:8888
     depends_on:
       eureka-server:
         condition: service_healthy
       product-service:
         condition: service_started
+      config-server:
+        condition: service_healthy
     networks:
       - backend
 

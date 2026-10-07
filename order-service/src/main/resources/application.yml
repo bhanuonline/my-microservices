@@ -2,7 +2,9 @@ spring:
   application:
     name: order-service
   config:
-    import: "optional:configserver:"
+    # `optional:` prefix = boot even if config-server is unreachable.
+    # URI overridable via CONFIG_SERVER_URI (compose points at config-server:8888).
+    import: "optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}"
   security:
     oauth2:
       resourceserver:
@@ -47,7 +49,15 @@ spring:
 
   cloud:
     config:
-      enabled: false          # config-server not implemented yet
+      # Boot resilience: never block boot if config-server is slow/down.
+      # `optional:` on spring.config.import is what actually allows the
+      # no-server boot; these knobs just bound the retry window.
+      fail-fast: false
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
     function:
       # All consumer beans wired via Cloud Stream. Semicolon-separated.
       # Old choreography consumers kept for reference.
@@ -124,37 +134,8 @@ eureka:
   instance:
     prefer-ip-address: true
 
-resilience4j:
-  circuitbreaker:
-    instances:
-      productClient:
-        register-health-indicator: true
-        sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-
-  retry:
-    instances:
-      productClient:
-        max-attempts: 3                    # total attempts (initial + 2 retries)
-        wait-duration: 200ms               # base delay between retries
-        enable-exponential-backoff: true   # 200ms, 400ms, 800ms, ...
-        exponential-backoff-multiplier: 2
-        # Only retry on transient network/downstream errors — NOT business exceptions.
-        retry-exceptions:
-          - java.io.IOException
-          - java.util.concurrent.TimeoutException
-          - feign.RetryableException
-
-  bulkhead:
-    instances:
-      productClient:
-        max-concurrent-calls: 10           # cap concurrent calls to product-service
-        max-wait-duration: 100ms           # if all slots busy, wait up to 100ms then fail
+# resilience4j, idempotency, outbox, feature-flags, orderservice.saga.resume,
+# and logging.level moved to config-repo/order-service.yml.
 
 management:
   endpoints:
@@ -191,40 +172,6 @@ info:
     name: Order Service
     description: Order lifecycle + saga orchestration
     port: ${server.port:8092}
-
-# HTTP Idempotency-Key — opt in per endpoint. Clients send header
-# `Idempotency-Key: <uuid>` on POST /api/v1/orders; a repeat with the same key
-# returns the stored response and does NOT create a duplicate order.
-idempotency:
-  enabled: true
-  ttl: 24h
-  endpoints:
-    - "POST /api/v1/orders"
-
-# Outbox dispatcher mode. When Debezium is running (docker-cdc profile),
-# the OutboxRelay polling job is a duplicate — disable it.
-outbox:
-  polling-enabled: ${OUTBOX_POLLING:true}
-
-# Opt into the common-lib FeatureFlagService + /admin/flags endpoints.
-feature-flags:
-  enabled: true
-
-# OrderSagaResumer — on boot, re-fires the next command for any saga that
-# was in-flight when the service last stopped. Prevents SagaInFlightStuck
-# alerts caused by crash/restart (vs. a true broken reply handler).
-#
-#   enabled      master switch (set to false in tests that need deterministic saga state)
-#   stale-after  minimum saga age before we touch it. Guards against racing
-#                an in-flight reply still sitting on Kafka.
-#   max-batch    upper bound on how many sagas are resumed per boot. Protects
-#                Kafka from a thundering-herd of commands after a long outage.
-orderservice:
-  saga:
-    resume:
-      enabled: ${SAGA_RESUME_ENABLED:true}
-      stale-after: PT30S
-      max-batch: 100
 
 ---
 # Profile `docker-cdc`: Postgres + CDC. Debezium reads outbox_events via WAL

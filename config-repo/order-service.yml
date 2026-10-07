@@ -1,0 +1,100 @@
+# order-service — served by config-server (native backend).
+# Merged on top of config-repo/application.yml.
+#
+# What's here vs what stays in order-service/application.yml:
+#   HERE          operational tunables (CB thresholds, idempotency TTL,
+#                 feature flag toggles, saga-resume knobs, log levels).
+#                 These are the knobs you'd realistically change in prod
+#                 without redeploying.
+#   LOCAL yml     wiring that can't bootstrap from itself (datasource,
+#                 kafka binder, cloud.stream bindings, security, eureka).
+#
+# To change a value live:
+#   1. Edit this file (in Docker, config-server reads it immediately).
+#   2. curl -X POST http://localhost:8083/actuator/refresh
+#      → prints the keys that just rebound.
+#
+# Refresh behaviour recap:
+#   @RefreshScope + @Value   → rebinds
+#   @ConfigurationProperties → rebinds
+#   LoggersEndpoint          → rebinds (log levels update live)
+#   resilience4j             → properties rebind, but ALREADY-CREATED
+#                              CB instances keep old thresholds. Restart
+#                              to force the registry to rebuild instances.
+#   feature-flags            → depends on how the FeatureFlagService reads
+#                              them; common-lib's reader is RefreshScope-aware.
+
+# ---- Resilience4j (productClient) ----
+# Protects order-service's outbound Feign call to product-service.
+# Keep conservative here — order-service is the hot path for POST /api/v1/orders.
+resilience4j:
+  circuitbreaker:
+    instances:
+      productClient:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      productClient:
+        max-attempts: 3                      # total attempts (initial + 2 retries)
+        wait-duration: 200ms                 # base delay
+        enable-exponential-backoff: true     # 200ms, 400ms, 800ms, ...
+        exponential-backoff-multiplier: 2
+        # Retry ONLY transient infra errors. Never retry 4xx — business errors.
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - feign.RetryableException
+  bulkhead:
+    instances:
+      productClient:
+        max-concurrent-calls: 10             # cap concurrent calls to product-service
+        max-wait-duration: 100ms             # fail-fast after 100ms if all slots busy
+
+# ---- HTTP idempotency ----
+# Clients send `Idempotency-Key: <uuid>` on POST /api/v1/orders; repeats
+# with the same key return the stored response and do NOT create a dup.
+idempotency:
+  enabled: true
+  ttl: 24h
+  endpoints:
+    - "POST /api/v1/orders"
+
+# ---- Outbox dispatcher ----
+# When Debezium is running (docker-cdc profile), the OutboxRelay polling
+# job is a duplicate — disable it there. Env override OUTBOX_POLLING still works.
+outbox:
+  polling-enabled: ${OUTBOX_POLLING:true}
+
+# ---- Feature flags ----
+# Opt into common-lib FeatureFlagService + /admin/flags endpoints.
+feature-flags:
+  enabled: true
+
+# ---- OrderSagaResumer ----
+# On boot, re-fires the next command for any saga wedged in STARTED/PAID/
+# COMPENSATING. Env override SAGA_RESUME_ENABLED still works.
+#
+#   enabled      master switch (false for tests that need deterministic state)
+#   stale-after  minimum saga age before re-firing — guards against racing
+#                a reply still in-flight on Kafka
+#   max-batch    upper bound per boot — protects Kafka from thundering herd
+orderservice:
+  saga:
+    resume:
+      enabled: ${SAGA_RESUME_ENABLED:true}
+      stale-after: PT30S
+      max-batch: 100
+
+# ---- Logging ----
+# LoggersEndpoint rebinds these live via /actuator/refresh.
+logging:
+  level:
+    org.hibernate.SQL: INFO
+    com.example.orderservice: INFO
