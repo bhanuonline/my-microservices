@@ -72,9 +72,11 @@ public class OrderSagaResumer {
     private final StreamBridge streamBridge;
     private final SagaMetrics metrics;
 
-    private final boolean enabled;
-    private final Duration staleAfter;
-    private final int maxBatch;
+    // Not `final` so SagaIntegrationTest can flip `enabled` on for the resumer test
+    // without rebooting the whole Spring context. Treat as effectively final at runtime.
+    private boolean enabled;
+    private Duration staleAfter;
+    private int maxBatch;
 
     public OrderSagaResumer(OrderSagaRepository sagaRepo,
                             OrderRepository orderRepo,
@@ -91,6 +93,9 @@ public class OrderSagaResumer {
         this.staleAfter = staleAfter;
         this.maxBatch = maxBatch;
     }
+
+    /** Test seam. Not used in production. */
+    void setEnabled(boolean enabled) { this.enabled = enabled; }
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional

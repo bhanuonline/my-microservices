@@ -1,0 +1,75 @@
+# Overlays production application.yml during @ActiveProfiles("integration-test").
+# Keeps the Kafka binder config from production but disables what we don't
+# want running in a test context.
+
+spring:
+  # Don't reach out to config-server during tests.
+  config:
+    import: ""
+  # Override the production transactional/String producer with a plain non-transactional
+  # byte[] serializer — Spring Cloud Stream converts payloads to byte[] before send,
+  # so a StringSerializer would mismatch.
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      transaction-id-prefix:
+      acks: 1
+      properties:
+        enable.idempotence: false
+  cloud:
+    config:
+      enabled: false
+    # Keep the saga bindings — overridden host comes from @DynamicPropertySource.
+    stream:
+      kafka:
+        binder:
+          # Faster than production's defaults; tests shouldn't wait on broker retries.
+          required-acks: 1
+          auto-create-topics: true
+          # Match the plain non-transactional producer above.
+          configuration:
+            key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+            value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+  # H2 is already the dev default; be explicit so the test never races a real MySQL on CI.
+  datasource:
+    url: jdbc:h2:mem:ordertest;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  autoconfigure:
+    exclude:
+      # No Eureka during tests — would spin a thread trying to register.
+      - org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration
+      # Don't try to talk to the OAuth2 issuer (it isn't running).
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+
+eureka:
+  client:
+    enabled: false
+
+# Disable the resumer by default; the resumer test turns it back on.
+orderservice:
+  saga:
+    resume:
+      enabled: false
+
+# Outbox polling off — we're not testing the outbox here, and the polling
+# thread would race with the saga tests publishing their own events.
+outbox:
+  polling-enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  tracing:
+    sampling:
+      probability: 0.0
