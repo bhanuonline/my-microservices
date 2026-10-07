@@ -143,30 +143,121 @@ For Phase 2/3 purposes, treat auth-server as "JWKS provider only".
 ## Symptom — `No spring.config.import property has been defined`
 
 **Diagnosis:** `spring-cloud-starter-config` (the config-client) is on the
-classpath, but no config-server import was declared. From Spring Boot 2.4+
-the client refuses to start without an explicit `spring.config.import`.
+classpath, but no `spring.config.import` was declared. From Spring Boot 2.4+
+the client refuses to start without an explicit import directive.
 
-**Fix (config-server not implemented yet):** add these to the service's yml
-INSIDE the existing `spring:` block:
+**Fix:** add the standard config-server import to the service's yml inside
+the existing `spring:` block:
 ```yaml
 spring:
+  config:
+    # `optional:` prefix = boot even if config-server is unreachable, so a
+    # dead config-server does NOT take down the service.
+    import: "optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}"
   cloud:
     config:
-      enabled: false                   # skip the client, don't try to fetch
-  config:
-    import: "optional:configserver:"   # satisfy the boot-time check anyway
+      # Bounded boot-retry window — unrelated to `optional:`, which handles
+      # the actually-unreachable case. These tune the "slow but reachable" one.
+      fail-fast: false
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
 ```
 
 Applies to any service with `spring-cloud-starter-config` in its pom.
-Currently: user-service, product-service, order-service.
+Already wired: user-service, product-service, order-service.
+
+For services NOT wired to pull from config-server (any service without
+the starter), you can omit the whole block — Spring only enforces
+`spring.config.import` when the client is on the classpath.
 
 **Watch out for YAML duplicate keys:** if the service already has a
-`spring.cloud.*` block (e.g. for stream), you MUST nest `config: {enabled: false}`
-UNDER the existing `cloud:` — otherwise the second `spring.cloud:` silently
-overwrites the first.
+`spring.cloud.*` block (e.g. for stream), you MUST nest `config:` UNDER
+the existing `cloud:` — otherwise the second top-level `spring.cloud:`
+silently overwrites the first.
 
-**Long-term fix:** actually implement config-server (see problem #8 in the
-original plan).
+**Boot-time behaviour cheat sheet:**
+
+| config-server state | What happens on service boot |
+|---|---|
+| unreachable | logs a WARN, boots in ~3-5s longer, uses whatever local `application.yml` defined |
+| reachable, no yml for service | boots normally, only `application.yml` defaults from config-repo are merged |
+| reachable, yml exists | config-repo values override local `application.yml` on matching keys |
+| slow but reachable | retries per `spring.cloud.config.retry.*`, then WARNs if still failing |
+
+**Related:** see `config-repo/README.md` and `config-server/` module for
+the actual config-server setup, and `config-repo/<service>.yml` files
+for which keys each service pulls from the central store.
+
+---
+
+## Symptom — service sees local fallback instead of config-repo value
+
+**You expect:** `curl /api/v1/demo/greeting` → `"Hello from CONFIG-REPO …"`
+**You get:**  `"Hello from LOCAL FALLBACK (config-server unreachable)"`
+
+The fallback string in the service's `application.yml` is deliberately
+loud for exactly this case — it tells you config-server was unreachable
+during that service's startup. Four likely causes, in order of frequency:
+
+**1. config-server never came up / is unhealthy.**
+```bash
+docker compose ps config-server
+docker logs --tail 50 config-server
+# healthcheck fail? port taken? crashed on startup?
+```
+Also hit `curl -sf http://localhost:8888/actuator/health` — if that
+returns 503 or hangs, services boot before config-server is ready.
+
+**2. The service booted BEFORE config-server was ready, even though
+compose `depends_on` says `service_healthy`.**
+`depends_on` only delays the START of the container. If config-server's
+first health probe comes back UP but it then becomes unresponsive, a
+service that imports from it will log a `WARN` and fall through to the
+local defaults. Restart the service once config-server is confirmed
+healthy:
+```bash
+docker compose restart user-service
+```
+
+**3. The service doesn't actually have the config in config-repo.**
+```bash
+# What does config-server THINK it has for this service?
+curl -s http://localhost:8888/user-service/default | jq '.propertySources'
+# empty array? you forgot to add config-repo/user-service.yml.
+```
+
+**4. You edited `config-repo/*.yml` after the service started.**
+Spring Cloud Config does NOT auto-refresh. You must trigger it:
+```bash
+curl -X POST http://localhost:8081/actuator/refresh
+# → ["demo.greeting"]   # the keys that just rebound
+```
+If `/actuator/refresh` returns `[]` after an edit, config-server
+probably didn't re-read the file. In Docker it should: the dir is
+mounted. Verify with:
+```bash
+curl -s http://localhost:8888/user-service/default | jq '.propertySources[0].source."demo.greeting"'
+```
+Does THIS show your edit? If no → config-server didn't pick up the
+file change (restart it: `docker compose restart config-server`).
+If yes → the service hasn't been told to refresh yet.
+
+**Three refresh gotchas worth remembering:**
+
+- **Constructor `@Value`** does NOT rebind on refresh. Only field
+  `@Value` with `@RefreshScope`, or `@ConfigurationProperties` beans.
+  Example: `product-service`'s `product.stock.low-threshold` is
+  constructor-@Value, needs a restart.
+- **Resilience4j** rebinds its properties but keeps the ALREADY-CREATED
+  circuit breaker instances with their old thresholds. Restart to
+  force the registry to rebuild instances.
+- **`${env}` placeholders in config-repo values** are resolved at the
+  CLIENT, not the server. `config-server` serves the literal string
+  `${OUTBOX_POLLING:true}`; the client (order-service) resolves it
+  against its own environment at import time.
 
 ---
 
