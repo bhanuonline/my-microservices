@@ -20,6 +20,8 @@ import java.util.concurrent.ConcurrentMap;
  *   orders.saga.started         Counter  — one per start()
  *   orders.saga.terminal        Counter  — tagged {outcome, reason}
  *   orders.saga.duration        Timer    — STARTED → terminal, p50/p95/p99
+ *   orders.saga.resumed         Counter  — tagged {state}, one per command
+ *                                           re-fired by OrderSagaResumer
  *
  * Duration is measured from OrderSaga.createdAt (persisted), so it stays
  * accurate even if the service restarted mid-saga.
@@ -69,6 +71,19 @@ public class SagaMetrics {
                     .computeIfAbsent(outcome, this::buildDurationTimer)
                     .record(Duration.between(startedAt, Instant.now()));
         }
+    }
+
+    /**
+     * Record that OrderSagaResumer re-fired the next command for a saga that
+     * was stuck in {@code state} at boot. Separate from started() so dashboards
+     * can tell first-time starts apart from boot-time retries.
+     */
+    public void resumed(OrderSaga.State state) {
+        Counter.builder("orders.saga.resumed")
+                .description("Sagas whose next command was re-fired by OrderSagaResumer on boot")
+                .tag("state", state.name())
+                .register(registry)
+                .increment();
     }
 
     private Timer buildDurationTimer(String outcome) {

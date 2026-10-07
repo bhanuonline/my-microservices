@@ -210,6 +210,22 @@ outbox:
 feature-flags:
   enabled: true
 
+# OrderSagaResumer — on boot, re-fires the next command for any saga that
+# was in-flight when the service last stopped. Prevents SagaInFlightStuck
+# alerts caused by crash/restart (vs. a true broken reply handler).
+#
+#   enabled      master switch (set to false in tests that need deterministic saga state)
+#   stale-after  minimum saga age before we touch it. Guards against racing
+#                an in-flight reply still sitting on Kafka.
+#   max-batch    upper bound on how many sagas are resumed per boot. Protects
+#                Kafka from a thundering-herd of commands after a long outage.
+orderservice:
+  saga:
+    resume:
+      enabled: ${SAGA_RESUME_ENABLED:true}
+      stale-after: PT30S
+      max-batch: 100
+
 ---
 # Profile `docker-cdc`: Postgres + CDC. Debezium reads outbox_events via WAL
 # instead of OutboxRelay polling.

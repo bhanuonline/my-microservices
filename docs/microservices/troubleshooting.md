@@ -286,9 +286,9 @@ hooks run; a message dropped between the two leaves this diff climbing.
 Likely causes, in order of frequency:
 - Payment-service or notification is down → no reply ever arrives.
 - A saga reply handler threw an exception → message routed to its DLT.
-- order-service restarted mid-saga and no resume logic re-wired the
-  in-flight sagas from the DB rows. (Note: `OrderSagaOrchestrator`
-  does not currently resume on boot. See deferred follow-up.)
+- order-service restarted mid-saga AND `OrderSagaResumer` is disabled or
+  the saga is younger than its `stale-after` window
+  (default 30s, so very fresh restarts can still briefly stick).
 
 **Fix:**
 1. Dashboard → **In-flight sagas** stat panel. Is the number flat (true
@@ -306,9 +306,20 @@ Likely causes, in order of frequency:
 4. For the stuck sagas, check if the matching reply topic has a backlog
    or if its DLT has messages (see [DLT runbook](#alert--dlt-messages)).
 
-**Prevention:** add a boot-time resume: on startup, scan `order_sagas`
-for non-terminal states and re-fire the appropriate command. Deferred —
-not fixing in this runbook.
+**Prevention:** `OrderSagaResumer` runs on `ApplicationReadyEvent` and
+re-fires the next command for any non-terminal saga older than
+`orderservice.saga.resume.stale-after` (default 30s). Check it's enabled:
+
+```bash
+grep -r 'saga.resume' order-service/src/main/resources/
+# or at runtime:
+curl -s http://localhost:8083/actuator/env | grep saga.resume
+```
+
+Watch resume activity on the Order Saga dashboard — new metric
+`orders_saga_resumed_total{state}` increments once per re-fired command.
+If this fires every boot even in dev, something upstream is dropping
+replies — fix that root cause, don't rely on resume as a hot path.
 
 ---
 
