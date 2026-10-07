@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Dashboard</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Dashboard</h1>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3 mb-4">
+        <div class="col"><div class="tile">
+            <div class="label">Orders today</div>
+            <div class="value" th:text="${metrics.ordersToday() ?: '—'}">—</div>
+            <div class="delta">last 24h via Prometheus</div>
+        </div></div>
+        <div class="col"><div class="tile">
+            <div class="label">Sagas in flight</div>
+            <div class="value" th:text="${metrics.sagasInFlight()}">0</div>
+            <div class="delta">
+                <span th:text="${metrics.sagasStarted()}">0</span> total ·
+                <span class="text-danger" th:text="${metrics.sagasFailed()}">0</span> failed
+            </div>
+        </div></div>
+        <div class="col"><div class="tile">
+            <div class="label">Dead letters pending</div>
+            <div class="value"
+                 th:classappend="${metrics.dlqPending() > 0} ? 'text-danger'"
+                 th:text="${metrics.dlqPending()}">0</div>
+            <div class="delta">status = NEW</div>
+        </div></div>
+        <div class="col"><div class="tile">
+            <div class="label">Products indexed</div>
+            <div class="value" th:text="${metrics.productsIndexed()}">0</div>
+            <div class="delta">in products_v1 (ES)</div>
+        </div></div>
+        <div class="col"><div class="tile">
+            <div class="label">HTTP p95</div>
+            <div class="value"
+                 th:text="${metrics.httpP95Ms() == null ? '—' : #numbers.formatDecimal(metrics.httpP95Ms(), 1, 0) + ' ms'}">—</div>
+            <div class="delta">5m rolling, all services</div>
+        </div></div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h2 class="h5 mb-0">Recent orders</h2>
+        <a th:href="@{/orders}" class="small">See all →</a>
+    </div>
+
+    <div class="tile p-0">
+        <table class="table ops mb-0">
+            <thead class="small text-muted">
+                <tr><th>Order id</th><th>Status</th><th>Amount</th><th>Product</th><th>Placed</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="o : ${recentOrders}">
+                    <td><a th:href="@{'/orders/' + ${o.id}}" th:text="${o.id}">id</a></td>
+                    <td><span class="badge status-badge"
+                              th:classappend="|status-${o.status}|"
+                              th:text="${o.status}">STATUS</span></td>
+                    <td th:text="${o.amount != null ? '$' + o.amount : '—'}">$0.00</td>
+                    <td th:text="${o.productId}">0</td>
+                    <td class="text-muted small"
+                        th:text="${o.createdAt != null ? #temporals.format(o.createdAt, 'yyyy-MM-dd HH:mm') : '—'}">—</td>
+                </tr>
+                <tr th:if="${recentOrders.isEmpty()}">
+                    <td colspan="5" class="text-center text-muted py-3">No orders yet.
+                        Place one from <a th:href="@{http://localhost:8089}">shop-ui</a>.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

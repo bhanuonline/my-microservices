@@ -9,6 +9,11 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+// product-service uses the consumer-side IdempotencyGuard from
+// com.example.common.idempotency. It does NOT want the HTTP Idempotency-Key
+// filter from .idempotency.http — that filter's IdempotencyRecord entity
+// would need a new Flyway migration here. The HTTP filter is kept opt-in
+// via idempotency.enabled=true in application.yml (set only in order-service).
 @SpringBootApplication(scanBasePackages = {"com.example.productservice", "com.example.common.idempotency"})
 @EnableCaching
 @EnableJpaAuditing

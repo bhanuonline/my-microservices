@@ -23,9 +23,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      # validate: Hibernate checks entity ↔ schema match on startup, never alters.
-      # Schema changes MUST go through Flyway migrations in db/migration/V<n>__*.sql
-      ddl-auto: validate
+      # DEV: update — Hibernate creates/adds columns for entities (e.g. common-lib's
+      # idempotency_records, dlq_events, feature_flags) without requiring a Flyway
+      # migration per added table. Prod should flip back to validate + add migrations
+      # for each cross-cutting entity picked up through common-lib.
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:

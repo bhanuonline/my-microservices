@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title layout:title-pattern="$CONTENT_TITLE — Backoffice">Backoffice</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"/>
+    <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        body { background:#f3f4f6; }
+        .sidebar { width:240px; min-height:100vh; background:#1f2937; color:#e5e7eb; position:fixed; top:0; left:0; padding-top:1rem; }
+        .sidebar .brand { color:#fff; font-weight:600; padding:0 1.25rem 1rem; border-bottom:1px solid #374151; }
+        .sidebar a { color:#d1d5db; display:block; padding:.5rem 1.25rem; text-decoration:none; border-left:3px solid transparent; }
+        .sidebar a:hover { background:#111827; color:#fff; }
+        .sidebar a.active { background:#111827; color:#60a5fa; border-left-color:#60a5fa; }
+        .sidebar .section { padding:1rem 1.25rem .35rem; text-transform:uppercase; font-size:.68rem; color:#9ca3af; letter-spacing:.08em; }
+        .main { margin-left:240px; padding:1.5rem 2rem; }
+        .tile { background:#fff; border-radius:.5rem; padding:1rem; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+        .tile .label { font-size:.78rem; text-transform:uppercase; color:#6b7280; letter-spacing:.04em; }
+        .tile .value { font-size:1.8rem; font-weight:600; color:#111827; }
+        .tile .delta { font-size:.75rem; color:#6b7280; }
+        .status-badge { font-size:.72rem; padding:.2em .55em; }
+        .status-STARTED, .status-NEW, .status-PENDING          { background:#fef3c7; color:#92400e; }
+        .status-PAID, .status-COMPLETED, .status-REPLAYED      { background:#d1fae5; color:#065f46; }
+        .status-FAILED, .status-CANCELLED, .status-COMPENSATING{ background:#fee2e2; color:#991b1b; }
+        .status-ACKNOWLEDGED, .status-NOTIFIED                 { background:#e5e7eb; color:#374151; }
+        table.ops td, table.ops th { vertical-align: middle; }
+        code { background:#eef; padding:.1em .3em; border-radius:.2em; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="brand">
+            <i class="bi bi-gear-wide-connected"></i> Backoffice
+        </div>
+
+        <div class="section">Overview</div>
+        <a th:href="@{/}"               th:classappend="${activeNav == 'dashboard'} ? 'active'">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+
+        <div class="section">Commerce</div>
+        <a th:href="@{/orders}"         th:classappend="${activeNav == 'orders'} ? 'active'">
+            <i class="bi bi-receipt"></i> Orders
+        </a>
+        <a th:href="@{/orders/live}"    th:classappend="${activeNav == 'orders-live'} ? 'active'">
+            <i class="bi bi-broadcast-pin"></i> Live feed
+        </a>
+        <a th:href="@{/products}"       th:classappend="${activeNav == 'products'} ? 'active'">
+            <i class="bi bi-box-seam"></i> Products
+        </a>
+
+        <div class="section">Operations</div>
+        <a th:href="@{/sagas}"          th:classappend="${activeNav == 'sagas'} ? 'active'">
+            <i class="bi bi-diagram-3"></i> Sagas
+        </a>
+        <a th:href="@{/dlq}"            th:classappend="${activeNav == 'dlq'} ? 'active'">
+            <i class="bi bi-exclamation-octagon"></i> Dead letters
+        </a>
+        <a th:href="@{/flags}"          th:classappend="${activeNav == 'flags'} ? 'active'">
+            <i class="bi bi-toggle-on"></i> Feature flags
+        </a>
+
+        <div class="section">Platform</div>
+        <a th:href="@{/observability}"  th:classappend="${activeNav == 'observability'} ? 'active'">
+            <i class="bi bi-bar-chart"></i> Observability
+        </a>
+        <a th:href="@{/audit}"          th:classappend="${activeNav == 'audit'} ? 'active'">
+            <i class="bi bi-journal-text"></i> Audit log
+        </a>
+    </aside>
+
+    <main class="main">
+        <div layout:fragment="content">
+            page content
+        </div>
+    </main>
+</body>
+</html>

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -21,8 +22,18 @@ import org.springframework.security.web.server.authentication.AuthenticationWebF
 
 import java.util.List;
 
+/**
+ * JWT-aware security chain — the normal production path. Needs auth-server
+ * reachable because it validates incoming Bearer tokens against the issuer.
+ *
+ * The {@code @Profile("!demo")} marker lets us short-circuit this entire chain
+ * when the gateway runs under the "demo" Spring profile (see
+ * {@link DemoProfileSecurityConfig}) — used by {@code start-stack.sh --demo}
+ * which doesn't launch auth-server.
+ */
 @EnableWebFluxSecurity
 @Configuration
+@Profile("!demo")
 @EnableConfigurationProperties(AdminAuthProperties.class)
 public class GatewaySecurityConfig {
 

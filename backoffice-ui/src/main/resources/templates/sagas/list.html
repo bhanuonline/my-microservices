@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Sagas</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Sagas</h1>
+
+    <form method="get" th:action="@{/sagas}" class="mb-3 d-flex gap-2 align-items-center">
+        <select name="state" class="form-select form-select-sm" style="width:14rem"
+                onchange="this.form.submit()">
+            <option value="">— all states —</option>
+            <option value="STARTED"      th:selected="${state == 'STARTED'}">STARTED</option>
+            <option value="PAID"         th:selected="${state == 'PAID'}">PAID</option>
+            <option value="NOTIFIED"     th:selected="${state == 'NOTIFIED'}">NOTIFIED</option>
+            <option value="COMPENSATING" th:selected="${state == 'COMPENSATING'}">COMPENSATING</option>
+            <option value="FAILED"       th:selected="${state == 'FAILED'}">FAILED</option>
+        </select>
+        <a th:href="@{/sagas}" class="small text-muted ms-1">clear</a>
+    </form>
+
+    <div class="tile p-0">
+        <table class="table ops mb-0">
+            <thead class="small text-muted">
+                <tr><th>Saga id</th><th>Order id</th><th>State</th><th>Updated</th><th></th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="s : ${sagas}">
+                    <td><code th:text="${s.get('id').asText()}">?</code></td>
+                    <td><a th:href="@{'/orders/' + ${s.get('orderId').asText()}}"
+                           th:text="${s.get('orderId').asText()}">order</a></td>
+                    <td><span class="badge status-badge"
+                              th:classappend="|status-${s.get('state').asText()}|"
+                              th:text="${s.get('state').asText()}">S</span></td>
+                    <td class="small text-muted"
+                        th:text="${s.has('updatedAt') ? s.get('updatedAt').asText() : '—'}">—</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-primary"
+                           th:href="@{'/sagas/' + ${s.get('id').asText()}}">Open</a>
+                    </td>
+                </tr>
+                <tr th:if="${sagas == null or sagas.size() == 0}">
+                    <td colspan="5" class="text-center text-muted py-3">No sagas match.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

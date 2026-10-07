@@ -5,6 +5,8 @@ import com.example.shop.dto.FacetBucket;
 import com.example.shop.dto.ProductView;
 import com.example.shop.dto.SearchResult;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -22,6 +24,9 @@ import java.util.Map;
  */
 @Component
 public class ProductQueryClient {
+
+    private static final Logger log = LoggerFactory.getLogger(ProductQueryClient.class);
+
 
     private final RestTemplate rest;
     private final BackendProperties props;
@@ -51,14 +56,27 @@ public class ProductQueryClient {
         if (Boolean.TRUE.equals(inStock))     uri.queryParam("inStock", true);
         if (withFacets)                       uri.queryParam("aggregations", "category,brand,price");
 
-        JsonNode body = rest.getForObject(uri.toUriString(), JsonNode.class);
-        return parse(body, page, size);
+        try {
+            JsonNode body = rest.getForObject(uri.toUriString(), JsonNode.class);
+            return parse(body, page, size);
+        } catch (RuntimeException e) {
+            // product-query may be absent (minimal profile) or temporarily down.
+            // Fall back to an empty result so the shop still renders a usable page.
+            log.warn("product-query unreachable at {} ({}), returning empty result",
+                    props.getProductQueryUrl(), e.getClass().getSimpleName());
+            return new SearchResult(List.of(), 0, page, size, Map.of());
+        }
     }
 
     public ProductView byId(String id) {
-        JsonNode node = rest.getForObject(
-                props.getProductQueryUrl() + "/products/search/" + id, JsonNode.class);
-        return node == null || node.isMissingNode() ? null : toProduct(node);
+        try {
+            JsonNode node = rest.getForObject(
+                    props.getProductQueryUrl() + "/products/search/" + id, JsonNode.class);
+            return node == null || node.isMissingNode() ? null : toProduct(node);
+        } catch (RuntimeException e) {
+            log.debug("product-query byId failed for {}: {}", id, e.toString());
+            return null;
+        }
     }
 
     private static SearchResult parse(JsonNode body, int page, int size) {

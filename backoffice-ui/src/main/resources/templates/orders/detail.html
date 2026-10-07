@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title th:text="|Order ${orderId}|">Order</title></head>
+<body>
+<div layout:fragment="content">
+    <nav class="small mb-3">
+        <a th:href="@{/orders}">← Orders</a>
+    </nav>
+
+    <h1 class="h4 mb-3">Order <code th:text="${orderId}">id</code></h1>
+
+    <div th:if="${order == null}" class="alert alert-warning">
+        order-service doesn't know about this order id.
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="tile">
+                <h2 class="h6 text-muted">Order record</h2>
+                <table class="table table-sm mb-3" th:if="${order != null}">
+                    <tr><th>Status</th>
+                        <td><span class="badge status-badge"
+                                  th:classappend="|status-${order.get('status').asText()}|"
+                                  th:text="${order.get('status').asText()}">S</span></td></tr>
+                    <tr><th>Product</th>
+                        <td th:text="${order.get('productId').asText()}">0</td></tr>
+                    <tr><th>Quantity</th>
+                        <td th:text="${order.get('quantity').asText()}">0</td></tr>
+                    <tr><th>Amount</th>
+                        <td th:text="|$${order.get('amount').asText()}|">$0</td></tr>
+                    <tr th:if="${order.has('createdAt')}"><th>Placed</th>
+                        <td th:text="${order.get('createdAt').asText()}">—</td></tr>
+                    <tr th:if="${order.has('paymentId')}"><th>Payment</th>
+                        <td><code th:text="${order.get('paymentId').asText()}">pmt-?</code></td></tr>
+                </table>
+
+                <!-- Compensate form — fires a refund command via the saga admin -->
+                <form th:if="${saga != null}"
+                      th:action="@{'/orders/' + ${orderId} + '/compensate'}" method="post"
+                      onsubmit="return confirm('Fire a refund + cancel for this order?');">
+                    <div class="input-group input-group-sm">
+                        <input class="form-control" name="reason"
+                               value="cs-request" placeholder="reason"/>
+                        <button class="btn btn-outline-danger" type="submit">
+                            <i class="bi bi-arrow-counterclockwise"></i> Compensate
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <details class="mt-3">
+                <summary class="small text-muted">Raw order JSON</summary>
+                <pre class="small bg-white p-3 rounded border" th:text="${order}">{...}</pre>
+            </details>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="tile">
+                <h2 class="h6 text-muted">Saga timeline</h2>
+
+                <div th:if="${saga == null}" class="text-muted small">
+                    No saga found for this order. Not every order triggers one
+                    (e.g. anonymous payments-only path).
+                </div>
+
+                <table class="table table-sm" th:if="${saga != null}">
+                    <tr><th>Saga id</th><td><code th:text="${saga.get('id').asText()}">?</code></td></tr>
+                    <tr><th>Current state</th>
+                        <td><span class="badge status-badge"
+                                  th:classappend="|status-${saga.get('state').asText()}|"
+                                  th:text="${saga.get('state').asText()}">S</span></td></tr>
+                </table>
+
+                <h3 class="h6 mt-3">Steps</h3>
+                <table class="table table-sm" th:if="${steps != null and steps.size() > 0}">
+                    <thead class="small text-muted">
+                        <tr><th>Step</th><th>Direction</th><th>Outcome</th><th>When</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="s : ${steps}">
+                            <td th:text="${s.get('stepName').asText()}">step</td>
+                            <td class="small text-muted" th:text="${s.get('direction').asText()}">EMIT_COMMAND</td>
+                            <td>
+                                <span class="badge status-badge"
+                                      th:classappend="${s.get('outcome').asText() == 'SUCCEEDED'} ? 'status-PAID' :
+                                                      (${s.get('outcome').asText() == 'FAILED'} ? 'status-FAILED' : 'status-PENDING')"
+                                      th:text="${s.get('outcome').asText()}">O</span>
+                            </td>
+                            <td class="small text-muted" th:text="${s.get('occurredAt').asText()}">—</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p th:if="${steps == null or steps.size() == 0}" class="text-muted small">
+                    No steps recorded. (The SagaRecorder writes on command emit and reply receive.)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

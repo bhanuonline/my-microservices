@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Live orders</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Live orders</h1>
+
+    <div class="tile">
+        <p class="small text-muted mb-2">
+            Streams <code>payment-completed</code> events straight from the
+            notification service's SSE endpoint. Open the shop in another tab
+            and place an order — the row should appear here within ~1 second.
+        </p>
+
+        <div class="d-flex gap-2 align-items-center mb-3">
+            <span class="small text-muted">Status:</span>
+            <span id="status-pill" class="badge bg-secondary">connecting…</span>
+            <span class="small text-muted">·</span>
+            <span class="small text-muted">
+                Not seeing anything? The feed is keyed by <code>orderId</code>,
+                so subscribe to the stream for a known order id:
+            </span>
+            <input id="order-id" placeholder="order id to watch"
+                   class="form-control form-control-sm" style="width:14rem"/>
+            <button id="connect" class="btn btn-sm btn-primary">Watch</button>
+        </div>
+
+        <div id="feed" class="small font-monospace bg-light rounded p-3"
+             style="min-height:200px; max-height:400px; overflow-y:auto;">
+            <div class="text-muted">waiting…</div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+      const notificationUrl = /*[[${notificationUrl}]]*/ 'http://localhost:9999';
+      const statusPill = document.getElementById('status-pill');
+      const feed = document.getElementById('feed');
+      const connectBtn = document.getElementById('connect');
+      const orderInput = document.getElementById('order-id');
+      let es = null;
+
+      function append(line) {
+        const row = document.createElement('div');
+        row.textContent = new Date().toISOString() + '  ' + line;
+        if (feed.firstChild && feed.firstChild.classList && feed.firstChild.classList.contains('text-muted')) {
+          feed.innerHTML = '';
+        }
+        feed.insertBefore(row, feed.firstChild);
+      }
+
+      connectBtn.onclick = () => {
+        const id = orderInput.value.trim();
+        if (!id) { alert('enter an order id first'); return; }
+        if (es) es.close();
+        statusPill.className = 'badge bg-warning text-dark';
+        statusPill.textContent = 'connecting…';
+        es = new EventSource(notificationUrl + '/notifications/stream/' + encodeURIComponent(id));
+        es.onopen    = () => { statusPill.className = 'badge bg-success'; statusPill.textContent = 'connected'; append('[open] ' + id); };
+        es.onmessage = ev => append('[msg] ' + ev.data);
+        es.onerror   = () => { statusPill.className = 'badge bg-danger'; statusPill.textContent = 'disconnected'; append('[error] stream closed'); };
+        ['connected','payment-completed'].forEach(name => {
+          es.addEventListener(name, ev => append('[' + name + '] ' + ev.data));
+        });
+      };
+    </script>
+</div>
+</body>
+</html>

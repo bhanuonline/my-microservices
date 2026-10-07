@@ -374,7 +374,9 @@ gateway:
 #     Redis outage). 5m is fine when pub/sub is on; drop to 30s if off.
   dynamic-routes:
     enabled: true
-    refresh-interval: 5m
+    # ISO-8601 Duration — @Scheduled(fixedDelayString) parses this directly.
+    # Human form (5m) requires timeUnit= attribute, which we don't use.
+    refresh-interval: PT5M
     pubsub:
       enabled: true
       channel: gateway.routes.refresh
@@ -388,7 +390,6 @@ gateway:
 #
 # demo-admin-subs: escape hatch for dev. JWT sub matching → granted SCOPE_admin
 # even without proper claims. KEEP EMPTY IN PROD.
-  admin:
 # ─── Canary routing observability ─────────────────────────────────────
 # The actual traffic split is done by the built-in Weight predicate in the
 # route definitions above. This config only controls:
@@ -535,3 +536,20 @@ gateway:
       - /actuator/**
       - /fallback/**
       - /admin/**                     # admin API uses JWT only
+
+
+# ─── demo profile — used by start-stack.sh --demo ─────────────────────────
+# No auth-server, no mysql-auth. Gateway runs permit-all via
+# DemoProfileSecurityConfig. Disable OIDC discovery that would hit :8095.
+---
+spring:
+  config:
+    activate:
+      on-profile: demo
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # auth-server isn't launched; stop Spring from calling its /.well-known
+          issuer-uri:
+          jwk-set-uri:

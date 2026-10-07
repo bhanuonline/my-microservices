@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title th:text="|DLQ ${id}|">DLQ</title></head>
+<body>
+<div layout:fragment="content">
+    <nav class="small mb-3"><a th:href="@{/dlq}">← Dead letters</a></nav>
+    <h1 class="h4 mb-3">DLQ entry <code th:text="${id}">0</code></h1>
+
+    <div th:if="${entry == null}" class="alert alert-warning">Not found.</div>
+
+    <div class="row g-3" th:if="${entry != null}">
+        <div class="col-md-5"><div class="tile">
+            <table class="table table-sm">
+                <tr><th>Original topic</th><td class="small" th:text="${entry.get('originalTopic').asText()}">?</td></tr>
+                <tr><th>Partition / offset</th>
+                    <td class="small"
+                        th:text="|${entry.has('originalPartition') ? entry.get('originalPartition').asText() : '—'} / ${entry.has('originalOffset') ? entry.get('originalOffset').asText() : '—'}|">—/—</td></tr>
+                <tr><th>Status</th>
+                    <td><span class="badge status-badge"
+                              th:classappend="|status-${entry.get('status').asText()}|"
+                              th:text="${entry.get('status').asText()}">S</span></td></tr>
+                <tr><th>Exception</th>
+                    <td class="small text-danger"
+                        th:text="${entry.has('exceptionClass') ? entry.get('exceptionClass').asText() : '—'}">—</td></tr>
+                <tr><th>Message</th>
+                    <td class="small text-muted"
+                        th:text="${entry.has('exceptionMessage') ? entry.get('exceptionMessage').asText() : '—'}">—</td></tr>
+                <tr><th>Received</th><td class="small text-muted" th:text="${entry.get('receivedAt').asText()}">—</td></tr>
+            </table>
+
+            <div class="d-flex gap-2">
+                <form th:action="@{'/dlq/' + ${id} + '/replay'}" method="post"
+                      onsubmit="return confirm('Replay this message back to its original topic?');">
+                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Replay</button>
+                </form>
+                <form th:action="@{'/dlq/' + ${id} + '/ack'}" method="post"
+                      onsubmit="return confirm('Acknowledge and keep for audit?');">
+                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-check-circle"></i> Acknowledge</button>
+                </form>
+            </div>
+        </div></div>
+
+        <div class="col-md-7"><div class="tile">
+            <h2 class="h6 text-muted">Payload</h2>
+            <pre class="small bg-light p-3 rounded border"
+                 style="max-height:420px; overflow:auto;"
+                 th:text="${entry.get('payload').asText()}">{...}</pre>
+        </div></div>
+    </div>
+</div>
+</body>
+</html>

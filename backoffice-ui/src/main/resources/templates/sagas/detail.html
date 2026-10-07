@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title th:text="|Saga ${id}|">Saga</title></head>
+<body>
+<div layout:fragment="content">
+    <nav class="small mb-3"><a th:href="@{/sagas}">← Sagas</a></nav>
+    <h1 class="h4 mb-3">Saga <code th:text="${id}">?</code></h1>
+
+    <div th:if="${detail == null}" class="alert alert-warning">Saga not found.</div>
+
+    <div class="row g-3" th:if="${detail != null}">
+        <div class="col-md-5"><div class="tile">
+            <h2 class="h6 text-muted">Current state</h2>
+            <table class="table table-sm">
+                <tr><th>Order</th>
+                    <td><a th:href="@{'/orders/' + ${detail.get('saga').get('orderId').asText()}}"
+                           th:text="${detail.get('saga').get('orderId').asText()}">?</a></td></tr>
+                <tr><th>State</th>
+                    <td><span class="badge status-badge"
+                              th:classappend="|status-${detail.get('saga').get('state').asText()}|"
+                              th:text="${detail.get('saga').get('state').asText()}">S</span></td></tr>
+            </table>
+
+            <form th:action="@{'/sagas/' + ${id} + '/compensate'}" method="post"
+                  onsubmit="return confirm('Fire a refund + cancel for this saga?');">
+                <div class="input-group input-group-sm">
+                    <input class="form-control" name="reason" value="operator-triggered"/>
+                    <button class="btn btn-outline-danger" type="submit">
+                        <i class="bi bi-arrow-counterclockwise"></i> Force compensate
+                    </button>
+                </div>
+            </form>
+        </div></div>
+
+        <div class="col-md-7"><div class="tile">
+            <h2 class="h6 text-muted">Steps</h2>
+            <table class="table table-sm" th:if="${detail.get('steps') != null and detail.get('steps').size() > 0}">
+                <thead class="small text-muted">
+                    <tr><th>Step</th><th>Direction</th><th>Outcome</th><th>When</th></tr>
+                </thead>
+                <tbody>
+                    <tr th:each="s : ${detail.get('steps')}">
+                        <td th:text="${s.get('stepName').asText()}">step</td>
+                        <td class="small text-muted" th:text="${s.get('direction').asText()}">EMIT</td>
+                        <td>
+                            <span class="badge status-badge"
+                                  th:classappend="${s.get('outcome').asText() == 'SUCCEEDED'} ? 'status-PAID' :
+                                                 (${s.get('outcome').asText() == 'FAILED'} ? 'status-FAILED' : 'status-PENDING')"
+                                  th:text="${s.get('outcome').asText()}">O</span>
+                        </td>
+                        <td class="small text-muted" th:text="${s.get('occurredAt').asText()}">—</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p th:if="${detail.get('steps') == null or detail.get('steps').size() == 0}"
+               class="text-muted small">
+                No steps recorded for this saga.
+            </p>
+        </div></div>
+    </div>
+</div>
+</body>
+</html>

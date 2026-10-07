@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Observability</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Observability</h1>
+    <p class="small text-muted">Shortcuts into the external tooling.</p>
+
+    <div class="row row-cols-1 row-cols-md-3 g-3">
+        <div class="col"><div class="tile">
+            <h2 class="h6"><i class="bi bi-bar-chart"></i> Grafana</h2>
+            <p class="small text-muted">RED dashboards + custom panels.</p>
+            <a th:href="${grafanaUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Open Grafana →</a>
+            <ul class="small mt-2">
+                <li><a th:href="|${grafanaUrl}/d/ms-red|" target="_blank">Microservices — RED + Resilience</a></li>
+                <li><a th:href="|${grafanaUrl}/d/product-search|" target="_blank">Product Search — ES</a></li>
+                <li><a th:href="|${grafanaUrl}/d/k6-overview|" target="_blank">k6 — load test overview</a></li>
+            </ul>
+        </div></div>
+        <div class="col"><div class="tile">
+            <h2 class="h6"><i class="bi bi-diagram-3"></i> Zipkin</h2>
+            <p class="small text-muted">End-to-end traces per request.</p>
+            <a th:href="${zipkinUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Open Zipkin →</a>
+        </div></div>
+        <div class="col"><div class="tile">
+            <h2 class="h6"><i class="bi bi-database"></i> Prometheus</h2>
+            <p class="small text-muted">Raw metrics explorer / PromQL.</p>
+            <a th:href="${prometheusUrl}" target="_blank" class="btn btn-sm btn-outline-primary">Open Prometheus →</a>
+        </div></div>
+    </div>
+
+    <div class="tile mt-3">
+        <h2 class="h6">Quick queries</h2>
+        <ul class="small">
+            <li><a th:href="|${prometheusUrl}/graph?g0.expr=sum+by+(application)+(rate(http_server_requests_seconds_count[1m]))|"
+                   target="_blank">Req/s per service</a></li>
+            <li><a th:href="|${prometheusUrl}/graph?g0.expr=resilience4j_circuitbreaker_state|"
+                   target="_blank">Circuit breaker states</a></li>
+            <li><a th:href="|${prometheusUrl}/graph?g0.expr=product_search_duration_seconds_count|"
+                   target="_blank">Product search throughput</a></li>
+        </ul>
+    </div>
+</div>
+</body>
+</html>

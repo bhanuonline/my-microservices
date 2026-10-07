@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: backoffice-ui
+  thymeleaf:
+    cache: false
+
+server:
+  port: 8090
+
+backoffice:
+  backends:
+    gateway-url:        ${GATEWAY_URL:http://localhost:8080}
+    product-query-url:  ${PRODUCT_QUERY_URL:http://localhost:8088}
+    order-query-url:    ${ORDER_QUERY_URL:http://localhost:8086}
+    prometheus-url:     ${PROMETHEUS_URL:http://localhost:9090}
+    grafana-url:        ${GRAFANA_URL:http://localhost:3000}
+    zipkin-url:         ${ZIPKIN_URL:http://localhost:9411}
+    notification-url:   ${NOTIFICATION_URL:http://localhost:9999}
+    admin-user:         ${ADMIN_USER:admin}
+    admin-password:     ${ADMIN_PASSWORD:admin123}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+info:
+  app:
+    name: Backoffice
+    description: Operator console for the my-microservices stack
+    port: ${server.port}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+backoffice:
+  backends:
+    gateway-url:        http://api-gateway:8080
+    product-query-url:  http://product-query:8088
+    order-query-url:    http://order-query:8086
+    prometheus-url:     http://prometheus:9090
+    grafana-url:        http://grafana:3000
+    zipkin-url:         http://zipkin:9411
+    notification-url:   http://notification:9999

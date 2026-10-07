@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<head><title>Dead letters</title></head>
+<body>
+<div layout:fragment="content">
+    <h1 class="h4 mb-3">Dead letters</h1>
+
+    <form method="get" th:action="@{/dlq}" class="mb-3 d-flex gap-2 align-items-center">
+        <select name="status" class="form-select form-select-sm" style="width:14rem"
+                onchange="this.form.submit()">
+            <option value="">— all statuses —</option>
+            <option value="NEW"           th:selected="${status == 'NEW'}">NEW</option>
+            <option value="REPLAYED"      th:selected="${status == 'REPLAYED'}">REPLAYED</option>
+            <option value="ACKNOWLEDGED"  th:selected="${status == 'ACKNOWLEDGED'}">ACKNOWLEDGED</option>
+        </select>
+        <a th:href="@{/dlq}" class="small text-muted ms-1">clear</a>
+    </form>
+
+    <div class="tile p-0">
+        <table class="table ops mb-0">
+            <thead class="small text-muted">
+                <tr>
+                    <th>Id</th><th>Original topic</th><th>Exception</th>
+                    <th>Status</th><th>Received</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- entries is a Spring Data Page (JSON) OR a raw array; handle both -->
+                <tr th:each="e : ${entries.has('content') ? entries.get('content') : entries}">
+                    <td><code th:text="${e.get('id').asText()}">0</code></td>
+                    <td class="small" th:text="${e.get('originalTopic').asText()}">topic</td>
+                    <td class="small text-danger"
+                        th:text="${e.has('exceptionMessage') and !e.get('exceptionMessage').isNull()
+                                    ? e.get('exceptionMessage').asText() : e.get('exceptionClass').asText()}">—</td>
+                    <td><span class="badge status-badge"
+                              th:classappend="|status-${e.get('status').asText()}|"
+                              th:text="${e.get('status').asText()}">S</span></td>
+                    <td class="small text-muted" th:text="${e.get('receivedAt').asText()}">—</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-primary"
+                           th:href="@{'/dlq/' + ${e.get('id').asText()}}">Open</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

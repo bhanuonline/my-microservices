@@ -24,6 +24,7 @@
         <module>product-query</module>
         <module>graphql-bff</module>
         <module>shop-ui</module>
+        <module>backoffice-ui</module>
 
         <!-- Trading / study project — kept in the reactor so it builds with the rest. -->
         <module>angle-app</module>

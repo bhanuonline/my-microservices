@@ -30,7 +30,10 @@ public class RouteRefreshScheduler {
         this.events = events;
     }
 
-    @Scheduled(fixedDelayString = "${gateway.dynamic-routes.refresh-interval:30s}")
+    // fixedDelayString accepts ISO-8601 Duration (PT5M, PT30S) natively since
+    // Spring 5.3. Config value MUST be ISO-8601 — human forms like "5m" need
+    // a timeUnit= attribute. yml now stores PT5M.
+    @Scheduled(fixedDelayString = "${gateway.dynamic-routes.refresh-interval:PT30S}")
     public void refresh() {
         log.debug("Publishing scheduled RefreshRoutesEvent");
         events.publishEvent(new RefreshRoutesEvent(this));
