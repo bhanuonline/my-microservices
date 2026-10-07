@@ -1,0 +1,32 @@
+# product-service — served by config-server (native backend).
+# Merged on top of config-repo/application.yml.
+#
+# To change a value live:
+#   1. Edit this file.
+#   2. In Docker, config-server picks it up immediately (mounted volume).
+#   3. curl -X POST http://localhost:8082/actuator/refresh
+#      → prints keys that just rebound.
+#
+# IMPORTANT caveat on product.stock.low-threshold:
+# It's injected via constructor @Value into StockDecrementProcessor.
+# Constructor-injected @Value is bound ONCE at bean construction — it does
+# NOT re-read on /actuator/refresh. To make it live-tunable, either:
+#   (a) move StockDecrementProcessor to @RefreshScope (recreates the bean
+#       on refresh — be careful if it has mutable state), or
+#   (b) wrap the value in a @ConfigurationProperties bean, which rebinds
+#       on refresh and inject that bean instead of @Value.
+# Keeping it here anyway because it IS environment-specific — just
+# know that changing it requires a restart to take effect.
+
+# ---- Business tunables ----
+product:
+  stock:
+    low-threshold: 5
+
+# ---- Logging ----
+# These rebind on /actuator/refresh via LoggersEndpoint — level changes
+# take effect without restart.
+logging:
+  level:
+    org.hibernate.SQL: INFO
+    com.example.productservice: INFO

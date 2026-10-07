@@ -2,7 +2,9 @@ spring:
   application:
     name: product-service
   config:
-    import: "optional:configserver:"
+    # `optional:` prefix = boot even if config-server is unreachable.
+    # URI overridable via CONFIG_SERVER_URI (compose points at config-server:8888).
+    import: "optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}"
   cache:
     type: redis
     redis:
@@ -63,7 +65,15 @@ spring:
         max.in.flight.requests.per.connection: 5
   cloud:
     config:
-      enabled: false          # config-server not implemented yet
+      # Boot resilience: never block boot if config-server is slow/down.
+      # `optional:` on spring.config.import is what actually allows the
+      # no-server boot; these knobs just bound the retry window.
+      fail-fast: false
+      retry:
+        initial-interval: 1000
+        max-attempts: 6
+        max-interval: 2000
+        multiplier: 1.1
     function:
       definition: orderCreated
     stream:
@@ -151,14 +161,11 @@ info:
     description: Product catalog REST API
     port: ${server.port:8091}
 
-product:
-  stock:
-    low-threshold: 5
-
-logging:
-  level:
-    org.hibernate.SQL: INFO
-    com.example.productservice: INFO
+# product.stock.low-threshold MOVED to config-repo/product-service.yml.
+# Local fallback: if config-server is unreachable, @Value in StockDecrementProcessor
+# still has a safe default via "${product.stock.low-threshold:5}" at the injection site.
+#
+# logging.level MOVED to config-repo/product-service.yml.
 
 ---
 spring:
