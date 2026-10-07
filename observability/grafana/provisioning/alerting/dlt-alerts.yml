@@ -56,7 +56,7 @@ groups:
             after all configured retry attempts. The message has been quarantined there and the
             consumer has moved on. Someone needs to look at the payload and decide: replay, drop,
             or fix the consumer.
-          runbook: 'docs/microservices/troubleshooting.md#dlt-messages'
+          runbook: 'docs/microservices/troubleshooting.md#alert--dlt-messages'
         labels:
           severity: critical
           component: kafka
@@ -102,7 +102,7 @@ groups:
             New messages are landing in {{ $labels.topic }} at a non-zero rate over the last 5
             minutes. The retry logic is giving up repeatedly. Check the producer for a bad
             schema change, or the consumer logs for a persistent exception pattern.
-          runbook: 'docs/microservices/troubleshooting.md#dlt-messages'
+          runbook: 'docs/microservices/troubleshooting.md#alert--dlt-messages'
         labels:
           severity: warning
           component: kafka
@@ -149,6 +149,7 @@ groups:
             Group {{ $labels.consumergroup }} is {{ $value }} messages behind. If the pattern
             keeps climbing, retries will time out and messages will head to a DLT. Check consumer
             throughput vs. producer rate on the "Kafka — consumer lag & DLT depth" dashboard.
+          runbook: 'docs/microservices/troubleshooting.md#alert--dlt-messages'
         labels:
           severity: warning
           component: kafka
