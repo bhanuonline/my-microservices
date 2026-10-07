@@ -26,8 +26,7 @@
         <module>shop-ui</module>
         <module>backoffice-ui</module>
 
-        <!-- Trading / study project — kept in the reactor so it builds with the rest. -->
-        <module>angle-app</module>
+        <!-- Trading / study project (angle-app) builds only with -Pwith-angle. -->
 
         <!-- Other side/practice projects — uncomment individually to include in reactor. -->
         <!--
@@ -205,4 +204,16 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!-- Opt-in build of the trading / study project.
+             Default reactor is the 16 core microservices;
+             use `mvn -Pwith-angle ...` to also build angle-app. -->
+        <profile>
+            <id>with-angle</id>
+            <modules>
+                <module>angle-app</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
