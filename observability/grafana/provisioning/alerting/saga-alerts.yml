@@ -1,0 +1,180 @@
+# Grafana unified-alerting provisioning for the order saga.
+# Rules fire into the same default notification policy as dlt-alerts.yml
+# (routes to mailhog-dev → http://localhost:8025).
+#
+# All three rules use noDataState: OK so a quiet period (no sagas at all)
+# never pages anyone — only actual bad outcomes do.
+#
+# Metrics source: order-service SagaMetrics
+#   orders_saga_started_total           Counter
+#   orders_saga_terminal_total          Counter{outcome, reason}
+#   orders_saga_duration_seconds        Timer{outcome}
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: order-saga
+    folder: Orders
+    interval: 30s
+    rules:
+      # ───────────────────────────────────────────────────────────────────────
+      # Warning: sustained bad-outcome ratio.
+      # The `and` clause demands at least ~0.1 terminals/sec over the window
+      # (≈ 6 sagas in 5 min). Below that, 1 bad saga would read as 100%
+      # failure rate which is noise, not a signal.
+      # Both `failed` and `compensated` count as bad: the customer did not
+      # get what they paid for in either case.
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: saga-failure-rate-high
+        title: Saga failure rate high
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: |
+                (
+                  sum(rate(orders_saga_terminal_total{outcome!="completed"}[5m]))
+                    /
+                  sum(rate(orders_saga_terminal_total[5m]))
+                )
+                and
+                (sum(rate(orders_saga_terminal_total[5m])) > 0.1)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [0.05], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'Order saga failure rate is {{ printf "%.1f%%" (mulf $values.A.Value 100) }}'
+          description: |
+            More than 5% of order sagas have terminated as failed/compensated
+            over the last 5 minutes. Check the "Order Saga — business metrics"
+            dashboard, panel "Top failure reasons" to see which failure reason
+            dominates and which downstream service is likely at fault.
+          runbook: 'docs/microservices/troubleshooting.md#order-saga'
+        labels:
+          severity: warning
+          component: order-saga
+
+      # ───────────────────────────────────────────────────────────────────────
+      # Critical: burst of absolute failures. Even if the ratio looks fine
+      # (lots of successes drowning the signal), a sustained spike in raw
+      # failure count means something is actively breaking right now.
+      # 0.5 failures/sec = ~30/min — well above background noise.
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: saga-failures-bursting
+        title: Saga failures bursting
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'sum(rate(orders_saga_terminal_total{outcome!="completed"}[2m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [0.5], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'Order saga failures bursting: {{ printf "%.2f" $values.A.Value }}/s'
+          description: |
+            Order sagas are failing or compensating at > 30/min for the last
+            two minutes. Common causes: payment-service down, notification
+            consumer lag, Kafka broker degraded. Check the "Terminal outcomes"
+            panel on the Order Saga dashboard, and the kafka-consumer-lag
+            dashboard for the notification/order-service-saga groups.
+          runbook: 'docs/microservices/troubleshooting.md#order-saga'
+        labels:
+          severity: critical
+          component: order-saga
+
+      # ───────────────────────────────────────────────────────────────────────
+      # Warning: in-flight sagas stuck.
+      # (started - terminal) should hover around 0 in a healthy system. If it
+      # grows past 50 and stays there for 15 min, a reply handler is probably
+      # dropping messages (missed topic, crashed consumer, or an orchestrator
+      # restart lost the in-memory handler registration).
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: saga-in-flight-stuck
+        title: Saga in-flight stuck
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'sum(orders_saga_started_total) - sum(orders_saga_terminal_total)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [50], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'Order sagas stuck in-flight: {{ printf "%.0f" $values.A.Value }}'
+          description: |
+            `started - terminal` has been > 50 for 15 minutes. In a healthy
+            system this hovers near zero. Likely causes:
+            - payment-service or notification consumer is down (no reply)
+            - a saga reply handler threw and the message got stuck in a DLT
+            - order-service restarted mid-saga and the orchestrator never
+              resumed the in-flight sagas from DB
+
+            Check the "In-flight sagas" panel on the Order Saga dashboard,
+            and the kafka-consumer-lag dashboard for the notification/
+            order-service-saga groups.
+          runbook: 'docs/microservices/troubleshooting.md#order-saga'
+        labels:
+          severity: warning
+          component: order-saga
