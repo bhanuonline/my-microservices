@@ -32,3 +32,8 @@ data/
 
 # Log output (verbose, service-generated)
 logs/
+
+# Local secrets — Compose auto-reads .env; never commit it.
+.env
+.env.local
+*.env

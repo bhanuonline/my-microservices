@@ -18,8 +18,8 @@ spring:
       connect-timeout: 500ms
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/productdb?useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: pass1234
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:pass1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
