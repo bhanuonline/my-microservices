@@ -100,9 +100,9 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "In-flight sagas = started - all terminals. If this grows unbounded, something between start() and the reply handlers is dropping messages.",
+      "description": "In-flight sagas = started - all terminals. If this grows unbounded, something between start() and the reply handlers is dropping messages. OrderSagaResumer drains these on boot (see panel to the right).",
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 200}]}, "unit": "short"}},
-      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 16},
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 16},
       "id": 5,
       "options": {"colorMode": "background", "graphMode": "area", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name"},
       "targets": [
@@ -113,6 +113,23 @@
         }
       ],
       "title": "In-flight sagas (started minus terminal)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Sagas whose next command was re-fired by OrderSagaResumer in the last hour, split by the state the saga was wedged in. Only increments on service restart; non-zero here = someone bounced order-service AND there were stuck sagas waiting. Zero in a quiet system is the healthy case.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}]}, "unit": "short"}},
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 16},
+      "id": 6,
+      "options": {"colorMode": "background", "graphMode": "none", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name"},
+      "targets": [
+        {
+          "expr": "sum by (state) (increase(orders_saga_resumed_total[1h]))",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Sagas resumed on last boot (by stuck state)",
       "type": "stat"
     }
   ],
@@ -125,6 +142,6 @@
   "timezone": "",
   "title": "Order Saga — business metrics",
   "uid": "order-saga",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
