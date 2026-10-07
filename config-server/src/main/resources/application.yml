@@ -1,1 +1,37 @@
-spring:  application:    name: config-server  profiles:    active: native            # "native" = read from filesystem (not git)  cloud:    config:      server:        native:          # Where the yml files live. Points at a folder we'll create next.          search-locations: file:///${user.home}/config-repo/server:  port: 8888                  # standard config-server porteureka:  client:    service-url:      defaultZone: http://localhost:8761/eureka/  instance:    prefer-ip-address: true
+spring:
+  application:
+    name: config-server
+  profiles:
+    # 'native' = read from filesystem/classpath (no git).
+    # Realistic for a study project; swap to the default profile + a git repo
+    # for production.
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          # Default: load config files bundled on the classpath (works for
+          # `mvn spring-boot:run` without any setup). The docker-compose
+          # service overrides this to file:///config-repo so the container
+          # reads the live, mounted config-repo/ dir.
+          search-locations: ${CONFIG_SERVER_SEARCH_LOCATIONS:classpath:/config-repo}
+
+server:
+  port: 8888
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # /actuator/health is used by the Docker healthcheck.
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true

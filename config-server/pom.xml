@@ -34,6 +34,24 @@
     </dependencies>
 
     <build>
+        <!-- Bundle the top-level ../config-repo/ onto the classpath under
+             /config-repo so a bare `mvn spring-boot:run` (or `java -jar`)
+             works out-of-the-box via the classpath: search location.
+             The docker-compose service overrides CONFIG_SERVER_SEARCH_LOCATIONS
+             to file:///config-repo (the mounted volume) so container runs
+             always see the live, un-rebuilt directory. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../config-repo</directory>
+                <targetPath>config-repo</targetPath>
+                <excludes>
+                    <exclude>README.md</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

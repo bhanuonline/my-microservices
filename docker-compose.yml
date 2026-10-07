@@ -358,6 +358,35 @@ services:
       timeout: 5s
       retries: 30
 
+  # Spring Cloud Config server, native-filesystem backend. Reads yml files
+  # from the project's config-repo/ dir (mounted here) and serves them to
+  # any service wired with `spring.config.import: optional:configserver:...`.
+  # Currently NO service imports from it — this is Group 1 of the migration.
+  # Browse:  curl http://localhost:8888/user-service/default
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: config-server
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    ports:
+      - "8888:8888"
+    environment:
+      # Live-read the mounted dir, not the classpath-bundled copy baked at build time.
+      CONFIG_SERVER_SEARCH_LOCATIONS: file:///config-repo
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    volumes:
+      - ./config-repo:/config-repo:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
   # Pin issuer-uri so tokens are stamped the same whether hit from host or container.
   # Host access: http://localhost:8095   → mapped to auth-server:8095 inside network.
   # All *validators* MUST use the same issuer-uri to accept tokens.

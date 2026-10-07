@@ -1,0 +1,15 @@
+# Shared defaults — merged into every service's config before its own
+# <service-name>.yml layer. Keep this small; only values that are truly
+# the same across all services belong here.
+#
+# When a service wires `spring.config.import: optional:configserver:…`,
+# it will see these values alongside anything it defines locally.
+
+# No shared keys yet. First opt-in service will populate per-service
+# yml files in this directory (e.g. user-service.yml).
+
+# One marker key so `curl /application/default` returns a non-empty
+# propertySources array — proof that the config-server is actually
+# wired to this file. Harmless to any service that imports from here.
+config-repo:
+  loaded-from: config-repo/application.yml
