@@ -28,17 +28,21 @@
 
         <!-- Trading / study project (angle-app) builds only with -Pwith-angle. -->
 
-        <!-- Other side/practice projects — uncomment individually to include in reactor. -->
+        <!-- Study / practice projects live under study-projects/ and are
+             NOT built by default. Uncomment individually to include. -->
         <!--
-        <module>interview</module>
-        <module>admin</module>
-        <module>process</module>
-        <module>service</module>
-        <module>prepration</module>
-        <module>food-delivery</module>
-        <module>client-app</module>
-        <module>spring-security-apps</module>
-        <module>jwtAuthApp</module>
+        <module>study-projects/interview</module>
+        <module>study-projects/admin</module>
+        <module>study-projects/process</module>
+        <module>study-projects/service</module>
+        <module>study-projects/prepration</module>
+        <module>study-projects/food-delivery</module>
+        <module>study-projects/client-app</module>
+        <module>study-projects/spring-security-apps</module>
+        <module>study-projects/jwtAuthApp</module>
+        <module>study-projects/fast-api</module>
+        <module>study-projects/kite</module>
+        <module>study-projects/algolia</module>
         -->
     </modules>
 
