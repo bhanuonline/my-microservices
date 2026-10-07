@@ -26,3 +26,9 @@ notification/.mvn/
 
 # Ignore JAR files
 *.jar
+
+# Runtime data (H2 files, gateway route cache, etc.)
+data/
+
+# Log output (verbose, service-generated)
+logs/
