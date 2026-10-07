@@ -101,6 +101,28 @@ services:
       retries: 30
       start_period: 45s
 
+  # kafka-exporter — exposes consumer-group lag + topic metrics as Prometheus
+  # time series, queried directly from Kafka admin API. Independent of whether
+  # the consumer services are alive, so you can see lag growing on a dead
+  # consumer group (which Micrometer in-process metrics can't tell you).
+  # Metrics appear on http://kafka-exporter:9308/metrics; Prometheus scrapes
+  # them via the 'kafka-exporter' job in observability/prometheus.yml.
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    container_name: kafka-exporter
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - '--kafka.server=kafka:29092'
+      - '--web.listen-address=:9308'
+      # Low-churn install — tighten these later if the exporter becomes a hot path.
+      - '--kafka.version=3.7.0'
+    ports:
+      - "9308:9308"
+    networks:
+      - backend
+
   # ---------- CDC (Tier 2) ----------
   # Postgres with logical replication enabled — Debezium needs WAL-level=logical.
   # order-service switches to this DB under the `docker-cdc` Spring profile.
