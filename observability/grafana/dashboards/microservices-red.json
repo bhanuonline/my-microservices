@@ -8,9 +8,134 @@
   "liveNow": false,
   "panels": [
     {
+      "type": "alertlist",
+      "title": "Critical alerts — firing",
+      "description": "Any provisioned rule labelled severity=critical that is currently firing or about to. Click a row → opens the alert detail with its runbook link.",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 7,
+      "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "groupBy": [],
+        "showInstances": false,
+        "maxItems": 10,
+        "sortOrder": 3,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "error": false,
+          "noData": false,
+          "normal": false
+        },
+        "alertName": "",
+        "dashboardAlerts": false,
+        "alertInstanceLabelFilter": "{severity=\"critical\"}"
+      }
+    },
+    {
+      "type": "alertlist",
+      "title": "Warning alerts — firing",
+      "description": "Any provisioned rule labelled severity=warning that is currently firing. Keep this empty during normal operation.",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 8,
+      "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+      "options": {
+        "viewMode": "list",
+        "groupMode": "default",
+        "groupBy": [],
+        "showInstances": false,
+        "maxItems": 10,
+        "sortOrder": 3,
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "error": false,
+          "noData": false,
+          "normal": false
+        },
+        "alertName": "",
+        "dashboardAlerts": false,
+        "alertInstanceLabelFilter": "{severity=\"warning\"}"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "DLT depth (poisoned msgs)",
+      "description": "Total messages sitting across all *.DLT and error.* topics. 0 = green, any poisoned message = red.",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 9,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset{topic=~\".*\\\\.DLT$|error\\\\..*\"})",
+          "legendFormat": "DLT total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "In-flight sagas",
+      "description": "started - terminal. Healthy range is near zero. Climbing = reply handler stuck or payment/notify service down.",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 10,
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "red", "value": 200}
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(orders_saga_started_total) - sum(orders_saga_terminal_total)",
+          "legendFormat": "in-flight",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "reqps"}},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
       "id": 1,
       "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
       "targets": [
@@ -26,7 +151,7 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "percentunit"}},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
       "id": 2,
       "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
       "targets": [
@@ -42,7 +167,7 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "s"}},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
       "id": 3,
       "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
       "targets": [
@@ -63,7 +188,7 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "bytes"}},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
       "id": 4,
       "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
       "targets": [
@@ -85,7 +210,7 @@
         {"options": {"3": {"color": "red", "text": "OPEN"}}, "type": "value"},
         {"options": {"4": {"color": "red", "text": "FORCED_OPEN"}}, "type": "value"}
       ]}},
-      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 16},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 20},
       "id": 5,
       "options": {"colorMode": "background", "graphMode": "none", "textMode": "value_and_name"},
       "targets": [
@@ -101,7 +226,7 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "short"}},
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 26},
       "id": 6,
       "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
       "targets": [
@@ -124,6 +249,6 @@
   "timezone": "",
   "title": "Microservices — RED + Resilience",
   "uid": "ms-red",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
