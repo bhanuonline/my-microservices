@@ -1,0 +1,154 @@
+# Grafana unified-alerting provisioning.
+# Loaded on startup; evaluated every ruleGroup.interval.
+# Rules fire into the default notification policy (see policies.yml) which
+# routes to the mailhog contact point (see contactpoints.yml).
+#
+# Docs: https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: kafka-dlt
+    folder: Kafka
+    interval: 30s
+    rules:
+      # ───────────────────────────────────────────────────────────────────────
+      # Critical: any poisoned messages sitting in a dead-letter topic.
+      # If a message landed here, in-process retry already gave up — a human
+      # needs to look. We care about the LATEST offset, not rate: one poisoned
+      # message is enough to want a page.
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: dlt-messages-poisoned
+        title: DLT message poisoned
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'sum by (topic) (kafka_topic_partition_current_offset{topic=~".*\\.DLT$|error\\..*"})'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'DLT {{ $labels.topic }} has {{ $value }} message(s) — in-process retry gave up'
+          description: |
+            Topic {{ $labels.topic }} contains at least one message that could not be processed
+            after all configured retry attempts. The message has been quarantined there and the
+            consumer has moved on. Someone needs to look at the payload and decide: replay, drop,
+            or fix the consumer.
+          runbook: 'docs/microservices/troubleshooting.md#dlt-messages'
+        labels:
+          severity: critical
+          component: kafka
+
+      # ───────────────────────────────────────────────────────────────────────
+      # Warning: DLT depth is actively GROWING. One poisoned msg is one bug;
+      # a growing DLT is a persistent production problem (bad schema, bad
+      # downstream, retries not helping).
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: dlt-growing
+        title: DLT depth growing
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'sum by (topic) (rate(kafka_topic_partition_current_offset{topic=~".*\\.DLT$|error\\..*"}[5m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'DLT {{ $labels.topic }} is growing — messages are being poisoned repeatedly'
+          description: |
+            New messages are landing in {{ $labels.topic }} at a non-zero rate over the last 5
+            minutes. The retry logic is giving up repeatedly. Check the producer for a bad
+            schema change, or the consumer logs for a persistent exception pattern.
+          runbook: 'docs/microservices/troubleshooting.md#dlt-messages'
+        labels:
+          severity: warning
+          component: kafka
+
+      # ───────────────────────────────────────────────────────────────────────
+      # Warning: consumer-group lag runaway. Signals a slow consumer BEFORE
+      # messages start timing out and heading to the DLT. Complements the
+      # kafka-consumer-lag dashboard — the dashboard shows it, this makes it
+      # push-worthy.
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: consumer-lag-runaway
+        title: Consumer lag runaway
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'max by (consumergroup) (kafka_consumergroup_lag)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [500], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'Consumer group {{ $labels.consumergroup }} lag > 500 for 2m'
+          description: |
+            Group {{ $labels.consumergroup }} is {{ $value }} messages behind. If the pattern
+            keeps climbing, retries will time out and messages will head to a DLT. Check consumer
+            throughput vs. producer rate on the "Kafka — consumer lag & DLT depth" dashboard.
+        labels:
+          severity: warning
+          component: kafka

@@ -1,0 +1,23 @@
+# Contact points — where alerts actually go.
+# `mailhog-dev` is the only one defined; it points at the dev SMTP container
+# baked into docker-compose.yml. Open http://localhost:8025 to see the inbox.
+#
+# To add a real destination (Slack, PagerDuty, webhook), add a receiver here
+# and point policies.yml at it instead of 'mailhog-dev'.
+#
+# Docs: https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/#contact-points
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: mailhog-dev
+    receivers:
+      - uid: mailhog-dev-email
+        type: email
+        settings:
+          addresses: alerts@localhost
+          singleEmail: false
+          subject: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+          # Grafana's default message template renders alert labels + values
+          # readably. Override here if you want HTML.

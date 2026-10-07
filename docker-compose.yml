@@ -296,19 +296,41 @@ services:
       - backend
 
   # Grafana — single pane for metrics (Prometheus), logs (Loki), traces (Zipkin).
-  # Dashboards auto-provisioned from observability/grafana/dashboards/.
-  # Login: admin / admin (change on first login).
+  # mailhog — dev SMTP sink + web inbox. Catches Grafana alert emails so
+  # DLT alerts and consumer-lag warnings land somewhere readable without
+  # relying on a real mail provider. Zero config, zero persistence.
+  # Inbox: http://localhost:8025
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: mailhog
+    ports:
+      - "1025:1025"   # SMTP in (Grafana → here)
+      - "8025:8025"   # Web UI out (you → here)
+    networks:
+      - backend
+
+  # Dashboards + alert rules auto-provisioned from observability/grafana/.
+  # Login: admin / ${GF_ADMIN_PASSWORD} (see .env).
   grafana:
     image: grafana/grafana:11.2.0
     container_name: grafana
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env}
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_FEATURE_TOGGLES_ENABLE: traceToMetrics,traceToLogs
+      # Unified alerting is default on Grafana 10+; made explicit for clarity.
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      GF_ALERTING_ENABLED: "false"
+      # SMTP → mailhog (dev inbox at http://localhost:8025).
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: mailhog:1025
+      GF_SMTP_FROM_ADDRESS: ${GF_SMTP_FROM:-grafana@localhost}
+      GF_SMTP_FROM_NAME: Grafana Alerts
+      GF_SMTP_SKIP_VERIFY: "true"
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -316,6 +338,7 @@ services:
       - prometheus
       - loki
       - zipkin
+      - mailhog
     networks:
       - backend
 
