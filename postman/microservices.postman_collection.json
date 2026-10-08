@@ -1860,6 +1860,366 @@
       ]
     },
     {
+      "name": "F6. Flow \u2014 Checkout (Razorpay) \u2014 payment-gateway Phase 3",
+      "description": "End-to-end Razorpay hosted-checkout flow using the Checkout.js modal.\n\nPrereqs:\n  1. .env has real RAZORPAY_KEY_ID (rzp_test_...), RAZORPAY_KEY_SECRET,\n     RAZORPAY_WEBHOOK_SECRET.\n  2. PAYMENT_RAZORPAY_ENABLED=true, re-source .env, restart payment-service.\n  3. ngrok (or similar) tunneling your localhost:8091 to a public URL.\n     In Razorpay dashboard: webhook URL = https://<tunnel>/webhooks/razorpay.\n     Subscribe to: order.paid, payment.failed, refund.processed.\n\nFlow:\n  1. OAuth2 token.\n  2. POST /checkout provider=razorpay \u2192 response carries a redirectUrl.\n  3. Peek Payment row \u2014 INITIATED with providerRef = order_...\n  4. [HUMAN STEP] Open the redirectUrl in a browser, click Pay, use test card\n     4111 1111 1111 1111 with OTP 123456.\n  5. Poll Payment row \u2192 CAPTURED (webhook arrived).\n  6. Saga NOTIFIED, Order PAID.\n  7. Prometheus \u2014 completed counter incremented.\n\nTroubleshooting:\n  - If step 5 stays INITIATED: your tunnel URL may have changed (ngrok free\n    tier). Update Razorpay dashboard webhook URL.\n  - Dashboard payment history: https://dashboard.razorpay.com/app/payments",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/checkout \u2014 provider=razorpay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow6-rzp-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2,\n  \"provider\": \"razorpay\"\n}"
+            }
+          },
+          "description": "CheckoutController creates Order+saga, then calls payment-service /initiate.\nRazorpayPaymentProvider calls Orders.create() with sagaId as receipt (idempotency).\nredirectUrl points at order-service's hosted Checkout.js page.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.test('provider echoed', () => body.provider === 'razorpay');",
+                  "pm.test('redirectUrl is checkout page', () =>",
+                  "  body.redirectUrl && body.redirectUrl.includes('/razorpay/checkout'));",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);",
+                  "pm.environment.set('razorpayCheckoutUrl', body.redirectUrl);",
+                  "console.log('open in browser:', body.redirectUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Peek Payment row \u2014 INITIATED + Razorpay order id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 1500) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "pm.test('payment row present', () => list.length >= 1);",
+                  "const p = list[0];",
+                  "pm.test('provider = razorpay', () => p.provider === 'razorpay');",
+                  "pm.test('status INITIATED or CAPTURED', () =>",
+                  "  p.status === 'INITIATED' || p.status === 'CAPTURED');",
+                  "pm.test('providerRef is order_*', () =>",
+                  "  p.providerRef && p.providerRef.startsWith('order_'));",
+                  "if (p.id) pm.environment.set('lastPaymentId', p.id);",
+                  "console.log('rzp order', p.providerRef, 'status', p.status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. [HUMAN] Open the checkout page, pay with test card",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{razorpayCheckoutUrl}}",
+              "host": [
+                "{{razorpayCheckoutUrl}}"
+              ],
+              "path": []
+            }
+          },
+          "description": "Open the URL in a BROWSER. Click 'Pay' to open the Razorpay modal.\nTest card:\n  Card:   4111 1111 1111 1111\n  Expiry: any future date (e.g. 12/34)\n  CVC:    any 3 digits\n  OTP:    123456\n\nThe modal closes on success. Razorpay sends order.paid webhook to\npayment-service via your tunnel."
+        },
+        {
+          "name": "5. Poll Payment row until CAPTURED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 5000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "const p = list[0];",
+                  "console.log('after webhook:', p.status, 'reason:', p.failureReason);",
+                  "pm.test('payment CAPTURED', () => p.status === 'CAPTURED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Saga NOTIFIED, order PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "pm.test('saga = NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Order status = PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "pm.test('order PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Prometheus \u2014 completed counter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('terminal{completed} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "1. Auth",
       "item": [
         {

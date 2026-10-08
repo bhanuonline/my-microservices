@@ -61,9 +61,9 @@ safety net.
 
 | Phase | Provider | Status |
 |---|---|---|
-| 1 | Mock | Committed (`cc64f00`) and working |
+| 1 | Mock | Committed and working |
 | 2 | Stripe | Code committed; needs real API keys to actually test |
-| 3 | Razorpay | Stub only (`UnsupportedOperationException`) |
+| 3 | Razorpay | Code committed; needs real API keys + ngrok tunnel to test |
 | 4 | PayPal | Stub only (`UnsupportedOperationException`) |
 
 The stubs are `@ConditionalOnProperty` so they do NOT register as beans unless
@@ -232,13 +232,151 @@ secret. Both must come from the same Stripe test account.
 
 ---
 
-## Phase 3 — Razorpay (not yet implemented)
+## Phase 3 — Razorpay
 
-Scaffolding only. `RazorpayPaymentProvider` throws on invocation.
-Phase 3 will mirror the Stripe pattern:
-- `com.razorpay:razorpay-java` SDK
-- Order + Checkout URL via `RazorpayClient.Orders.create(...)`
-- Webhook via `X-Razorpay-Signature` HMAC-SHA256
+Different model from Stripe: Razorpay does NOT host the checkout page.
+We create a server-side Order, then the frontend uses Checkout.js to open
+a modal with that order id. The user never leaves our domain.
+
+For a backend-only study project, this project ships a minimal HTML page
+served by order-service that renders Checkout.js — so you still get a
+browser-click flow without needing a separate frontend project.
+
+### What you'll need
+
+1. A **Razorpay test account** — https://dashboard.razorpay.com/signup
+   (India phone number for OTP).
+2. **Test API keys** —
+   https://dashboard.razorpay.com/app/keys → switch to "Test mode" → "Generate Test Key".
+   You get a Key Id (`rzp_test_...`) and a Key Secret.
+3. **A webhook configured** —
+   https://dashboard.razorpay.com/app/webhooks → "Add New Webhook"
+   - URL: `https://<your-ngrok-or-tunnel>/webhooks/razorpay`
+     (Razorpay webhooks need a public URL; localhost won't do.
+     Use ngrok: `ngrok http 8091` then paste the forwarded URL.)
+   - Secret: pick a strong string, paste the SAME string in `.env` as
+     `RAZORPAY_WEBHOOK_SECRET`.
+   - Subscribe to: `order.paid`, `payment.failed`, `refund.processed`.
+
+### Set your keys in `.env`
+
+```bash
+PAYMENT_RAZORPAY_ENABLED=true
+RAZORPAY_KEY_ID=rzp_test_...            # from step 2
+RAZORPAY_KEY_SECRET=...                 # from step 2
+RAZORPAY_WEBHOOK_SECRET=...             # the string you chose in step 3
+```
+
+Then:
+```bash
+set -a; source .env; set +a
+mvn -pl paymentservice spring-boot:run
+# AND in another terminal, if you don't have ngrok already:
+ngrok http 8091
+# Copy the https://xxxxx.ngrok.io URL into the Razorpay webhook config.
+```
+
+### Smoke test — payment-service only
+
+```bash
+curl -X POST http://localhost:8091/api/v1/payments/initiate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sagaId": "'"$(uuidgen)"'",
+    "orderId": "smoke-rzp-1",
+    "amount": 500.00,
+    "provider": "razorpay"
+  }' | jq
+```
+
+Expected response:
+```json
+{
+  "paymentId": "...",
+  "providerRef": "order_abc123XYZ",
+  "redirectUrl": "http://localhost:8080/razorpay/checkout?orderId=order_abc123XYZ&amount=50000&currency=INR&keyId=rzp_test_...",
+  "status": "INITIATED"
+}
+```
+
+Open the `redirectUrl` in a browser — a page appears with a "Pay" button
+that opens the Razorpay modal.
+
+### Full end-to-end
+
+Postman: open folder **F6. Flow — Checkout (Razorpay)** and run top-to-bottom.
+
+Manual version:
+```bash
+TOKEN=$(curl -s -u my-client:secret -X POST \
+   http://localhost:8095/oauth2/token \
+   -d 'grant_type=client_credentials&scope=orders.write' | jq -r .access_token)
+
+curl -X POST http://localhost:8080/api/v1/checkout \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"productId":1,"quantity":2,"provider":"razorpay"}' | jq
+```
+
+Response includes `redirectUrl`. Open it, click Pay, use Razorpay's test
+card and OTP (see table below). The modal closes, Razorpay sends the
+`order.paid` webhook to payment-service (via your tunnel), which transitions
+the Payment row to CAPTURED → saga → NOTIFIED → order → PAID.
+
+### Razorpay test credentials
+
+| Scenario | Card | OTP | Notes |
+|---|---|---|---|
+| Successful payment | `4111 1111 1111 1111` | `123456` | Default test card |
+| Failed payment | `5267 3181 8797 5449` | — | Simulates `payment.failed` |
+| Successful UPI | `success@razorpay` | — | Use "UPI" tab in modal |
+| Failed UPI | `failure@razorpay` | — | Simulates failure |
+
+CVC: any 3 digits. Expiry: any future month.
+
+Full reference: https://razorpay.com/docs/payments/payments/test-card-upi-details/
+
+### Common failure modes
+
+**`Missing x-razorpay-signature header`:**
+Something hit `/webhooks/razorpay` that wasn't Razorpay. Legit webhooks
+always sign; service rejects with 400.
+
+**`Razorpay webhook signature mismatch`:**
+`RAZORPAY_WEBHOOK_SECRET` in `.env` doesn't match what you configured in
+the Razorpay dashboard. Both must be the exact same string.
+
+**Modal opens but says "Payment failed" even with the right test card:**
+Most common cause — the `key` field in Checkout.js options doesn't match
+the key your SERVER used to create the order. The HTML page is generated
+by payment-service's provider so this should match automatically; if it
+doesn't, check that paymentservice and the checkout page URL both use the
+same `rzp_test_...` key id.
+
+**Webhook never arrives at payment-service:**
+Three things to check:
+1. `ngrok` tunnel still running?
+2. Razorpay dashboard webhook URL still points at the current ngrok URL?
+   (ngrok free tier regenerates the URL every restart.)
+3. Payment status "test" vs "live" — must match the key you're using.
+
+**Webhook arrives but Payment stays INITIATED:**
+Check paymentservice logs. Most likely the webhook event type is one we
+don't handle (we only act on `order.paid`, `payment.failed`,
+`refund.processed`). Other events return `ignored` — intentional.
+
+### Razorpay vs Stripe differences recap
+
+| Thing | Stripe | Razorpay |
+|---|---|---|
+| Hosted page | Stripe hosts | You host; use Checkout.js modal |
+| Idempotency | native header | `receipt` field on Order |
+| Signature | `Stripe-Signature` HMAC | `X-Razorpay-Signature` HMAC |
+| Verify | `Webhook.constructEvent` | `Utils.verifyWebhookSignature` |
+| Amount | smallest unit (×100 non-zero-decimal) | paise (always ×100) |
+| Currency | lowercase | uppercase |
+| Local tunnel | `stripe listen` built in | ngrok / cloudflared / etc. |
 
 ## Phase 4 — PayPal (not yet implemented)
 

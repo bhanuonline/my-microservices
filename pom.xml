@@ -75,6 +75,8 @@
         <!-- Stripe SDK (payment-gateway Phase 2). Services opt in with a bare dep.
              33.4.2 is the latest stable as of Sep 2026, pins Stripe API 2026-08-26.dahlia. -->
         <stripe.version>33.4.2</stripe.version>
+        <!-- Razorpay SDK (payment-gateway Phase 3). 1.4.9 is the latest on Maven Central. -->
+        <razorpay.version>1.4.9</razorpay.version>
     </properties>
 
     <!-- Confluent artefacts (kafka-avro-serializer, etc.) aren't on Maven Central. -->
@@ -129,6 +131,13 @@
                 <groupId>com.stripe</groupId>
                 <artifactId>stripe-java</artifactId>
                 <version>${stripe.version}</version>
+            </dependency>
+
+            <!-- Razorpay SDK — Phase 3 payment-gateway work. Only payment-service pulls it. -->
+            <dependency>
+                <groupId>com.razorpay</groupId>
+                <artifactId>razorpay-java</artifactId>
+                <version>${razorpay.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

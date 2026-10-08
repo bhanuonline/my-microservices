@@ -60,6 +60,8 @@ public class GatewaySecurityConfig {
                         // at each service's SecurityConfig for the proxy to succeed.
                         .pathMatchers("/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/webjars/**").permitAll()
+                        // Razorpay hosted checkout page — browser GET, no token.
+                        .pathMatchers("/razorpay/checkout").permitAll()
                         // /admin/** requires ANY of the configured admin authorities
                         // (default: SCOPE_admin OR ROLE_ADMIN)
                         .pathMatchers("/admin/**").hasAnyAuthority(adminAuthorities)

@@ -20,6 +20,8 @@ public class SecurityConfig {
                         // OpenAPI endpoints — proxied by the gateway's aggregated Swagger UI.
                         .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
                                 "/swagger-ui.html", "/swagger-ui/**", "/webjars/**").permitAll()
+                        // Razorpay Checkout.js hosted page (browser GET, no token).
+                        .requestMatchers("/razorpay/checkout").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))

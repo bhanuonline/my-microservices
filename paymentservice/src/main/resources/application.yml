@@ -123,6 +123,16 @@ payment:
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     success-url: ${STRIPE_SUCCESS_URL:${payment.default-return-url}}
     cancel-url: ${STRIPE_CANCEL_URL:${payment.default-cancel-url}}
+
+  # Razorpay — Phase 3. Also disabled by default. The checkout-url-base
+  # points at order-service's hosted Razorpay checkout page (served by
+  # RazorpayCheckoutPageController).
+  razorpay:
+    enabled: ${PAYMENT_RAZORPAY_ENABLED:false}
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+    checkout-url-base: ${RAZORPAY_CHECKOUT_URL:http://localhost:8080/razorpay/checkout}
   # Public base URL where providers' webhooks arrive. Behind ngrok/stripe-cli
   # in local dev. Payment-service exposes POST /webhooks/{provider}.
   webhook-base-url: ${PAYMENT_WEBHOOK_BASE_URL:http://localhost:8091}
