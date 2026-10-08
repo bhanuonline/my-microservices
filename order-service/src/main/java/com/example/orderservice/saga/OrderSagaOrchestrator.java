@@ -54,17 +54,32 @@ public class OrderSagaOrchestrator {
         this.metrics = metrics;
     }
 
-    /** Kicks off the saga. Called from OrderService.create right after the Order row is saved. */
+    /** Kicks off the saga with the default payment provider ({@code null} → payment-service's config picks). */
     @Transactional
     public void start(String orderId, BigDecimal amount) {
+        start(orderId, amount, null);
+    }
+
+    /**
+     * Kicks off the saga. Called from {@code OrderService.create} and
+     * {@code CheckoutController} right after the Order row is saved.
+     *
+     * @param provider name of the payment provider ("mock", "stripe", ...) or
+     *                 null to let payment-service pick the configured default.
+     * @return the newly created {@link OrderSaga} — useful for CheckoutController
+     *         which needs the sagaId to echo back to the client.
+     */
+    @Transactional
+    public OrderSaga start(String orderId, BigDecimal amount, String provider) {
         OrderSaga saga = sagaRepo.save(new OrderSaga(orderId));
         metrics.started();
-        log.info("Saga {} STARTED for orderId={}", saga.getId(), orderId);
+        log.info("Saga {} STARTED for orderId={} provider={}", saga.getId(), orderId, provider);
 
         // First command: try to charge payment.
-        PaymentCommand cmd = new PaymentCommand(saga.getId(), orderId, amount);
+        PaymentCommand cmd = new PaymentCommand(saga.getId(), orderId, amount, provider);
         streamBridge.send(PAYMENT_COMMANDS, cmd);
         recorder.recordCommand(saga.getId(), "payment.charge", cmd);
+        return saga;
     }
 
     /** Called by consumer when payment-service replies. */

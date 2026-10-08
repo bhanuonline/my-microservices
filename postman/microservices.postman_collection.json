@@ -1040,6 +1040,459 @@
       ]
     },
     {
+      "name": "F4. Flow \u2014 Checkout (Mock provider) \u2014 payment-gateway Phase 1",
+      "description": "The provider-aware checkout flow with the mock payment provider.\nMock is synchronous: amount < 50000 \u2192 CAPTURED, amount in [50k,100k) \u2192 DECLINED,\namount >= 100k \u2192 FAILED. Thresholds live in payment-service application.yml\nunder payment.mock.*.\n\nFlow A (happy): quantity=1 at \u20b99.99/unit \u2192 amount \u20b99.99 \u2192 CAPTURED \u2192 saga NOTIFIED.\nFlow B (decline): quantity=6000 \u2192 amount ~\u20b959,940 \u2192 DECLINED \u2192 saga FAILED.\n\nWhat each step proves:\n  1. OAuth2 token exchange                     \u2014 gateway + auth-server up\n  2. POST /api/v1/checkout provider=mock        \u2014 new CheckoutController wired\n  3. Peek payment row by orderId                \u2014 new PaymentQueryController + MockPaymentProvider\n  4. Poll saga state                            \u2014 Mock reply flowed back through Kafka\n  5. Order final status                         \u2014 orchestrator advanced correctly\n  6. Prometheus \u2014 terminal{completed}++         \u2014 business metric records the outcome\n  7. Flow B: checkout with decline-triggering amount \u2014 repeats to confirm failure path\n  8. Peek payment row \u2192 DECLINED                \u2014 Mock rule triggered",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token issued', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/checkout \u2014 provider=mock, HAPPY",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow4-happy-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 1,\n  \"provider\": \"mock\"\n}"
+            }
+          },
+          "description": "Hits the new CheckoutController. order-service:\n  - creates Order\n  - calls OrderSagaOrchestrator.start(orderId, amount, \"mock\")\n  - orchestrator fires PaymentCommand on payment.commands with provider=\"mock\"\npayment-service's PaymentCommandProcessor delegates to PaymentService \u2192 MockPaymentProvider.\nMock returns CAPTURED synchronously because amount (\u20b99.99) < threshold 50000.\nResponse: 201 Created, redirectUrl=null (mock is synchronous).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.test('response has sagaId', () => body.sagaId);",
+                  "pm.test('response has orderId', () => body.orderId);",
+                  "pm.test('provider echoed', () => body.provider === 'mock');",
+                  "pm.test('no redirectUrl for mock', () => body.redirectUrl === null);",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);",
+                  "console.log('orderId=', body.orderId, 'sagaId=', body.sagaId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Peek Payment row \u2014 expect CAPTURED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "description": "GET on the new PaymentQueryController. Returns the Payment row persisted\nby payment-service. For the mock flow with amount < 50000, status should be\nCAPTURED and failureReason should be null.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Mock is synchronous but Kafka reply still has to round-trip",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 2000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const list = pm.response.json();",
+                  "pm.test('one payment row', () => Array.isArray(list) && list.length >= 1);",
+                  "const p = list[0];",
+                  "pm.test('payment CAPTURED', () => p.status === 'CAPTURED');",
+                  "pm.test('provider = mock', () => p.provider === 'mock');",
+                  "pm.test('providerRef present', () => !!p.providerRef);",
+                  "pm.test('no failureReason', () => p.failureReason === null);",
+                  "if (p.id) pm.environment.set('lastPaymentId', p.id);",
+                  "console.log('payment', p.id, 'status', p.status, 'ref', p.providerRef);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Poll saga state (should advance)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "description": "Payment CAPTURED \u2192 PaymentReply(success=true) \u2192 orchestrator transitions saga\nto PAID, fires NotifyUserCommand \u2192 notification replies ok \u2192 saga NOTIFIED.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Give notification side a few seconds to complete",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 5000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('saga visible', () => pm.response.code === 200);",
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "pm.test('saga = NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Order final status = PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "console.log('order status =', o.status);",
+                  "pm.test('order PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Prometheus \u2014 assert completed counter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_terminal_total{completed} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. POST /api/v1/checkout \u2014 provider=mock, DECLINE path",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow4-decline-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 6000,\n  \"provider\": \"mock\"\n}"
+            }
+          },
+          "description": "Same endpoint, bigger quantity: 6000 \u00d7 \u20b99.99 = \u20b959,940, which hits the mock's\nDECLINED range [50000, 100000). This exercises the failure path through the\nsame wiring as Flow B of the existing F2 flow, but via the new /checkout API.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Peek Payment row \u2014 expect DECLINED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "const p = list[0];",
+                  "console.log('decline payment', p.id, 'status', p.status, 'reason', p.failureReason);",
+                  "pm.test('payment DECLINED', () => p.status === 'DECLINED');",
+                  "pm.test('failure reason set', () => p.failureReason && p.failureReason.includes('fraud'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Final: saga FAILED, order CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('final saga state =', s.state, 'reason =', s.failureReason);",
+                  "pm.test('saga FAILED', () => s.state === 'FAILED');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "1. Auth",
       "item": [
         {

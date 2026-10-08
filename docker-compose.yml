@@ -50,6 +50,25 @@ services:
       timeout: 3s
       retries: 20
 
+  # Dedicated MySQL for paymentservice. Keeps the payment DB separate from
+  # other service DBs so a schema change in payment doesn't contend with
+  # user/product/auth migrations. Port 3310 on host → 3306 in container.
+  mysql-payment:
+    image: mysql:8
+    container_name: mysql-payment
+    environment:
+      MYSQL_DATABASE: paymentdb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "3310:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # ---------- Secrets / KMS ----------
   # Feature 11 — HashiCorp Vault dev mode. Provides transit engine that
   # signs JWTs without exposing the private key. Dev root token is sourced

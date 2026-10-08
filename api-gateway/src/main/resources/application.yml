@@ -144,7 +144,9 @@ spring:
         - id: order-service
           uri: lb://order-service
           predicates:
-            - Path=/api/v1/orders/**
+            # /orders/**   — classic order CRUD
+            # /checkout/** — provider-aware checkout entry (Phase 1 payment-gateway work)
+            - Path=/api/v1/orders/**,/api/v1/checkout/**
           filters:
             - Bulkhead=orderCB
             - name: CircuitBreaker
@@ -171,6 +173,14 @@ spring:
             - Path=/ws/**
           filters:
             - TokenRelay
+
+        # ─── Payment query API (Phase 1 payment-gateway work) ───────────
+        # Read-only endpoints: GET /api/v1/payments/{id} and /by-order/{orderId}.
+        # Writes to payments go through Kafka (saga's PaymentCommand), never HTTP.
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/v1/payments/**
 
         # ─── OpenAPI aggregation ─────────────────────────────────────────
         # Rewrite /v3/api-docs/<service> → lb://<service>/v3/api-docs.

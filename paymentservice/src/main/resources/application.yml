@@ -97,3 +97,49 @@ management:
 logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{correlationId:-}]"
+
+# ─── Payment provider configuration ───────────────────────────────────────
+# Default provider when a PaymentCommand does not specify one. Used both by
+# PaymentCommandProcessor dispatch and by Mock-vs-Real selection in tests.
+payment:
+  default-provider: ${PAYMENT_DEFAULT_PROVIDER:mock}
+  currency: ${PAYMENT_CURRENCY:INR}
+  # Mock provider — rule-based success/decline. The thresholds let F2/F3
+  # Postman flows trigger specific failure modes deterministically.
+  mock:
+    # Amount strictly LESS than this → AUTHORIZED → CAPTURED
+    success-below: 50000
+    # Amount strictly LESS than this but >= success-below → DECLINED (fraud rule)
+    decline-above: 100000
+    # Simulate async: how long after INITIATED to emit the webhook event.
+    webhook-delay: PT0S
+  # Public base URL where providers' webhooks arrive. Behind ngrok/stripe-cli
+  # in local dev. Payment-service exposes POST /webhooks/{provider}.
+  webhook-base-url: ${PAYMENT_WEBHOOK_BASE_URL:http://localhost:8091}
+  # Where providers redirect the user back to after they pay. The shop-ui
+  # (or an API client) owns these URLs.
+  default-return-url: ${PAYMENT_RETURN_URL:http://localhost:3001/checkout/success}
+  default-cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:3001/checkout/cancel}
+
+---
+# Profile `docker`: use mysql-payment container instead of in-memory H2.
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql-payment:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:pass1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

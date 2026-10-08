@@ -43,6 +43,23 @@ public class OrderService {
     @Transactional
     public Order create(@SpanTag("order.productId") Long productId,
                         @SpanTag("order.quantity") Integer quantity) {
+        return create(productId, quantity, null);
+    }
+
+    /**
+     * Creates an order and starts the saga, routing payment to the named
+     * provider. {@code provider} may be null to let payment-service pick
+     * the configured default ({@code payment.default-provider}).
+     *
+     * <p>Used by {@code CheckoutController} when a client wants to pay with
+     * a specific provider (Stripe / Razorpay / PayPal). The existing
+     * {@code POST /api/v1/orders} path (no provider) continues to work.
+     */
+    @NewSpan("order.create")
+    @Transactional
+    public Order create(@SpanTag("order.productId") Long productId,
+                        @SpanTag("order.quantity") Integer quantity,
+                        @SpanTag("order.provider") String provider) {
         String orderId = UUID.randomUUID().toString();
         BigDecimal amount = UNIT_PRICE.multiply(BigDecimal.valueOf(quantity));
 
@@ -52,7 +69,7 @@ public class OrderService {
                 UUID.randomUUID(), orderId, productId, quantity, amount, Instant.now());
         outboxWriter.write("order", TOPIC_ORDER_CREATED, event);
 
-        saga.start(orderId, amount);
+        saga.start(orderId, amount, provider);
 
         return order;
     }
