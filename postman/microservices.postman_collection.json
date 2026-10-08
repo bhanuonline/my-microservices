@@ -8,8 +8,16 @@
   "auth": {
     "type": "basic",
     "basic": [
-      { "key": "username", "value": "{{adminUser}}", "type": "string" },
-      { "key": "password", "value": "{{adminPassword}}", "type": "string" }
+      {
+        "key": "username",
+        "value": "{{adminUser}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{adminPassword}}",
+        "type": "string"
+      }
     ]
   },
   "event": [
@@ -18,7 +26,7 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Per-request UUIDs — avoids manual regeneration between runs.",
+          "// Per-request UUIDs \u2014 avoids manual regeneration between runs.",
           "pm.variables.set('idempotencyKey', (crypto.randomUUID ? crypto.randomUUID() : pm.variables.replaceIn('{{$guid}}')));",
           "pm.variables.set('correlationId', 'postman-' + Date.now() + '-' + Math.floor(Math.random() * 1e6));"
         ]
@@ -33,34 +41,1009 @@
           "name": "Gateway health",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/actuator/health", "host": ["{{gateway}}"], "path": ["actuator","health"] }
+            "url": {
+              "raw": "{{gateway}}/actuator/health",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
           }
         },
         {
           "name": "Eureka apps (JSON)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
-            "auth": { "type": "noauth" },
-            "url": { "raw": "http://localhost:8761/eureka/apps", "host": ["localhost"], "port": "8761", "path": ["eureka","apps"] }
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "http://localhost:8761/eureka/apps",
+              "host": [
+                "localhost"
+              ],
+              "port": "8761",
+              "path": [
+                "eureka",
+                "apps"
+              ]
+            }
           }
         },
         {
           "name": "Prometheus targets",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{prometheus}}/api/v1/targets", "host": ["{{prometheus}}"], "path": ["api","v1","targets"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{prometheus}}/api/v1/targets",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "targets"
+              ]
+            }
           }
         }
       ]
     },
-
+    {
+      "name": "F1. Flow \u2014 Happy order (gateway \u2192 saga \u2192 Kafka)",
+      "description": "Walks a single order from HTTP request through the saga to a NOTIFIED terminal state.\n\nRun top-to-bottom. Each step chains vars from the previous step via test scripts.\n\nWhat each step proves:\n  1. OAuth2 token exchange           \u2192 auth-server is up, demo-client credentials valid\n  2. POST /orders                    \u2192 gateway routes to order-service, saga.start() fires\n  3. Peek payment.commands topic     \u2192 orchestrator published PaymentCommand on Kafka\n  4. Poll saga state after ~5s       \u2192 payment-service replied OK, saga = PAID or NOTIFIED\n  5. Peek notification.commands      \u2192 orchestrator published NotifyUserCommand\n  6. Final saga state                \u2192 NOTIFIED (success terminal)\n  7. Final order status              \u2192 PAID\n  8. Grafana order-saga dashboard    \u2192 eye-check the orders_saga_terminal_total counter\n\nIf step N fails, you know exactly which hop broke.",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "description": "Fetches a Bearer token used by all subsequent steps. Fails here \u2192 auth-server not up or client credentials wrong.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token issued', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "if (j.access_token) {",
+                  "  pm.environment.set('accessToken', j.access_token);",
+                  "  console.log('accessToken stored');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/orders \u2014 fires saga",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow1-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2\n}"
+            }
+          },
+          "description": "Hits the gateway, which routes to order-service. order-service:\n  - persists an Order row (status=CREATED)\n  - writes an outbox row (OrderCreatedEvent)\n  - calls OrderSagaOrchestrator.start() \u2192 PaymentCommand on payment.commands\nResponse body carries the new orderId; we store it + capture the trace header.\nResponse status is 201. Fail here \u2192 gateway down, Feign to product failed, DB error.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "if (body.id) {",
+                  "  pm.environment.set('lastOrderId', body.id);",
+                  "  console.log('lastOrderId =', body.id);",
+                  "}",
+                  "const trace = pm.response.headers.get('b3') || pm.response.headers.get('traceparent');",
+                  "if (trace) {",
+                  "  // b3 format: traceId-spanId-sampled-parentSpan. traceparent: 00-traceId-...",
+                  "  const tid = trace.includes('-') ? trace.split('-')[trace.startsWith('00-') ? 1 : 0] : trace;",
+                  "  pm.environment.set('lastTraceId', tid);",
+                  "  console.log('lastTraceId =', tid, '(open in Zipkin: {{zipkin}}/zipkin/traces/' + tid + ')');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. kafka-ui \u2014 peek payment.commands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{kafkaUi}}/api/clusters/local/topics/payment.commands/messages?seekType=LATEST&limit=10",
+              "host": [
+                "{{kafkaUi}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                "local",
+                "topics",
+                "payment.commands",
+                "messages?seekType=LATEST&limit=10"
+              ]
+            }
+          },
+          "description": "Looks at the last 10 messages on payment.commands. You should see one with sagaId matching this order's saga. kafka-ui is read-only; just a peek.\nEmpty? \u2192 orchestrator never fired. Check order-service logs for StreamBridge errors.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('kafka-ui reachable', () => pm.response.code === 200);",
+                  "const msgs = pm.response.json().messages || [];",
+                  "console.log('messages visible on payment.commands:', msgs.length);",
+                  "// Extract sagaId from the newest message if possible, store for later steps",
+                  "for (const m of msgs) {",
+                  "  try {",
+                  "    const v = JSON.parse(m.content || '{}');",
+                  "    if (v.sagaId) {",
+                  "      pm.environment.set('lastSagaId', v.sagaId);",
+                  "      console.log('lastSagaId =', v.sagaId);",
+                  "      break;",
+                  "    }",
+                  "  } catch (e) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Wait ~5s, poll saga state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "description": "The orchestrator processes PaymentReply then publishes NotifyUserCommand. Give it ~5s.\nExpected state: PAID (after payment reply) or NOTIFIED (after notify reply).\nPre-request sleeps 5s so you don't need to click twice.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sleep ~5s to let the saga advance",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 5000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('saga visible', () => pm.response.code === 200);",
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "if (s.paymentId) pm.environment.set('lastPaymentId', s.paymentId);",
+                  "pm.test('state advanced past STARTED', () =>",
+                  "  ['PAID', 'NOTIFIED', 'FAILED'].includes(s.state));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. kafka-ui \u2014 peek notification.commands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{kafkaUi}}/api/clusters/local/topics/notification.commands/messages?seekType=LATEST&limit=10",
+              "host": [
+                "{{kafkaUi}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                "local",
+                "topics",
+                "notification.commands",
+                "messages?seekType=LATEST&limit=10"
+              ]
+            }
+          },
+          "description": "Look for a NotifyUserCommand with matching sagaId. Empty here \u2192 payment reply never\nlanded (payment-service down) or orchestrator crashed between PaymentReply and\nStreamBridge.send(NOTIFY_COMMANDS, ...).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const msgs = pm.response.json().messages || [];",
+                  "const mine = msgs.filter(m => (m.content || '').includes(pm.environment.get('lastSagaId')));",
+                  "console.log('messages for this sagaId on notification.commands:', mine.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Final saga state (should be NOTIFIED)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "description": "Confirms the saga reached terminal success state.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Second small sleep in case notify reply is still in flight",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('final saga state =', s.state);",
+                  "pm.test('terminal = NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Order status (should be PAID)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "description": "Order should be PAID when saga reached NOTIFIED.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "console.log('order status =', o.status);",
+                  "pm.test('order status PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Open Grafana order-saga dashboard (eye-check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{grafana}}/d/order-saga/order-saga-business-metrics?orgId=1&refresh=10s",
+              "host": [
+                "{{grafana}}"
+              ],
+              "path": [
+                "d",
+                "order-saga",
+                "order-saga-business-metrics?orgId=1&refresh=10s"
+              ]
+            }
+          },
+          "description": "Just a GET on the dashboard URL to confirm Grafana is up and the dashboard exists.\nOpen the response's Location header or the URL in a browser \u2014 look for the\norders_saga_terminal_total{outcome=\"completed\"} counter incrementing."
+        }
+      ]
+    },
+    {
+      "name": "F2. Flow \u2014 Payment fails (saga FAILED)",
+      "description": "How to debug the payment-fail path. Two ways to trigger it:\n\n  Option A \u2014 Simulate: stop payment-service via `docker compose stop paymentservice`,\n             then run step 2 below. The in-process retry will exhaust and messages\n             will head to payment.commands.DLT.\n  Option B \u2014 Manually produce a PaymentReply(success=false) via kafka-ui UI\n             (http://localhost:8090 \u2192 topic payment.replies \u2192 Produce Message).\n             Payload: {\"sagaId\":\"<id>\",\"orderId\":\"<id>\",\"success\":false,\n                       \"failureReason\":\"insufficient_funds\",\"paymentId\":null}\n\nWhat each step proves:\n  1. (Same auth as F1)\n  2. POST order to kick off the saga\n  3. Peek payment.commands.DLT to confirm messages are being poisoned (Option A)\n  4. Poll saga until state = FAILED\n  5. Order status is CANCELLED\n  6. orders_saga_terminal_total{outcome=\"failed\"} metric incremented (Prometheus query)",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /orders \u2014 expect eventual FAILED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow2-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 1\n}"
+            }
+          },
+          "description": "Order is created, saga starts, payment never succeeds.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.environment.set('lastOrderId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. kafka-ui \u2014 peek payment.commands.DLT (Option A only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{kafkaUi}}/api/clusters/local/topics/payment.commands.DLT/messages?seekType=LATEST&limit=10",
+              "host": [
+                "{{kafkaUi}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                "local",
+                "topics",
+                "payment.commands.DLT",
+                "messages?seekType=LATEST&limit=10"
+              ]
+            }
+          },
+          "description": "If payment-service is DOWN, in-process retry exhausts and the message heads here.\nIf payment-service is UP but replying success=false, no DLT activity \u2014 the reply is a normal domain outcome, not a poisoned message. In that case this step\nreturns an empty list (which may be the correct answer).",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const msgs = pm.response.json().messages || [];",
+                  "console.log('payment.commands.DLT depth:', msgs.length);",
+                  "// Capture sagaId from the latest DLT message if present",
+                  "for (const m of msgs) {",
+                  "  try {",
+                  "    const v = JSON.parse(m.content || '{}');",
+                  "    if (v.sagaId) {",
+                  "      pm.environment.set('lastSagaId', v.sagaId);",
+                  "      console.log('DLT sagaId =', v.sagaId);",
+                  "      break;",
+                  "    }",
+                  "  } catch (e) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Poll saga state until FAILED (give it ~15s)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Longer wait \u2014 Option A exhausts retries over ~10s",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 15000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state, 'reason =', s.failureReason);",
+                  "pm.test('saga FAILED', () => s.state === 'FAILED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Order status = CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "console.log('order status =', o.status);",
+                  "pm.test('order CANCELLED', () => o.status === 'CANCELLED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Prometheus \u2014 assert failed-counter incremented",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22failed%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22failed%22%7D)"
+              ]
+            }
+          },
+          "description": "Point of this step: the DASHBOARD you built earlier is also queryable from here.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_terminal_total{failed} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "F3. Flow \u2014 Notification fails \u2192 compensation (RefundCommand)",
+      "description": "Payment succeeds, notification fails, orchestrator sends a RefundCommand on\npayment.commands.refund. Saga transitions through COMPENSATING \u2192 FAILED.\n\nTrigger options:\n  Option A \u2014 Stop notification service: docker compose stop notification\n             Then run step 2.\n  Option B \u2014 Produce a NotifyUserReply(success=false) manually via kafka-ui.\n\nWhat each step proves:\n  2. order created, payment succeeds\n  3. peek payment.commands.refund \u2192 RefundCommand published with the right paymentId\n  4. saga = FAILED (compensated terminal)\n  5. order = CANCELLED\n  6. orders_saga_terminal_total{outcome=\"compensated\"} incremented",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /orders \u2014 payment OK, notify fails",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow3-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.environment.set('lastOrderId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. kafka-ui \u2014 peek payment.commands.refund",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{kafkaUi}}/api/clusters/local/topics/payment.commands.refund/messages?seekType=LATEST&limit=10",
+              "host": [
+                "{{kafkaUi}}"
+              ],
+              "path": [
+                "api",
+                "clusters",
+                "local",
+                "topics",
+                "payment.commands.refund",
+                "messages?seekType=LATEST&limit=10"
+              ]
+            }
+          },
+          "description": "Give the saga ~10s to advance to COMPENSATING before running this.\nExpected: at least one RefundCommand with the saga's paymentId.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 10000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const msgs = pm.response.json().messages || [];",
+                  "console.log('payment.commands.refund visible messages:', msgs.length);",
+                  "pm.test('at least one refund message exists', () => msgs.length > 0);",
+                  "for (const m of msgs) {",
+                  "  try {",
+                  "    const v = JSON.parse(m.content || '{}');",
+                  "    if (v.sagaId) {",
+                  "      pm.environment.set('lastSagaId', v.sagaId);",
+                  "      if (v.paymentId) pm.environment.set('lastPaymentId', v.paymentId);",
+                  "      console.log('RefundCommand sagaId =', v.sagaId, 'paymentId =', v.paymentId);",
+                  "      break;",
+                  "    }",
+                  "  } catch (e) {}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Final saga state = FAILED (compensated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('final saga state =', s.state, 'reason =', s.failureReason);",
+                  "pm.test('saga FAILED', () => s.state === 'FAILED');",
+                  "pm.test('reason mentions notify', () =>",
+                  "  (s.failureReason || '').toLowerCase().includes('notify') ||",
+                  "  (s.failureReason || '').toLowerCase().includes('refund'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Order status = CANCELLED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "console.log('order status =', o.status);",
+                  "pm.test('order CANCELLED', () => o.status === 'CANCELLED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Prometheus \u2014 assert compensated-counter incremented",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22compensated%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22compensated%22%7D)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_terminal_total{compensated} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "1. Auth",
       "item": [
         {
-          "name": "OAuth2 — client credentials → accessToken",
+          "name": "OAuth2 \u2014 client credentials \u2192 accessToken",
           "event": [
             {
               "listen": "test",
@@ -81,24 +1064,51 @@
             "auth": {
               "type": "basic",
               "basic": [
-                { "key": "username", "value": "{{oauthClientId}}", "type": "string" },
-                { "key": "password", "value": "{{oauthClientSecret}}", "type": "string" }
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
               ]
             },
-            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "client_credentials" },
-                { "key": "scope", "value": "orders.read" }
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read"
+                }
               ]
             },
-            "url": { "raw": "{{authServer}}/oauth2/token", "host": ["{{authServer}}"], "path": ["oauth2","token"] }
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "2. Orders (write)",
       "item": [
@@ -118,7 +1128,7 @@
                   "    console.log('lastOrderId =', body.id);",
                   "  }",
                   "  const replay = pm.response.headers.get('Idempotency-Replay');",
-                  "  if (replay === 'true') console.log('IDEMPOTENCY REPLAY — handler did not re-run');",
+                  "  if (replay === 'true') console.log('IDEMPOTENCY REPLAY \u2014 handler did not re-run');",
                   "} catch (e) {}"
                 ]
               }
@@ -127,15 +1137,34 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
-              { "key": "X-Correlation-Id", "value": "{{correlationId}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2\n}"
             },
-            "url": { "raw": "{{gateway}}/api/v1/orders", "host": ["{{gateway}}"], "path": ["api","v1","orders"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            }
           }
         },
         {
@@ -159,61 +1188,125 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
-              { "key": "X-Correlation-Id", "value": "{{correlationId}}-replay" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "{{correlationId}}-replay"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2\n}"
             },
-            "url": { "raw": "{{gateway}}/api/v1/orders", "host": ["{{gateway}}"], "path": ["api","v1","orders"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            }
           }
         },
         {
           "name": "Get order by id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}", "host": ["{{gateway}}"], "path": ["api","v1","orders","{{lastOrderId}}"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "3. Order search (CQRS)",
       "item": [
         {
-          "name": "Search — all",
+          "name": "Search \u2014 all",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{orderQuery}}/orders/search", "host": ["{{orderQuery}}"], "path": ["orders","search"] }
-          }
-        },
-        {
-          "name": "Search — by status",
-          "request": {
-            "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
-              "raw": "{{orderQuery}}/orders/search?status=CREATED",
-              "host": ["{{orderQuery}}"],
-              "path": ["orders","search"],
-              "query": [{ "key": "status", "value": "CREATED" }]
+              "raw": "{{orderQuery}}/orders/search",
+              "host": [
+                "{{orderQuery}}"
+              ],
+              "path": [
+                "orders",
+                "search"
+              ]
             }
           }
         },
         {
-          "name": "Search — by product",
+          "name": "Search \u2014 by status",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{orderQuery}}/orders/search?status=CREATED",
+              "host": [
+                "{{orderQuery}}"
+              ],
+              "path": [
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CREATED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search \u2014 by product",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{orderQuery}}/orders/search?productId={{productId}}",
-              "host": ["{{orderQuery}}"],
-              "path": ["orders","search"],
-              "query": [{ "key": "productId", "value": "{{productId}}" }]
+              "host": [
+                "{{orderQuery}}"
+              ],
+              "path": [
+                "orders",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "productId",
+                  "value": "{{productId}}"
+                }
+              ]
             }
           }
         },
@@ -221,13 +1314,24 @@
           "name": "Get doc by id",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{orderQuery}}/orders/search/{{lastOrderId}}", "host": ["{{orderQuery}}"], "path": ["orders","search","{{lastOrderId}}"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{orderQuery}}/orders/search/{{lastOrderId}}",
+              "host": [
+                "{{orderQuery}}"
+              ],
+              "path": [
+                "orders",
+                "search",
+                "{{lastOrderId}}"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "4. Products",
       "item": [
@@ -235,7 +1339,17 @@
           "name": "List products",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/api/v1/products", "host": ["{{gateway}}"], "path": ["api","v1","products"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/products",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
+            }
           }
         },
         {
@@ -243,31 +1357,68 @@
           "description": "First call hits MySQL; second comes from Redis cache. Watch product-service logs for 'Cache MISS' vs silence.",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/api/v1/products/{{productId}}", "host": ["{{gateway}}"], "path": ["api","v1","products","{{productId}}"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/products/{{productId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}"
+              ]
+            }
           }
         },
         {
           "name": "Product availability",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/api/v1/products/{{productId}}/availability", "host": ["{{gateway}}"], "path": ["api","v1","products","{{productId}}","availability"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/products/{{productId}}/availability",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}",
+                "availability"
+              ]
+            }
           }
         },
         {
           "name": "Create product",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Widget\",\n  \"description\": \"shiny\",\n  \"price\": 9.99,\n  \"stock\": 100\n}"
             },
-            "url": { "raw": "{{gateway}}/api/v1/products", "host": ["{{gateway}}"], "path": ["api","v1","products"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/products",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "5. Users",
       "item": [
@@ -275,7 +1426,17 @@
           "name": "List users",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/api/v1/users", "host": ["{{gateway}}"], "path": ["api","v1","users"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/users",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            }
           }
         },
         {
@@ -284,29 +1445,64 @@
             "method": "GET",
             "auth": {
               "type": "bearer",
-              "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
             },
-            "url": { "raw": "{{gateway}}/api/v1/users/me", "host": ["{{gateway}}"], "path": ["api","v1","users","me"] }
+            "url": {
+              "raw": "{{gateway}}/api/v1/users/me",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            }
           }
         },
         {
           "name": "Register user (direct, public)",
           "request": {
             "method": "POST",
-            "auth": { "type": "noauth" },
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"alice\",\n  \"password\": \"secret\",\n  \"email\": \"a@b.c\"\n}"
             },
-            "url": { "raw": "http://localhost:8081/api/v1/users/registerUser", "host": ["localhost"], "port": "8081", "path": ["api","v1","users","registerUser"] }
+            "url": {
+              "raw": "http://localhost:8081/api/v1/users/registerUser",
+              "host": [
+                "localhost"
+              ],
+              "port": "8081",
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "registerUser"
+              ]
+            }
           }
         }
       ]
     },
-
     {
-      "name": "6. Admin — DLQ (Tier 2)",
+      "name": "6. Admin \u2014 DLQ (Tier 2)",
       "item": [
         {
           "name": "List DLQ",
@@ -327,7 +1523,16 @@
           ],
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/admin/dlq", "host": ["{{gateway}}"], "path": ["admin","dlq"] }
+            "url": {
+              "raw": "{{gateway}}/admin/dlq",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "dlq"
+              ]
+            }
           }
         },
         {
@@ -336,9 +1541,19 @@
             "method": "GET",
             "url": {
               "raw": "{{gateway}}/admin/dlq?status=NEW",
-              "host": ["{{gateway}}"],
-              "path": ["admin","dlq"],
-              "query": [{ "key": "status", "value": "NEW" }]
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "dlq"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "NEW"
+                }
+              ]
             }
           }
         },
@@ -346,28 +1561,59 @@
           "name": "Get DLQ entry",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}"] }
+            "url": {
+              "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "dlq",
+                "{{lastDlqId}}"
+              ]
+            }
           }
         },
         {
           "name": "Replay DLQ entry",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/replay", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}","replay"] }
+            "url": {
+              "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/replay",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "dlq",
+                "{{lastDlqId}}",
+                "replay"
+              ]
+            }
           }
         },
         {
           "name": "Ack DLQ entry",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/ack", "host": ["{{gateway}}"], "path": ["admin","dlq","{{lastDlqId}}","ack"] }
+            "url": {
+              "raw": "{{gateway}}/admin/dlq/{{lastDlqId}}/ack",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "dlq",
+                "{{lastDlqId}}",
+                "ack"
+              ]
+            }
           }
         }
       ]
     },
-
     {
-      "name": "7. Admin — Saga (Tier 4)",
+      "name": "7. Admin \u2014 Saga (Tier 4)",
       "item": [
         {
           "name": "List sagas",
@@ -387,7 +1633,16 @@
           ],
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/admin/sagas", "host": ["{{gateway}}"], "path": ["admin","sagas"] }
+            "url": {
+              "raw": "{{gateway}}/admin/sagas",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas"
+              ]
+            }
           }
         },
         {
@@ -396,9 +1651,19 @@
             "method": "GET",
             "url": {
               "raw": "{{gateway}}/admin/sagas?state=STARTED",
-              "host": ["{{gateway}}"],
-              "path": ["admin","sagas"],
-              "query": [{ "key": "state", "value": "STARTED" }]
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas"
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "STARTED"
+                }
+              ]
             }
           }
         },
@@ -406,7 +1671,17 @@
           "name": "Saga detail (with step history)",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}", "host": ["{{gateway}}"], "path": ["admin","sagas","{{lastSagaId}}"] }
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
           }
         },
         {
@@ -415,47 +1690,92 @@
             "method": "POST",
             "url": {
               "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}/compensate?reason=stuck-manual",
-              "host": ["{{gateway}}"],
-              "path": ["admin","sagas","{{lastSagaId}}","compensate"],
-              "query": [{ "key": "reason", "value": "stuck-manual" }]
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}",
+                "compensate"
+              ],
+              "query": [
+                {
+                  "key": "reason",
+                  "value": "stuck-manual"
+                }
+              ]
             }
           }
         }
       ]
     },
-
     {
-      "name": "8. Admin — Feature flags (Tier 4)",
+      "name": "8. Admin \u2014 Feature flags (Tier 4)",
       "item": [
         {
           "name": "List flags",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{gateway}}/admin/flags", "host": ["{{gateway}}"], "path": ["admin","flags"] }
+            "url": {
+              "raw": "{{gateway}}/admin/flags",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "flags"
+              ]
+            }
           }
         },
         {
           "name": "Create/update flag",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"description\": \"shadow the new payment provider for 25% of users\",\n  \"enabled\": true,\n  \"rulesJson\": \"{\\\"percentage\\\":25,\\\"tenantWhitelist\\\":[],\\\"userWhitelist\\\":[]}\"\n}"
             },
-            "url": { "raw": "{{gateway}}/admin/flags/new-payment-provider", "host": ["{{gateway}}"], "path": ["admin","flags","new-payment-provider"] }
+            "url": {
+              "raw": "{{gateway}}/admin/flags/new-payment-provider",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "new-payment-provider"
+              ]
+            }
           }
         },
         {
           "name": "Toggle flag",
           "request": {
             "method": "POST",
-            "url": { "raw": "{{gateway}}/admin/flags/new-payment-provider/toggle", "host": ["{{gateway}}"], "path": ["admin","flags","new-payment-provider","toggle"] }
+            "url": {
+              "raw": "{{gateway}}/admin/flags/new-payment-provider/toggle",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "flags",
+                "new-payment-provider",
+                "toggle"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "9. GraphQL BFF (Tier 4)",
       "item": [
@@ -463,97 +1783,190 @@
           "name": "GraphiQL UI",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{bff}}/graphiql", "host": ["{{bff}}"], "path": ["graphiql"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{bff}}/graphiql",
+              "host": [
+                "{{bff}}"
+              ],
+              "path": [
+                "graphiql"
+              ]
+            }
           }
         },
         {
-          "name": "Query — product by id",
+          "name": "Query \u2014 product by id",
           "request": {
             "method": "POST",
-            "auth": { "type": "noauth" },
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query($id: ID!) { product(id: $id) { id name price description } }\",\n  \"variables\": { \"id\": \"{{productId}}\" }\n}"
             },
-            "url": { "raw": "{{bff}}/graphql", "host": ["{{bff}}"], "path": ["graphql"] }
+            "url": {
+              "raw": "{{bff}}/graphql",
+              "host": [
+                "{{bff}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
           }
         },
         {
-          "name": "Query — order with nested product (DataLoader)",
+          "name": "Query \u2014 order with nested product (DataLoader)",
           "request": {
             "method": "POST",
-            "auth": { "type": "noauth" },
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"query($id: ID!) { order(id: $id) { id status amount product { id name price } } }\",\n  \"variables\": { \"id\": \"{{lastOrderId}}\" }\n}"
             },
-            "url": { "raw": "{{bff}}/graphql", "host": ["{{bff}}"], "path": ["graphql"] }
+            "url": {
+              "raw": "{{bff}}/graphql",
+              "host": [
+                "{{bff}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "10. Notifications SSE (Tier 4)",
       "item": [
         {
           "name": "Subscribe (keep connection open)",
-          "description": "Postman tends to buffer SSE. Prefer `curl -N` for live streaming — see useful-commands.md §10.",
+          "description": "Postman tends to buffer SSE. Prefer `curl -N` for live streaming \u2014 see useful-commands.md \u00a710.",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "header": [{ "key": "Accept", "value": "text/event-stream" }],
-            "url": { "raw": "{{notification}}/notifications/stream/{{lastOrderId}}", "host": ["{{notification}}"], "path": ["notifications","stream","{{lastOrderId}}"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{notification}}/notifications/stream/{{lastOrderId}}",
+              "host": [
+                "{{notification}}"
+              ],
+              "path": [
+                "notifications",
+                "stream",
+                "{{lastOrderId}}"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "11. Observability",
       "item": [
         {
-          "name": "Prometheus — query req rate",
+          "name": "Prometheus \u2014 query req rate",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{prometheus}}/api/v1/query?query=sum by (application) (rate(http_server_requests_seconds_count[1m]))",
-              "host": ["{{prometheus}}"],
-              "path": ["api","v1","query"],
-              "query": [{ "key": "query", "value": "sum by (application) (rate(http_server_requests_seconds_count[1m]))" }]
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "sum by (application) (rate(http_server_requests_seconds_count[1m]))"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Prometheus — breaker state",
+          "name": "Prometheus \u2014 breaker state",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{prometheus}}/api/v1/query?query=resilience4j_circuitbreaker_state",
-              "host": ["{{prometheus}}"],
-              "path": ["api","v1","query"],
-              "query": [{ "key": "query", "value": "resilience4j_circuitbreaker_state" }]
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "resilience4j_circuitbreaker_state"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Loggers — flip to DEBUG",
+          "name": "Loggers \u2014 flip to DEBUG",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{ \"configuredLevel\": \"DEBUG\" }"
             },
             "url": {
               "raw": "http://localhost:8083/actuator/loggers/com.example.orderservice",
-              "host": ["localhost"], "port": "8083",
-              "path": ["actuator","loggers","com.example.orderservice"]
+              "host": [
+                "localhost"
+              ],
+              "port": "8083",
+              "path": [
+                "actuator",
+                "loggers",
+                "com.example.orderservice"
+              ]
             }
           }
         },
@@ -561,13 +1974,23 @@
           "name": "Hot-reload Prometheus config",
           "request": {
             "method": "POST",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{prometheus}}/-/reload", "host": ["{{prometheus}}"], "path": ["-","reload"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{prometheus}}/-/reload",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "-",
+                "reload"
+              ]
+            }
           }
         }
       ]
     },
-
     {
       "name": "12. Schema Registry (Tier 2)",
       "item": [
@@ -575,19 +1998,38 @@
           "name": "List subjects",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{schemaRegistry}}/subjects", "host": ["{{schemaRegistry}}"], "path": ["subjects"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{schemaRegistry}}/subjects",
+              "host": [
+                "{{schemaRegistry}}"
+              ],
+              "path": [
+                "subjects"
+              ]
+            }
           }
         },
         {
           "name": "Latest schema (order.created-value)",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{schemaRegistry}}/subjects/order.created-value/versions/latest",
-              "host": ["{{schemaRegistry}}"],
-              "path": ["subjects","order.created-value","versions","latest"]
+              "host": [
+                "{{schemaRegistry}}"
+              ],
+              "path": [
+                "subjects",
+                "order.created-value",
+                "versions",
+                "latest"
+              ]
             }
           }
         },
@@ -595,19 +2037,33 @@
           "name": "Set BACKWARD compatibility",
           "request": {
             "method": "PUT",
-            "auth": { "type": "noauth" },
-            "header": [{ "key": "Content-Type", "value": "application/vnd.schemaregistry.v1+json" }],
-            "body": { "mode": "raw", "raw": "{\"compatibility\":\"BACKWARD\"}" },
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/vnd.schemaregistry.v1+json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"compatibility\":\"BACKWARD\"}"
+            },
             "url": {
               "raw": "{{schemaRegistry}}/config/order.created-value",
-              "host": ["{{schemaRegistry}}"],
-              "path": ["config","order.created-value"]
+              "host": [
+                "{{schemaRegistry}}"
+              ],
+              "path": [
+                "config",
+                "order.created-value"
+              ]
             }
           }
         }
       ]
     },
-
     {
       "name": "13. Debezium / Kafka Connect (Tier 2)",
       "item": [
@@ -615,19 +2071,37 @@
           "name": "List connectors",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
-            "url": { "raw": "{{kafkaConnect}}/connectors", "host": ["{{kafkaConnect}}"], "path": ["connectors"] }
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{kafkaConnect}}/connectors",
+              "host": [
+                "{{kafkaConnect}}"
+              ],
+              "path": [
+                "connectors"
+              ]
+            }
           }
         },
         {
           "name": "Connector status",
           "request": {
             "method": "GET",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{kafkaConnect}}/connectors/order-outbox-connector/status",
-              "host": ["{{kafkaConnect}}"],
-              "path": ["connectors","order-outbox-connector","status"]
+              "host": [
+                "{{kafkaConnect}}"
+              ],
+              "path": [
+                "connectors",
+                "order-outbox-connector",
+                "status"
+              ]
             }
           }
         },
@@ -635,11 +2109,19 @@
           "name": "Restart connector",
           "request": {
             "method": "POST",
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "url": {
               "raw": "{{kafkaConnect}}/connectors/order-outbox-connector/restart",
-              "host": ["{{kafkaConnect}}"],
-              "path": ["connectors","order-outbox-connector","restart"]
+              "host": [
+                "{{kafkaConnect}}"
+              ],
+              "path": [
+                "connectors",
+                "order-outbox-connector",
+                "restart"
+              ]
             }
           }
         }
