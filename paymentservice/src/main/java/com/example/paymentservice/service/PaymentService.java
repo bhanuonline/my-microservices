@@ -88,7 +88,16 @@ public class PaymentService {
             // AUTHORIZED but not yet CAPTURED — stay quiet; the provider will drive us forward.
             log.info("Payment already in flight at provider, no action: sagaId={} status={}",
                     cmd.sagaId(), payment.getStatus());
-            return PaymentOutcome.pending(payment);
+            return PaymentOutcome.pending(payment, payment.getRedirectUrl());
+        }
+        // Race guard: if a prior HTTP /initiate already called the provider and stored
+        // a providerRef, don't call initiate() again — webhook will drive the terminal
+        // transition. (Stripe's own idempotency key would also catch this, but short-
+        // circuiting here avoids an extra round-trip.)
+        if (payment.getProviderRef() != null) {
+            log.info("Payment already linked at provider, waiting for webhook: sagaId={} ref={}",
+                    cmd.sagaId(), payment.getProviderRef());
+            return PaymentOutcome.pending(payment, payment.getRedirectUrl());
         }
 
         // Delegate to the provider.
@@ -202,10 +211,10 @@ public class PaymentService {
     private PaymentOutcome applySessionResult(Payment payment, ProviderSession session) {
         switch (session.status()) {
             case INITIATED -> {
-                // Hosted-checkout flow: store the provider's ref, stay INITIATED,
-                // wait for webhook. Return the redirect URL so the orchestrator /
-                // UI can send the user there.
-                payment.linkToProvider(session.providerRef());
+                // Hosted-checkout flow: store the provider's ref + redirect URL,
+                // stay INITIATED, wait for webhook. Both get persisted so the HTTP
+                // path can retrieve them even if the Kafka path got there first.
+                payment.linkToProvider(session.providerRef(), session.redirectUrl());
                 payments.save(payment);
                 log.info("Payment INITIATED, waiting for webhook: sagaId={} provider={} ref={}",
                         payment.getSagaId(), payment.getProvider(), session.providerRef());

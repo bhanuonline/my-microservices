@@ -1,5 +1,6 @@
 package com.example.orderservice.controller;
 
+import com.example.orderservice.client.PaymentClient;
 import com.example.orderservice.dto.CheckoutRequest;
 import com.example.orderservice.dto.CheckoutResponse;
 import com.example.orderservice.exception.ProductUnavailableException;
@@ -22,39 +23,35 @@ import org.springframework.web.bind.annotation.RestController;
  * Checkout entry point. Creates an order + starts a saga, routing the
  * payment through the client-chosen provider.
  *
- * <h3>Why a separate endpoint from {@code POST /api/v1/orders}</h3>
- * {@code /orders} is the raw "create an order" API — stays as it is.
- * {@code /checkout} wraps it with a provider choice + the fields hosted-
- * checkout providers need ({@code returnUrl}, {@code cancelUrl}). Keeping
- * them split means existing clients don't need to care about payment
- * providers.
+ * <h3>Mock (synchronous)</h3>
+ * Saga's Kafka PaymentCommand drives everything. Response.redirectUrl=null.
  *
- * <h3>Response shape</h3>
- * For {@code provider=mock}, the saga runs synchronously and the response
- * returns 201 with {@code redirectUrl=null}. Clients can poll
- * {@code GET /admin/sagas/{sagaId}} to see the state transition.
- *
- * <p>For hosted-checkout providers (Stripe/Razorpay/PayPal — PHASE 2+),
- * the response will carry a non-null {@code redirectUrl} that clients
- * must open in a browser. The saga will transition to NOTIFIED only after
- * the user completes payment and payment-service receives the webhook.
+ * <h3>Stripe / Razorpay / PayPal (hosted checkout, async)</h3>
+ * Saga's Kafka PaymentCommand still fires. In parallel, this controller
+ * makes a synchronous Feign call to payment-service's /initiate endpoint
+ * so it can echo the redirect URL back to the client in one round-trip.
+ * payment-service's find-or-create guard makes both orderings safe.
  */
 @RestController
 @RequestMapping("/api/v1/checkout")
 public class CheckoutController {
 
     private static final Logger log = LoggerFactory.getLogger(CheckoutController.class);
+    private static final String MOCK_PROVIDER = "mock";
 
     private final ProductService productService;
     private final OrderService orderService;
     private final OrderSagaRepository sagaRepo;
+    private final PaymentClient paymentClient;
 
     public CheckoutController(ProductService productService,
                               OrderService orderService,
-                              OrderSagaRepository sagaRepo) {
+                              OrderSagaRepository sagaRepo,
+                              PaymentClient paymentClient) {
         this.productService = productService;
         this.orderService = orderService;
         this.sagaRepo = sagaRepo;
+        this.paymentClient = paymentClient;
     }
 
     @PostMapping
@@ -66,24 +63,41 @@ public class CheckoutController {
 
         Order order = orderService.create(req.productId(), req.quantity(), req.provider());
 
-        // The saga row is created inside OrderSagaOrchestrator.start().
-        // Fetch it so we can echo the sagaId back to the client; the saga is
-        // keyed by orderId.
         OrderSaga saga = sagaRepo.findByOrderId(order.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Saga not found for freshly-created orderId=" + order.getId()));
 
-        log.info("Checkout initiated: orderId={} sagaId={} provider={}",
-                order.getId(), saga.getId(), req.provider());
+        String redirectUrl = null;
+        if (req.provider() != null && !MOCK_PROVIDER.equalsIgnoreCase(req.provider())) {
+            // Hosted-checkout: sync call to payment-service to get the redirect URL.
+            // The saga's Kafka PaymentCommand also fires; payment-service's
+            // find-or-create guard converges both paths to the same Payment row.
+            try {
+                PaymentClient.InitiateResponse resp = paymentClient.initiate(new PaymentClient.InitiateRequest(
+                        saga.getId(),
+                        order.getId(),
+                        order.getAmount(),
+                        req.provider(),
+                        req.returnUrl(),
+                        req.cancelUrl()));
+                redirectUrl = resp.redirectUrl();
+                log.info("Checkout initiated: orderId={} sagaId={} provider={} ref={}",
+                        order.getId(), saga.getId(), req.provider(), resp.providerRef());
+            } catch (RuntimeException e) {
+                // Payment-service unreachable or Stripe error. The order+saga are
+                // still created; client can poll /api/v1/payments/by-order to retry.
+                log.error("Payment initiate failed; client will need to poll for redirect: orderId={} provider={}",
+                        order.getId(), req.provider(), e);
+            }
+        } else {
+            log.info("Checkout initiated (mock): orderId={} sagaId={}", order.getId(), saga.getId());
+        }
 
-        // Phase 1: redirectUrl is always null (mock is synchronous).
-        // Phase 2: Stripe/Razorpay will populate this by calling payment-service
-        //          synchronously to initiate the session and get the hosted URL.
         return ResponseEntity.status(HttpStatus.CREATED).body(new CheckoutResponse(
                 order.getId(),
                 saga.getId(),
                 order.getStatus().name(),
                 req.provider(),
-                null));
+                redirectUrl));
     }
 }

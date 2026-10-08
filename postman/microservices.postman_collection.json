@@ -1493,6 +1493,373 @@
       ]
     },
     {
+      "name": "F5. Flow \u2014 Checkout (Stripe) \u2014 payment-gateway Phase 2",
+      "description": "End-to-end Stripe hosted-checkout flow.\n\nPrereqs:\n  1. .env has real STRIPE_SECRET_KEY (sk_test_...) and STRIPE_WEBHOOK_SECRET (whsec_...).\n  2. PAYMENT_STRIPE_ENABLED=true, then re-source .env and restart payment-service.\n  3. In a separate terminal: `stripe listen --forward-to localhost:8091/webhooks/stripe`.\n     Keep that terminal visible \u2014 it logs the webhook events as they arrive.\n\nFlow:\n  1. OAuth2 token.\n  2. POST /checkout provider=stripe \u2192 response carries a redirectUrl.\n  3. Peek Payment row \u2014 should be INITIATED with providerRef = cs_test_...\n  4. [HUMAN STEP] Open the redirectUrl in a browser, pay with 4242 4242 4242 4242.\n  5. Poll Payment row \u2192 CAPTURED (webhook arrived + processed).\n  6. Final saga \u2192 NOTIFIED. Order \u2192 PAID.\n  7. Prometheus \u2014 orders_saga_terminal_total{completed}++.\n\nDebugging:\n  - If step 3 shows providerRef still null: payment-service couldn't reach Stripe.\n    Check /actuator/health and the paymentservice log.\n  - If step 5 stays INITIATED forever: webhook never arrived.\n    Check `stripe listen` terminal \u2014 is it still running? Did the whsec_ change?\n  - Stripe-side history: https://dashboard.stripe.com/test/payments",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token issued', () => pm.response.code === 200);",
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/checkout \u2014 provider=stripe",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow5-stripe-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2,\n  \"provider\": \"stripe\"\n}"
+            }
+          },
+          "description": "CheckoutController creates Order+saga, then synchronously calls payment-service\n/initiate (via Feign). payment-service's StripePaymentProvider calls\nStripe.Session.create() with sagaId as Idempotency-Key. Response carries the\nhosted checkout URL.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.test('provider echoed', () => body.provider === 'stripe');",
+                  "pm.test('redirectUrl is a stripe checkout URL', () =>",
+                  "  body.redirectUrl && body.redirectUrl.includes('checkout.stripe.com'));",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);",
+                  "pm.environment.set('stripeRedirectUrl', body.redirectUrl);",
+                  "console.log('open the redirect URL to pay:', body.redirectUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Peek Payment row \u2014 expect INITIATED + providerRef",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "description": "The row exists but is not yet CAPTURED. providerRef is the Stripe Checkout\nsession id (cs_test_...). redirectUrl is persisted so a client who missed\nthe HTTP response can still retrieve it from here.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 1500) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "pm.test('payment row present', () => list.length >= 1);",
+                  "const p = list[0];",
+                  "pm.test('provider = stripe', () => p.provider === 'stripe');",
+                  "pm.test('status INITIATED or CAPTURED', () =>",
+                  "  p.status === 'INITIATED' || p.status === 'CAPTURED');",
+                  "pm.test('providerRef is cs_test_*', () =>",
+                  "  p.providerRef && p.providerRef.startsWith('cs_test_'));",
+                  "pm.test('redirectUrl persisted', () =>",
+                  "  p.redirectUrl && p.redirectUrl.includes('checkout.stripe.com'));",
+                  "if (p.id) pm.environment.set('lastPaymentId', p.id);",
+                  "console.log('session', p.providerRef, 'status', p.status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. [HUMAN] Open the redirectUrl and pay with 4242",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{stripeRedirectUrl}}",
+              "host": [
+                "{{stripeRedirectUrl}}"
+              ],
+              "path": []
+            }
+          },
+          "description": "Not a request to send from Postman \u2014 open the URL in a BROWSER.\nTest card details:\n  Card:   4242 4242 4242 4242\n  Expiry: anything in the future (e.g. 12/34)\n  CVC:    anything (e.g. 123)\n  Email:  anything\n\nAfter payment, Stripe redirects to STRIPE_SUCCESS_URL. The webhook arrives\nat payment-service via `stripe listen` within a second or two."
+        },
+        {
+          "name": "5. Poll Payment row until CAPTURED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "description": "After you've paid in the browser, this should show CAPTURED. If it still\nshows INITIATED after 10s, check your `stripe listen` terminal \u2014 the webhook\nmust be arriving there.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Give Stripe + webhook delivery a moment",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 5000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "const p = list[0];",
+                  "console.log('after webhook:', p.status, 'reason:', p.failureReason);",
+                  "pm.test('payment CAPTURED', () => p.status === 'CAPTURED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Saga NOTIFIED, order PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Notification side takes a bit more time",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "pm.test('saga = NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Order status = PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "pm.test('order PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Prometheus \u2014 assert completed counter advanced",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_terminal_total{completed} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "1. Auth",
       "item": [
         {

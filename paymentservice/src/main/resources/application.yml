@@ -113,6 +113,16 @@ payment:
     decline-above: 100000
     # Simulate async: how long after INITIATED to emit the webhook event.
     webhook-delay: PT0S
+
+  # Stripe — enabled only when STRIPE_SECRET_KEY is set (dev convention).
+  # Secret key never has a default here — if missing, bean construction fails fast.
+  # Webhook secret is printed by `stripe listen` on your laptop; paste into .env.
+  stripe:
+    enabled: ${PAYMENT_STRIPE_ENABLED:false}
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    success-url: ${STRIPE_SUCCESS_URL:${payment.default-return-url}}
+    cancel-url: ${STRIPE_CANCEL_URL:${payment.default-cancel-url}}
   # Public base URL where providers' webhooks arrive. Behind ngrok/stripe-cli
   # in local dev. Payment-service exposes POST /webhooks/{provider}.
   webhook-base-url: ${PAYMENT_WEBHOOK_BASE_URL:http://localhost:8091}

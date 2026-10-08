@@ -72,6 +72,9 @@
         <!-- springdoc-openapi — one version pinned here, services opt in with a bare dep.
              2.5.0 is the last line compatible with Spring Boot 3.2.x. -->
         <springdoc.version>2.5.0</springdoc.version>
+        <!-- Stripe SDK (payment-gateway Phase 2). Services opt in with a bare dep.
+             33.4.2 is the latest stable as of Sep 2026, pins Stripe API 2026-08-26.dahlia. -->
+        <stripe.version>33.4.2</stripe.version>
     </properties>
 
     <!-- Confluent artefacts (kafka-avro-serializer, etc.) aren't on Maven Central. -->
@@ -119,6 +122,13 @@
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <!-- Stripe SDK — Phase 2 payment-gateway work. Only payment-service pulls it. -->
+            <dependency>
+                <groupId>com.stripe</groupId>
+                <artifactId>stripe-java</artifactId>
+                <version>${stripe.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

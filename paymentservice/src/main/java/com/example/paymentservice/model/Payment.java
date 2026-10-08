@@ -88,6 +88,15 @@ public class Payment {
     @Column(name = "provider_ref", length = 255)
     private String providerRef;
 
+    /**
+     * Hosted-checkout URL to send the user to (Stripe Checkout, Razorpay
+     * checkout, PayPal approval). Persisted so a client who misses the HTTP
+     * response can still retrieve it via {@code GET /api/v1/payments/by-order}.
+     * Null for sync providers like the mock.
+     */
+    @Column(name = "redirect_url", length = 1024)
+    private String redirectUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Status status;
@@ -122,12 +131,18 @@ public class Payment {
      * {@code initiate()} returns a redirect URL — the Payment stays INITIATED
      * until the webhook arrives.
      */
-    public void linkToProvider(String providerRef) {
+    public void linkToProvider(String providerRef, String redirectUrl) {
         if (this.status != Status.INITIATED) {
             throw new IllegalStateException("Payment " + id + ": linkToProvider only valid in INITIATED, was " + status);
         }
         this.providerRef = providerRef;
+        this.redirectUrl = redirectUrl;
         this.updatedAt = Instant.now();
+    }
+
+    /** Backwards-compatible overload — hosted redirect URL stays null (sync providers). */
+    public void linkToProvider(String providerRef) {
+        linkToProvider(providerRef, null);
     }
 
     public void markAuthorized(String providerRef) {
@@ -193,6 +208,7 @@ public class Payment {
     public String getCurrency() { return currency; }
     public String getProvider() { return provider; }
     public String getProviderRef() { return providerRef; }
+    public String getRedirectUrl() { return redirectUrl; }
     public Status getStatus() { return status; }
     public String getFailureReason() { return failureReason; }
     public Instant getCreatedAt() { return createdAt; }
