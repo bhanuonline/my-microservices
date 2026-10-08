@@ -171,6 +171,54 @@ spring:
             - Path=/ws/**
           filters:
             - TokenRelay
+
+        # ─── OpenAPI aggregation ─────────────────────────────────────────
+        # Rewrite /v3/api-docs/<service> → lb://<service>/v3/api-docs.
+        # Lets the Swagger UI (above) fetch each downstream service's spec
+        # through the gateway without exposing the internal lb:// URIs or
+        # requiring Swagger UI to know about Eureka.
+        - id: openapi-user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/v3/api-docs/user-service
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/v3/api-docs/product-service
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/v3/api-docs/order-service
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-auth-server
+          uri: lb://authservice
+          predicates:
+            - Path=/v3/api-docs/auth-server
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-resource-server
+          uri: lb://resource-server
+          predicates:
+            - Path=/v3/api-docs/resource-server
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-order-query
+          uri: lb://order-query
+          predicates:
+            - Path=/v3/api-docs/order-query
+          filters:
+            - SetPath=/v3/api-docs
+        - id: openapi-product-query
+          uri: lb://product-query
+          predicates:
+            - Path=/v3/api-docs/product-query
+          filters:
+            - SetPath=/v3/api-docs
   security:
     oauth2:
       resourceserver:
@@ -179,6 +227,34 @@ spring:
 
 server:
   port: 8080
+
+# ─── Aggregated Swagger UI ────────────────────────────────────────────────
+# springdoc-openapi aggregates each downstream service's /v3/api-docs into
+# ONE Swagger UI at /swagger-ui.html. Dropdown lists each service; "Try it
+# out" sends requests through the gateway (so JWT, routing, rate-limiting
+# all apply exactly as they would in production).
+#
+# Each `urls[].url` is a path on the gateway — resolved by the matching
+# route further down this file (section labelled "OpenAPI aggregation").
+# Keeping the paths relative lets localhost and docker environments reuse
+# the same config without rewriting.
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    display-request-duration: true
+    urls:
+      - { name: user-service,     url: /v3/api-docs/user-service }
+      - { name: product-service,  url: /v3/api-docs/product-service }
+      - { name: order-service,    url: /v3/api-docs/order-service }
+      - { name: auth-server,      url: /v3/api-docs/auth-server }
+      - { name: resource-server,  url: /v3/api-docs/resource-server }
+      - { name: order-query,      url: /v3/api-docs/order-query }
+      - { name: product-query,    url: /v3/api-docs/product-query }
+  # Gateway's own aggregated /v3/api-docs is unused — Swagger UI reads the
+  # per-service URLs directly. Disabling keeps the UI's dropdown clean.
+  api-docs:
+    enabled: false
 
 eureka:
   client:

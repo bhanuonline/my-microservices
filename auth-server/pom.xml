@@ -141,6 +141,11 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
+        <!-- OpenAPI 3 + Swagger UI (version pinned in parent). -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
     </dependencies>
 
     <!-- Plugin executions + config inherited from parent pom pluginManagement. -->

@@ -153,6 +153,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+
+        <!-- Aggregated Swagger UI at /swagger-ui.html — version pinned in parent.
+             webflux-ui variant required because the gateway runs on the reactive stack. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

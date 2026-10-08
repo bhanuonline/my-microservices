@@ -69,6 +69,9 @@
         <protobuf.version>3.25.1</protobuf.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <!-- springdoc-openapi — one version pinned here, services opt in with a bare dep.
+             2.5.0 is the last line compatible with Spring Boot 3.2.x. -->
+        <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
     <!-- Confluent artefacts (kafka-avro-serializer, etc.) aren't on Maven Central. -->
@@ -102,6 +105,20 @@
                 <artifactId>jakarta.servlet-api</artifactId>
                 <version>6.0.0</version>
                 <scope>provided</scope>
+            </dependency>
+
+            <!-- springdoc-openapi (OpenAPI 3 + Swagger UI). Two flavors:
+                 - webmvc-ui  → servlet services (user/product/order/auth/…)
+                 - webflux-ui → reactive services (gateway) -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

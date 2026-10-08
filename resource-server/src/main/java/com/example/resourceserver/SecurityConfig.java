@@ -93,6 +93,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**",
                                          "/actuator/info",
                                          "/actuator/prometheus").permitAll()
+                        // OpenAPI endpoints — proxied by the gateway's aggregated Swagger UI.
+                        .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
+                                         "/swagger-ui.html", "/swagger-ui/**", "/webjars/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));

@@ -122,6 +122,10 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/error", "/actuator/**", "/webjars/**").permitAll()
+                // OpenAPI endpoints — proxied by the gateway's aggregated Swagger UI.
+                // /webjars/** already permitted above, which also covers swagger-ui's static assets.
+                .requestMatchers("/v3/api-docs", "/v3/api-docs/**",
+                                 "/swagger-ui.html", "/swagger-ui/**").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(fl -> {
