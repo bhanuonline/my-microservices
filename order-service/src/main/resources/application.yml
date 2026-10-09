@@ -128,6 +128,13 @@ spring:
         authorizePaymentCommand-out-0:
           destination: payment.commands.authorize
           content-type: application/json
+        # Outbound: operator-triggered capture / void (CheckoutAdminController).
+        capturePaymentCommand-out-0:
+          destination: payment.commands.capture
+          content-type: application/json
+        voidPaymentCommand-out-0:
+          destination: payment.commands.void
+          content-type: application/json
         # Inbound: three new reply types from payment-service.
         paymentAuthorizedReply-in-0:
           destination: payment.replies.authorized

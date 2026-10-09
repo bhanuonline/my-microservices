@@ -178,3 +178,60 @@ groups:
         labels:
           severity: warning
           component: order-saga
+
+      # ───────────────────────────────────────────────────────────────────────
+      # Warning: split-capture saga stuck in AUTHORIZED for too long.
+      # Fires when any saga has been AUTHORIZED but not captured or voided for
+      # over the SLA window. Customer money is reserved on their card during
+      # this time; operators need to decide to capture or void.
+      # ───────────────────────────────────────────────────────────────────────
+      - uid: saga-stuck-in-authorized
+        title: Saga stuck in AUTHORIZED
+        condition: C
+        for: 24h
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 86400, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              editorMode: code
+              expr: 'sum(orders_saga_authorized_total) - sum(orders_saga_captured_total) - sum(orders_saga_voided_total)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { params: [0], type: gt }
+                  operator: { type: and }
+                  query: { params: [C] }
+                  reducer: { type: last }
+                  type: query
+        annotations:
+          summary: 'Sagas awaiting capture decision: {{ printf "%.0f" $values.A.Value }}'
+          description: |
+            One or more sagas have been in AUTHORIZED state for over 24 hours
+            without being captured or voided. Customer money is held on their
+            cards during this time — authorizations typically expire after
+            5-7 days at the provider, but holding them that long is
+            customer-unfriendly and operationally sloppy.
+
+            Common causes:
+            - Operator team forgot to process pending orders.
+            - Shipment pipeline broken (if capture is triggered by shipment).
+            - Admin endpoint /admin/orders/*/capture is down.
+
+            Check the "Currently AUTHORIZED" stat panel on the Order Saga
+            dashboard, and the "Time to capture" latency panel.
+          runbook: 'docs/microservices/troubleshooting.md#alert--order-saga'
+        labels:
+          severity: warning
+          component: order-saga

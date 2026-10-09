@@ -181,6 +181,15 @@ spring:
           predicates:
             - Path=/razorpay/checkout
 
+        # ─── Split-capture admin endpoints (Phase 5) ─────────────────────
+        # Operator-triggered capture / void for sagas in AUTHORIZED state.
+        # /admin/orders/{id}/capture + /void live on order-service.
+        # Still auth-required via GatewaySecurityConfig's /admin/** rule.
+        - id: order-service-admin
+          uri: lb://order-service
+          predicates:
+            - Path=/admin/orders/**
+
         # ─── Payment query API (Phase 1 payment-gateway work) ───────────
         # Read-only endpoints: GET /api/v1/payments/{id} and /by-order/{orderId}.
         # Writes to payments go through Kafka (saga's PaymentCommand), never HTTP.

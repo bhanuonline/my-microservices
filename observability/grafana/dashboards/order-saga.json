@@ -1,5 +1,7 @@
 {
-  "annotations": {"list": []},
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -8,12 +10,36 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "New sagas kicked off per minute. Sudden drop = order-service degraded; sudden spike = usually load test.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "sagas/min"}},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "sagas/min"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
-      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
       "targets": [
         {
           "expr": "sum(rate(orders_saga_started_total[1m])) * 60",
@@ -25,12 +51,41 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "Terminal outcomes stacked. Watch for compensated/failed growing relative to completed — the system is still 'up' but silently losing orders.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"stacking": {"mode": "normal"}}, "unit": "sagas/min"}},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Terminal outcomes stacked. Watch for compensated/failed growing relative to completed \u2014 the system is still 'up' but silently losing orders.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "sagas/min"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "id": 2,
-      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "sum by (outcome) (rate(orders_saga_terminal_total[1m])) * 60",
@@ -42,12 +97,36 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "End-to-end saga duration (STARTED → terminal) per outcome. Measured from OrderSaga.createdAt — survives order-service restarts.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "s"}},
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "End-to-end saga duration (STARTED \u2192 terminal) per outcome. Measured from OrderSaga.createdAt \u2014 survives order-service restarts.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
       "id": 3,
-      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum by (outcome, le) (rate(orders_saga_duration_seconds_bucket[5m])))",
@@ -65,16 +144,54 @@
           "refId": "C"
         }
       ],
-      "title": "Saga duration — p50 / p95 / p99 by outcome",
+      "title": "Saga duration \u2014 p50 / p95 / p99 by outcome",
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "Top failure/compensation reasons over the dashboard range. Click a traceId from Loki to open the trace in Zipkin.",
-      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"align": "auto", "cellOptions": {"type": "auto"}}, "unit": "short"}},
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
       "id": 4,
-      "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true, "sortBy": [{"desc": true, "displayName": "Value"}]},
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Value"
+          }
+        ]
+      },
       "pluginVersion": "10.0.0",
       "targets": [
         {
@@ -90,21 +207,76 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": {"Time": true, "__name__": true, "application": true, "instance": true, "job": true, "stack": true},
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "application": true,
+              "instance": true,
+              "job": true,
+              "stack": true
+            },
             "indexByName": {},
-            "renameByName": {"outcome": "Outcome", "reason": "Reason", "Value": "Count"}
+            "renameByName": {
+              "outcome": "Outcome",
+              "reason": "Reason",
+              "Value": "Count"
+            }
           }
         }
       ],
       "type": "table"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "In-flight sagas = started - all terminals. If this grows unbounded, something between start() and the reply handlers is dropping messages. OrderSagaResumer drains these on boot (see panel to the right).",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 200}]}, "unit": "short"}},
-      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 16},
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
       "id": 5,
-      "options": {"colorMode": "background", "graphMode": "area", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
           "expr": "sum(orders_saga_started_total) - sum(orders_saga_terminal_total)",
@@ -116,12 +288,52 @@
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "Sagas whose next command was re-fired by OrderSagaResumer in the last hour, split by the state the saga was wedged in. Only increments on service restart; non-zero here = someone bounced order-service AND there were stuck sagas waiting. Zero in a quiet system is the healthy case.",
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}]}, "unit": "short"}},
-      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 16},
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
       "id": 6,
-      "options": {"colorMode": "background", "graphMode": "none", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name"},
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
       "targets": [
         {
           "expr": "sum by (state) (increase(orders_saga_resumed_total[1h]))",
@@ -131,17 +343,189 @@
       ],
       "title": "Sagas resumed on last boot (by stuck state)",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Split-capture flow: how many sagas are being authorized vs captured vs voided per minute. In a healthy flow authorized \u2248 captured, with a small voided tail. If authorized grows but captured doesn't catch up, operators are falling behind on capture decisions.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "sagas/min"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(orders_saga_authorized_total[1m])) * 60",
+          "legendFormat": "authorized",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(orders_saga_captured_total[1m])) * 60",
+          "legendFormat": "captured",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(orders_saga_voided_total[1m])) * 60",
+          "legendFormat": "voided",
+          "refId": "C"
+        }
+      ],
+      "title": "Split-capture \u2014 authorized / captured / voided per min",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "AUTHORIZED \u2192 PAID duration \u2014 the operator SLA. p95 climbing above hours = operators delaying capture decisions. Fine for study, meaningful in prod.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(orders_saga_time_to_capture_seconds_bucket[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(orders_saga_time_to_capture_seconds_bucket[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(orders_saga_time_to_capture_seconds_bucket[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Time to capture \u2014 operator SLA (p50/p95/p99)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sagas currently in AUTHORIZED state (authorized_total \u2212 captured_total \u2212 voided_total). Represents customer money reserved on cards, waiting for operator decision. Climbing unbounded = operators disengaged or capture pipeline broken.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum(orders_saga_authorized_total) - sum(orders_saga_captured_total) - sum(orders_saga_voided_total)",
+          "legendFormat": "sagas awaiting capture decision",
+          "refId": "A"
+        }
+      ],
+      "title": "Currently AUTHORIZED (waiting for operator)",
+      "type": "stat"
     }
   ],
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["microservices", "saga", "orders"],
-  "templating": {"list": []},
-  "time": {"from": "now-30m", "to": "now"},
+  "tags": [
+    "microservices",
+    "saga",
+    "orders"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
-  "title": "Order Saga — business metrics",
+  "title": "Order Saga \u2014 business metrics",
   "uid": "order-saga",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

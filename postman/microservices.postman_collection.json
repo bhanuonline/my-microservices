@@ -2580,6 +2580,520 @@
       ]
     },
     {
+      "name": "F8. Flow \u2014 Split-capture (Checkout.com) \u2014 payment-gateway Phase 5",
+      "description": "Explicit two-phase payment: authorize now, operator decides later whether to\ncapture or void. Only Checkout.com supports this in the current provider set.\n\nPrereqs:\n  1. .env has real CHECKOUTCOM_SECRET_KEY (sk_sbox_...) and CHECKOUTCOM_WEBHOOK_SECRET.\n  2. PAYMENT_CHECKOUTCOM_ENABLED=true, re-source .env, restart payment-service.\n  3. (Optional) ngrok http 8091 \u2192 paste URL into Checkout.com dashboard webhook\n     subscription so async events arrive. For sync-mode testing (direct API),\n     the webhook isn't strictly needed \u2014 authorize happens synchronously.\n\nTwo flows share this folder:\n  A. Happy path: authorize \u2192 admin capture \u2192 NOTIFIED\n  B. Void path:  authorize \u2192 admin void \u2192 VOIDED (comment / disable Flow A to run)\n\nSteps 1-5 are shared. Steps 6-8 are capture (Flow A). Steps 9-11 are void (Flow B).\nTo run the void path from scratch, re-run step 2 (new POST /checkout) first so\na fresh saga is in AUTHORIZED before step 9.",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/checkout \u2014 provider=checkoutcom",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow8-split-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2,\n  \"provider\": \"checkoutcom\"\n}"
+            }
+          },
+          "description": "CheckoutController starts the saga. Because `checkoutcom` is in the\norderservice.saga.split-capture-providers set, the orchestrator sends\nAuthorizePaymentCommand (not PaymentCommand). payment-service's\nCheckoutDotComPaymentProvider calls POST /payments with capture:false.\nResponse from this endpoint is immediate \u2014 saga is still STARTED here.\nThe AUTHORIZED transition happens async via Kafka.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.test('provider = checkoutcom', () => body.provider === 'checkoutcom');",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);",
+                  "console.log('orderId=', body.orderId, 'sagaId=', body.sagaId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Poll saga until AUTHORIZED (wait ~3s)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "description": "Authorize is sync at Checkout.com but the Kafka round-trip + DB write\ntakes a moment. Expected state here: AUTHORIZED. Saga will NOT advance\nfurther \u2014 this is the time-gap state where split-capture waits.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state, 'paymentId =', s.paymentId);",
+                  "pm.test('saga AUTHORIZED', () => s.state === 'AUTHORIZED');",
+                  "pm.test('paymentId stored', () => s.paymentId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Peek Payment row \u2014 expect AUTHORIZED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "pm.test('payment row present', () => list.length >= 1);",
+                  "const p = list[0];",
+                  "pm.test('provider = checkoutcom', () => p.provider === 'checkoutcom');",
+                  "pm.test('status AUTHORIZED', () => p.status === 'AUTHORIZED');",
+                  "pm.test('providerRef (pay_...) populated', () =>",
+                  "  p.providerRef && p.providerRef.startsWith('pay_'));",
+                  "console.log('authorized at Checkout.com:', p.providerRef);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Prometheus \u2014 authorized counter incremented",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_authorized_total)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_authorized_total)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_authorized_total =', val);",
+                  "pm.test('authorized > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. [FLOW A] POST /admin/orders/{id}/capture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/orders/{{lastOrderId}}/capture",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "orders",
+                "{{lastOrderId}}",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"shipment confirmed\"\n}"
+            }
+          },
+          "description": "Operator-triggered capture. Admin endpoint publishes CapturePaymentCommand\non payment.commands.capture; payment-service calls POST /payments/{id}/captures\nat Checkout.com; replies with PaymentCapturedReply. Saga joins the standard\nnotify flow from here.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202', () => pm.response.code === 202);",
+                  "const body = pm.response.json();",
+                  "pm.test('action = capture_requested', () => body.action === 'capture_requested');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. [FLOW A] Poll saga until NOTIFIED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "description": "Capture \u2192 PaymentCapturedReply \u2192 saga=PAID \u2192 NotifyUserCommand \u2192\nNotifyUserReply(success) \u2192 saga=NOTIFIED. Give it ~5s for notification\nto complete.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 5000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "pm.test('saga NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. [FLOW A] Order PAID + metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "console.log('order status =', o.status);",
+                  "pm.test('order PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. [FLOW B \u2014 RUN STEP 2 FIRST] POST /admin/orders/{id}/void",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/orders/{{lastOrderId}}/void",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "orders",
+                "{{lastOrderId}}",
+                "void"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"customer cancelled\"\n}"
+            }
+          },
+          "description": "Operator-triggered void. Admin endpoint publishes VoidPaymentCommand;\npayment-service calls POST /payments/{id}/voids at Checkout.com; replies\nwith PaymentVoidedReply. Saga transitions to VOIDED (terminal), Order to\nCANCELLED, NO refund (nothing was captured, so no money moved).\n\nNote: run this ONLY on a fresh saga still in AUTHORIZED. If you ran\nstep 6 (capture) first, this will 409 \u2014 can't void a captured payment.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 409) {",
+                  "  console.log('Expected 409 \u2014 saga is not AUTHORIZED anymore (step 6 already captured).');",
+                  "  console.log('To run Flow B: re-run step 2 to create a fresh saga, wait AUTHORIZED, then this.');",
+                  "  return;",
+                  "}",
+                  "pm.test('status 202', () => pm.response.code === 202);",
+                  "const body = pm.response.json();",
+                  "pm.test('action = void_requested', () => body.action === 'void_requested');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. [FLOW B] Poll saga until VOIDED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state, 'reason =', s.failureReason);",
+                  "if (s.state === 'NOTIFIED') {",
+                  "  console.log('Saga was already captured \u2014 Flow B skipped.');",
+                  "  return;",
+                  "}",
+                  "pm.test('saga VOIDED', () => s.state === 'VOIDED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11. [FLOW B] Prometheus \u2014 voided counter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_voided_total)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_voided_total)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('orders_saga_voided_total =', val);",
+                  "if (Number(val) >= 1) {",
+                  "  pm.test('voided > 0 (Flow B ran)', () => Number(val) > 0);",
+                  "} else {",
+                  "  console.log('Flow B did not run (step 6 captured first).');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "1. Auth",
       "item": [
         {

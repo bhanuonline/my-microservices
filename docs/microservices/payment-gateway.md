@@ -65,6 +65,7 @@ safety net.
 | 2 | Stripe | Code committed; needs real API keys to actually test |
 | 3 | Razorpay | Code committed; needs real API keys + ngrok tunnel to test |
 | 4 | PayPal | Code committed; needs sandbox credentials + webhook id + ngrok |
+| 5 | Checkout.com | Code committed; needs sandbox credentials. Split-capture flow (authorize + operator-triggered capture/void). |
 
 The stubs are `@ConditionalOnProperty` so they do NOT register as beans unless
 you flip their enable flag. That means a service with no Stripe/Razorpay/PayPal
@@ -501,6 +502,202 @@ only on that second event. `APPROVED` returns `WebhookResult.ignored`.
 | OAuth | no (static key) | no (static key) | yes (SDK handles) |
 | Capture | 1 step | 1 step | 2 step (approve → capture) |
 | Local tunnel | `stripe listen` | ngrok | ngrok |
+
+---
+
+## Phase 5 — Checkout.com (split-capture)
+
+First provider in the project that supports an explicit two-phase lifecycle:
+
+```
+authorize → money reserved on card (not charged)
+   │
+   ├─► capture → money moves                 (operator says ship/charge)
+   │
+   └─► void    → authorization released      (operator says cancel)
+                 nothing charged, usually free of fees
+```
+
+Why we built it: the project needed to demonstrate real-world flows where
+"customer committed" and "we take the money" are separated by hours or days
+— hotels, car rentals, Airbnb, marketplaces with escrow, pay-on-ship e-comm.
+Checkout.com's API is cleanly two-phase so it was the natural choice.
+
+### Architecture summary
+
+- Interface: `SplitCapturePaymentProvider` extends `PaymentProvider` with
+  `authorize()`, `capture()`, `voidPayment()`. Only providers that opt in
+  implement it. Config list `orderservice.saga.split-capture-providers`
+  (default: `checkoutcom`) tells the orchestrator which providers to route
+  via the split path.
+- Commands: `AuthorizePaymentCommand`, `CapturePaymentCommand`,
+  `VoidPaymentCommand` (plus matching replies). Each has its own Kafka
+  topic + consumer group + `IdempotencyGuard` consumer name so a saga can
+  have an Authorize AND a later Capture without the guard swallowing one.
+- Admin endpoints: `POST /admin/orders/{orderId}/capture` and `/void`
+  (on order-service) publish the capture/void commands. Preconditions
+  check saga state is `AUTHORIZED`; 409 Conflict otherwise.
+- HTTP client: `WebClient` (Spring reactive, auto-Zipkin, MDC correlation
+  propagation), configured in `CheckoutDotComConfig`.
+
+See `payment-gateway-phase5-design.md` for the full design including flow
+charts, state-machine diagrams, and the WebClient rationale.
+
+### What you'll need
+
+1. A **Checkout.com sandbox account** —
+   https://www.checkout.com/get-test-account OR
+   https://dashboard.sandbox.checkout.com/
+2. **API keys** — Dashboard → Developers → Keys. You get:
+   - Secret key: `sk_sbox_...`
+   - Public key: `pk_sbox_...` (used by frontend; we don't need it here)
+3. **A webhook signing secret** — Dashboard → Developers → Webhooks → New
+   webhook. For sync-only testing with the admin flow, the webhook isn't
+   strictly needed — the demo exercises the direct API via WebClient and
+   the admin controller. For a realistic async setup, point the webhook
+   URL at `https://<ngrok-tunnel>/webhooks/checkoutcom` and subscribe to:
+   `payment_approved`, `payment_captured`, `payment_declined`,
+   `payment_voided`, `payment_refunded`.
+
+### Set your keys in `.env`
+
+```bash
+PAYMENT_CHECKOUTCOM_ENABLED=true
+CHECKOUTCOM_BASE_URL=https://api.sandbox.checkout.com
+CHECKOUTCOM_SECRET_KEY=sk_sbox_...
+CHECKOUTCOM_WEBHOOK_SECRET=whsec_...
+CHECKOUTCOM_TEST_TOKEN=tok_card_visa_1
+```
+
+Then:
+```bash
+set -a; source .env; set +a
+mvn -pl paymentservice spring-boot:run
+# ...and leave order-service / Kafka / mysql-payment / notification running too.
+```
+
+### Checkout.com sandbox test tokens
+
+Checkout.com provides pre-made tokens that let you exercise specific paths
+without needing a tokenization frontend:
+
+| Token | Behavior |
+|---|---|
+| `tok_card_visa_1` | Always authorizes (default in `.env.example`) |
+| `tok_card_decline` | Always declines — exercises the auth-fail path |
+| `tok_card_3ds` | Triggers 3DS challenge — out of scope for this demo |
+
+Change `CHECKOUTCOM_TEST_TOKEN` and restart payment-service to switch.
+
+### Full split-capture flow — through the gateway
+
+Postman folder: **F8. Flow — Split-capture (Checkout.com)**.
+
+Manual version:
+
+```bash
+TOKEN=$(curl -s -u my-client:secret -X POST \
+   http://localhost:8095/oauth2/token \
+   -d 'grant_type=client_credentials&scope=orders.write' | jq -r .access_token)
+
+# 1. Checkout with provider=checkoutcom → saga enters AUTHORIZED after ~1-3s
+RESP=$(curl -s -X POST http://localhost:8080/api/v1/checkout \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"productId":1,"quantity":2,"provider":"checkoutcom"}')
+echo "$RESP" | jq
+ORDER_ID=$(echo "$RESP" | jq -r .orderId)
+SAGA_ID=$(echo "$RESP" | jq -r .sagaId)
+
+# 2. Verify saga reaches AUTHORIZED
+sleep 3
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/admin/sagas/$SAGA_ID | jq '.state'
+# "AUTHORIZED"
+
+# 3a. HAPPY — capture
+curl -s -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"shipment confirmed"}' \
+  http://localhost:8080/admin/orders/$ORDER_ID/capture | jq
+# { "sagaId": "...", "action": "capture_requested", "paymentId": "..." }
+
+# 4a. Verify saga reaches NOTIFIED
+sleep 5
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/admin/sagas/$SAGA_ID | jq '.state'
+# "NOTIFIED"
+```
+
+Or the VOID path (step 3b, instead of 3a):
+
+```bash
+# 3b. CANCEL — void (releases the authorization, no money moved)
+curl -s -X POST \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"customer cancelled"}' \
+  http://localhost:8080/admin/orders/$ORDER_ID/void | jq
+# { "sagaId": "...", "action": "void_requested", ... }
+
+sleep 3
+curl -s -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/admin/sagas/$SAGA_ID | jq '.state'
+# "VOIDED"
+```
+
+### Observability — new metrics + panels
+
+Three new Prometheus counters + one new timer:
+- `orders_saga_authorized_total` — one per successful authorize reply
+- `orders_saga_captured_total` — one per successful capture reply
+- `orders_saga_voided_total` — one per successful void reply
+- `orders_saga_time_to_capture_seconds` — operator SLA
+  (AUTHORIZED → PAID duration)
+
+Dashboard: three new panels on `Order Saga — business metrics`:
+- "Split-capture — authorized / captured / voided per min"
+- "Time to capture — operator SLA (p50/p95/p99)"
+- "Currently AUTHORIZED (waiting for operator)" (stat with thresholds)
+
+Alert: `SagaStuckInAuthorized` fires when any saga has been AUTHORIZED for
+over 24h without capture/void. Default is a warning routed to mailhog.
+
+### Common failure modes
+
+**`401 Unauthorized` on authorize:**
+`CHECKOUTCOM_SECRET_KEY` is wrong, or the dashboard key is a public key
+(`pk_sbox_...`) instead of the secret (`sk_sbox_...`).
+
+**`422 Unprocessable Entity` from Checkout.com:**
+Usually a token issue — `CHECKOUTCOM_TEST_TOKEN` doesn't exist in your
+sandbox account, or the amount currency doesn't match the token's test
+rules. Our provider maps 422 to `DECLINED` so the saga transitions
+`FAILED` cleanly. Check the response body in `paymentservice` logs.
+
+**Saga stays STARTED past 3-5s:**
+Either `PAYMENT_CHECKOUTCOM_ENABLED=false`, or the saga isn't routing to
+the split path. Verify by hitting `/actuator/env` on both services and
+confirming `payment.checkoutcom.enabled=true` and
+`orderservice.saga.split-capture-providers` contains `checkoutcom`.
+
+**409 Conflict on `/admin/orders/{id}/capture`:**
+Saga is NOT in `AUTHORIZED` state. Response body says the current state.
+Possibilities: still STARTED (authorize hasn't completed yet — wait a bit),
+already PAID (someone else captured first), already VOIDED, or FAILED.
+
+### Checkout.com vs other 4 providers recap
+
+| Thing | Mock | Stripe | Razorpay | PayPal | Checkout.com |
+|---|---|---|---|---|---|
+| Authorize + capture | combined | combined | combined | combined (2-step but auto) | **separate** |
+| Hosted page | n/a | Stripe | modal | PayPal | n/a (API-only here) |
+| HTTP client | n/a | Stripe SDK | Razorpay SDK | PayPal SDK | **WebClient** |
+| Webhook signature | n/a | HMAC local | HMAC local | PayPal API verify | HMAC local |
+| Idempotency | sagaId guard | native header | `receipt` field | `PayPal-Request-Id` | `Cko-Idempotency-Key` |
+| Operator capture API | n/a | n/a | n/a | n/a | **/admin/orders/{id}/capture** |
 
 ---
 
