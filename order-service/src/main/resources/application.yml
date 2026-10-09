@@ -61,7 +61,8 @@ spring:
     function:
       # All consumer beans wired via Cloud Stream. Semicolon-separated.
       # Old choreography consumers kept for reference.
-      definition: paymentCompleted;paymentFailed;paymentReply;notifyUserReply
+      # Split-capture replies (Phase 5): paymentAuthorizedReply, paymentCapturedReply, paymentVoidedReply.
+      definition: paymentCompleted;paymentFailed;paymentReply;notifyUserReply;paymentAuthorizedReply;paymentCapturedReply;paymentVoidedReply
     stream:
       # In-process retry: 3 attempts with exponential backoff.
       # After that, Kafka binder routes to DLQ.
@@ -119,6 +120,25 @@ spring:
           content-type: application/json
         notifyUserReply-in-0:
           destination: notification.replies
+          group: order-service-saga
+          content-type: application/json
+
+        # ---- Split-capture flow (Phase 5) ----
+        # Outbound: first command of the split-capture flow.
+        authorizePaymentCommand-out-0:
+          destination: payment.commands.authorize
+          content-type: application/json
+        # Inbound: three new reply types from payment-service.
+        paymentAuthorizedReply-in-0:
+          destination: payment.replies.authorized
+          group: order-service-saga
+          content-type: application/json
+        paymentCapturedReply-in-0:
+          destination: payment.replies.captured
+          group: order-service-saga
+          content-type: application/json
+        paymentVoidedReply-in-0:
+          destination: payment.replies.voided
           group: order-service-saga
           content-type: application/json
 

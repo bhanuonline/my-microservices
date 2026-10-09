@@ -96,6 +96,15 @@
             <groupId>com.paypal.sdk</groupId>
             <artifactId>paypal-server-sdk</artifactId>
         </dependency>
+
+        <!-- WebFlux client — Phase 5. Needed by CheckoutDotComPaymentProvider for
+             a reactor-netty-backed WebClient. Not using Spring's reactive web
+             SERVER (we're a servlet app via starter-web); we only use WebClient
+             as an HTTP client. Harmless when the Checkout.com provider is off. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

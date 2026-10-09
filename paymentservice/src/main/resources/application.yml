@@ -14,7 +14,7 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
   cloud:
     function:
-      definition: orderCreated;paymentCommand;refundCommand
+      definition: orderCreated;paymentCommand;refundCommand;authorizePaymentCommand;capturePaymentCommand;voidPaymentCommand
     stream:
       # Cloud Stream retry (in-process, before DLQ kicks in)
       default:
@@ -57,7 +57,7 @@ spring:
           destination: payment.failed
           content-type: application/json
 
-        # ---- Saga command handlers ----
+        # ---- Saga command handlers (combined flow) ----
         paymentCommand-in-0:
           destination: payment.commands
           group: payment-service
@@ -68,6 +68,29 @@ spring:
           content-type: application/json
         paymentReply-out-0:
           destination: payment.replies
+          content-type: application/json
+
+        # ---- Split-capture flow (Phase 5) ----
+        authorizePaymentCommand-in-0:
+          destination: payment.commands.authorize
+          group: payment-service
+          content-type: application/json
+        capturePaymentCommand-in-0:
+          destination: payment.commands.capture
+          group: payment-service
+          content-type: application/json
+        voidPaymentCommand-in-0:
+          destination: payment.commands.void
+          group: payment-service
+          content-type: application/json
+        paymentAuthorizedReply-out-0:
+          destination: payment.replies.authorized
+          content-type: application/json
+        paymentCapturedReply-out-0:
+          destination: payment.replies.captured
+          content-type: application/json
+        paymentVoidedReply-out-0:
+          destination: payment.replies.voided
           content-type: application/json
 
 server:
@@ -133,6 +156,23 @@ payment:
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
     checkout-url-base: ${RAZORPAY_CHECKOUT_URL:http://localhost:8080/razorpay/checkout}
+
+  # Checkout.com — Phase 5. First split-capture provider.
+  # Flow: POST /payments (capture:false) → authorized, then operator-triggered
+  # POST /payments/{id}/captures OR /voids. See CheckoutDotComPaymentProvider.
+  # Base URL defaults to the sandbox; swap to api.checkout.com for prod.
+  checkoutcom:
+    enabled: ${PAYMENT_CHECKOUTCOM_ENABLED:false}
+    base-url: ${CHECKOUTCOM_BASE_URL:https://api.sandbox.checkout.com}
+    secret-key: ${CHECKOUTCOM_SECRET_KEY:}
+    webhook-secret: ${CHECKOUTCOM_WEBHOOK_SECRET:}
+    # Fixed test token used for the demo authorize. In a real app the token
+    # comes from the frontend (Checkout.com Frames.js / client SDK) and
+    # arrives on the AuthorizePaymentCommand. Hardcoded for the sandbox demo.
+    test-token: ${CHECKOUTCOM_TEST_TOKEN:tok_card_visa_1}
+    connect-timeout: 5s
+    response-timeout: 15s
+    call-timeout: 15s
 
   # PayPal — Phase 4. Disabled by default. Different from Stripe/Razorpay:
   # OAuth per request (SDK handles) + webhook verified via server-side API

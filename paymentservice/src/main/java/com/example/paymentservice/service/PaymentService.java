@@ -1,12 +1,19 @@
 package com.example.paymentservice.service;
 
+import com.example.common.saga.AuthorizePaymentCommand;
+import com.example.common.saga.CapturePaymentCommand;
+import com.example.common.saga.PaymentAuthorizedReply;
+import com.example.common.saga.PaymentCapturedReply;
 import com.example.common.saga.PaymentCommand;
 import com.example.common.saga.PaymentReply;
+import com.example.common.saga.PaymentVoidedReply;
 import com.example.common.saga.RefundCommand;
+import com.example.common.saga.VoidPaymentCommand;
 import com.example.paymentservice.model.Payment;
 import com.example.paymentservice.provider.PaymentProvider;
 import com.example.paymentservice.provider.PaymentProviderRegistry;
 import com.example.paymentservice.provider.ProviderSession;
+import com.example.paymentservice.provider.SplitCapturePaymentProvider;
 import com.example.paymentservice.provider.WebhookResult;
 import com.example.paymentservice.repository.PaymentRepository;
 import org.slf4j.Logger;
@@ -39,6 +46,9 @@ public class PaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
     private static final String REPLY_BINDING = "paymentReply-out-0";
+    private static final String AUTHORIZED_REPLY_BINDING = "paymentAuthorizedReply-out-0";
+    private static final String CAPTURED_REPLY_BINDING = "paymentCapturedReply-out-0";
+    private static final String VOIDED_REPLY_BINDING = "paymentVoidedReply-out-0";
 
     private final PaymentRepository payments;
     private final PaymentProviderRegistry providers;
@@ -162,6 +172,161 @@ public class PaymentService {
         return PaymentOutcome.ok(payment);
     }
 
+    // ─── Split-capture handlers (Phase 5) ─────────────────────────────────
+
+    /**
+     * Entry point for {@link AuthorizePaymentCommand} — the first command of
+     * the split-capture flow. Finds-or-creates a Payment row (idempotent on
+     * sagaId+provider), delegates to provider.authorize(), publishes a
+     * {@link PaymentAuthorizedReply}.
+     *
+     * <p>Requires the provider to be a {@link SplitCapturePaymentProvider} —
+     * otherwise the command was mis-routed (orchestrator bug). Replies with
+     * success=false in that case so the saga transitions FAILED instead of
+     * stalling.
+     */
+    @Transactional
+    public PaymentOutcome handleAuthorize(AuthorizePaymentCommand cmd) {
+        String providerName = cmd.provider() == null ? defaultProvider : cmd.provider();
+        PaymentProvider provider = providers.require(providerName);
+        if (!(provider instanceof SplitCapturePaymentProvider splitProvider)) {
+            log.warn("AuthorizePaymentCommand for non-split-capable provider: {}", providerName);
+            publishAuthorizedReply(fakePayment(cmd, providerName), null, false,
+                    "provider_not_split_capable:" + providerName);
+            return PaymentOutcome.failed(null, "provider_not_split_capable");
+        }
+
+        Payment payment = payments.findBySagaIdAndProvider(cmd.sagaId(), providerName)
+                .orElseGet(() -> payments.save(
+                        new Payment(cmd.sagaId(), cmd.orderId(), cmd.amount(),
+                                cmd.currency() != null ? cmd.currency() : currency, providerName)));
+
+        // Replay guards (same shape as handlePayment).
+        if (payment.isTerminal()) {
+            log.info("Payment already terminal, replaying authorized reply: sagaId={} status={}",
+                    cmd.sagaId(), payment.getStatus());
+            boolean success = payment.getStatus() == Payment.Status.AUTHORIZED
+                    || payment.getStatus() == Payment.Status.CAPTURED;
+            publishAuthorizedReply(payment, payment.getProviderRef(), success, payment.getFailureReason());
+            return success ? PaymentOutcome.ok(payment) : PaymentOutcome.failed(payment, payment.getFailureReason());
+        }
+        if (payment.getStatus() == Payment.Status.AUTHORIZED) {
+            // Already authorized by a previous command — replay the success reply.
+            log.info("Payment already AUTHORIZED, replaying reply: sagaId={}", cmd.sagaId());
+            publishAuthorizedReply(payment, payment.getProviderRef(), true, null);
+            return PaymentOutcome.ok(payment);
+        }
+
+        ProviderSession session;
+        try {
+            session = splitProvider.authorize(payment);
+        } catch (RuntimeException e) {
+            log.error("Provider {} threw during authorize: sagaId={}", providerName, cmd.sagaId(), e);
+            payment.markFailed("authorize_provider_error:" + e.getClass().getSimpleName());
+            payments.save(payment);
+            publishAuthorizedReply(payment, null, false, payment.getFailureReason());
+            return PaymentOutcome.failed(payment, payment.getFailureReason());
+        }
+
+        return applyAuthorizeResult(payment, session);
+    }
+
+    /**
+     * Entry point for {@link CapturePaymentCommand} — operator-triggered
+     * conversion of an authorization into an actual charge.
+     */
+    @Transactional
+    public PaymentOutcome handleCapture(CapturePaymentCommand cmd) {
+        Payment payment = payments.findById(cmd.paymentId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "CapturePaymentCommand for unknown paymentId=" + cmd.paymentId() + " sagaId=" + cmd.sagaId()));
+
+        if (payment.getStatus() == Payment.Status.CAPTURED) {
+            log.info("Payment already CAPTURED, replaying reply: paymentId={}", cmd.paymentId());
+            publishCapturedReply(payment, true, null);
+            return PaymentOutcome.ok(payment);
+        }
+        if (payment.getStatus() != Payment.Status.AUTHORIZED) {
+            log.warn("Capture requested for non-AUTHORIZED payment: paymentId={} status={}",
+                    cmd.paymentId(), payment.getStatus());
+            publishCapturedReply(payment, false, "not_authorized:" + payment.getStatus());
+            return PaymentOutcome.failed(payment, "not_authorized");
+        }
+
+        PaymentProvider provider = providers.require(payment.getProvider());
+        if (!(provider instanceof SplitCapturePaymentProvider splitProvider)) {
+            publishCapturedReply(payment, false, "provider_not_split_capable:" + payment.getProvider());
+            return PaymentOutcome.failed(payment, "provider_not_split_capable");
+        }
+
+        ProviderSession session;
+        try {
+            session = splitProvider.capture(payment);
+        } catch (RuntimeException e) {
+            log.error("Provider {} threw during capture: paymentId={}", payment.getProvider(), cmd.paymentId(), e);
+            // Payment stays AUTHORIZED — the operator can retry or void.
+            publishCapturedReply(payment, false, "capture_provider_error:" + e.getClass().getSimpleName());
+            return PaymentOutcome.failed(payment, "capture_provider_error");
+        }
+
+        if (session.status() == Payment.Status.CAPTURED) {
+            payment.markCaptured(session.providerRef());
+            payments.save(payment);
+            publishCapturedReply(payment, true, null);
+            return PaymentOutcome.ok(payment);
+        }
+        // Any non-CAPTURED result → stay AUTHORIZED, surface the failure.
+        publishCapturedReply(payment, false, session.failureReason());
+        return PaymentOutcome.failed(payment, session.failureReason());
+    }
+
+    /**
+     * Entry point for {@link VoidPaymentCommand} — operator-triggered release
+     * of an authorization without charging.
+     */
+    @Transactional
+    public PaymentOutcome handleVoid(VoidPaymentCommand cmd) {
+        Payment payment = payments.findById(cmd.paymentId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "VoidPaymentCommand for unknown paymentId=" + cmd.paymentId() + " sagaId=" + cmd.sagaId()));
+
+        if (payment.getStatus() == Payment.Status.VOIDED) {
+            log.info("Payment already VOIDED, replaying reply: paymentId={}", cmd.paymentId());
+            publishVoidedReply(payment, true, null);
+            return PaymentOutcome.ok(payment);
+        }
+        if (payment.getStatus() != Payment.Status.AUTHORIZED) {
+            log.warn("Void requested for non-AUTHORIZED payment: paymentId={} status={}",
+                    cmd.paymentId(), payment.getStatus());
+            publishVoidedReply(payment, false, "not_authorized:" + payment.getStatus());
+            return PaymentOutcome.failed(payment, "not_authorized");
+        }
+
+        PaymentProvider provider = providers.require(payment.getProvider());
+        if (!(provider instanceof SplitCapturePaymentProvider splitProvider)) {
+            publishVoidedReply(payment, false, "provider_not_split_capable:" + payment.getProvider());
+            return PaymentOutcome.failed(payment, "provider_not_split_capable");
+        }
+
+        ProviderSession session;
+        try {
+            session = splitProvider.voidPayment(payment);
+        } catch (RuntimeException e) {
+            log.error("Provider {} threw during void: paymentId={}", payment.getProvider(), cmd.paymentId(), e);
+            publishVoidedReply(payment, false, "void_provider_error:" + e.getClass().getSimpleName());
+            return PaymentOutcome.failed(payment, "void_provider_error");
+        }
+
+        if (session.status() == Payment.Status.VOIDED) {
+            payment.markVoided(cmd.reason() != null ? cmd.reason() : "voided_by_operator");
+            payments.save(payment);
+            publishVoidedReply(payment, true, null);
+            return PaymentOutcome.ok(payment);
+        }
+        publishVoidedReply(payment, false, session.failureReason());
+        return PaymentOutcome.failed(payment, session.failureReason());
+    }
+
     /**
      * Called by the webhook controller after a provider notifies us
      * asynchronously. Finds the Payment by provider reference, applies the
@@ -265,5 +430,89 @@ public class PaymentService {
         streamBridge.send(REPLY_BINDING, reply);
         log.info("PaymentReply sent: sagaId={} success={} paymentId={} reason={}",
                 payment.getSagaId(), success, payment.getId(), failureReason);
+    }
+
+    // ─── Split-capture helpers (Phase 5) ──────────────────────────────────
+
+    private PaymentOutcome applyAuthorizeResult(Payment payment, ProviderSession session) {
+        switch (session.status()) {
+            case AUTHORIZED -> {
+                payment.markAuthorized(session.providerRef());
+                payments.save(payment);
+                publishAuthorizedReply(payment, session.providerRef(), true, null);
+                return PaymentOutcome.ok(payment);
+            }
+            case CAPTURED -> {
+                // Rare: provider captured synchronously despite capture:false. Trust it.
+                payment.markAuthorized(session.providerRef());
+                payment.markCaptured(session.providerRef());
+                payments.save(payment);
+                publishAuthorizedReply(payment, session.providerRef(), true, null);
+                return PaymentOutcome.ok(payment);
+            }
+            case DECLINED -> {
+                payment.markDeclined(session.failureReason());
+                payments.save(payment);
+                publishAuthorizedReply(payment, null, false, session.failureReason());
+                return PaymentOutcome.failed(payment, session.failureReason());
+            }
+            case FAILED -> {
+                payment.markFailed(session.failureReason());
+                payments.save(payment);
+                publishAuthorizedReply(payment, null, false, session.failureReason());
+                return PaymentOutcome.failed(payment, session.failureReason());
+            }
+            default -> throw new IllegalStateException(
+                    "Unexpected authorize status: " + session.status());
+        }
+    }
+
+    private void publishAuthorizedReply(Payment payment, String authId, boolean success, String failureReason) {
+        PaymentAuthorizedReply reply = new PaymentAuthorizedReply(
+                payment.getSagaId(),
+                payment.getOrderId(),
+                payment.getId(),
+                authId,
+                success,
+                success ? null : failureReason);
+        streamBridge.send(AUTHORIZED_REPLY_BINDING, reply);
+        log.info("PaymentAuthorizedReply sent: sagaId={} success={} authId={} reason={}",
+                payment.getSagaId(), success, authId, failureReason);
+    }
+
+    private void publishCapturedReply(Payment payment, boolean success, String failureReason) {
+        PaymentCapturedReply reply = new PaymentCapturedReply(
+                payment.getSagaId(),
+                payment.getOrderId(),
+                payment.getId(),
+                success,
+                success ? null : failureReason);
+        streamBridge.send(CAPTURED_REPLY_BINDING, reply);
+        log.info("PaymentCapturedReply sent: sagaId={} success={} paymentId={} reason={}",
+                payment.getSagaId(), success, payment.getId(), failureReason);
+    }
+
+    private void publishVoidedReply(Payment payment, boolean success, String failureReason) {
+        PaymentVoidedReply reply = new PaymentVoidedReply(
+                payment.getSagaId(),
+                payment.getOrderId(),
+                payment.getId(),
+                success,
+                success ? null : failureReason);
+        streamBridge.send(VOIDED_REPLY_BINDING, reply);
+        log.info("PaymentVoidedReply sent: sagaId={} success={} paymentId={} reason={}",
+                payment.getSagaId(), success, payment.getId(), failureReason);
+    }
+
+    /**
+     * Used by {@link #handleAuthorize} when the provider is mis-routed —
+     * we need to send a failure reply but don't want to create a Payment
+     * row for the bad command. Returns a stand-in with no DB side effect.
+     */
+    private Payment fakePayment(AuthorizePaymentCommand cmd, String providerName) {
+        return new Payment(cmd.sagaId(), cmd.orderId(),
+                cmd.amount() == null ? java.math.BigDecimal.ZERO : cmd.amount(),
+                cmd.currency() != null ? cmd.currency() : currency,
+                providerName);
     }
 }
