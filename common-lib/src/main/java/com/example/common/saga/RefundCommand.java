@@ -11,4 +11,4 @@ public record RefundCommand(
         String orderId,
         String paymentId,
         String reason
-) {}
+) implements SagaCommand {}

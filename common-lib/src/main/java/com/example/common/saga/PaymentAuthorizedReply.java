@@ -22,4 +22,4 @@ public record PaymentAuthorizedReply(
         String authId,
         boolean success,
         String failureReason
-) {}
+) implements SagaReply {}

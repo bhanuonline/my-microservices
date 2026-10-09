@@ -20,4 +20,4 @@ public record PaymentCapturedReply(
         String paymentId,
         boolean success,
         String failureReason
-) {}
+) implements SagaReply {}

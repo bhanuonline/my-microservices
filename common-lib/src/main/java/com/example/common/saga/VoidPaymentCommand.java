@@ -15,4 +15,4 @@ public record VoidPaymentCommand(
         UUID sagaId,
         String paymentId,
         String reason
-) {}
+) implements SagaCommand {}

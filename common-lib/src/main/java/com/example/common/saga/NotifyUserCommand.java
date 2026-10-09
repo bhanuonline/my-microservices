@@ -6,4 +6,4 @@ public record NotifyUserCommand(
         UUID sagaId,
         String orderId,
         String message
-) {}
+) implements SagaCommand {}

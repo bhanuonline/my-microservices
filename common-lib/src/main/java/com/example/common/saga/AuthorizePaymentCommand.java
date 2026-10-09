@@ -23,4 +23,4 @@ public record AuthorizePaymentCommand(
         BigDecimal amount,
         String currency,
         String provider
-) {}
+) implements SagaCommand {}

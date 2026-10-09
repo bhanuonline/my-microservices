@@ -7,4 +7,4 @@ public record NotifyUserReply(
         String orderId,
         boolean success,
         String failureReason
-) {}
+) implements SagaReply {}

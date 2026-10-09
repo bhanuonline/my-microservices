@@ -21,7 +21,7 @@ public record PaymentCommand(
         String orderId,
         BigDecimal amount,
         String provider
-) {
+) implements SagaCommand {
     /** Backwards-compatible constructor — defaults provider to null → use configured default. */
     public PaymentCommand(UUID sagaId, String orderId, BigDecimal amount) {
         this(sagaId, orderId, amount, null);

@@ -17,4 +17,4 @@ public record CapturePaymentCommand(
         UUID sagaId,
         String paymentId,
         String reason
-) {}
+) implements SagaCommand {}

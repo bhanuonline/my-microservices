@@ -8,4 +8,4 @@ public record PaymentReply(
         boolean success,
         String failureReason,
         String paymentId   // populated on success — needed for later refund
-) {}
+) implements SagaReply {}
