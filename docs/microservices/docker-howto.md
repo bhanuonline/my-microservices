@@ -7,6 +7,61 @@ this doc is about *using* Docker once you've picked one.
 
 ---
 
+## 0. Pure-Docker vs. `start-stack.sh` — which to use
+
+Two ways to run this stack:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  make up / up-minimal / up-saga / …                                  │
+│    Everything in Docker. Fewer moving parts. Closest to prod.        │
+│    Slower iteration — rebuild image on each code change.             │
+│                                                                      │
+│  ./start-stack.sh                                                    │
+│    Infra in Docker, apps as `java -jar` on your Mac.                 │
+│    Fast iteration — rebuild jar + re-run, no image step.             │
+│    IDE debugger attaches directly.                                   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Pick by what you're doing today:
+
+| Task | Use |
+|---|---|
+| Hands-off demo / verifying a flow works | `make up` or `make up-saga` |
+| Running tests from CI / scripts | `make up-saga` |
+| Editing Java and want fast rebuild + IDE breakpoints | `./start-stack.sh --infra-only` + run app from IDE |
+| First time ever cloning this repo | `./start-stack.sh` (auto-detects, builds, starts everything) |
+| Just one service at a time | `./start-stack.sh user-service` (resolves deps) |
+
+`start-stack.sh` reference:
+
+```bash
+./start-stack.sh                    # auto-detect: first run → full bootstrap
+./start-stack.sh --all              # everything
+./start-stack.sh --lean             # ~5 GB  — shop + backoffice + CQRS
+./start-stack.sh --minimal          # ~2.5 GB — shop checkout
+./start-stack.sh --demo             # ~1.8 GB — no auth, permit-all gateway
+./start-stack.sh --infra-only       # containers only; IDE runs the apps
+./start-stack.sh --apps-only        # infra assumed up; just launch JVMs
+./start-stack.sh --skip-build       # don't re-run mvn package
+./start-stack.sh user-service       # start one service + its deps
+./start-stack.sh --list             # catalogue of all 15 apps
+./start-stack.sh --status           # what's running right now
+```
+
+Stop:
+```bash
+./stop-stack.sh                     # everything
+./stop-stack.sh --apps-only         # keep infra up (useful for IDE workflow)
+./stop-stack.sh user-service        # stop ONE app, leave others + infra
+./stop-stack.sh --purge             # down -v — DELETES all docker volumes
+```
+
+Rest of this doc is about the pure-Docker path (`make up` family).
+
+---
+
 ## 1. Mental model — what's actually running
 
 ```

@@ -3,22 +3,32 @@
 #  start-stack.sh — bring up the my-microservices stack on your Mac
 # ═════════════════════════════════════════════════════════════════════════════
 #
-#  Infra  runs in docker (containers defined in docker-compose.yml)
-#  Apps   run as plain `java -jar` processes
-#         logs → logs/<service>.log
-#         pids → logs/<service>.pid   (used by stop-stack.sh)
+#  Model:
+#    INFRA  (mysql-shared, kafka, eureka, config-server, …) → Docker containers
+#    APPS   (user-service, product-service, …)              → java -jar on host
+#           logs → logs/<service>.log
+#           pids → logs/<service>.pid     (used by stop-stack.sh)
 #
 #  Usage:
-#    ./start-stack.sh                 # full stack        ~10  GB RAM
-#    ./start-stack.sh --lean          # shop + backoffice ~5   GB RAM
-#    ./start-stack.sh --minimal       # shop checkout     ~2.5 GB RAM
-#    ./start-stack.sh --demo          # smallest usable   ~1.8 GB RAM
-#    ./start-stack.sh --skip-build    # skip mvn package
-#    ./start-stack.sh --infra-only    # just the containers
-#    ./start-stack.sh --apps-only     # assume infra up, launch apps
-#    ./start-stack.sh -h              # help
+#    ./start-stack.sh                   # auto-detect: first run → full bootstrap,
+#                                       # second run → quick resume everything up
+#    ./start-stack.sh --all             # explicit: everything (default profile=full)
+#    ./start-stack.sh --lean            # ~5 GB — shop + backoffice + CQRS reads
+#    ./start-stack.sh --minimal         # ~2.5 GB — shop checkout
+#    ./start-stack.sh --demo            # ~1.8 GB — smallest usable (gateway permit-all)
 #
-#  Stop:  ./stop-stack.sh
+#    ./start-stack.sh --infra-only      # just the Docker containers
+#    ./start-stack.sh --apps-only       # assume infra up, launch JVMs only
+#    ./start-stack.sh --skip-build      # skip `mvn package`
+#
+#    ./start-stack.sh user-service                  # start ONE named service + deps
+#    ./start-stack.sh user-service,product-service  # subset
+#
+#    ./start-stack.sh --list            # list known services
+#    ./start-stack.sh --status          # what's running right now
+#    ./start-stack.sh -h                # help
+#
+#  Stop:  ./stop-stack.sh  (--apps-only / --infra-only / --purge)
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -26,10 +36,9 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Pretty-print helpers — used everywhere below so the output is readable
+# Pretty-print helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
-# ANSI colors (fall back to no-color if stdout is not a tty)
 if [ -t 1 ]; then
   C_RESET=$'\033[0m'
   C_BOLD=$'\033[1m'
@@ -43,7 +52,6 @@ else
   C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""; C_CYAN=""
 fi
 
-# Big section banner
 banner() {
   local msg="$1"
   echo
@@ -52,17 +60,14 @@ banner() {
   echo "${C_BOLD}${C_BLUE}╚══════════════════════════════════════════════════════════════════════════╝${C_RESET}"
 }
 
-# Smaller sub-step heading
 step() { echo; echo "${C_BOLD}${C_CYAN}▶ $1${C_RESET}"; }
-
-# Status lines
 ok()   { printf "  ${C_GREEN}✓${C_RESET} %s\n"  "$1"; }
 warn() { printf "  ${C_YELLOW}!${C_RESET} %s\n" "$1"; }
 err()  { printf "  ${C_RED}✗${C_RESET} %s\n"    "$1"; }
 info() { printf "  ${C_DIM}·${C_RESET} %s\n"    "$1"; }
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Pin JDK 17 — the project is Java source=17
+# Pin JDK 17 — project is Java source=17
 # ═══════════════════════════════════════════════════════════════════════════
 
 JAVA_HOME_17="${JAVA_HOME_17:-/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home}"
@@ -81,25 +86,40 @@ mkdir -p "$LOG_DIR"
 # Service catalogue
 # ═══════════════════════════════════════════════════════════════════════════
 #
-#  Row format:  name:module-dir:port:spring-profile:jar-pattern
-#  Spring profile is empty for most — only set when the service needs one.
+#   Row format:   name:module-dir:port:spring-profile:jar-pattern:deps
+#   deps         = space-separated list of other APP names that must be up
+#                  (infra deps are tracked separately in INFRA_FOR per profile)
 #
 APPS=(
-  "eureka-server:eureka-server:8761::target/eureka-server-*.jar"
-  "auth-server:auth-server:8095::target/auth-server-*.jar"
-  "resource-server:resource-server:8096::target/resource-server-*.jar"
-  "api-gateway:api-gateway:8080::target/api-gateway-*.jar"
-  "user-service:user-service:8081::target/user-service-*.jar"
-  "product-service:product-service:8082::target/product-service-*.jar"
-  "order-service:order-service:8083::target/order-service-*.jar"
-  "payment-service:paymentservice:8084::target/payment-service-*.jar"
-  "notification:notification:9999::target/notification-*.jar"
-  "order-query:order-query:8086::target/order-query-*.jar"
-  "product-query:product-query:8088::target/product-query-*.jar"
-  "graphql-bff:graphql-bff:8087::target/graphql-bff-*.jar"
-  "shop-ui:shop-ui:8089::target/shop-ui-*.jar"
-  "backoffice-ui:backoffice-ui:8090::target/backoffice-ui-*.jar"
+  "eureka-server:eureka-server:8761::target/eureka-server-*.jar:"
+  "config-server:config-server:8888::target/config-server-*.jar:eureka-server"
+  "auth-server:auth-server:8095::target/auth-server-*.jar:eureka-server"
+  "resource-server:resource-server:8096::target/resource-server-*.jar:eureka-server auth-server"
+  "api-gateway:api-gateway:8080::target/api-gateway-*.jar:eureka-server auth-server"
+  "user-service:user-service:8081::target/user-service-*.jar:eureka-server config-server auth-server"
+  "product-service:product-service:8082::target/product-service-*.jar:eureka-server config-server"
+  "order-service:order-service:8083::target/order-service-*.jar:eureka-server config-server product-service"
+  "payment-service:paymentservice:8084::target/payment-service-*.jar:eureka-server config-server"
+  "notification:notification:9999::target/notification-*.jar:eureka-server"
+  "order-query:order-query:8086::target/order-query-*.jar:eureka-server"
+  "product-query:product-query:8088::target/product-query-*.jar:eureka-server"
+  "graphql-bff:graphql-bff:8087::target/graphql-bff-*.jar:eureka-server"
+  "shop-ui:shop-ui:8089::target/shop-ui-*.jar:api-gateway"
+  "backoffice-ui:backoffice-ui:8090::target/backoffice-ui-*.jar:api-gateway"
 )
+
+# Bash 3.2-compatible lookup (macOS default)
+lookup_app() {
+  local target="$1"
+  for r in "${APPS[@]}"; do
+    [ "${r%%:*}" = "$target" ] && echo "$r" && return 0
+  done
+  return 1
+}
+
+all_app_names() {
+  for r in "${APPS[@]}"; do echo "${r%%:*}"; done
+}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Argument parsing
@@ -108,41 +128,138 @@ APPS=(
 SKIP_BUILD=false
 INFRA_ONLY=false
 APPS_ONLY=false
-PROFILE=full          # full | lean | minimal | demo
+PROFILE=""           # unset → auto; else full/lean/minimal/demo
+SPECIFIC=""          # if non-empty: comma list of services to start (and their deps)
+SHOW_LIST=false
+SHOW_STATUS=false
+EXPLICIT_ALL=false   # user passed --all
 
 for arg in "$@"; do
   case "$arg" in
     --skip-build) SKIP_BUILD=true ;;
     --infra-only) INFRA_ONLY=true ;;
     --apps-only)  APPS_ONLY=true  ;;
+    --all)        PROFILE=full; EXPLICIT_ALL=true ;;
     --lean)       PROFILE=lean    ;;
     --minimal)    PROFILE=minimal ;;
     --demo)       PROFILE=demo    ;;
+    --list)       SHOW_LIST=true  ;;
+    --status)     SHOW_STATUS=true ;;
     -h|--help)
-      sed -n '2,21p' "$0" | sed 's/^# //'
+      sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
-    *) err "unknown flag: $arg" ; exit 1 ;;
+    --*) err "unknown flag: $arg" ; exit 1 ;;
+    *)
+      # Positional: service name(s). Multiple comma-separated OK.
+      if [ -z "$SPECIFIC" ]; then SPECIFIC="$arg"
+      else                        SPECIFIC="$SPECIFIC,$arg"
+      fi
+      ;;
   esac
 done
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Profile → what runs
+# --list
+# ═══════════════════════════════════════════════════════════════════════════
+
+if $SHOW_LIST; then
+  banner "Known services"
+  echo
+  printf "  ${C_BOLD}%-18s %-6s %s${C_RESET}\n" "NAME" "PORT" "DEPENDS ON"
+  for r in "${APPS[@]}"; do
+    IFS=':' read -r n _ port _ _ deps <<< "$r"
+    printf "  %-18s %-6s %s\n" "$n" "$port" "${deps:-—}"
+  done
+  echo
+  info "profiles: --all (default), --lean, --minimal, --demo"
+  exit 0
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# --status
+# ═══════════════════════════════════════════════════════════════════════════
+
+if $SHOW_STATUS; then
+  banner "Current stack status"
+
+  step "Docker containers"
+  if docker compose ps --format '{{.Name}}\t{{.Status}}' 2>/dev/null | grep -q .; then
+    docker compose ps --format 'table {{.Name}}\t{{.Status}}\t{{.Ports}}' | sed 's/^/  /'
+  else
+    info "no containers running (compose project idle)"
+  fi
+
+  step "Spring Boot apps (host JVMs)"
+  anyrun=false
+  for pidfile in "$LOG_DIR"/*.pid; do
+    [ -f "$pidfile" ] || continue
+    name=$(basename "$pidfile" .pid)
+    pid=$(cat "$pidfile")
+    if kill -0 "$pid" 2>/dev/null; then
+      ok "$name (pid $pid)"
+      anyrun=true
+    else
+      warn "$name (stale pid file, process gone)"
+    fi
+  done
+  $anyrun || info "no apps running"
+  echo
+  exit 0
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Auto-detect first-time run (if no profile and no specific service given)
+# ═══════════════════════════════════════════════════════════════════════════
+
+IS_FIRST_RUN=false
+
+detect_first_run() {
+  # Treat as first run if:
+  #   (1) no jars in target/ for any module, OR
+  #   (2) no containers up for this compose project, OR
+  #   (3) no pid files AND no jars
+  local any_jar=false
+  for r in "${APPS[@]}"; do
+    local dir="${r#*:}"; dir="${dir%%:*}"
+    local pat="${r##*:}"
+    pat="${pat%:*}"   # strip trailing deps field — pattern is 2nd-to-last
+    # re-split properly
+    IFS=':' read -r _ dir _ _ pat _ <<< "$r"
+    if ls "$dir"/$pat >/dev/null 2>&1; then any_jar=true; fi
+  done
+
+  local any_container=false
+  if docker compose ps -q 2>/dev/null | grep -q .; then any_container=true; fi
+
+  if ! $any_jar || ! $any_container; then
+    IS_FIRST_RUN=true
+  fi
+}
+
+if [ -z "$PROFILE" ] && [ -z "$SPECIFIC" ]; then
+  detect_first_run
+fi
+
+# Default profile = full (unless the user named a specific service).
+if [ -z "$PROFILE" ] && [ -z "$SPECIFIC" ]; then
+  PROFILE=full
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Profile → infra container list + compose profiles + app waves
 # ═══════════════════════════════════════════════════════════════════════════
 #
-#  minimal  — ~2.5 GB. Shop checkout. No ES → no CQRS reads.
-#  lean     — ~5   GB. Shop + backoffice + CQRS reads. No observability.
-#  full     — ~10  GB. Everything, including Grafana / Zipkin / Prometheus.
+# NOTE: infra names here MUST match docker-compose.yml service keys.
+# Shared-db topology: mysql-shared (one container, 4 schemas).
 #
 case "$PROFILE" in
   demo)
-    # Smallest usable mode. Drops auth-server + mysql-auth; gateway runs
-    # permit-all under spring profile 'demo' so the shop still works.
-    # Not valid in prod — no auth, no JWT validation.
     PROFILE_DESC="shop checkout, no auth (gateway permit-all)"
     PROFILE_RAM="~1.8 GB"
-    INFRA_CONTAINERS=(mysql-user mysql-product kafka redis)
-    INFRA_HEALTHCHECKS=(mysql-product kafka redis)
+    INFRA_CONTAINERS=(mysql-shared kafka)
+    INFRA_HEALTHCHECKS=(mysql-shared kafka)
+    COMPOSE_PROFILES_VAL=""
     PROFILE_WAVES=(
       "eureka-server"
       "api-gateway product-service order-service"
@@ -152,36 +269,40 @@ case "$PROFILE" in
   minimal)
     PROFILE_DESC="shop + checkout (no ES, no observability)"
     PROFILE_RAM="~2.5 GB"
-    INFRA_CONTAINERS=(mysql-user mysql-product mysql-auth kafka redis)
-    INFRA_HEALTHCHECKS=(mysql-product mysql-auth kafka redis)
+    INFRA_CONTAINERS=(mysql-shared kafka)
+    INFRA_HEALTHCHECKS=(mysql-shared kafka)
+    COMPOSE_PROFILES_VAL=""
     PROFILE_WAVES=(
-      "eureka-server"
+      "eureka-server config-server"
       "auth-server"
-      "api-gateway product-service order-service"
+      "api-gateway product-service order-service user-service"
       "shop-ui"
     )
     ;;
   lean)
-    PROFILE_DESC="shop + backoffice + CQRS reads (no observability)"
+    PROFILE_DESC="shop + backoffice + CQRS reads (adds elasticsearch + cache)"
     PROFILE_RAM="~5 GB"
-    INFRA_CONTAINERS=(mysql-user mysql-product mysql-auth kafka redis elasticsearch)
-    INFRA_HEALTHCHECKS=(mysql-user mysql-product mysql-auth kafka redis elasticsearch)
+    INFRA_CONTAINERS=(mysql-shared kafka redis elasticsearch)
+    INFRA_HEALTHCHECKS=(mysql-shared kafka redis elasticsearch)
+    COMPOSE_PROFILES_VAL="cache,search"
     PROFILE_WAVES=(
-      "eureka-server"
+      "eureka-server config-server"
       "auth-server"
-      "api-gateway product-service order-service"
+      "api-gateway product-service order-service user-service"
       "order-query product-query"
       "shop-ui backoffice-ui"
     )
     ;;
   full|*)
-    PROFILE_DESC="everything — all 14 apps + full observability"
+    PROFILE=full
+    PROFILE_DESC="everything — all apps + full observability"
     PROFILE_RAM="~10 GB"
-    INFRA_CONTAINERS=(mysql-user mysql-product mysql-auth kafka redis elasticsearch
-                      zipkin prometheus grafana loki promtail vault-dev schema-registry)
-    INFRA_HEALTHCHECKS=(mysql-user mysql-product mysql-auth kafka elasticsearch redis)
+    # 'full' profile in compose expands to every optional service.
+    INFRA_CONTAINERS=()  # empty → bring up everything in the compose project
+    INFRA_HEALTHCHECKS=(mysql-shared kafka)
+    COMPOSE_PROFILES_VAL="full"
     PROFILE_WAVES=(
-      "eureka-server"
+      "eureka-server config-server"
       "auth-server resource-server"
       "api-gateway user-service product-service order-service payment-service notification"
       "order-query product-query graphql-bff"
@@ -191,18 +312,82 @@ case "$PROFILE" in
 esac
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Opening banner — what we're about to do
+# If a specific service was named: compute closure of (service + its deps)
+# ═══════════════════════════════════════════════════════════════════════════
+
+SPECIFIC_RESOLVED=()
+
+resolve_specific() {
+  local requested="${SPECIFIC//,/ }"
+  local -a queue=()
+  local -a seen=()
+
+  for s in $requested; do queue+=("$s"); done
+
+  while [ ${#queue[@]} -gt 0 ]; do
+    local svc="${queue[0]}"
+    queue=("${queue[@]:1}")
+
+    # already seen?
+    for s in "${seen[@]}"; do
+      [ "$s" = "$svc" ] && continue 2
+    done
+    seen+=("$svc")
+
+    local row
+    row=$(lookup_app "$svc") || { err "unknown service: $svc"; exit 1; }
+    local deps="${row##*:}"
+    for d in $deps; do queue+=("$d"); done
+  done
+
+  # Reverse so deps come first — simple topological insert order.
+  SPECIFIC_RESOLVED=()
+  for ((i=${#seen[@]}-1; i>=0; i--)); do
+    SPECIFIC_RESOLVED+=("${seen[$i]}")
+  done
+}
+
+if [ -n "$SPECIFIC" ]; then
+  resolve_specific
+  # Specific-service mode uses full infra by default (safest — all deps covered).
+  if [ -z "$PROFILE" ] || [ "$PROFILE" = "full" ]; then
+    PROFILE_DESC="specific services: ${SPECIFIC//,/ }  (+ resolved deps)"
+    PROFILE_RAM="depends on which services + current infra"
+    INFRA_CONTAINERS=()        # bring up full infra
+    COMPOSE_PROFILES_VAL="full"
+    INFRA_HEALTHCHECKS=(mysql-shared kafka)
+    PROFILE=specific
+  fi
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Opening banner
 # ═══════════════════════════════════════════════════════════════════════════
 
 banner "my-microservices launcher · profile=$PROFILE · $PROFILE_RAM"
 info "$PROFILE_DESC"
-info "containers:  ${INFRA_CONTAINERS[*]}"
-echo "  ${C_DIM}·${C_RESET} waves:"
-wave_num=1
-for w in "${PROFILE_WAVES[@]}"; do
-  printf "        wave %d → %s\n" "$wave_num" "$w"
-  wave_num=$((wave_num+1))
-done
+if $IS_FIRST_RUN; then
+  info "${C_BOLD}first-time run detected${C_RESET} — full bootstrap (build + infra + apps)"
+fi
+if [ -n "${COMPOSE_PROFILES_VAL:-}" ]; then
+  info "COMPOSE_PROFILES=$COMPOSE_PROFILES_VAL"
+fi
+if [ "${#INFRA_CONTAINERS[@]}" -gt 0 ]; then
+  info "infra:  ${INFRA_CONTAINERS[*]}"
+else
+  info "infra:  (compose project — all services for the active profile)"
+fi
+
+if [ "$PROFILE" = "specific" ]; then
+  info "apps (resolved order): ${SPECIFIC_RESOLVED[*]}"
+else
+  echo "  ${C_DIM}·${C_RESET} waves:"
+  wave_num=1
+  for w in "${PROFILE_WAVES[@]}"; do
+    printf "        wave %d → %s\n" "$wave_num" "$w"
+    wave_num=$((wave_num+1))
+  done
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 0. Sanity checks
@@ -221,12 +406,22 @@ ok "logs:   $LOG_DIR"
 # ═══════════════════════════════════════════════════════════════════════════
 
 if ! $APPS_ONLY; then
-  step "1 · starting infra containers (${#INFRA_CONTAINERS[@]} total)"
-  for c in "${INFRA_CONTAINERS[@]}"; do
-    info "will start: $c"
-  done
-  echo
-  docker compose up -d "${INFRA_CONTAINERS[@]}"
+  step "1 · starting infra containers"
+
+  # Export compose profiles if set, so `docker compose up` sees them.
+  if [ -n "${COMPOSE_PROFILES_VAL:-}" ]; then
+    export COMPOSE_PROFILES="$COMPOSE_PROFILES_VAL"
+  fi
+
+  if [ "${#INFRA_CONTAINERS[@]}" -gt 0 ]; then
+    for c in "${INFRA_CONTAINERS[@]}"; do info "starting: $c"; done
+    echo
+    docker compose up -d "${INFRA_CONTAINERS[@]}"
+  else
+    info "bringing up all services for profile(s): ${COMPOSE_PROFILES_VAL:-default}"
+    echo
+    docker compose up -d
+  fi
 
   step "2 · waiting for infra health (up to 2 minutes)"
   wait_healthy() {
@@ -234,7 +429,7 @@ if ! $APPS_ONLY; then
     while [ $i -lt $max ]; do
       status=$(docker inspect -f '{{.State.Health.Status}}' "$svc" 2>/dev/null || echo "no-health")
       if [ "$status" = "healthy" ] || [ "$status" = "no-health" ]; then
-        ok "$svc  (healthy)"
+        ok "$svc  (${status})"
         return 0
       fi
       sleep 2 ; i=$((i+1))
@@ -252,14 +447,32 @@ fi
 if $INFRA_ONLY; then
   banner "infra-only mode — containers are up, apps NOT launched"
   info "stop with: ./stop-stack.sh --infra-only"
+  info "run an app from your IDE / or:  mvn -pl user-service spring-boot:run"
   exit 0
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 2. Build jars (unless --skip-build)
+# 2. Build jars
 # ═══════════════════════════════════════════════════════════════════════════
 
+# Figure out whether we actually need to build.
+need_build=false
 if ! $SKIP_BUILD; then
+  if $IS_FIRST_RUN; then
+    need_build=true
+  else
+    # If any required jar is missing, build.
+    for r in "${APPS[@]}"; do
+      IFS=':' read -r _ dir _ _ pat _ <<< "$r"
+      if ! ls "$dir"/$pat >/dev/null 2>&1; then
+        need_build=true
+        break
+      fi
+    done
+  fi
+fi
+
+if $need_build; then
   step "3 · building jars  (mvn -DskipTests package)"
   info "this takes ~30s on a warm cache, ~2m cold"
   if mvn -q -DskipTests package; then
@@ -269,16 +482,18 @@ if ! $SKIP_BUILD; then
     exit 1
   fi
 else
-  info "skipping maven build (--skip-build)"
+  if $SKIP_BUILD; then
+    info "skipping maven build (--skip-build)"
+  else
+    info "all jars present — skipping build"
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. Launch Spring Boot apps in dependency waves
+# 3. Launch Spring Boot apps
 # ═══════════════════════════════════════════════════════════════════════════
 
-step "4 · launching apps in dependency waves"
-info "each service runs as java -jar in the background"
-info "logs → logs/<service>.log  ·  pids → logs/<service>.pid"
+step "4 · launching apps"
 
 is_running() {
   local pidfile="$1"
@@ -302,9 +517,7 @@ start_app() {
     return 1
   fi
 
-  # Build the active-profiles list: table default + launch-mode override.
-  # api-gateway specifically needs the 'demo' profile in --demo mode so that
-  # DemoProfileSecurityConfig activates and the JWT issuer-uri is cleared.
+  # Build the active-profiles list.
   local profiles="$sprofile"
   if [ "$PROFILE" = "demo" ] && [ "$name" = "api-gateway" ]; then
     profiles="${profiles:+${profiles},}demo"
@@ -319,32 +532,31 @@ start_app() {
   sleep 1
 }
 
-# Bash 3.2-compatible lookup (macOS default is 3.2 — no declare -g, no ${!var})
-lookup_app() {
-  local target="$1"
-  for r in "${APPS[@]}"; do
-    [ "${r%%:*}" = "$target" ] && echo "$r" && return 0
-  done
-  return 1
-}
-
-WAVES=("${PROFILE_WAVES[@]}")
-
-wave_num=1
-for wave in "${WAVES[@]}"; do
-  echo
-  echo "  ${C_BOLD}── wave $wave_num ──${C_RESET}  $wave"
-  for name in $wave; do
-    row=$(lookup_app "$name") || { warn "$name — not in app table, skipping"; continue; }
-    IFS=':' read -r n dir port sprofile jarpat <<< "$row"
+if [ "$PROFILE" = "specific" ]; then
+  # Specific service(s) mode — start resolved list in dep order.
+  for name in "${SPECIFIC_RESOLVED[@]}"; do
+    row=$(lookup_app "$name") || { warn "$name — not in catalogue, skipping"; continue; }
+    IFS=':' read -r n dir port sprofile jarpat deps <<< "$row"
     start_app "$n" "$dir" "$port" "$sprofile" "$jarpat"
   done
-  if [ $wave_num -lt ${#WAVES[@]} ]; then
-    info "wave settling (5s before next wave)"
-    sleep 5
-  fi
-  wave_num=$((wave_num+1))
-done
+else
+  # Wave-based launch (full / lean / minimal / demo).
+  wave_num=1
+  for wave in "${PROFILE_WAVES[@]}"; do
+    echo
+    echo "  ${C_BOLD}── wave $wave_num ──${C_RESET}  $wave"
+    for name in $wave; do
+      row=$(lookup_app "$name") || { warn "$name — not in catalogue, skipping"; continue; }
+      IFS=':' read -r n dir port sprofile jarpat deps <<< "$row"
+      start_app "$n" "$dir" "$port" "$sprofile" "$jarpat"
+    done
+    if [ $wave_num -lt ${#PROFILE_WAVES[@]} ]; then
+      info "wave settling (5s before next wave)"
+      sleep 5
+    fi
+    wave_num=$((wave_num+1))
+  done
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. READY summary
@@ -353,49 +565,61 @@ done
 banner "READY · profile=$PROFILE · $PROFILE_RAM"
 
 echo "  ${C_BOLD}Browse the stack:${C_RESET}"
-printf  "    %-18s %s\n" "Shop UI"      "http://localhost:8089"
 case "$PROFILE" in
   demo)
-    printf "    %-18s %s\n" "API Gateway"    "http://localhost:8080  (permit-all!)"
-    printf "    %-18s %s\n" "Eureka"         "http://localhost:8761"
+    printf "    %-18s %s\n" "Shop UI"      "http://localhost:8089"
+    printf "    %-18s %s\n" "API Gateway"  "http://localhost:8080  (permit-all!)"
+    printf "    %-18s %s\n" "Eureka"       "http://localhost:8761"
     ;;
   minimal)
-    printf "    %-18s %s\n" "API Gateway"    "http://localhost:8080"
-    printf "    %-18s %s\n" "Auth Server"    "http://localhost:8095"
-    printf "    %-18s %s\n" "Eureka"         "http://localhost:8761"
+    printf "    %-18s %s\n" "Shop UI"      "http://localhost:8089"
+    printf "    %-18s %s\n" "API Gateway"  "http://localhost:8080"
+    printf "    %-18s %s\n" "Auth Server"  "http://localhost:8095"
+    printf "    %-18s %s\n" "Eureka"       "http://localhost:8761"
     ;;
   lean)
-    printf "    %-18s %s\n" "Backoffice"     "http://localhost:8090"
-    printf "    %-18s %s\n" "API Gateway"    "http://localhost:8080"
-    printf "    %-18s %s\n" "Product Query"  "http://localhost:8088/products/search"
-    printf "    %-18s %s\n" "Order Query"    "http://localhost:8086/orders/search"
-    printf "    %-18s %s\n" "Auth Server"    "http://localhost:8095"
-    printf "    %-18s %s\n" "Eureka"         "http://localhost:8761"
-    printf "    %-18s %s\n" "Elasticsearch"  "http://localhost:9200"
+    printf "    %-18s %s\n" "Shop UI"      "http://localhost:8089"
+    printf "    %-18s %s\n" "Backoffice"   "http://localhost:8090"
+    printf "    %-18s %s\n" "API Gateway"  "http://localhost:8080"
+    printf "    %-18s %s\n" "Product Query" "http://localhost:8088/products/search"
+    printf "    %-18s %s\n" "Order Query"  "http://localhost:8086/orders/search"
+    printf "    %-18s %s\n" "Auth Server"  "http://localhost:8095"
+    printf "    %-18s %s\n" "Eureka"       "http://localhost:8761"
+    printf "    %-18s %s\n" "Elasticsearch" "http://localhost:9200"
+    ;;
+  specific)
+    for name in "${SPECIFIC_RESOLVED[@]}"; do
+      row=$(lookup_app "$name") || continue
+      IFS=':' read -r n _ port _ _ _ <<< "$row"
+      printf "    %-18s %s\n" "$n" "http://localhost:$port"
+    done
     ;;
   *)
-    printf "    %-18s %s\n" "Backoffice"     "http://localhost:8090"
-    printf "    %-18s %s\n" "API Gateway"    "http://localhost:8080"
-    printf "    %-18s %s\n" "GraphQL BFF"    "http://localhost:8087/graphiql"
-    printf "    %-18s %s\n" "Product Query"  "http://localhost:8088/products/search"
-    printf "    %-18s %s\n" "Order Query"    "http://localhost:8086/orders/search"
-    printf "    %-18s %s\n" "Auth Server"    "http://localhost:8095"
-    printf "    %-18s %s\n" "Eureka"         "http://localhost:8761"
-    printf "    %-18s %s\n" "Zipkin"         "http://localhost:9411"
-    printf "    %-18s %s\n" "Prometheus"     "http://localhost:9090"
-    printf "    %-18s %s\n" "Grafana"        "http://localhost:3000  (admin/admin)"
-    printf "    %-18s %s\n" "Elasticsearch"  "http://localhost:9200"
+    printf "    %-18s %s\n" "Shop UI"      "http://localhost:8089"
+    printf "    %-18s %s\n" "Backoffice"   "http://localhost:8090"
+    printf "    %-18s %s\n" "API Gateway"  "http://localhost:8080"
+    printf "    %-18s %s\n" "GraphQL BFF"  "http://localhost:8087/graphiql"
+    printf "    %-18s %s\n" "Product Query" "http://localhost:8088/products/search"
+    printf "    %-18s %s\n" "Order Query"  "http://localhost:8086/orders/search"
+    printf "    %-18s %s\n" "Auth Server"  "http://localhost:8095"
+    printf "    %-18s %s\n" "Eureka"       "http://localhost:8761"
+    printf "    %-18s %s\n" "Zipkin"       "http://localhost:9411"
+    printf "    %-18s %s\n" "Prometheus"   "http://localhost:9090"
+    printf "    %-18s %s\n" "Grafana"      "http://localhost:3000"
+    printf "    %-18s %s\n" "Mailhog"      "http://localhost:8025"
+    printf "    %-18s %s\n" "Kafka UI"     "http://localhost:8090"
     ;;
 esac
 
 echo
 echo "  ${C_BOLD}Operations:${C_RESET}"
-printf  "    %-18s %s\n" "tail a log"   "tail -f $LOG_DIR/<service>.log"
-printf  "    %-18s %s\n" "list pids"    "cat $LOG_DIR/*.pid"
-printf  "    %-18s %s\n" "stop apps"    "./stop-stack.sh --apps-only"
-printf  "    %-18s %s\n" "stop all"     "./stop-stack.sh"
+printf  "    %-18s %s\n" "tail a log"      "tail -f $LOG_DIR/<service>.log"
+printf  "    %-18s %s\n" "status check"    "./start-stack.sh --status"
+printf  "    %-18s %s\n" "stop apps"       "./stop-stack.sh --apps-only"
+printf  "    %-18s %s\n" "stop all"        "./stop-stack.sh"
+printf  "    %-18s %s\n" "list services"   "./start-stack.sh --list"
 
 echo
 info "apps need ~30-60 seconds past launch before HTTP health responds"
-info "if a service dies silently, check its log for 'APPLICATION FAILED TO START'"
+info "if a service dies silently, check logs/<service>.log for 'APPLICATION FAILED TO START'"
 echo
