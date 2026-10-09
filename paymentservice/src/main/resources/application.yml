@@ -133,6 +133,18 @@ payment:
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
     checkout-url-base: ${RAZORPAY_CHECKOUT_URL:http://localhost:8080/razorpay/checkout}
+
+  # PayPal — Phase 4. Disabled by default. Different from Stripe/Razorpay:
+  # OAuth per request (SDK handles) + webhook verified via server-side API
+  # call to PayPal rather than local HMAC.
+  paypal:
+    enabled: ${PAYMENT_PAYPAL_ENABLED:false}
+    client-id: ${PAYPAL_CLIENT_ID:}
+    client-secret: ${PAYPAL_CLIENT_SECRET:}
+    webhook-id: ${PAYPAL_WEBHOOK_ID:}
+    environment: ${PAYPAL_ENV:sandbox}
+    return-url: ${PAYPAL_RETURN_URL:${payment.default-return-url}}
+    cancel-url: ${PAYPAL_CANCEL_URL:${payment.default-cancel-url}}
   # Public base URL where providers' webhooks arrive. Behind ngrok/stripe-cli
   # in local dev. Payment-service exposes POST /webhooks/{provider}.
   webhook-base-url: ${PAYMENT_WEBHOOK_BASE_URL:http://localhost:8091}

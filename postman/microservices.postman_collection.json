@@ -2220,6 +2220,366 @@
       ]
     },
     {
+      "name": "F7. Flow \u2014 Checkout (PayPal) \u2014 payment-gateway Phase 4",
+      "description": "End-to-end PayPal sandbox flow.\n\nPrereqs:\n  1. .env has real PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_WEBHOOK_ID\n     (from developer.paypal.com sandbox app + webhook subscription).\n  2. PAYMENT_PAYPAL_ENABLED=true, re-source .env, restart payment-service.\n  3. ngrok http 8091 \u2192 copy URL into dashboard webhook subscription.\n  4. A sandbox buyer account (developer.paypal.com/dashboard/accounts).\n\nFlow (two-step CAPTURE intent):\n  1. OAuth2 token.\n  2. POST /checkout provider=paypal \u2192 response has approve URL (sandbox.paypal.com).\n  3. Peek Payment row \u2014 INITIATED with providerRef = PayPal order id.\n  4. [HUMAN] Open approve URL, log in with sandbox buyer, click Pay Now.\n  5. Two webhooks arrive: CHECKOUT.ORDER.APPROVED (ignored),\n     then PAYMENT.CAPTURE.COMPLETED (CAPTURED).\n  6. Poll Payment row \u2192 CAPTURED.\n  7. Saga NOTIFIED, order PAID.\n\nTroubleshooting:\n  - Payment stays INITIATED past 15s: ngrok URL may have changed, update\n    the webhook subscription URL on developer.paypal.com.\n  - Simulate webhooks without a real payment: use the Webhook Simulator in\n    the PayPal dashboard \u2014 targets your ngrok URL, verification runs normally.",
+      "item": [
+        {
+          "name": "1. OAuth2 token \u2192 accessToken",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{oauthClientId}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{oauthClientSecret}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "scope",
+                  "value": "orders.read orders.write"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{authServer}}/oauth2/token",
+              "host": [
+                "{{authServer}}"
+              ],
+              "path": [
+                "oauth2",
+                "token"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.access_token) pm.environment.set('accessToken', j.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. POST /api/v1/checkout \u2014 provider=paypal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              },
+              {
+                "key": "X-Correlation-Id",
+                "value": "flow7-paypal-{{$timestamp}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/checkout",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 2,\n  \"provider\": \"paypal\"\n}"
+            }
+          },
+          "description": "CheckoutController \u2192 payment-service /initiate \u2192 PayPal Orders.create\nwith CAPTURE intent + sagaId as PayPal-Request-Id (idempotency).\nResponse's redirectUrl is PayPal's hosted approval page.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.code === 201);",
+                  "const body = pm.response.json();",
+                  "pm.test('provider echoed', () => body.provider === 'paypal');",
+                  "pm.test('redirectUrl is PayPal checkout URL', () =>",
+                  "  body.redirectUrl && body.redirectUrl.includes('paypal.com'));",
+                  "pm.environment.set('lastOrderId', body.orderId);",
+                  "pm.environment.set('lastSagaId', body.sagaId);",
+                  "pm.environment.set('paypalApproveUrl', body.redirectUrl);",
+                  "console.log('open in browser:', body.redirectUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Peek Payment row \u2014 INITIATED + PayPal order id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 1500) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "pm.test('payment row present', () => list.length >= 1);",
+                  "const p = list[0];",
+                  "pm.test('provider = paypal', () => p.provider === 'paypal');",
+                  "pm.test('status INITIATED', () => p.status === 'INITIATED');",
+                  "pm.test('providerRef is a PayPal order id (17 chars alphanumeric)', () =>",
+                  "  p.providerRef && p.providerRef.length >= 10);",
+                  "if (p.id) pm.environment.set('lastPaymentId', p.id);",
+                  "console.log('paypal order', p.providerRef);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. [HUMAN] Open the PayPal approve URL and complete payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paypalApproveUrl}}",
+              "host": [
+                "{{paypalApproveUrl}}"
+              ],
+              "path": []
+            }
+          },
+          "description": "Open the URL in a BROWSER.\nLog in with a sandbox buyer account (developer.paypal.com/dashboard/accounts).\nDefault sandbox buyer has unlimited balance.\nClick Pay Now.\n\nPayPal auto-captures after approval. Two webhooks fire:\n  1. CHECKOUT.ORDER.APPROVED  \u2192 handled as 'ignored'\n  2. PAYMENT.CAPTURE.COMPLETED \u2192 transitions Payment to CAPTURED\n"
+        },
+        {
+          "name": "5. Poll Payment row until CAPTURED (wait ~10s)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/payments/by-order/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "by-order",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// PayPal + webhook pipeline is slower than Stripe/Razorpay \u2014 give it more time",
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 10000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const list = pm.response.json();",
+                  "const p = list[0];",
+                  "console.log('after webhook:', p.status, 'reason:', p.failureReason);",
+                  "pm.test('payment CAPTURED', () => p.status === 'CAPTURED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Saga NOTIFIED, order PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/admin/sagas/{{lastSagaId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "admin",
+                "sagas",
+                "{{lastSagaId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const t0 = Date.now();",
+                  "while (Date.now() - t0 < 3000) {}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json();",
+                  "console.log('saga state =', s.state);",
+                  "pm.test('saga = NOTIFIED', () => s.state === 'NOTIFIED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Order status = PAID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/v1/orders/{{lastOrderId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{lastOrderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const o = pm.response.json();",
+                  "pm.test('order PAID', () => o.status === 'PAID');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Prometheus \u2014 completed counter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{prometheus}}/api/v1/query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)",
+              "host": [
+                "{{prometheus}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "query?query=sum(orders_saga_terminal_total%7Boutcome%3D%22completed%22%7D)"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "const val = r.data && r.data.result && r.data.result[0] && r.data.result[0].value && r.data.result[0].value[1];",
+                  "console.log('terminal{completed} =', val);",
+                  "pm.test('counter > 0', () => Number(val) > 0);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "1. Auth",
       "item": [
         {

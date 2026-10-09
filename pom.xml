@@ -77,6 +77,10 @@
         <stripe.version>33.4.2</stripe.version>
         <!-- Razorpay SDK (payment-gateway Phase 3). 1.4.9 is the latest on Maven Central. -->
         <razorpay.version>1.4.9</razorpay.version>
+        <!-- PayPal Server SDK (payment-gateway Phase 4). The current replacement for
+             the deprecated checkout-sdk; wraps Orders v2 + Payments v2 REST APIs.
+             2.3.0 is the latest stable as of Jun 2026. -->
+        <paypal.version>2.3.0</paypal.version>
     </properties>
 
     <!-- Confluent artefacts (kafka-avro-serializer, etc.) aren't on Maven Central. -->
@@ -138,6 +142,13 @@
                 <groupId>com.razorpay</groupId>
                 <artifactId>razorpay-java</artifactId>
                 <version>${razorpay.version}</version>
+            </dependency>
+
+            <!-- PayPal Server SDK — Phase 4. Same conditional pattern. -->
+            <dependency>
+                <groupId>com.paypal.sdk</groupId>
+                <artifactId>paypal-server-sdk</artifactId>
+                <version>${paypal.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

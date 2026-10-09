@@ -64,7 +64,7 @@ safety net.
 | 1 | Mock | Committed and working |
 | 2 | Stripe | Code committed; needs real API keys to actually test |
 | 3 | Razorpay | Code committed; needs real API keys + ngrok tunnel to test |
-| 4 | PayPal | Stub only (`UnsupportedOperationException`) |
+| 4 | PayPal | Code committed; needs sandbox credentials + webhook id + ngrok |
 
 The stubs are `@ConditionalOnProperty` so they do NOT register as beans unless
 you flip their enable flag. That means a service with no Stripe/Razorpay/PayPal
@@ -378,12 +378,129 @@ don't handle (we only act on `order.paid`, `payment.failed`,
 | Currency | lowercase | uppercase |
 | Local tunnel | `stripe listen` built in | ngrok / cloudflared / etc. |
 
-## Phase 4 — PayPal (not yet implemented)
+## Phase 4 — PayPal
 
-Different model:
-- OAuth per request (cache the access token)
-- Order with `CAPTURE` intent
-- Webhook verification via POST to PayPal's `/v1/notifications/verify-webhook-signature`
+Fundamentally different from Stripe/Razorpay in three ways:
+
+1. **OAuth per request.** The SDK trades `client_id` + `client_secret` for
+   a short-lived access token (~9h TTL) and refreshes transparently.
+2. **Server-side webhook verification.** No HMAC. PayPal signs the webhook
+   with its own certificate. We call PayPal back at
+   `/v1/notifications/verify-webhook-signature` with the headers + body
+   + our configured `webhook_id` to confirm authenticity.
+3. **Two-step payment.** `CAPTURE` intent creates an Order in state
+   `CREATED` with an "approve" link. User approves → PayPal auto-captures
+   → `PAYMENT.CAPTURE.COMPLETED` webhook fires. The saga sees CAPTURED
+   only after that final webhook.
+
+### What you'll need
+
+1. A **PayPal developer sandbox account** — https://developer.paypal.com/dashboard/
+   (free, email + password).
+2. A **sandbox REST app** — Dashboard → Apps & Credentials → Sandbox tab →
+   Create App → copy Client ID and Secret.
+3. A **webhook subscription** —
+   Dashboard → My Apps → <your app> → scroll to Webhooks → Add Webhook.
+   - URL: `https://<ngrok-url>/webhooks/paypal`
+   - Events: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`,
+     `PAYMENT.CAPTURE.REFUNDED`, `CHECKOUT.ORDER.APPROVED`.
+   - After save, PayPal shows the Webhook ID (`WH-XXXXXXXX...`).
+
+### Set your keys in `.env`
+
+```bash
+PAYMENT_PAYPAL_ENABLED=true
+PAYPAL_CLIENT_ID=...          # from step 2
+PAYPAL_CLIENT_SECRET=...      # from step 2
+PAYPAL_WEBHOOK_ID=WH-...      # from step 3
+PAYPAL_ENV=sandbox            # leave as is for test mode
+```
+
+Then:
+```bash
+# ngrok tunnel for the webhook (PayPal needs a public URL)
+ngrok http 8091
+# Copy the https://xxx.ngrok.io into the webhook URL on the dashboard.
+
+# Load env + restart paymentservice
+set -a; source .env; set +a
+mvn -pl paymentservice spring-boot:run
+```
+
+### Smoke test — payment-service only
+
+```bash
+curl -X POST http://localhost:8091/api/v1/payments/initiate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sagaId": "'"$(uuidgen)"'",
+    "orderId": "smoke-paypal-1",
+    "amount": 25.00,
+    "provider": "paypal"
+  }' | jq
+```
+
+Expected response:
+```json
+{
+  "paymentId": "...",
+  "providerRef": "5O190127TN364715T",
+  "redirectUrl": "https://www.sandbox.paypal.com/checkoutnow?token=5O190127TN364715T",
+  "status": "INITIATED"
+}
+```
+
+Open the `redirectUrl` in a browser → log in with a sandbox buyer
+account (create one at https://developer.paypal.com/dashboard/accounts).
+
+### Full end-to-end
+
+Postman folder: **F7. Flow — Checkout (PayPal)**.
+
+### PayPal sandbox test accounts
+
+PayPal doesn't use card numbers — use sandbox buyer accounts.
+- Create at https://developer.paypal.com/dashboard/accounts.
+- Default sandbox accounts: usually one "Personal (buyer)" and one
+  "Business (merchant)" are created automatically.
+- To force a failure, use any sandbox account with insufficient funds
+  (set balance in the account editor), or dismiss the approval page.
+
+### Common failure modes
+
+**`Missing required header: paypal-auth-algo` (or similar):**
+Something hit `/webhooks/paypal` that wasn't PayPal. We check all five
+required `paypal-*` headers before even calling PayPal to verify.
+
+**`verification_status=FAILURE`:**
+Either `PAYPAL_WEBHOOK_ID` doesn't match the webhook subscription that
+sent this payload, or your sandbox app vs. the webhook's app don't match.
+Both the client id and the webhook id must come from the SAME sandbox
+REST app.
+
+**Webhook never arrives:**
+PayPal's "Webhook simulator" (Dashboard → Webhooks Simulator) is the
+fastest way to trigger an event without a real payment. Simulate
+`PAYMENT.CAPTURE.COMPLETED` targeting your ngrok URL — the Payment row
+won't exist for a simulated event (unknown provider_ref), so the
+response is `WebhookResult.ignored(...)` + 200. If you don't see even
+that in paymentservice logs, your ngrok URL on the dashboard is stale.
+
+**`CHECKOUT.ORDER.APPROVED` fires but saga stays INITIATED:**
+Expected. With CAPTURE intent, PayPal auto-captures after approval and
+sends `PAYMENT.CAPTURE.COMPLETED` separately — the orchestrator advances
+only on that second event. `APPROVED` returns `WebhookResult.ignored`.
+
+### PayPal vs Stripe vs Razorpay recap
+
+| Thing | Stripe | Razorpay | PayPal |
+|---|---|---|---|
+| Hosted page | Stripe hosts | Checkout.js modal | PayPal hosts |
+| Idempotency | header | `receipt` field | `PayPal-Request-Id` header |
+| Signature | HMAC local | HMAC local | PayPal API verify call |
+| OAuth | no (static key) | no (static key) | yes (SDK handles) |
+| Capture | 1 step | 1 step | 2 step (approve → capture) |
+| Local tunnel | `stripe listen` | ngrok | ngrok |
 
 ---
 

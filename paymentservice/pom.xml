@@ -90,6 +90,12 @@
             <groupId>com.razorpay</groupId>
             <artifactId>razorpay-java</artifactId>
         </dependency>
+
+        <!-- PayPal SDK — Phase 4. -->
+        <dependency>
+            <groupId>com.paypal.sdk</groupId>
+            <artifactId>paypal-server-sdk</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
