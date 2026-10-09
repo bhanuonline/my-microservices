@@ -47,4 +47,14 @@ public record ProviderSession(
     public static ProviderSession refunded(String providerRef) {
         return new ProviderSession(providerRef, null, Status.REFUNDED, null);
     }
+
+    /** Used by split-capture providers from {@code authorize()}. */
+    public static ProviderSession authorized(String providerRef) {
+        return new ProviderSession(providerRef, null, Status.AUTHORIZED, null);
+    }
+
+    /** Used by split-capture providers from {@code voidPayment()}. */
+    public static ProviderSession voided(String providerRef) {
+        return new ProviderSession(providerRef, null, Status.VOIDED, null);
+    }
 }

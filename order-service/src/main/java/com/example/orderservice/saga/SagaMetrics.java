@@ -23,6 +23,14 @@ import java.util.concurrent.ConcurrentMap;
  *   orders.saga.resumed         Counter  — tagged {state}, one per command
  *                                           re-fired by OrderSagaResumer
  *
+ *   (Phase 5 — split-capture flow)
+ *   orders.saga.authorized      Counter  — one per successful authorize reply
+ *   orders.saga.captured        Counter  — one per successful capture reply
+ *   orders.saga.voided          Counter  — one per successful void reply
+ *   orders.saga.time_to_capture Timer    — AUTHORIZED → PAID duration;
+ *                                           reveals operator SLA (how long between
+ *                                           auth and capture decision)
+ *
  * Duration is measured from OrderSaga.createdAt (persisted), so it stays
  * accurate even if the service restarted mid-saga.
  */
@@ -84,6 +92,45 @@ public class SagaMetrics {
                 .tag("state", state.name())
                 .register(registry)
                 .increment();
+    }
+
+    // ─── split-capture (Phase 5) ─────────────────────────────────────────
+
+    public void authorized() {
+        Counter.builder("orders.saga.authorized")
+                .description("Split-capture: successful authorize replies")
+                .register(registry)
+                .increment();
+    }
+
+    public void captured() {
+        Counter.builder("orders.saga.captured")
+                .description("Split-capture: successful capture replies")
+                .register(registry)
+                .increment();
+    }
+
+    public void voided() {
+        Counter.builder("orders.saga.voided")
+                .description("Split-capture: successful void replies (auth released)")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * How long between a successful authorize and the operator-triggered
+     * capture. Business SLA signal: if p95 climbs over hours, operators
+     * are delaying capture decisions.
+     *
+     * @param authorizedAt saga.updatedAt at the moment it entered AUTHORIZED
+     */
+    public void timeToCapture(Instant authorizedAt) {
+        if (authorizedAt == null) return;
+        Timer.builder("orders.saga.time_to_capture")
+                .description("Duration between AUTHORIZED and PAID (operator capture SLA)")
+                .publishPercentileHistogram()
+                .register(registry)
+                .record(Duration.between(authorizedAt, Instant.now()));
     }
 
     private Timer buildDurationTimer(String outcome) {

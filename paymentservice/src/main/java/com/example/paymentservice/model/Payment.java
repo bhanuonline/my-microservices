@@ -62,7 +62,14 @@ public class Payment {
         /** Provider declined — card declined, insufficient funds, fraud block, etc. Terminal. */
         DECLINED,
         /** System error — network, timeout, unexpected provider response. Terminal. */
-        FAILED
+        FAILED,
+        /**
+         * Authorization released without capture. Terminal — no money moved.
+         * Only reachable via split-capture providers' voidPayment() path.
+         * Different from REFUNDED because no money was ever captured; voids are
+         * typically free of provider fees whereas refunds often incur them.
+         */
+        VOIDED
     }
 
     @Id
@@ -162,6 +169,18 @@ public class Payment {
         transitionTo(Status.REFUNDED);
     }
 
+    /**
+     * Release a prior authorization without charging. Legal only from
+     * {@code AUTHORIZED} — a payment that was never authorized has nothing
+     * to void, and a captured payment must be {@code markRefunded()}ed
+     * instead.
+     */
+    public void markVoided(String reason) {
+        requireFrom(Status.AUTHORIZED);
+        this.failureReason = reason;
+        transitionTo(Status.VOIDED);
+    }
+
     public void markDeclined(String reason) {
         requireFromAny(Status.INITIATED, Status.AUTHORIZED);
         this.failureReason = reason;
@@ -178,7 +197,8 @@ public class Payment {
         return status == Status.CAPTURED
                 || status == Status.REFUNDED
                 || status == Status.DECLINED
-                || status == Status.FAILED;
+                || status == Status.FAILED
+                || status == Status.VOIDED;
     }
 
     private void transitionTo(Status next) {

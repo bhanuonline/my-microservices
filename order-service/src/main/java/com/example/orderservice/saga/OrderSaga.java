@@ -15,10 +15,13 @@ public class OrderSaga {
 
     public enum State {
         STARTED,           // just created
-        PAID,              // payment succeeded
+        AUTHORIZED,        // split-capture: funds reserved, waiting for capture OR void
+        PAID,              // payment succeeded (combined: direct from STARTED;
+                           //                     split: from AUTHORIZED via capture)
         NOTIFIED,          // notify succeeded → terminal SUCCESS
         COMPENSATING,      // some step failed, running compensations
-        FAILED             // terminal FAILURE
+        FAILED,            // terminal FAILURE
+        VOIDED             // split-capture: authorization released without charge, terminal
     }
 
     @Id
@@ -58,6 +61,29 @@ public class OrderSaga {
     public void markPaid(String paymentId) {
         this.paymentId = paymentId;
         transitionTo(State.PAID);
+    }
+
+    /**
+     * Split-capture: funds have been reserved (authorized) at the provider
+     * but not yet moved. Saga is waiting for an operator-triggered
+     * capture or void.
+     *
+     * @param paymentId payment-service's internal Payment row id — used by
+     *                  future CapturePaymentCommand / VoidPaymentCommand
+     *                  to find the right payment.
+     */
+    public void markAuthorized(String paymentId) {
+        this.paymentId = paymentId;
+        transitionTo(State.AUTHORIZED);
+    }
+
+    /**
+     * Split-capture: operator released the authorization without charging.
+     * Terminal — no refund fires, no money moved.
+     */
+    public void markVoided(String reason) {
+        if (this.failureReason == null) this.failureReason = reason;
+        transitionTo(State.VOIDED);
     }
 
     public void markNotified() {
