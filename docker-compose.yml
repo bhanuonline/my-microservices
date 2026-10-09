@@ -1,43 +1,74 @@
 version: '3.8'
 
 # =====================================================================
-# BASE compose file. Three topology modes supported — pick via Makefile:
+# BASE compose file. Three topology modes + mix-and-match profiles.
 #
-#   docker compose up                → minimal   (no COMPOSE_PROFILES)
-#     Just the core stack: 1 MySQL (shared), Kafka, Eureka, config-server,
-#     the 4 business services (auth, user, product, order, payment),
-#     api-gateway, Prometheus, Grafana. ~13 containers.
+# Topology (pick one):
+#   docker compose up                   → minimal   (no COMPOSE_PROFILES)
+#     ~11 containers. Just the core: 1 MySQL (shared), Kafka, Eureka,
+#     config-server, auth-server, api-gateway, user/product/order-service,
+#     Prometheus, Grafana.
 #
-#   make up      (or make up-shared) → shared-db (COMPOSE_PROFILES=full)
-#     Same as minimal + every optional service (observability extras, DLT
-#     alerting via mailhog, vault, elasticsearch, debezium CDC, etc.).
-#     Still one MySQL with 4 schemas. ~25 containers.
+#   make up          (= make up-shared) → shared-db (COMPOSE_PROFILES=full)
+#     Minimal + ALL optional services. ~25 containers.
 #
-#   make up-individual               → individual (full + overlay)
-#     Replaces mysql-shared with 4 per-service MySQL containers via
-#     docker-compose.topology-individual.yml. ~28 containers.
+#   make up-individual                  → shared-db + 4 per-service MySQLs
+#     via docker-compose.topology-individual.yml. ~29 containers.
 #
-# See docs/microservices/topologies.md for the full comparison.
+# Mix-and-match profiles (ADD only what you need):
+#
+#   core-plus    notification, resource-server       (adds ~250 MB)
+#   email        mailhog                             (adds ~20 MB)
+#   tracing      zipkin                              (adds ~150 MB)
+#   logs         loki, promtail                      (adds ~200 MB)
+#   kafka-ops    kafka-ui, kafka-exporter            (adds ~250 MB)
+#   search       elasticsearch                       (adds ~1 GB  !!!)
+#   cdc          postgres-order, kafka-connect       (adds ~700 MB)
+#   avro         schema-registry                     (adds ~300 MB)
+#   cache        redis                               (adds ~30 MB)
+#   secrets      vault-dev                           (adds ~50 MB)
+#   loadtest     k6                                  (one-shot runner)
+#   full         everything above EXCEPT loadtest    (shared-db default)
+#
+# Examples:
+#   # "I want saga F1-F3 to work with email alerts" — ~2.5 GB total
+#   COMPOSE_PROFILES=core-plus,email docker compose up -d
+#
+#   # "I want distributed tracing"
+#   COMPOSE_PROFILES=core-plus,tracing docker compose up -d
+#
+#   # "I'm debugging a Kafka topic + want DLQ UI"
+#   COMPOSE_PROFILES=core-plus,kafka-ops docker compose up -d
+#
+# Resource budget (per container, enforced by mem_limit):
+#   Spring services:   384-512m   (JVM heap capped via JAVA_TOOL_OPTIONS)
+#   kafka:             1g         (-Xmx512m)
+#   mysql-shared:      768m       (--innodb-buffer-pool-size=256M)
+#   elasticsearch:     1g         (-Xmx384m, down from 512m)
+#   others:            as-needed
+#
+# Total RAM budget by mode (approx, idle):
+#   minimal                 : ~2.5 GB
+#   core-plus,email,tracing : ~3.2 GB
+#   full (shared-db)        : ~5.5 GB
+#   individual              : ~6.5 GB
 # =====================================================================
 
 services:
-  # ---------- Shared database (new default) ----------
-  # One MySQL container hosting four schemas (userdb, productdb, authdb,
-  # paymentdb). Schemas are created on first boot via init SQL in
-  # init-shared-db/*.sql which the mysql:8 image auto-runs from
-  # /docker-entrypoint-initdb.d/.
-  #
-  # Individual-DB topology overrides this out via a sibling overlay file
-  # and adds back the 4 per-service MySQL containers.
+  # ---------- Shared database (default) ----------
   mysql-shared:
     image: mysql:8
     container_name: mysql-shared
     environment:
-      # MYSQL_DATABASE auto-creates ONE schema; the other three are
-      # created by the init script. Keeping userdb here matches the first
-      # alphabetical order of the DBs served.
       MYSQL_DATABASE: userdb
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    # Cap InnoDB buffer pool so MySQL doesn't eat 1+ GB on an idle laptop.
+    # 256 MB is plenty for a learning project's row counts.
+    command:
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=100
+      - --performance-schema=OFF
+    mem_limit: 768m
     ports:
       - "3306:3306"
     volumes:
@@ -55,15 +86,17 @@ services:
   kafka:
     image: bitnamilegacy/kafka:3.7
     container_name: kafka
+    # Cap Kafka JVM heap. Default 1 GB is wasteful for local dev.
+    mem_limit: 1g
     ports:
-      - "9092:9092"       # host access (from Mac) — clients use localhost:9092
-      - "29092:29092"     # internal (inside docker network) — services in compose use kafka:29092
+      - "9092:9092"
+      - "29092:29092"
     environment:
       - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_HEAP_OPTS=-Xms256m -Xmx512m
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      # Two PLAINTEXT listeners: EXTERNAL (for host/Mac) + INTERNAL (for docker network)
       - KAFKA_CFG_LISTENERS=EXTERNAL://:9092,INTERNAL://:29092,CONTROLLER://:9093
       - KAFKA_CFG_ADVERTISED_LISTENERS=EXTERNAL://localhost:9092,INTERNAL://kafka:29092
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=EXTERNAL:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
@@ -72,8 +105,6 @@ services:
     networks:
       - backend
     healthcheck:
-      # KRaft bootstrap + broker-api-versions is slow on first run; give it room.
-      # start_period = grace window before failures count toward retries.
       test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 10s
       timeout: 20s
@@ -81,32 +112,29 @@ services:
       start_period: 45s
 
   # ---------- Observability (core) ----------
-  # Prometheus — scrapes every service's /actuator/prometheus every 15s.
-  # Targets configured in observability/prometheus.yml.
   prometheus:
     image: prom/prometheus:v2.54.1
     container_name: prometheus
+    mem_limit: 384m
     ports:
       - "9090:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=7d'
+      # Retention reduced from 7d → 24h for local-dev savings (~200 MB).
+      - '--storage.tsdb.retention.time=24h'
+      - '--storage.tsdb.retention.size=512MB'
       - '--web.enable-lifecycle'
-      # Accept k6's Prometheus remote-write output.
       - '--web.enable-remote-write-receiver'
-      # Native histograms give us real p95/p99 from k6 output.
       - '--enable-feature=native-histograms'
     networks:
       - backend
 
-  # Grafana — dashboards + unified alerting. In minimal mode SMTP alerts
-  # have nowhere to go (mailhog is in the "full" profile) — alert emails
-  # will fail; alerts still fire into the UI /alerting view.
   grafana:
     image: grafana/grafana:11.2.0
     container_name: grafana
+    mem_limit: 384m
     ports:
       - "3000:3000"
     environment:
@@ -117,6 +145,7 @@ services:
       GF_FEATURE_TOGGLES_ENABLE: traceToMetrics,traceToLogs
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
+      GF_LOG_LEVEL: warn
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: mailhog:1025
       GF_SMTP_FROM_ADDRESS: ${GF_SMTP_FROM:-grafana@localhost}
@@ -136,6 +165,9 @@ services:
       context: .
       dockerfile: eureka-server/Dockerfile
     container_name: eureka-server
+    mem_limit: 384m
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1"
     ports:
       - "8761:8761"
     networks:
@@ -146,22 +178,21 @@ services:
       timeout: 5s
       retries: 30
 
-  # Spring Cloud Config server, native-filesystem backend. Reads yml files
-  # from the project's config-repo/ dir (mounted here) and serves them to
-  # any service wired with `spring.config.import: optional:configserver:...`.
   config-server:
     build:
       context: .
       dockerfile: config-server/Dockerfile
     container_name: config-server
+    mem_limit: 384m
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:+UseSerialGC -XX:TieredStopAtLevel=1"
+      CONFIG_SERVER_SEARCH_LOCATIONS: file:///config-repo
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
     ports:
       - "8888:8888"
-    environment:
-      CONFIG_SERVER_SEARCH_LOCATIONS: file:///config-repo
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     volumes:
       - ./config-repo:/config-repo:ro
     networks:
@@ -172,21 +203,20 @@ services:
       timeout: 5s
       retries: 30
 
-  # Pin issuer-uri so tokens are stamped the same whether hit from host or container.
-  # Host access: http://localhost:8095 → mapped to auth-server:8095 inside network.
-  # All *validators* MUST use the same issuer-uri to accept tokens.
   auth-server:
     build:
       context: .
       dockerfile: auth-server/Dockerfile
     container_name: auth-server
-    ports:
-      - "8095:8095"
+    mem_limit: 512m
     environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       SPRING_DATASOURCE_URL: ${AUTH_DB_URL:-jdbc:mysql://mysql-shared:3306/authdb?useSSL=false}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8095:8095"
     depends_on:
       mysql-shared:
         condition: service_healthy
@@ -203,12 +233,14 @@ services:
       context: .
       dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
-    ports:
-      - "8080:8080"
+    mem_limit: 512m
     environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8080:8080"
     depends_on:
       eureka-server:
         condition: service_healthy
@@ -218,17 +250,14 @@ services:
       - backend
 
   # ---------- Domain services (core) ----------
-  # DB URL env vars default to mysql-shared (shared-db topology).
-  # Individual topology overlay sets USER_DB_URL / PRODUCT_DB_URL / etc.
-  # to point at per-service MySQL containers.
   user-service:
     build:
       context: .
       dockerfile: user-service/Dockerfile
     container_name: user-service
-    ports:
-      - "8081:8081"
+    mem_limit: 512m
     environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
@@ -236,8 +265,9 @@ services:
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       CONFIG_SERVER_URI: http://config-server:8888
-      # Shared-db default. Individual overlay sets this to mysql-user:3306/userdb.
       SPRING_DATASOURCE_URL: ${USER_DB_URL:-jdbc:mysql://mysql-shared:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true}
+    ports:
+      - "8081:8081"
     depends_on:
       mysql-shared:
         condition: service_healthy
@@ -255,9 +285,9 @@ services:
       context: .
       dockerfile: product-service/Dockerfile
     container_name: product-service
-    ports:
-      - "8082:8082"
+    mem_limit: 512m
     environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       SPRING_PROFILES_ACTIVE: docker
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
@@ -265,6 +295,8 @@ services:
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       CONFIG_SERVER_URI: http://config-server:8888
       SPRING_DATASOURCE_URL: ${PRODUCT_DB_URL:-jdbc:mysql://mysql-shared:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true}
+    ports:
+      - "8082:8082"
     depends_on:
       mysql-shared:
         condition: service_healthy
@@ -282,13 +314,15 @@ services:
       context: .
       dockerfile: order-service/Dockerfile
     container_name: order-service
-    ports:
-      - "8083:8083"
+    mem_limit: 512m
     environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
       CONFIG_SERVER_URI: http://config-server:8888
+    ports:
+      - "8083:8083"
     depends_on:
       eureka-server:
         condition: service_healthy
@@ -300,55 +334,105 @@ services:
       - backend
 
   # ============================================================================
-  # Below here: optional services. Gated behind `profiles: ["full"]` so they
-  # DON'T start on plain `docker compose up` (minimal mode). To include them:
-  #    make up              # or:  COMPOSE_PROFILES=full docker compose up -d
+  # Below here: OPT-IN services. Tag with a specific profile so you can mix.
+  # `full` = union of ALL profiles below (except loadtest).
   # ============================================================================
 
-  # ---------- Secrets / KMS ----------
-  # Feature 11 — HashiCorp Vault dev mode. Provides transit engine that
-  # signs JWTs without exposing the private key. Dev root token from .env.
-  vault-dev:
-    image: hashicorp/vault:1.15
-    container_name: vault-dev
-    profiles: ["full"]
-    ports:
-      - "8200:8200"
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:?set VAULT_DEV_ROOT_TOKEN in .env}
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-    cap_add:
-      - IPC_LOCK
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+  # ---------- "core-plus": brings headline saga flows (F1-F3) to full green --
+  # notification + resource-server. Without these, saga reaches PAID but not
+  # NOTIFIED. Only ~250 MB combined.
 
-  # kafka-exporter — Kafka consumer-group lag → Prometheus.
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:v1.8.0
-    container_name: kafka-exporter
-    profiles: ["full"]
+  notification:
+    build:
+      context: .
+      dockerfile: notification/Dockerfile
+    container_name: notification
+    profiles: ["full", "core-plus"]
+    mem_limit: 384m
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms96m -Xmx256m -XX:+UseSerialGC"
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
       kafka:
         condition: service_healthy
-    command:
-      - '--kafka.server=kafka:29092'
-      - '--web.listen-address=:9308'
-      - '--kafka.version=3.7.0'
-    ports:
-      - "9308:9308"
     networks:
       - backend
 
-  # kafka-ui — browser + REST API for topic/consumer inspection.
+  resource-server:
+    build:
+      context: .
+      dockerfile: resource-server/Dockerfile
+    container_name: resource-server
+    profiles: ["full", "core-plus"]
+    mem_limit: 384m
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms96m -Xmx256m -XX:+UseSerialGC"
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8096:8096"
+    depends_on:
+      auth-server:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # ---------- "email": catches Grafana alert emails ------------------------
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: mailhog
+    profiles: ["full", "email"]
+    mem_limit: 64m
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - backend
+
+  # ---------- "tracing": distributed traces across services ----------------
+  zipkin:
+    image: openzipkin/zipkin-slim
+    container_name: zipkin
+    profiles: ["full", "tracing"]
+    mem_limit: 384m
+    ports:
+      - "9411:9411"
+    networks:
+      - backend
+
+  # ---------- "logs": log aggregation via Loki + Promtail ------------------
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    profiles: ["full", "logs"]
+    mem_limit: 256m
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - backend
+
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: promtail
+    profiles: ["full", "logs"]
+    mem_limit: 128m
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - backend
+
+  # ---------- "kafka-ops": browse topics + lag metrics ---------------------
   kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
     container_name: kafka-ui
-    profiles: ["full"]
+    profiles: ["full", "kafka-ops"]
+    mem_limit: 384m
     depends_on:
       kafka:
         condition: service_healthy
@@ -361,11 +445,69 @@ services:
     networks:
       - backend
 
-  # ---------- CDC (Tier 2) ----------
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    container_name: kafka-exporter
+    profiles: ["full", "kafka-ops"]
+    mem_limit: 128m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - '--kafka.server=kafka:29092'
+      - '--web.listen-address=:9308'
+      - '--kafka.version=3.7.0'
+    ports:
+      - "9308:9308"
+    networks:
+      - backend
+
+  # ---------- "search": CQRS read store (ES is heavy — 1 GB) --------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: elasticsearch
+    profiles: ["full", "search"]
+    # ES is a known hog. Cap aggressively for local dev.
+    mem_limit: 1g
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      # Down from 512m to 384m — ES heap, not container RAM.
+      - ES_JAVA_OPTS=-Xms256m -Xmx384m
+    ports:
+      - "9200:9200"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # ---------- "avro": schema registry --------------------------------------
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: schema-registry
+    profiles: ["full", "avro"]
+    mem_limit: 384m
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - backend
+
+  # ---------- "cdc": Debezium Postgres → Kafka Connect ---------------------
   postgres-order:
     image: debezium/postgres:15
     container_name: postgres-order
-    profiles: ["full"]
+    profiles: ["full", "cdc"]
+    mem_limit: 256m
     environment:
       POSTGRES_DB: orderdb
       POSTGRES_USER: order
@@ -381,20 +523,21 @@ services:
       timeout: 3s
       retries: 20
 
-  # Kafka Connect with Debezium plugins baked in.
   kafka-connect:
     image: debezium/connect:2.7
     container_name: kafka-connect
-    profiles: ["full"]
+    profiles: ["full", "cdc"]
+    mem_limit: 512m
     depends_on:
       kafka:
         condition: service_healthy
       postgres-order:
         condition: service_healthy
     ports:
-      - "8084:8083"      # moved from 8083 to free that for order-service
+      - "8084:8083"
     environment:
       BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_HEAP_OPTS: "-Xms128m -Xmx256m"
       GROUP_ID: order-cdc-connect
       CONFIG_STORAGE_TOPIC: connect_configs
       OFFSET_STORAGE_TOPIC: connect_offsets
@@ -408,14 +551,15 @@ services:
     networks:
       - backend
 
-  # ---------- Cache + rate-limit backend (Tier 4) ----------
+  # ---------- "cache": Redis -----------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: redis
-    profiles: ["full"]
+    profiles: ["full", "cache"]
+    mem_limit: 128m
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     networks:
       - backend
     healthcheck:
@@ -424,58 +568,33 @@ services:
       timeout: 3s
       retries: 20
 
-  # ---------- CQRS read store (Tier 2) ----------
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
-    container_name: elasticsearch
-    profiles: ["full"]
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+  # ---------- "secrets": Vault dev mode ------------------------------------
+  vault-dev:
+    image: hashicorp/vault:1.15
+    container_name: vault-dev
+    profiles: ["full", "secrets"]
+    mem_limit: 128m
     ports:
-      - "9200:9200"
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:?set VAULT_DEV_ROOT_TOKEN in .env}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  # ---------- Schema Registry (Tier 2) ----------
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.6.1
-    container_name: schema-registry
-    profiles: ["full"]
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8085:8081"
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-    networks:
-      - backend
-
-  # ---------- Observability extras ----------
-  zipkin:
-    image: openzipkin/zipkin
-    container_name: zipkin
-    profiles: ["full"]
-    ports:
-      - "9411:9411"
-    networks:
-      - backend
-
-  # k6 — load generator. Not started by default; invoke with:
-  #   docker compose run --rm k6 run -e SCENARIO=load /scripts/orders.js
+  # ---------- "loadtest": k6 one-shot runner -------------------------------
   k6:
     image: grafana/k6:0.52.0
     container_name: k6
     profiles: ["loadtest"]
+    mem_limit: 256m
     environment:
       K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
       K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
@@ -490,83 +609,8 @@ services:
     networks:
       - backend
 
-  # Loki — log aggregator.
-  loki:
-    image: grafana/loki:3.1.0
-    container_name: loki
-    profiles: ["full"]
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - backend
-
-  # Promtail — tails Docker container logs, parses JSON, pushes to Loki.
-  promtail:
-    image: grafana/promtail:3.1.0
-    container_name: promtail
-    profiles: ["full"]
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
-    networks:
-      - backend
-
-  # mailhog — dev SMTP sink + web inbox. Catches Grafana alert emails.
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
-    container_name: mailhog
-    profiles: ["full"]
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      - backend
-
-  # ---------- OAuth2 resource server demo ----------
-  resource-server:
-    build:
-      context: .
-      dockerfile: resource-server/Dockerfile
-    container_name: resource-server
-    profiles: ["full"]
-    ports:
-      - "8096:8096"
-    environment:
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-    depends_on:
-      auth-server:
-        condition: service_healthy
-    networks:
-      - backend
-
-  # NOTE: paymentservice doesn't have a Dockerfile yet. Run it from IDE or
-  # `mvn -pl paymentservice spring-boot:run` for now. When you add
-  # paymentservice/Dockerfile, re-insert this block from git history.
-
-  # ---------- Notification (optional) ----------
-  # Saga's notify step is REQUIRED for the full flow. In minimal mode this
-  # is excluded, so sagas will reach PAID but never NOTIFIED (notify command
-  # times out → DLT). F4/F5/F8 checkout flows that only assert up to the
-  # payment status still work. F1-F3 that assert NOTIFIED do NOT.
-  notification:
-    build:
-      context: .
-      dockerfile: notification/Dockerfile
-    container_name: notification
-    profiles: ["full"]
-    environment:
-      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - backend
+  # NOTE: paymentservice doesn't have a Dockerfile yet. Run via
+  # `mvn -pl paymentservice spring-boot:run` for now.
 
 networks:
   backend:
