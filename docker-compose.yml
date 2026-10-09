@@ -1,15 +1,48 @@
 version: '3.8'
 
+# =====================================================================
+# BASE compose file. Three topology modes supported — pick via Makefile:
+#
+#   docker compose up                → minimal   (no COMPOSE_PROFILES)
+#     Just the core stack: 1 MySQL (shared), Kafka, Eureka, config-server,
+#     the 4 business services (auth, user, product, order, payment),
+#     api-gateway, Prometheus, Grafana. ~13 containers.
+#
+#   make up      (or make up-shared) → shared-db (COMPOSE_PROFILES=full)
+#     Same as minimal + every optional service (observability extras, DLT
+#     alerting via mailhog, vault, elasticsearch, debezium CDC, etc.).
+#     Still one MySQL with 4 schemas. ~25 containers.
+#
+#   make up-individual               → individual (full + overlay)
+#     Replaces mysql-shared with 4 per-service MySQL containers via
+#     docker-compose.topology-individual.yml. ~28 containers.
+#
+# See docs/microservices/topologies.md for the full comparison.
+# =====================================================================
+
 services:
-  # ---------- Databases ----------
-  mysql-user:
+  # ---------- Shared database (new default) ----------
+  # One MySQL container hosting four schemas (userdb, productdb, authdb,
+  # paymentdb). Schemas are created on first boot via init SQL in
+  # init-shared-db/*.sql which the mysql:8 image auto-runs from
+  # /docker-entrypoint-initdb.d/.
+  #
+  # Individual-DB topology overrides this out via a sibling overlay file
+  # and adds back the 4 per-service MySQL containers.
+  mysql-shared:
     image: mysql:8
-    container_name: mysql-user
+    container_name: mysql-shared
     environment:
+      # MYSQL_DATABASE auto-creates ONE schema; the other three are
+      # created by the init script. Keeping userdb here matches the first
+      # alphabetical order of the DBs served.
       MYSQL_DATABASE: userdb
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
     ports:
-      - "3307:3306"
+      - "3306:3306"
+    volumes:
+      - ./init-shared-db:/docker-entrypoint-initdb.d:ro
+      - mysql-shared-data:/var/lib/mysql
     networks:
       - backend
     healthcheck:
@@ -18,80 +51,7 @@ services:
       timeout: 3s
       retries: 20
 
-  mysql-product:
-    image: mysql:8
-    container_name: mysql-product
-    environment:
-      MYSQL_DATABASE: productdb
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-    ports:
-      - "3308:3306"
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  mysql-auth:
-    image: mysql:8
-    container_name: mysql-auth
-    environment:
-      MYSQL_DATABASE: authdb
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-    ports:
-      - "3309:3306"
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # Dedicated MySQL for paymentservice. Keeps the payment DB separate from
-  # other service DBs so a schema change in payment doesn't contend with
-  # user/product/auth migrations. Port 3310 on host → 3306 in container.
-  mysql-payment:
-    image: mysql:8
-    container_name: mysql-payment
-    environment:
-      MYSQL_DATABASE: paymentdb
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
-    ports:
-      - "3310:3306"
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # ---------- Secrets / KMS ----------
-  # Feature 11 — HashiCorp Vault dev mode. Provides transit engine that
-  # signs JWTs without exposing the private key. Dev root token is sourced
-  # from .env (VAULT_DEV_ROOT_TOKEN). NEVER use dev mode in production.
-  vault-dev:
-    image: hashicorp/vault:1.15
-    container_name: vault-dev
-    ports:
-      - "8200:8200"
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:?set VAULT_DEV_ROOT_TOKEN in .env}
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
-    cap_add:
-      - IPC_LOCK
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  # ---------- Messaging ----------
+  # ---------- Messaging (core) ----------
   kafka:
     image: bitnamilegacy/kafka:3.7
     container_name: kafka
@@ -120,157 +80,7 @@ services:
       retries: 30
       start_period: 45s
 
-  # kafka-exporter — exposes consumer-group lag + topic metrics as Prometheus
-  # time series, queried directly from Kafka admin API. Independent of whether
-  # the consumer services are alive, so you can see lag growing on a dead
-  # consumer group (which Micrometer in-process metrics can't tell you).
-  # Metrics appear on http://kafka-exporter:9308/metrics; Prometheus scrapes
-  # them via the 'kafka-exporter' job in observability/prometheus.yml.
-  kafka-exporter:
-    image: danielqsj/kafka-exporter:v1.8.0
-    container_name: kafka-exporter
-    depends_on:
-      kafka:
-        condition: service_healthy
-    command:
-      - '--kafka.server=kafka:29092'
-      - '--web.listen-address=:9308'
-      # Low-churn install — tighten these later if the exporter becomes a hot path.
-      - '--kafka.version=3.7.0'
-    ports:
-      - "9308:9308"
-    networks:
-      - backend
-
-  # kafka-ui — web UI + REST API for topic/consumer-group inspection.
-  # Used by the Postman "Flow" collections to peek at messages mid-saga
-  # (payment.commands, notification.commands, payment.commands.refund, *.DLT).
-  # UI:  http://localhost:8090
-  # API: http://localhost:8090/api/clusters/local/topics/{topic}/messages
-  kafka-ui:
-    image: provectuslabs/kafka-ui:v0.7.2
-    container_name: kafka-ui
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8090:8080"
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
-      # Read-only by default so no one accidentally deletes a topic.
-      AUTH_TYPE: DISABLED
-    networks:
-      - backend
-
-  # ---------- CDC (Tier 2) ----------
-  # Postgres with logical replication enabled — Debezium needs WAL-level=logical.
-  # order-service switches to this DB under the `docker-cdc` Spring profile.
-  postgres-order:
-    image: debezium/postgres:15
-    container_name: postgres-order
-    environment:
-      POSTGRES_DB: orderdb
-      POSTGRES_USER: order
-      POSTGRES_PASSWORD: order
-    command: ["postgres", "-c", "wal_level=logical"]
-    ports:
-      - "5433:5432"
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U order -d orderdb"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # Kafka Connect with Debezium plugins baked in. Register the connector via
-  # observability/debezium/register-outbox-connector.sh after startup.
-  kafka-connect:
-    image: debezium/connect:2.7
-    container_name: kafka-connect
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres-order:
-        condition: service_healthy
-    ports:
-      - "8083:8083"
-    environment:
-      BOOTSTRAP_SERVERS: kafka:29092
-      GROUP_ID: order-cdc-connect
-      CONFIG_STORAGE_TOPIC: connect_configs
-      OFFSET_STORAGE_TOPIC: connect_offsets
-      STATUS_STORAGE_TOPIC: connect_statuses
-      CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      STATUS_STORAGE_REPLICATION_FACTOR: 1
-      KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
-      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
-    networks:
-      - backend
-
-  # ---------- Cache + rate-limit backend (Tier 4) ----------
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  # ---------- CQRS read store (Tier 2) ----------
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    networks:
-      - backend
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-
-  # ---------- Schema Registry (Tier 2) ----------
-  # Confluent registry — stores Avro schemas by subject. Producers include a
-  # schema id in each message; consumers look it up and cache.
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.6.1
-    container_name: schema-registry
-    depends_on:
-      kafka:
-        condition: service_healthy
-    ports:
-      - "8085:8081"              # host port 8085 → container 8081 (8081 taken by user-service)
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
-    networks:
-      - backend
-
-  # ---------- Observability ----------
-  zipkin:
-    image: openzipkin/zipkin
-    container_name: zipkin
-    ports:
-      - "9411:9411"
-    networks:
-      - backend
-
+  # ---------- Observability (core) ----------
   # Prometheus — scrapes every service's /actuator/prometheus every 15s.
   # Targets configured in observability/prometheus.yml.
   prometheus:
@@ -291,66 +101,9 @@ services:
     networks:
       - backend
 
-  # k6 — load generator. Not started by default; invoke with:
-  #   docker compose run --rm k6 run -e SCENARIO=load /scripts/orders.js
-  # Metrics stream to Prometheus via remote-write; see Grafana "k6 overview".
-  k6:
-    image: grafana/k6:0.52.0
-    container_name: k6
-    profiles: ["loadtest"]           # excluded from `docker compose up` without --profile
-    environment:
-      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
-      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
-      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
-      BASE_URL: http://api-gateway:8080
-      AUTH: admin:admin123
-      PRODUCT_IDS: "1,2,3"
-    volumes:
-      - ./load-tests/k6:/scripts:ro
-    entrypoint: ["k6"]
-    command: ["run", "--out", "experimental-prometheus-rw", "/scripts/orders.js"]
-    networks:
-      - backend
-
-  # Loki — log aggregator. Promtail ships container stdout here; queried from Grafana.
-  loki:
-    image: grafana/loki:3.1.0
-    container_name: loki
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - backend
-
-  # Promtail — tails Docker container logs, parses JSON, pushes to Loki.
-  promtail:
-    image: grafana/promtail:3.1.0
-    container_name: promtail
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
-    networks:
-      - backend
-
-  # Grafana — single pane for metrics (Prometheus), logs (Loki), traces (Zipkin).
-  # mailhog — dev SMTP sink + web inbox. Catches Grafana alert emails so
-  # DLT alerts and consumer-lag warnings land somewhere readable without
-  # relying on a real mail provider. Zero config, zero persistence.
-  # Inbox: http://localhost:8025
-  mailhog:
-    image: mailhog/mailhog:v1.0.1
-    container_name: mailhog
-    ports:
-      - "1025:1025"   # SMTP in (Grafana → here)
-      - "8025:8025"   # Web UI out (you → here)
-    networks:
-      - backend
-
-  # Dashboards + alert rules auto-provisioned from observability/grafana/.
-  # Login: admin / ${GF_ADMIN_PASSWORD} (see .env).
+  # Grafana — dashboards + unified alerting. In minimal mode SMTP alerts
+  # have nowhere to go (mailhog is in the "full" profile) — alert emails
+  # will fail; alerts still fire into the UI /alerting view.
   grafana:
     image: grafana/grafana:11.2.0
     container_name: grafana
@@ -362,10 +115,8 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
       GF_FEATURE_TOGGLES_ENABLE: traceToMetrics,traceToLogs
-      # Unified alerting is default on Grafana 10+; made explicit for clarity.
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
-      # SMTP → mailhog (dev inbox at http://localhost:8025).
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: mailhog:1025
       GF_SMTP_FROM_ADDRESS: ${GF_SMTP_FROM:-grafana@localhost}
@@ -376,9 +127,6 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
-      - loki
-      - zipkin
-      - mailhog
     networks:
       - backend
 
@@ -401,8 +149,6 @@ services:
   # Spring Cloud Config server, native-filesystem backend. Reads yml files
   # from the project's config-repo/ dir (mounted here) and serves them to
   # any service wired with `spring.config.import: optional:configserver:...`.
-  # Currently NO service imports from it — this is Group 1 of the migration.
-  # Browse:  curl http://localhost:8888/user-service/default
   config-server:
     build:
       context: .
@@ -414,7 +160,6 @@ services:
     ports:
       - "8888:8888"
     environment:
-      # Live-read the mounted dir, not the classpath-bundled copy baked at build time.
       CONFIG_SERVER_SEARCH_LOCATIONS: file:///config-repo
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     volumes:
@@ -428,7 +173,7 @@ services:
       retries: 30
 
   # Pin issuer-uri so tokens are stamped the same whether hit from host or container.
-  # Host access: http://localhost:8095   → mapped to auth-server:8095 inside network.
+  # Host access: http://localhost:8095 → mapped to auth-server:8095 inside network.
   # All *validators* MUST use the same issuer-uri to accept tokens.
   auth-server:
     build:
@@ -438,12 +183,12 @@ services:
     ports:
       - "8095:8095"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/authdb?useSSL=false
+      SPRING_DATASOURCE_URL: ${AUTH_DB_URL:-jdbc:mysql://mysql-shared:3306/authdb?useSSL=false}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     depends_on:
-      mysql-auth:
+      mysql-shared:
         condition: service_healthy
     networks:
       - backend
@@ -452,22 +197,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
-
-  resource-server:
-    build:
-      context: .
-      dockerfile: resource-server/Dockerfile
-    container_name: resource-server
-    ports:
-      - "8096:8096"
-    environment:
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-    depends_on:
-      auth-server:
-        condition: service_healthy
-    networks:
-      - backend
 
   api-gateway:
     build:
@@ -488,7 +217,10 @@ services:
     networks:
       - backend
 
-  # ---------- Domain services ----------
+  # ---------- Domain services (core) ----------
+  # DB URL env vars default to mysql-shared (shared-db topology).
+  # Individual topology overlay sets USER_DB_URL / PRODUCT_DB_URL / etc.
+  # to point at per-service MySQL containers.
   user-service:
     build:
       context: .
@@ -503,12 +235,11 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-      # Point the Spring Cloud Config client at the compose-internal config-server.
-      # user-service imports configserver:${CONFIG_SERVER_URI:...}; this env var
-      # overrides the localhost default.
       CONFIG_SERVER_URI: http://config-server:8888
+      # Shared-db default. Individual overlay sets this to mysql-user:3306/userdb.
+      SPRING_DATASOURCE_URL: ${USER_DB_URL:-jdbc:mysql://mysql-shared:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true}
     depends_on:
-      mysql-user:
+      mysql-shared:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
@@ -532,10 +263,10 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-      # Point Spring Cloud Config client at the compose-internal config-server.
       CONFIG_SERVER_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: ${PRODUCT_DB_URL:-jdbc:mysql://mysql-shared:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true}
     depends_on:
-      mysql-product:
+      mysql-shared:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
@@ -557,7 +288,6 @@ services:
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
-      # Point Spring Cloud Config client at the compose-internal config-server.
       CONFIG_SERVER_URI: http://config-server:8888
     depends_on:
       eureka-server:
@@ -569,11 +299,266 @@ services:
     networks:
       - backend
 
+  # ============================================================================
+  # Below here: optional services. Gated behind `profiles: ["full"]` so they
+  # DON'T start on plain `docker compose up` (minimal mode). To include them:
+  #    make up              # or:  COMPOSE_PROFILES=full docker compose up -d
+  # ============================================================================
+
+  # ---------- Secrets / KMS ----------
+  # Feature 11 — HashiCorp Vault dev mode. Provides transit engine that
+  # signs JWTs without exposing the private key. Dev root token from .env.
+  vault-dev:
+    image: hashicorp/vault:1.15
+    container_name: vault-dev
+    profiles: ["full"]
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN:?set VAULT_DEV_ROOT_TOKEN in .env}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8200/v1/sys/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # kafka-exporter — Kafka consumer-group lag → Prometheus.
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.8.0
+    container_name: kafka-exporter
+    profiles: ["full"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command:
+      - '--kafka.server=kafka:29092'
+      - '--web.listen-address=:9308'
+      - '--kafka.version=3.7.0'
+    ports:
+      - "9308:9308"
+    networks:
+      - backend
+
+  # kafka-ui — browser + REST API for topic/consumer inspection.
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: kafka-ui
+    profiles: ["full"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      AUTH_TYPE: DISABLED
+    networks:
+      - backend
+
+  # ---------- CDC (Tier 2) ----------
+  postgres-order:
+    image: debezium/postgres:15
+    container_name: postgres-order
+    profiles: ["full"]
+    environment:
+      POSTGRES_DB: orderdb
+      POSTGRES_USER: order
+      POSTGRES_PASSWORD: order
+    command: ["postgres", "-c", "wal_level=logical"]
+    ports:
+      - "5433:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order -d orderdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Kafka Connect with Debezium plugins baked in.
+  kafka-connect:
+    image: debezium/connect:2.7
+    container_name: kafka-connect
+    profiles: ["full"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres-order:
+        condition: service_healthy
+    ports:
+      - "8084:8083"      # moved from 8083 to free that for order-service
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: order-cdc-connect
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    networks:
+      - backend
+
+  # ---------- Cache + rate-limit backend (Tier 4) ----------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    profiles: ["full"]
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------- CQRS read store (Tier 2) ----------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: elasticsearch
+    profiles: ["full"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # ---------- Schema Registry (Tier 2) ----------
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.1
+    container_name: schema-registry
+    profiles: ["full"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - backend
+
+  # ---------- Observability extras ----------
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    profiles: ["full"]
+    ports:
+      - "9411:9411"
+    networks:
+      - backend
+
+  # k6 — load generator. Not started by default; invoke with:
+  #   docker compose run --rm k6 run -e SCENARIO=load /scripts/orders.js
+  k6:
+    image: grafana/k6:0.52.0
+    container_name: k6
+    profiles: ["loadtest"]
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM: "true"
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
+      BASE_URL: http://api-gateway:8080
+      AUTH: admin:admin123
+      PRODUCT_IDS: "1,2,3"
+    volumes:
+      - ./load-tests/k6:/scripts:ro
+    entrypoint: ["k6"]
+    command: ["run", "--out", "experimental-prometheus-rw", "/scripts/orders.js"]
+    networks:
+      - backend
+
+  # Loki — log aggregator.
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    profiles: ["full"]
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - backend
+
+  # Promtail — tails Docker container logs, parses JSON, pushes to Loki.
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: promtail
+    profiles: ["full"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./observability/promtail-config.yml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - backend
+
+  # mailhog — dev SMTP sink + web inbox. Catches Grafana alert emails.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: mailhog
+    profiles: ["full"]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - backend
+
+  # ---------- OAuth2 resource server demo ----------
+  resource-server:
+    build:
+      context: .
+      dockerfile: resource-server/Dockerfile
+    container_name: resource-server
+    profiles: ["full"]
+    ports:
+      - "8096:8096"
+    environment:
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    depends_on:
+      auth-server:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # NOTE: paymentservice doesn't have a Dockerfile yet. Run it from IDE or
+  # `mvn -pl paymentservice spring-boot:run` for now. When you add
+  # paymentservice/Dockerfile, re-insert this block from git history.
+
+  # ---------- Notification (optional) ----------
+  # Saga's notify step is REQUIRED for the full flow. In minimal mode this
+  # is excluded, so sagas will reach PAID but never NOTIFIED (notify command
+  # times out → DLT). F4/F5/F8 checkout flows that only assert up to the
+  # payment status still work. F1-F3 that assert NOTIFIED do NOT.
   notification:
     build:
       context: .
       dockerfile: notification/Dockerfile
     container_name: notification
+    profiles: ["full"]
     environment:
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
@@ -586,3 +571,7 @@ services:
 networks:
   backend:
     driver: bridge
+
+volumes:
+  mysql-shared-data:
+    driver: local

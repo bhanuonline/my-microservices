@@ -1,0 +1,133 @@
+# =====================================================================
+# OVERLAY: individual-DB topology.
+#
+# Replaces the single mysql-shared container with 4 per-service MySQL
+# containers (matches the old pre-refactor layout). Use when you want:
+#   - prod-shaped per-service DB isolation
+#   - to simulate per-schema migration drift
+#   - the laptop headroom to run 4 extra MySQL containers
+#
+# Usage (via Makefile):
+#   make up-individual
+#
+# Usage (manual):
+#   COMPOSE_PROFILES=full docker compose \
+#     -f docker-compose.yml \
+#     -f docker-compose.topology-individual.yml up -d
+#
+# Mechanism:
+#   • mysql-shared stays declared in the base file but gets `scale: 0`
+#     here so it doesn't start.
+#   • Four per-service MySQL blocks are declared below.
+#   • Each service's SPRING_DATASOURCE_URL env var is overridden here to
+#     point at the per-service container instead of mysql-shared.
+# =====================================================================
+
+services:
+
+  # ─── Disable mysql-shared without removing it from the base ──────────
+  # Compose doesn't let an overlay delete a service from the base, but
+  # `scale: 0` (or `deploy.replicas: 0`) prevents it from starting.
+  # The containers get CREATED but never started.
+  mysql-shared:
+    deploy:
+      replicas: 0
+
+  # ─── Per-service MySQL containers ────────────────────────────────────
+  mysql-user:
+    image: mysql:8
+    container_name: mysql-user
+    environment:
+      MYSQL_DATABASE: userdb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "3307:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql-product:
+    image: mysql:8
+    container_name: mysql-product
+    environment:
+      MYSQL_DATABASE: productdb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "3308:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql-auth:
+    image: mysql:8
+    container_name: mysql-auth
+    environment:
+      MYSQL_DATABASE: authdb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "3309:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mysql-payment:
+    image: mysql:8
+    container_name: mysql-payment
+    environment:
+      MYSQL_DATABASE: paymentdb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+    ports:
+      - "3310:3306"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ─── Point services at per-service DBs ───────────────────────────────
+  # Override SPRING_DATASOURCE_URL and depends_on. Env values from the
+  # base merge with these — only the specific keys we set here win.
+  user-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-user:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql-user:
+        condition: service_healthy
+
+  product-service:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-product:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql-product:
+        condition: service_healthy
+
+  auth-server:
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/authdb?useSSL=false&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+
+  # NOTE: paymentservice is not in the base compose (no Dockerfile yet).
+  # When it gets a Dockerfile and goes into the base, add its individual
+  # override here:
+  #   paymentservice:
+  #     environment:
+  #       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-payment:3306/paymentdb?...
+  #     depends_on:
+  #       mysql-payment:
+  #         condition: service_healthy
