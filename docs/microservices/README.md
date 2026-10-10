@@ -2,20 +2,43 @@
 
 Living doc for the study project. Filled in as debugging + verification progress.
 
+## Folder layout
+
+```
+docs/microservices/
+├── 00-architecture-overview.md   ← start here for the 5-min overview
+│
+├── setup/        First-time setup, startup, verification, Docker how-to
+├── debug/        Troubleshooting, debugging-flows, useful commands
+├── design/       Architecture tiers, roadmaps, design decisions
+├── features/     Service- and feature-specific guides (payment, UI, etc.)
+│
+├── concepts/     Reusable patterns (saga, outbox, DLQ, service discovery, …)
+├── flows/        End-to-end request walkthroughs
+├── postman/      Postman collections for manual + debug testing
+├── api-gateway/  Deep-dives into gateway features
+├── auth-server-admin/
+├── resource-server/
+└── build/
+```
+
 ## How to navigate
 
 | I want to... | Read |
 |---|---|
-| **I just cloned the repo — how do I get started?** | [00-first-time-setup.md](00-first-time-setup.md) |
+| **I just cloned the repo — how do I get started?** | [setup/00-first-time-setup.md](setup/00-first-time-setup.md) |
 | **Is everything running right now?** | Run `./status.sh` from project root |
 | Understand the whole system in 5 min | [00-architecture-overview.md](00-architecture-overview.md) |
-| Day-to-day Docker commands for this repo | [docker-howto.md](docker-howto.md) |
-| Which mode should I run? (minimal / shared-db / individual) | [topologies.md](topologies.md) |
-| Bring the stack up right now | [01-startup-runbook.md](01-startup-runbook.md) |
-| Know if a service is actually healthy | [02-verification-checklist.md](02-verification-checklist.md) |
+| Day-to-day Docker commands for this repo | [setup/docker-howto.md](setup/docker-howto.md) |
+| Which mode should I run? (nano / minimal / shared-db / individual) | [setup/topologies.md](setup/topologies.md) |
+| Bring the stack up right now | [setup/01-startup-runbook.md](setup/01-startup-runbook.md) |
+| Know if a service is actually healthy | [setup/02-verification-checklist.md](setup/02-verification-checklist.md) |
 | Understand a specific pattern | [concepts/](concepts/) |
 | See a specific request end-to-end | [flows/](flows/) |
-| Something is broken and I don't know why | [troubleshooting.md](troubleshooting.md) |
+| Something is broken and I don't know why | [debug/troubleshooting.md](debug/troubleshooting.md) |
+| Walk through a saga step-by-step | [debug/debugging-flows.md](debug/debugging-flows.md) |
+| Understand the architecture tier-by-tier | [design/](design/) |
+| Learn a specific feature | [features/](features/) |
 
 ## Concepts index
 

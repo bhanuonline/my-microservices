@@ -832,7 +832,7 @@ Memorise these — they turn each diagram into a 60-second answer.
 ## Related reading
 
 - [tier1-roadmap.md](tier1-roadmap.md) — the step-by-step build plan
-- [observability-multi-service.md](observability-multi-service.md) — how JSON logs + tracing shipped originally
+- [observability-multi-service.md](../features/observability-multi-service.md) — how JSON logs + tracing shipped originally
 - [concepts/distributed-tracing.md](concepts/distributed-tracing.md)
 - [concepts/circuit-breaker.md](concepts/circuit-breaker.md)
 - [concepts/retry-and-bulkhead.md](concepts/retry-and-bulkhead.md)

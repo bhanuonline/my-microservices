@@ -394,7 +394,7 @@ Then verify all 6 stages fired:
 5. ✅ Kafka `user.registered` topic has one message
 6. ✅ notification log: "Received UserRegisteredEvent"
 
-If any stage fails, the exact spot tells you where to look. Add findings to [troubleshooting.md](troubleshooting.md).
+If any stage fails, the exact spot tells you where to look. Add findings to [troubleshooting.md](../debug/troubleshooting.md).
 
 ## Resilience4j smoke test
 

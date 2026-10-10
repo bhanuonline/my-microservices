@@ -235,6 +235,6 @@ Did the app see what k6 sent?
 
 ## Related docs
 
-- [tier1-architecture.md](tier1-architecture.md) — Prometheus/Grafana wiring this reuses
-- [tier2-architecture.md](tier2-architecture.md) — the saga + outbox path that handles the load
+- [tier1-architecture.md](../design/tier1-architecture.md) — Prometheus/Grafana wiring this reuses
+- [tier2-architecture.md](../design/tier2-architecture.md) — the saga + outbox path that handles the load
 - [concepts/circuit-breaker.md](concepts/circuit-breaker.md) — what should kick in during `stress`

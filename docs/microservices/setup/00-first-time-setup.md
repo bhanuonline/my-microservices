@@ -201,7 +201,7 @@ Normal on first run: 2 GB image downloads + full mvn package. Subsequent
 runs skip both — ~30s to start.
 
 ### Still stuck
-Check [`troubleshooting.md`](troubleshooting.md) and
+Check [`troubleshooting.md`](../debug/troubleshooting.md) and
 [`setup-error.md`](setup-error.md) for known errors.
 
 ---
@@ -210,11 +210,11 @@ Check [`troubleshooting.md`](troubleshooting.md) and
 
 Now that it's running:
 
-- [`00-architecture-overview.md`](00-architecture-overview.md) — 5-min overview of the system
+- [`00-architecture-overview.md`](../00-architecture-overview.md) — 5-min overview of the system
 - [`docker-howto.md`](docker-howto.md) — day-to-day Docker commands for this repo
 - [`topologies.md`](topologies.md) — all the modes you can run (`make up-saga`, `--trace`, etc.)
 - [`02-verification-checklist.md`](02-verification-checklist.md) — full "is it healthy?" curl checklist
-- [`debugging-flows.md`](debugging-flows.md) — Postman collections for walking a saga step-by-step
+- [`debugging-flows.md`](../debug/debugging-flows.md) — Postman collections for walking a saga step-by-step
 - [`concepts/`](concepts/) — the patterns you'll see across the code
 
 ---

@@ -198,7 +198,7 @@ to:
 image: bitnamilegacy/kafka:3.7   # same bits, moved to legacy repo (free, frozen)
 ```
 
-Long-term: migrate to `apache/kafka` (official) — but env-var names differ, needs compose reconfig. See [troubleshooting.md](troubleshooting.md).
+Long-term: migrate to `apache/kafka` (official) — but env-var names differ, needs compose reconfig. See [troubleshooting.md](../debug/troubleshooting.md).
 
 ---
 
@@ -361,7 +361,7 @@ docker compose down -v             # nuke everything including DB data
 
 ## Common startup gotchas
 
-Fill in as you hit them. Move stubborn ones to [troubleshooting.md](troubleshooting.md).
+Fill in as you hit them. Move stubborn ones to [troubleshooting.md](../debug/troubleshooting.md).
 
 - **`Port 3306 already in use`** — you have a local MySQL running. Stop it or change compose ports.
 - **`ddl-auto=validate` fails on first boot of auth-server** — see 2b above.

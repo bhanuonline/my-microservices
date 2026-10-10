@@ -709,7 +709,7 @@ observability + resilience section of any microservices interview.
 
 ## Related docs in this repo
 
-- [observability-multi-service.md](observability-multi-service.md) — how JSON logs + tracing were rolled out
+- [observability-multi-service.md](../features/observability-multi-service.md) — how JSON logs + tracing were rolled out
 - [concepts/circuit-breaker.md](concepts/circuit-breaker.md)
 - [concepts/retry-and-bulkhead.md](concepts/retry-and-bulkhead.md)
 - [concepts/distributed-tracing.md](concepts/distributed-tracing.md)
