@@ -609,8 +609,38 @@ services:
     networks:
       - backend
 
-  # NOTE: paymentservice doesn't have a Dockerfile yet. Run via
-  # `mvn -pl paymentservice spring-boot:run` for now.
+  # ---------- Payment service (core) ----------
+  # Carries all 5 provider integrations (Mock, Stripe, Razorpay, PayPal,
+  # Checkout.com). H2 by default; `docker` profile switches to MySQL.
+  paymentservice:
+    build:
+      context: .
+      dockerfile: paymentservice/Dockerfile
+    container_name: paymentservice
+    mem_limit: 512m
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      CONFIG_SERVER_URI: http://config-server:8888
+      PAYMENT_DB_URL: ${PAYMENT_DB_URL:-jdbc:mysql://mysql-shared:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true}
+    ports:
+      - "8091:8091"
+    depends_on:
+      mysql-shared:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    networks:
+      - backend
 
 networks:
   backend:

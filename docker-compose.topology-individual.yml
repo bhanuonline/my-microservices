@@ -122,12 +122,9 @@ services:
       mysql-auth:
         condition: service_healthy
 
-  # NOTE: paymentservice is not in the base compose (no Dockerfile yet).
-  # When it gets a Dockerfile and goes into the base, add its individual
-  # override here:
-  #   paymentservice:
-  #     environment:
-  #       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-payment:3306/paymentdb?...
-  #     depends_on:
-  #       mysql-payment:
-  #         condition: service_healthy
+  paymentservice:
+    environment:
+      PAYMENT_DB_URL: jdbc:mysql://mysql-payment:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql-payment:
+        condition: service_healthy

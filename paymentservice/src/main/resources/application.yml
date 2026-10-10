@@ -194,13 +194,15 @@ payment:
   default-cancel-url: ${PAYMENT_CANCEL_URL:http://localhost:3001/checkout/cancel}
 
 ---
-# Profile `docker`: use mysql-payment container instead of in-memory H2.
+# Profile `docker`: use a real MySQL instead of in-memory H2.
+# PAYMENT_DB_URL default = mysql-shared (shared-db topology).
+# Individual topology overlay overrides PAYMENT_DB_URL to mysql-payment.
 spring:
   config:
     activate:
       on-profile: docker
   datasource:
-    url: jdbc:mysql://mysql-payment:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true
+    url: ${PAYMENT_DB_URL:jdbc:mysql://mysql-shared:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:pass1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
