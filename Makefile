@@ -29,7 +29,9 @@ PROFILES_FULL  := COMPOSE_PROFILES=full
 # start (business services depend on these via depends_on). Starting just
 # these = ability to run user/product/order/payment on your HOST via
 # `mvn spring-boot:run` while this platform is in Docker.
-NANO_SERVICES := mysql-shared kafka eureka-server config-server auth-server api-gateway
+# Redis is required by api-gateway for ApiKeyStore + RouteRefresh +
+# IdempotencyStore + RateLimiter + ResponseCache (several are always-on).
+NANO_SERVICES := mysql-shared kafka redis eureka-server config-server auth-server api-gateway
 
 .DEFAULT_GOAL := help
 
@@ -37,8 +39,9 @@ NANO_SERVICES := mysql-shared kafka eureka-server config-server auth-server api-
 
 help:
 	@echo "Topology (pick one):"
-	@echo "  make up-nano          — platform floor, 6 containers (~1.5 GB)"
+	@echo "  make up-nano          — platform floor, 7 containers (~1.6 GB)"
 	@echo "                           (biz svcs OFF — run them from your IDE)"
+	@echo "  make up-nano-trace    — nano + zipkin for distributed traces, 8 containers (~1.8 GB)"
 	@echo "  make up-minimal       — core + biz svcs + Prom/Grafana, 12 containers (~2.5 GB)"
 	@echo "  make up / up-shared   — shared MySQL + ALL optional, ~26 containers (~5.5 GB)"
 	@echo "  make up-individual    — shared-db + 4 per-service MySQL, ~30 containers (~6.5 GB)"
@@ -72,12 +75,23 @@ help:
 
 up: up-shared  ## alias
 
-# nano = platform floor. Starts the 6 containers every business service
+# nano = platform floor. Starts the 7 containers every business service
 # depends on. User/product/order/payment-service are NOT started — run
 # them from your IDE (`mvn -pl services/user-service spring-boot:run`)
 # while they talk to this platform at the usual localhost:8080 etc.
+# Note: redis is required by api-gateway (hard dep via several components)
+# and is gated behind the `cache` profile, so we must enable it here.
 up-nano:
-	docker compose up -d $(NANO_SERVICES)
+	COMPOSE_PROFILES=cache docker compose up -d $(NANO_SERVICES)
+
+# nano + zipkin (tracing enabled). Sets TRACING_ENABLED=true so services
+# wire up the zipkin reporter; without that flag, nano mode skips tracing
+# autoconfig entirely (preventing crashes when zipkin container isn't up).
+up-nano-trace:
+	TRACING_ENABLED=true \
+	ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans \
+	COMPOSE_PROFILES=cache,tracing \
+	docker compose up -d $(NANO_SERVICES) zipkin
 
 up-minimal:
 	docker compose up -d
@@ -153,6 +167,6 @@ saga-test:
 build:
 	mvn -am install -DskipTests
 
-.PHONY: help up up-nano up-shared up-minimal up-individual up-saga up-trace \
+.PHONY: help up up-nano up-nano-trace up-shared up-minimal up-individual up-saga up-trace \
         up-kafka-debug up-with down restart ps stats logs \
         migrate-db-to-shared reset-shared-db saga-test build

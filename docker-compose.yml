@@ -211,10 +211,11 @@ services:
     mem_limit: 512m
     environment:
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
-      SPRING_DATASOURCE_URL: ${AUTH_DB_URL:-jdbc:mysql://mysql-shared:3306/authdb?useSSL=false}
+      SPRING_DATASOURCE_URL: ${AUTH_DB_URL:-jdbc:mysql://mysql-shared:3306/authdb?useSSL=false&allowPublicKeyRetrieval=true}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "8095:8095"
     depends_on:
@@ -238,13 +239,20 @@ services:
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
+      # Point gateway at the redis container in nano/full modes. Override
+      # REDIS_HOST=localhost if running gateway on host via mvn spring-boot:run.
+      SPRING_DATA_REDIS_HOST: ${REDIS_HOST:-redis}
+      SPRING_DATA_REDIS_PORT: ${REDIS_PORT:-6379}
     ports:
       - "8080:8080"
     depends_on:
       eureka-server:
         condition: service_healthy
       auth-server:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend
@@ -263,7 +271,8 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
       CONFIG_SERVER_URI: http://config-server:8888
       SPRING_DATASOURCE_URL: ${USER_DB_URL:-jdbc:mysql://mysql-shared:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true}
     ports:
@@ -292,7 +301,8 @@ services:
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
       CONFIG_SERVER_URI: http://config-server:8888
       SPRING_DATASOURCE_URL: ${PRODUCT_DB_URL:-jdbc:mysql://mysql-shared:3306/productdb?useSSL=false&allowPublicKeyRetrieval=true}
     ports:
@@ -319,7 +329,8 @@ services:
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
       CONFIG_SERVER_URI: http://config-server:8888
     ports:
       - "8083:8083"
@@ -352,7 +363,8 @@ services:
     environment:
       JAVA_TOOL_OPTIONS: "-Xms96m -Xmx256m -XX:+UseSerialGC"
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "8099:8099"
     depends_on:
@@ -371,7 +383,8 @@ services:
     environment:
       JAVA_TOOL_OPTIONS: "-Xms96m -Xmx256m -XX:+UseSerialGC"
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
     ports:
       - "8096:8096"
     depends_on:
@@ -627,7 +640,8 @@ services:
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth-server:8095
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ${ZIPKIN_ENDPOINT:-http://zipkin:9411/api/v2/spans}
       CONFIG_SERVER_URI: http://config-server:8888
       PAYMENT_DB_URL: ${PAYMENT_DB_URL:-jdbc:mysql://mysql-shared:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true}
     ports:
