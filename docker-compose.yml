@@ -163,7 +163,7 @@ services:
   eureka-server:
     build:
       context: .
-      dockerfile: eureka-server/Dockerfile
+      dockerfile: infra/eureka-server/Dockerfile
     container_name: eureka-server
     mem_limit: 384m
     environment:
@@ -181,7 +181,7 @@ services:
   config-server:
     build:
       context: .
-      dockerfile: config-server/Dockerfile
+      dockerfile: infra/config-server/Dockerfile
     container_name: config-server
     mem_limit: 384m
     environment:
@@ -206,7 +206,7 @@ services:
   auth-server:
     build:
       context: .
-      dockerfile: auth-server/Dockerfile
+      dockerfile: infra/auth-server/Dockerfile
     container_name: auth-server
     mem_limit: 512m
     environment:
@@ -231,7 +231,7 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: api-gateway/Dockerfile
+      dockerfile: infra/api-gateway/Dockerfile
     container_name: api-gateway
     mem_limit: 512m
     environment:
@@ -253,7 +253,7 @@ services:
   user-service:
     build:
       context: .
-      dockerfile: user-service/Dockerfile
+      dockerfile: services/user-service/Dockerfile
     container_name: user-service
     mem_limit: 512m
     environment:
@@ -283,7 +283,7 @@ services:
   product-service:
     build:
       context: .
-      dockerfile: product-service/Dockerfile
+      dockerfile: services/product-service/Dockerfile
     container_name: product-service
     mem_limit: 512m
     environment:
@@ -312,7 +312,7 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: order-service/Dockerfile
+      dockerfile: services/order-service/Dockerfile
     container_name: order-service
     mem_limit: 512m
     environment:
@@ -345,7 +345,7 @@ services:
   notification:
     build:
       context: .
-      dockerfile: notification/Dockerfile
+      dockerfile: services/notification/Dockerfile
     container_name: notification
     profiles: ["full", "core-plus"]
     mem_limit: 384m
@@ -362,7 +362,7 @@ services:
   resource-server:
     build:
       context: .
-      dockerfile: resource-server/Dockerfile
+      dockerfile: infra/resource-server/Dockerfile
     container_name: resource-server
     profiles: ["full", "core-plus"]
     mem_limit: 384m
@@ -615,7 +615,7 @@ services:
   paymentservice:
     build:
       context: .
-      dockerfile: paymentservice/Dockerfile
+      dockerfile: services/paymentservice/Dockerfile
     container_name: paymentservice
     mem_limit: 512m
     environment:
