@@ -3,14 +3,15 @@
 # See docs/microservices/topologies.md for the full comparison.
 #
 # TOPOLOGIES (pick one; mutually exclusive):
-#   make up-minimal      → core only. ~11 containers. Lightest footprint.
-#   make up / up-shared  → shared-db + all optional (full profile). ~25 containers.
-#   make up-individual   → shared-db + 4 per-service MySQLs. ~29 containers.
+#   make up-nano         → platform only (no business svcs). 6 containers (~1.5 GB)
+#   make up-minimal      → core incl. business svcs + Prom/Grafana. 12 containers (~2.5 GB)
+#   make up / up-shared  → shared-db + all optional (full profile). ~26 containers
+#   make up-individual   → shared-db + 4 per-service MySQLs. ~30 containers
 #
 # SLIM MIXES (just the extras you need; still minimal topology):
-#   make up-saga         → minimal + core-plus. Full F1-F3 saga, ~13 containers (~2.8 GB)
+#   make up-saga         → minimal + core-plus. Full F1-F3 saga, ~14 containers (~2.8 GB)
 #   make up-trace        → minimal + core-plus + tracing + email. ~16 containers (~3.3 GB)
-#   make up-kafka-debug  → minimal + core-plus + kafka-ops. ~15 containers (~3.1 GB)
+#   make up-kafka-debug  → minimal + core-plus + kafka-ops. ~16 containers (~3.1 GB)
 #   make up-with PROFILES="email,tracing"  → minimal + ANY profiles you name
 #
 # Available profile tags (combine freely):
@@ -23,15 +24,24 @@ COMPOSE_INDIV  := -f $(COMPOSE_BASE) -f docker-compose.topology-individual.yml
 
 PROFILES_FULL  := COMPOSE_PROFILES=full
 
+# ─── Service subsets for nano mode ─────────────────────────────────────
+# Platform floor — the services you need before ANY business service can
+# start (business services depend on these via depends_on). Starting just
+# these = ability to run user/product/order/payment on your HOST via
+# `mvn spring-boot:run` while this platform is in Docker.
+NANO_SERVICES := mysql-shared kafka eureka-server config-server auth-server api-gateway
+
 .DEFAULT_GOAL := help
 
 # ─── Usage / help ──────────────────────────────────────────────────────
 
 help:
 	@echo "Topology (pick one):"
-	@echo "  make up-minimal       — core only, ~11 containers (~2.5 GB)"
-	@echo "  make up / up-shared   — shared MySQL + ALL optional, ~25 containers (~5.5 GB)"
-	@echo "  make up-individual    — shared-db + 4 per-service MySQL, ~29 containers (~6.5 GB)"
+	@echo "  make up-nano          — platform floor, 6 containers (~1.5 GB)"
+	@echo "                           (biz svcs OFF — run them from your IDE)"
+	@echo "  make up-minimal       — core + biz svcs + Prom/Grafana, 12 containers (~2.5 GB)"
+	@echo "  make up / up-shared   — shared MySQL + ALL optional, ~26 containers (~5.5 GB)"
+	@echo "  make up-individual    — shared-db + 4 per-service MySQL, ~30 containers (~6.5 GB)"
 	@echo ""
 	@echo "Slim mixes (minimal + specific profiles):"
 	@echo "  make up-saga          — minimal + core-plus (notification + resource-server)"
@@ -61,6 +71,13 @@ help:
 # ─── Core topology targets ─────────────────────────────────────────────
 
 up: up-shared  ## alias
+
+# nano = platform floor. Starts the 6 containers every business service
+# depends on. User/product/order/payment-service are NOT started — run
+# them from your IDE (`mvn -pl services/user-service spring-boot:run`)
+# while they talk to this platform at the usual localhost:8080 etc.
+up-nano:
+	docker compose up -d $(NANO_SERVICES)
 
 up-minimal:
 	docker compose up -d
@@ -136,6 +153,6 @@ saga-test:
 build:
 	mvn -am install -DskipTests
 
-.PHONY: help up up-shared up-minimal up-individual up-saga up-trace \
+.PHONY: help up up-nano up-shared up-minimal up-individual up-saga up-trace \
         up-kafka-debug up-with down restart ps stats logs \
         migrate-db-to-shared reset-shared-db saga-test build

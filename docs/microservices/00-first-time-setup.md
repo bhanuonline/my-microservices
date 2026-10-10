@@ -223,8 +223,9 @@ Now that it's running:
 
 ```bash
 # Pure-Docker mode
-make up-minimal           # start, lightest
-make up                   # start, everything
+make up-nano              # start, platform only (6 containers, biz svcs OFF)
+make up-minimal           # start, platform + biz svcs (12 containers)
+make up                   # start, everything (26 containers)
 make down                 # stop
 make logs                 # tail everything
 make logs-user-service    # tail one service

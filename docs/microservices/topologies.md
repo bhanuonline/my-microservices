@@ -14,13 +14,58 @@ Pick a mode based on what you're actually trying to do.
 
 | Mode | Command | Containers | ~RAM | What's in it |
 |---|---|---|---|---|
-| **minimal** (default) | `make up-minimal` OR plain `docker compose up -d` | ~11 | ~2.5 GB | Core: 1 MySQL, Kafka, Eureka, config-server, auth-server, api-gateway, user/product/order-service, Prometheus, Grafana. |
-| **shared-db** | `make up` OR `make up-shared` | ~25 | ~5.5 GB | Minimal + ALL optional (notification, resource-server, mailhog, zipkin, loki/promtail, kafka-ui/exporter, elasticsearch, schema-registry, kafka-connect+postgres, redis, vault). |
-| **individual** | `make up-individual` | ~29 | ~6.5 GB | Shared-db PLUS 4 per-service MySQL containers (mysql-user:3307, mysql-product:3308, mysql-auth:3309, mysql-payment:3310). |
+| **nano** | `make up-nano` | 6 | ~1.5 GB | Platform floor only: mysql-shared, kafka, eureka-server, config-server, auth-server, api-gateway. NO business services (run them from your IDE). |
+| **minimal** (default) | `make up-minimal` OR plain `docker compose up -d` | 12 | ~2.5 GB | nano + user, product, order, payment-service + Prometheus + Grafana. |
+| **shared-db** | `make up` OR `make up-shared` | 26 | ~5.5 GB | Minimal + ALL optional (notification, resource-server, mailhog, zipkin, loki/promtail, kafka-ui/exporter, elasticsearch, schema-registry, kafka-connect+postgres, redis, vault). |
+| **individual** | `make up-individual` | 30 | ~6.5 GB | Shared-db PLUS 4 per-service MySQL containers (mysql-user:3307, mysql-product:3308, mysql-auth:3309, mysql-payment:3310). |
 
 Plain `docker compose up` with no `-f` and no `COMPOSE_PROFILES` is
 MINIMAL. This is intentional — safe default for someone cloning the
 repo and not sure what to run.
+
+---
+
+## Mode: nano (lightest — IDE workflow)
+
+Platform floor + nothing else. 6 containers, ~1.5 GB RAM. Business
+services (user, product, order, payment) are **OFF** — you run them
+yourself from your IDE or `mvn spring-boot:run`.
+
+```
+make up-nano
+```
+
+What's running:
+
+| Container | Port | Why |
+|---|---|---|
+| `mysql-shared` | 3306 | DB for business services you'll start |
+| `kafka` | 9092 | Saga + outbox bus |
+| `eureka-server` | 8761 | Service discovery (apps register here on startup) |
+| `config-server` | 8888 | Serves yml from `/config-repo` |
+| `auth-server` | 8095 | OAuth2 tokens |
+| `api-gateway` | 8080 | Reactive gateway, JWT validation |
+
+**Use when:** actively editing one business service in your IDE. The
+platform runs in Docker (containers you don't touch), your service
+runs on your Mac (fast rebuild, IDE breakpoints, debugger attach).
+
+**Typical workflow:**
+
+```bash
+make up-nano
+# in your IDE, hit Run on OrderServiceApplication (or any other)
+# — it registers with eureka at localhost:8761, config at localhost:8888,
+#   DB at localhost:3306, kafka at localhost:9092
+# edit code → re-run → ~10 sec cycle instead of docker build
+make down   # when you're done
+```
+
+**Can't do with nano alone:**
+- POST /api/v1/users (needs user-service)
+- POST /checkout (needs order-service + payment-service)
+- Any saga flow
+- View metrics (prometheus + grafana are OFF too)
 
 ---
 
