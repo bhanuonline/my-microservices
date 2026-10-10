@@ -269,7 +269,7 @@ existing `resilience4j-spring-boot3` + Reactor bindings.
 ### 7.1 Confirm bulkhead beans present at boot
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 # On boot, look for:
 # Bulkhead 'userCB' initialized: maxConcurrent=15 maxWait=PT0.05S

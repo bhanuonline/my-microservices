@@ -249,11 +249,11 @@ Zero new dependencies. The `Weight` predicate ships with Spring Cloud Gateway.
 ### 7.1 Rebuild + start
 
 ```bash
-mvn -pl user-service,api-gateway clean install
+mvn -pl services/user-service,api-gateway clean install
 
-mvn -pl auth-server  spring-boot:run  # :9010
-mvn -pl user-service spring-boot:run  # :8090
-mvn -pl api-gateway  spring-boot:run  # :8080
+mvn -pl infra/auth-server  spring-boot:run  # :9010
+mvn -pl services/user-service spring-boot:run  # :8090
+mvn -pl infra/api-gateway  spring-boot:run  # :8080
 
 TOKEN=$(curl -s -u admin:admin123 \
   -d "grant_type=client_credentials&scope=read" \

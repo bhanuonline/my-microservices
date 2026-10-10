@@ -48,11 +48,11 @@ Keeping resource-server small lets anyone see the pattern in isolation.
 
 ```bash
 # Boot auth-server + Zipkin + Prometheus first (see docs/microservices/observability-multi-service.md)
-mvn -pl auth-server spring-boot:run
+mvn -pl infra/auth-server spring-boot:run
 docker-compose -f api-gateway/docker-compose.observability.yml up -d
 
 # Boot resource-server
-mvn -pl resource-server spring-boot:run
+mvn -pl infra/resource-server spring-boot:run
 
 # Fetch a token
 TOKEN=$(curl -s -u admin:admin123 \

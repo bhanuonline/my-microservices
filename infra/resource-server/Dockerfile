@@ -9,7 +9,7 @@
 # minutes on a cold run; this persists ~/.m2 between builds so rebuilds reuse
 # resolved dependencies. Requires BuildKit (default on Docker Desktop ≥ 23).
 #
-# Build:   docker build -t resource-server:local -f resource-server/Dockerfile .
+# Build:   docker build -t resource-server:local -f infra/resource-server/Dockerfile .
 #          (run from repo root — the build context is the whole reactor)
 # Run:     docker run --rm -p 8096:8096 \
 #              -e SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://host.docker.internal:8095 \
@@ -22,20 +22,20 @@ WORKDIR /workspace
 # Copy only the pom files first — this layer is cached unless a pom changes.
 # Dramatic speedup when iterating on source only.
 COPY pom.xml ./
-COPY common-lib/pom.xml                 common-lib/
-COPY resource-server/pom.xml            resource-server/
+COPY lib/common-lib/pom.xml              lib/common-lib/
+COPY infra/resource-server/pom.xml       infra/resource-server/
 
 # Resolve dependencies in a cacheable step. Without this, the subsequent
 # `mvn package` would hit Maven Central every build.
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -pl resource-server -am -DskipTests dependency:go-offline || true
+    mvn -pl infra/resource-server -am -DskipTests dependency:go-offline || true
 
 # Now copy only what resource-server actually needs to compile.
-COPY common-lib/src                      common-lib/src
-COPY resource-server/src                 resource-server/src
+COPY lib/common-lib/src                  lib/common-lib/src
+COPY infra/resource-server/src           infra/resource-server/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -pl resource-server -am -DskipTests clean package
+    mvn -pl infra/resource-server -am -DskipTests clean package
 
 # ---- Runtime stage ----------------------------------------------------------
 FROM eclipse-temurin:17-jre
@@ -48,7 +48,7 @@ USER app
 # JVM-friendly defaults for containerised runs.
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
 
-COPY --from=build /workspace/resource-server/target/*.jar app.jar
+COPY --from=build /workspace/infra/resource-server/target/*.jar app.jar
 
 EXPOSE 8096
 

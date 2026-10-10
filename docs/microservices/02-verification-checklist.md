@@ -228,7 +228,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home \
   ./api-gateway/mvnw -DskipTests clean install
 
 # Build ONE module + its dependencies
-./api-gateway/mvnw -pl notification -am -DskipTests clean install
+./api-gateway/mvnw -pl services/notification -am -DskipTests clean install
 
 # Just compile (fastest — no jar packaging)
 cd notification

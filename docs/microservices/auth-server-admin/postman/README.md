@@ -114,7 +114,7 @@ Run **only** `2 → POST /oauth2/token` (Basic `m2m-client:m2m-secret`). Done. T
 
 ```
 1. Boot the auth-server:
-     mvn -pl auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
+     mvn -pl infra/auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
 
 2. In Postman, run in ORDER:
      3.1  GET /login             ← captures csrf_token

@@ -89,7 +89,7 @@ Context Propagation module lifts Reactor Context → MDC on demand.
 Default logs are JSON. That's hard to read manually. Switch to human-readable:
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--spring.profiles.active=local"
 ```
 
@@ -455,7 +455,7 @@ docker-compose -f docker-compose.observability.yml up -d
 docker ps | grep -E "prometheus|grafana|zipkin"
 
 # 3. Boot the gateway (default profile → JSON logs)
-mvn -pl api-gateway spring-boot:run
+mvn -pl infra/api-gateway spring-boot:run
 
 # 4. /actuator/info — full payload
 curl -s http://localhost:8080/actuator/info | jq
@@ -489,7 +489,7 @@ open http://localhost:9411
 # → same value → distributed tracing works end-to-end
 
 # 9. Switch to local (text) logs
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--spring.profiles.active=local"
 # → Log format changes:
 # 15:30:00.123 INFO  [traceId,spanId,cid] logger - message

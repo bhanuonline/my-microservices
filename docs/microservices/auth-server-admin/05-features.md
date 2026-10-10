@@ -235,7 +235,7 @@ MODIFY  templates/admin/clients/form.html           global-errors banner + soft 
 ### Verification
 ```bash
 # 1. Boot log shows all 4 flags now
-mvn -pl auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
+mvn -pl infra/auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
 # ================= Feature flags =================
 # refresh-token-rotation.enabled         = true
 # refresh-token-rotation.default-for-new = true

@@ -72,10 +72,10 @@ auth-server/
 
 ```bash
 # Learning path (unchanged, in-memory)
-mvn -pl auth-server spring-boot:run
+mvn -pl infra/auth-server spring-boot:run
 
 # Production-shaped (JDBC + Admin UI)
-mvn -pl auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
+mvn -pl infra/auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
 ```
 
 Browser: **http://localhost:8095/admin** — login `admin / password`.

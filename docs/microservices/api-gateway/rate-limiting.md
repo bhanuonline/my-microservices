@@ -127,7 +127,7 @@ When `false`, none of `redisRateLimiter`, `userKeyResolver`, `ipKeyResolver`, `a
 ### Layer B — profile-scoped routes (`application-nolimit.yml`)
 Overrides the routes without the `RequestRateLimiter` filter:
 ```bash
-mvn spring-boot:run -pl api-gateway \
+mvn spring-boot:run -pl infra/api-gateway \
   -Dspring-boot.run.profiles=nolimit
 ```
 Now the filter chain itself doesn't include the limiter. Cleaner than "enabled=false" alone.
@@ -177,10 +177,10 @@ docker exec -it gateway-redis redis-cli PING   # PONG
 ### 8.2 Start dependencies
 ```bash
 # In separate terminals or via your usual launcher:
-mvn -pl eureka-server        spring-boot:run
-mvn -pl auth-server          spring-boot:run
-mvn -pl user-service         spring-boot:run
-mvn -pl api-gateway          spring-boot:run
+mvn -pl infra/eureka-server        spring-boot:run
+mvn -pl infra/auth-server          spring-boot:run
+mvn -pl services/user-service         spring-boot:run
+mvn -pl infra/api-gateway          spring-boot:run
 ```
 
 ### 8.3 Get a JWT from the auth-server (port 9010, admin:admin123)
@@ -240,7 +240,7 @@ Content-Type: application/json
 
 ### 8.8 Disable the limiter — profile mode
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.profiles=nolimit
 
 # Now hammer freely — all 200

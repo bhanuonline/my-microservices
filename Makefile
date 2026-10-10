@@ -130,7 +130,7 @@ reset-shared-db:
 # ─── Build / testing ───────────────────────────────────────────────────
 
 saga-test:
-	mvn -pl order-service -am test -Dtest=SagaIntegrationTest \
+	mvn -pl services/order-service -am test -Dtest=SagaIntegrationTest \
 	    -Dsurefire.failIfNoSpecifiedTests=false
 
 build:

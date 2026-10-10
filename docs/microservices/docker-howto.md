@@ -243,7 +243,7 @@ packaged into an image by the service's `Dockerfile`. So the loop is:
 
 ```bash
 # After editing Java code in e.g. user-service
-mvn -pl user-service -am install -DskipTests
+mvn -pl services/user-service -am install -DskipTests
 docker compose build user-service
 docker compose up -d user-service          # recreates just this container
 ```
@@ -251,7 +251,7 @@ docker compose up -d user-service          # recreates just this container
 Or in one shot:
 
 ```bash
-mvn -pl user-service -am install -DskipTests \
+mvn -pl services/user-service -am install -DskipTests \
   && docker compose up -d --build user-service
 ```
 

@@ -198,7 +198,7 @@ No React or REST-API changes.
 
 ```bash
 # Terminal 1 — gateway
-mvn -pl api-gateway spring-boot:run
+mvn -pl infra/api-gateway spring-boot:run
 # gateway.admin.ui: REACT (yaml default)
 
 # Terminal 2 — React dev server
@@ -224,7 +224,7 @@ gateway:
 Restart the gateway:
 
 ```bash
-mvn -pl api-gateway spring-boot:run
+mvn -pl infra/api-gateway spring-boot:run
 ```
 
 Open browser to `http://localhost:8080/admin/ui`:

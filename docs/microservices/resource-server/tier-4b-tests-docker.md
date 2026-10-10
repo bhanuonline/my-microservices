@@ -140,7 +140,7 @@ Alternative: WireMock. Overkill for this project but worth knowing.
 ```bash
 # All tests
 cd /Users/bhanupratap/My/my-microservices
-mvn -pl resource-server test
+mvn -pl infra/resource-server test
 
 # Expected:
 #   Tests run: 17, Failures: 0, Errors: 0, Skipped: 0
@@ -148,10 +148,10 @@ mvn -pl resource-server test
 #     9 x ApiControllerTest (slower; full context)
 
 # Specific test
-mvn -pl resource-server test -Dtest=CombinedAuthoritiesConverterTest
+mvn -pl infra/resource-server test -Dtest=CombinedAuthoritiesConverterTest
 
 # With more verbose output
-mvn -pl resource-server test -Dmaven.surefire.debug=true
+mvn -pl infra/resource-server test -Dmaven.surefire.debug=true
 ```
 
 ---
@@ -183,7 +183,7 @@ The old Dockerfile worked but had three issues:
 
 ```dockerfile
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -pl resource-server -am -DskipTests dependency:go-offline || true
+    mvn -pl infra/resource-server -am -DskipTests dependency:go-offline || true
 ```
 
 The `--mount=type=cache` directive persists `~/.m2` **between builds** on the

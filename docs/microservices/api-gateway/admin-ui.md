@@ -155,8 +155,8 @@ Roughly 10 TS files, ~800 lines. No backend changes.
 
 ```bash
 # 1. Start the stack (usual)
-mvn -pl auth-server  spring-boot:run     # :9010
-mvn -pl api-gateway  spring-boot:run     # :8080
+mvn -pl infra/auth-server  spring-boot:run     # :9010
+mvn -pl infra/api-gateway  spring-boot:run     # :8080
 
 # 2. Boot the UI
 cd api-gateway-admin

@@ -242,7 +242,7 @@ preflight request doesn't pass access control check: No
 ### 5.5 Disable CORS
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.cors.enabled=false"
 
 # CorsWebFilter bean not created. Cross-origin requests fail with browser CORS errors.

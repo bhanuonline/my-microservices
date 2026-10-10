@@ -339,7 +339,7 @@ Prereqs: everything from previous builds — Redis, Eureka, auth-server, user-se
 product-service must be running.
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 TOKEN=$(curl -s -u admin:admin123 \
   -d "grant_type=client_credentials&scope=read" \
@@ -633,7 +633,7 @@ docker exec -it gateway-postgres psql -U gateway -d gateway -c "\dt"
 ### 13.2 Boot gateway with postgres profile
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run \
+mvn -pl infra/api-gateway clean spring-boot:run \
   -Dspring-boot.run.arguments="--spring.profiles.active=postgres"
 
 # Watch startup logs for Flyway:
@@ -698,7 +698,7 @@ docker exec -it gateway-postgres psql -U gateway -d gateway \
 
 ```bash
 # Kill the postgres-profile gateway
-mvn -pl api-gateway spring-boot:run
+mvn -pl infra/api-gateway spring-boot:run
 # → boots against H2 file (data/gateway-routes.mv.db) as before
 # → Flyway auto-disables (no JDBC datasource in default profile)
 # → schema.sql applies as before

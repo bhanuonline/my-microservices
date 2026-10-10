@@ -234,7 +234,7 @@ already in pom from the initial setup.
 ## 6. Verification
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 TOKEN=$(curl -s -u admin:admin123 \
   -d "grant_type=client_credentials&scope=read" \
@@ -308,7 +308,7 @@ No `audit ...` log line emitted (path matched `/actuator/**`).
 ### 6.6 Sampling — half of requests logged
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.body-logging.sample-rate=0.5"
 
 # Hit 100 times
@@ -325,7 +325,7 @@ grep -c "^.*audit " gateway.log
 ### 6.7 Errors-only mode
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.body-logging.response.status-classes=4xx,5xx"
 
 # Success — request body logged, response body NOT logged
@@ -341,7 +341,7 @@ curl http://localhost:8080/api/v1/users/me
 ### 6.8 Truncation
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.body-logging.max-body-bytes=100"
 
 # Send a body larger than 100 bytes
@@ -356,7 +356,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
 ### 6.9 Disable entirely
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.body-logging.enabled=false"
 # No audit lines emitted. BodyLoggingGlobalFilter + BodyRedactor beans absent.
 ```

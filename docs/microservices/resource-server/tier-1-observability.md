@@ -254,7 +254,7 @@ to see this service in isolation.
 ```bash
 # 1. Rebuild (generates build-info.properties + git.properties)
 cd /Users/bhanupratap/My/my-microservices
-mvn -pl common-lib,resource-server clean install -DskipTests
+mvn -pl lib/common-lib,resource-server clean install -DskipTests
 
 ls resource-server/target/classes/META-INF/
 # → build-info.properties  git.properties
@@ -263,8 +263,8 @@ ls resource-server/target/classes/META-INF/
 docker-compose -f api-gateway/docker-compose.observability.yml up -d
 
 # 3. Start auth-server + resource-server
-mvn -pl auth-server     spring-boot:run    # :9010
-mvn -pl resource-server spring-boot:run    # :8096
+mvn -pl infra/auth-server     spring-boot:run    # :9010
+mvn -pl infra/resource-server spring-boot:run    # :8096
 
 # 4. /actuator/info populated
 curl -s http://localhost:8096/actuator/info | jq
@@ -293,7 +293,7 @@ curl -i -H "Authorization: Bearer $TOKEN" \
 
 # 8. The log line in resource-server stdout contains the correlation id
 #    (switch to local profile for readable text format)
-mvn -pl resource-server spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=local"
+mvn -pl infra/resource-server spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=local"
 # then grep for the id
 
 # 9. Zipkin shows a trace

@@ -2,11 +2,11 @@
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /workspace
 COPY . .
-RUN mvn -pl paymentservice -am clean package -DskipTests
+RUN mvn -pl services/paymentservice -am clean package -DskipTests
 
 # ---- Runtime stage ----
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=build /workspace/paymentservice/target/*.jar app.jar
+COPY --from=build /workspace/services/paymentservice/target/*.jar app.jar
 EXPOSE 8091
 ENTRYPOINT ["java", "-jar", "app.jar"]

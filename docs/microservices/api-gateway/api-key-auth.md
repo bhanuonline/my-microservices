@@ -193,7 +193,7 @@ Assumes:
 - Eureka, auth-server, user-service, api-gateway all up
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 # 0. Get an admin JWT (existing auth-server on :9010)
 TOKEN=$(curl -s -u admin:admin123 \

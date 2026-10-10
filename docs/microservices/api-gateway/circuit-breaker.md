@@ -165,10 +165,10 @@ Key design decisions:
 ### 6.1 Prereqs
 ```bash
 docker run -d --name gateway-redis -p 6379:6379 redis:7-alpine   # for rate limiter
-mvn -pl eureka-server   spring-boot:run
-mvn -pl auth-server     spring-boot:run
-mvn -pl user-service    spring-boot:run
-mvn -pl api-gateway     spring-boot:run
+mvn -pl infra/eureka-server   spring-boot:run
+mvn -pl infra/auth-server     spring-boot:run
+mvn -pl services/user-service    spring-boot:run
+mvn -pl infra/api-gateway     spring-boot:run
 ```
 
 ### 6.2 Happy path
@@ -242,7 +242,7 @@ curl -i http://localhost:8080/fallback/users
 
 ### 6.7 Disable everything
 ```bash
-mvn -pl api-gateway spring-boot:run -Dspring-boot.run.profiles=nocb
+mvn -pl infra/api-gateway spring-boot:run -Dspring-boot.run.profiles=nocb
 
 # Kill user-service, hit the route → get raw 5xx (no CB, no fallback)
 curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/users/me

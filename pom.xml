@@ -8,23 +8,31 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
-        <!-- Core microservices system -->
-        <module>common-lib</module>
-        <module>eureka-server</module>
-        <module>config-server</module>
-        <module>api-gateway</module>
-        <module>auth-server</module>
-        <module>resource-server</module>
-        <module>user-service</module>
-        <module>product-service</module>
-        <module>order-service</module>
-        <module>paymentservice</module>
-        <module>notification</module>
-        <module>order-query</module>
-        <module>product-query</module>
-        <module>graphql-bff</module>
-        <module>shop-ui</module>
-        <module>backoffice-ui</module>
+        <!-- Shared library -->
+        <module>lib/common-lib</module>
+
+        <!-- Platform / infrastructure services -->
+        <module>infra/eureka-server</module>
+        <module>infra/config-server</module>
+        <module>infra/api-gateway</module>
+        <module>infra/auth-server</module>
+        <module>infra/resource-server</module>
+
+        <!-- Business services -->
+        <module>services/user-service</module>
+        <module>services/product-service</module>
+        <module>services/order-service</module>
+        <module>services/paymentservice</module>
+        <module>services/notification</module>
+        <module>services/order-query</module>
+        <module>services/product-query</module>
+
+        <!-- BFF -->
+        <module>bff/graphql-bff</module>
+
+        <!-- UI applications -->
+        <module>ui/shop-ui</module>
+        <module>ui/backoffice-ui</module>
 
         <!-- Trading / study project (angle-app) builds only with -Pwith-angle. -->
 

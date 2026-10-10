@@ -32,10 +32,10 @@ Whichever features you plan to exercise, the corresponding services must be
 running. Minimum for the "smoke test" (folders 00-04):
 
 ```bash
-mvn -pl eureka-server  spring-boot:run    # :8761
-mvn -pl auth-server    spring-boot:run    # :9010
-mvn -pl user-service   spring-boot:run    # :8090
-mvn -pl api-gateway    spring-boot:run    # :8080
+mvn -pl infra/eureka-server  spring-boot:run    # :8761
+mvn -pl infra/auth-server    spring-boot:run    # :9010
+mvn -pl services/user-service   spring-boot:run    # :8090
+mvn -pl infra/api-gateway    spring-boot:run    # :8080
 ```
 
 For folder 05 (idempotency) and 06 (response cache) also need:

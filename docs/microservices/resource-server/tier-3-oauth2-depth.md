@@ -216,8 +216,8 @@ No sensitive-info risk — the client already issued the token.
 
 ```bash
 # Boot auth-server + resource-server
-mvn -pl auth-server     spring-boot:run    # :9010
-mvn -pl resource-server spring-boot:run    # :8096
+mvn -pl infra/auth-server     spring-boot:run    # :9010
+mvn -pl infra/resource-server spring-boot:run    # :8096
 
 # Fetch a token with scope=read
 TOKEN_READ=$(curl -s -u admin:admin123 \

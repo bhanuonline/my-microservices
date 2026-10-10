@@ -279,7 +279,7 @@ No new dependencies — Redis reactive is already in from the rate-limiter build
 ### 9.1 Single instance — self-echo test
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 # On boot, logs should show:
 #   Subscribing to route-refresh channel 'gateway.routes.refresh' as instance '<uuid>'
@@ -318,14 +318,14 @@ demo pub/sub between two instances, either:
 
 Terminal 1 (Pod A):
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--server.port=8080 \
     --gateway.dynamic-routes.pubsub.instance-id=pod-a"
 ```
 
 Terminal 2 (Pod B):
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--server.port=8081 \
     --gateway.dynamic-routes.pubsub.instance-id=pod-b"
 ```
@@ -388,7 +388,7 @@ docker start gateway-redis
 ### 9.5 Disable pub/sub — fall back to poll
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.dynamic-routes.pubsub.enabled=false"
 
 # Publisher + Subscriber beans absent. Multi-pod sync via 5m poll only.

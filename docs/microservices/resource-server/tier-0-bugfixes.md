@@ -260,11 +260,11 @@ versions managed by the Spring Boot BOM. Less drift risk, less to maintain.
 
 ```bash
 cd /Users/bhanupratap/My/my-microservices
-mvn -pl resource-server clean compile
+mvn -pl infra/resource-server clean compile
 
 # No "Ambiguous mapping" error
 # No "ClassNotFoundException" at startup
-mvn -pl resource-server spring-boot:run
+mvn -pl infra/resource-server spring-boot:run
 
 # Request now goes through ApiController + hits auth gate
 curl -i http://localhost:8096/api/hello

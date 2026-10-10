@@ -350,7 +350,7 @@ Prereq: Redis running (`docker run redis:7-alpine` — already up from rate limi
 
 ```bash
 # 1. Boot everything
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 # (with user-service, order-service, eureka, auth-server also running)
 
 # 2. Get a JWT
@@ -462,7 +462,7 @@ curl -i -H "Authorization: Bearer $TOKEN" \
 ### 9.8 Disable via profile
 
 ```bash
-mvn -pl api-gateway spring-boot:run -Dspring-boot.run.profiles=noidem
+mvn -pl infra/api-gateway spring-boot:run -Dspring-boot.run.profiles=noidem
 
 # Now retry with same key + different body still succeeds (creates duplicate)
 ```
@@ -555,7 +555,7 @@ curl -i -H "Authorization: Bearer $TOKEN" \
 Fail-open — kill Redis, then check `X-Idempotency-Bypassed`:
 ```bash
 # Enable fail-open first
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.idempotency.fail-open-on-store-error=true"
 
 docker stop gateway-redis

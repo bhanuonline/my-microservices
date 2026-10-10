@@ -292,7 +292,7 @@ No new dependencies — Redis reactive already in from rate limiter.
 ## 7. Verification
 
 ```bash
-mvn -pl api-gateway clean spring-boot:run
+mvn -pl infra/api-gateway clean spring-boot:run
 
 # Prereqs: Redis + Eureka + auth-server + product-service all running
 
@@ -378,7 +378,7 @@ curl -i -X POST -H "Authorization: Bearer $TOKEN" \
 ### 7.7 Restart downstream, wait for CB to close
 
 ```bash
-mvn -pl product-service spring-boot:run
+mvn -pl services/product-service spring-boot:run
 sleep 20
 
 curl -i -H "Authorization: Bearer $TOKEN" \
@@ -398,7 +398,7 @@ docker exec -it gateway-redis redis-cli DEL "respcache:<hash>"
 ### 7.9 Disable the whole feature
 
 ```bash
-mvn -pl api-gateway spring-boot:run \
+mvn -pl infra/api-gateway spring-boot:run \
   -Dspring-boot.run.arguments="--gateway.response-cache.enabled=false"
 
 # FallbackController still works — pure static 503 behavior (backwards compat)

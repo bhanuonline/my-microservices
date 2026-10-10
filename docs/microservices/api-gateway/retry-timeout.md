@@ -249,7 +249,7 @@ time curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/users/s
 
 ### 8.4 Disable retry only
 ```bash
-mvn -pl api-gateway spring-boot:run -Dspring-boot.run.profiles=noretry
+mvn -pl infra/api-gateway spring-boot:run -Dspring-boot.run.profiles=noretry
 
 # Kill user-service, hit route
 time curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/users/me

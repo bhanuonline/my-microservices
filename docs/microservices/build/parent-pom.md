@@ -217,7 +217,7 @@ replace: add `<includeOnlyProperties combine.self="override">`.
 cd /Users/bhanupratap/My/my-microservices
 
 # Rebuild every affected service in one shot
-mvn -pl api-gateway,auth-server,user-service,product-service,order-service,eureka-server clean install -DskipTests
+mvn -pl infra/api-gateway,auth-server,user-service,product-service,order-service,eureka-server clean install -DskipTests
 
 # Verify build-info + git.properties still get generated
 for m in api-gateway auth-server user-service product-service order-service eureka-server; do
@@ -226,7 +226,7 @@ for m in api-gateway auth-server user-service product-service order-service eure
 done
 
 # Boot any service and check /actuator/info still populates
-mvn -pl api-gateway spring-boot:run &
+mvn -pl infra/api-gateway spring-boot:run &
 sleep 30
 curl -s http://localhost:8080/actuator/info | jq '{build: .build.version, git: .git.commit.id.abbrev}'
 # → both non-null

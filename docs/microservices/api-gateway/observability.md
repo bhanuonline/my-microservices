@@ -249,9 +249,9 @@ mvn clean install
 docker-compose -f docker-compose.observability.yml up -d
 
 # 3. Boot the gateway + auth-server + Redis + user-service as usual
-mvn -pl auth-server  spring-boot:run
-mvn -pl api-gateway  spring-boot:run
-mvn -pl user-service spring-boot:run
+mvn -pl infra/auth-server  spring-boot:run
+mvn -pl infra/api-gateway  spring-boot:run
+mvn -pl services/user-service spring-boot:run
 
 # 4. Verify scrape endpoint on gateway
 curl -s http://localhost:8080/actuator/prometheus | head -30

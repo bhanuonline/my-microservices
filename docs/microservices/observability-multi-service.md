@@ -163,7 +163,7 @@ show it before because spans died there.
 
 ```bash
 cd /Users/bhanupratap/My/my-microservices
-mvn -pl common-lib,api-gateway,auth-server,user-service,product-service,order-service,eureka-server clean install -DskipTests
+mvn -pl lib/common-lib,api-gateway,auth-server,user-service,product-service,order-service,eureka-server clean install -DskipTests
 ```
 
 Expected — for each service that got build-info + git-commit-id:
@@ -189,12 +189,12 @@ docker ps | grep -E "prometheus|grafana|zipkin"
 
 ```bash
 # In separate terminals:
-mvn -pl eureka-server   spring-boot:run    # :8761
-mvn -pl auth-server     spring-boot:run    # :9010 (spring.application.name=authservice)
-mvn -pl user-service    spring-boot:run    # :8090
-mvn -pl product-service spring-boot:run    # :8091
-mvn -pl order-service   spring-boot:run    # :8092
-mvn -pl api-gateway     spring-boot:run    # :8080
+mvn -pl infra/eureka-server   spring-boot:run    # :8761
+mvn -pl infra/auth-server     spring-boot:run    # :9010 (spring.application.name=authservice)
+mvn -pl services/user-service    spring-boot:run    # :8090
+mvn -pl services/product-service spring-boot:run    # :8091
+mvn -pl services/order-service   spring-boot:run    # :8092
+mvn -pl infra/api-gateway     spring-boot:run    # :8080
 ```
 
 ### 5.4 Verify /actuator/info per service
@@ -240,7 +240,7 @@ Open Zipkin `http://localhost:9411`:
 Search logs for the correlation id:
 ```bash
 # If gateway logs to stdout:
-mvn -pl api-gateway spring-boot:run 2>&1 | grep multi-svc-test
+mvn -pl infra/api-gateway spring-boot:run 2>&1 | grep multi-svc-test
 ```
 
 You should see the same `correlationId` in log lines from BOTH gateway AND user-service.
