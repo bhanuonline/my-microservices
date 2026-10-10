@@ -14,6 +14,8 @@ import com.angle.trading.config.CalendarProperties;
 import com.angle.trading.config.PaperAutostartProperties;
 import com.angle.trading.config.ReportsProperties;
 import com.angle.trading.config.TradingProperties;
+import com.angle.trading.config.UiProperties;
+import com.angle.trading.logging.LogLevelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -64,7 +66,9 @@ public class DashboardController {
     private final PaperAutostartProperties paperProperties;
     private final CalendarProperties calendarProperties;
     private final BiasChangeHistory changeHistory;
+    private final LogLevelService logLevelService;
     private final BacktestCardProperties backtestCardProperties;
+    private final UiProperties uiProperties;
 
     @GetMapping
     public String home(Model model, Authentication authentication) {
@@ -93,8 +97,14 @@ public class DashboardController {
         model.addAttribute("systemAlerts",  buildSystemAlerts());
         model.addAttribute("healthCounts",  buildHealthCounts(model));
         model.addAttribute("backtestCard",  backtestCardProperties);
+        model.addAttribute("logs", Map.of(
+                "levels",   logLevelService.currentLevels(),
+                "packages", LogLevelService.MANAGED_PACKAGES,
+                "labels",   LogLevelService.LABELS,
+                "choices",  LogLevelService.LEVELS));
 
-        return "dashboard/welcome";
+        model.addAttribute("ui", uiProperties);
+        return uiProperties.prefix() + "dashboard/welcome";
     }
 
     // ---------- data collectors ----------

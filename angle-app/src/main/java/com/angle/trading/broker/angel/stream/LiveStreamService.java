@@ -2,6 +2,7 @@ package com.angle.trading.broker.angel.stream;
 
 import com.angle.trading.broker.angel.stream.model.Tick;
 import com.angle.trading.config.BrokerProperties;
+import com.angle.trading.marketdata.InstrumentNameResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,8 @@ public class LiveStreamService {
 
     private final BrokerProperties brokerProperties;
     private final ObjectMapper json;
+    private final InstrumentNameResolver nameResolver;
+    private final PrevCloseService prevCloseService;
 
     private final CopyOnWriteArrayList<Subscriber> subscribers = new CopyOnWriteArrayList<>();
 
@@ -80,8 +83,12 @@ public class LiveStreamService {
         Tick t = e.tick();
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("token", t.symbolToken());
+        payload.put("name",  nameResolver.resolve(t.symbolToken()));
         payload.put("ltp",   t.ltp());
         payload.put("ts",    t.exchangeTime().toEpochMilli());
+        prevCloseService.prevClose(t.symbolToken()).ifPresent(pc -> payload.put("prevClose", pc));
+        prevCloseService.change(t.symbolToken(), t.ltp()).ifPresent(ch -> payload.put("change", ch));
+        prevCloseService.changePercent(t.symbolToken(), t.ltp()).ifPresent(pct -> payload.put("changePct", pct));
         long now = System.currentTimeMillis();
         int throttleMs = brokerProperties.getAngel().getStream().getLiveStream().getThrottleMs();
         for (Subscriber sub : subscribers) {
@@ -97,6 +104,7 @@ public class LiveStreamService {
         if (subscribers.isEmpty()) return;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("token",    e.symbolToken());
+        payload.put("name",     nameResolver.resolve(e.symbolToken()));
         payload.put("interval", e.interval().name());
         payload.put("ts",       e.candle().timestamp().toEpochMilli());
         payload.put("open",     e.candle().open());

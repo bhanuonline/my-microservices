@@ -52,6 +52,11 @@
         }
         .ltp.up   { color:var(--up); }
         .ltp.down { color:var(--down); }
+        .chg-row { min-height:18px; margin:-2px 0 8px; font-family:'IBM Plex Mono', monospace;
+                   font-size:13px; font-weight:600; }
+        .chg-row .chg.up   { color:var(--up); }
+        .chg-row .chg.down { color:var(--down); }
+        .chg-row .chg      { color:var(--muted); }
         .meta { display:flex; justify-content:space-between; font-size:11.5px; color:var(--faint); }
         .meta .n { font-family:'IBM Plex Mono', monospace; }
         .waiting { color:var(--faint); font-style:italic; font-size:13px; padding:20px 0; text-align:center; }

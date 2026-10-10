@@ -1,0 +1,130 @@
+body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+
+.u-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+.u-head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+.u-head .sub { font-size:13px; color:var(--muted); margin:4px 0 0; }
+.u-head code  { font-family:'IBM Plex Mono', monospace; background:var(--hair); padding:1px 6px; border-radius:4px; font-size:12.5px; }
+
+.u-btn {
+    padding:8px 14px; font:600 12.5px 'Inter',sans-serif;
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--border); border-radius:8px; cursor:pointer;
+    text-decoration:none; display:inline-flex; align-items:center; gap:6px;
+}
+.u-btn:hover { border-color:var(--primary); color:var(--primary); }
+.u-btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.u-btn.primary:hover { background:color-mix(in srgb, var(--primary) 85%, black); color:#fff; }
+
+.u-flash {
+    padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:13px; font-weight:500;
+}
+.u-flash.ok  { background:var(--good-2); color:var(--good); border-left:3px solid var(--good); }
+.u-flash.err { background:var(--bad-2);  color:var(--bad);  border-left:3px solid var(--bad); }
+
+/* ─── List table ─── */
+.u-table {
+    width:100%; border-collapse:separate; border-spacing:0;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; font-size:13px;
+}
+.u-table th, .u-table td {
+    padding:11px 14px; text-align:left;
+    border-bottom:1px solid var(--hair);
+}
+.u-table th {
+    background:var(--bg); font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+}
+.u-table tbody tr:last-child td { border-bottom:0; }
+.u-table tbody tr:hover { background:color-mix(in srgb, var(--primary) 3%, transparent); }
+.u-username { font-weight:600; }
+.u-mono     { font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+.u-empty    { text-align:center; padding:40px; color:var(--faint); font-style:italic; }
+
+.u-role-chip {
+    padding:2px 8px; border-radius:999px;
+    font-size:10.5px; font-weight:700; letter-spacing:.05em;
+}
+.u-role-chip.admin { background:var(--primary-2); color:var(--primary); }
+.u-role-chip.user  { background:var(--hair);      color:var(--muted); }
+
+.u-status-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    margin-right:6px; vertical-align:1px;
+}
+.u-status-dot.on  { background:var(--good); }
+.u-status-dot.off { background:var(--bad); }
+
+/* Lockout chips — shown in Status column next to the enabled/disabled dot */
+.u-lock-chip {
+    margin-left:6px; padding:2px 7px; border-radius:999px;
+    background:var(--bad-2); color:var(--bad);
+    font-size:10.5px; font-weight:700; letter-spacing:.03em;
+}
+.u-fail-count {
+    margin-left:6px; padding:2px 7px; border-radius:999px;
+    background:color-mix(in srgb, var(--warn, orange) 15%, transparent);
+    color:var(--warn, orange);
+    font-size:10.5px; font-weight:700; letter-spacing:.03em;
+}
+
+.u-actions {
+    text-align:right; white-space:nowrap;
+}
+.u-actions > * {
+    margin-left:4px; vertical-align:middle;
+}
+.u-icon-btn {
+    background:transparent; border:0; cursor:pointer;
+    font-size:15px; padding:3px 6px; border-radius:4px;
+}
+.u-icon-btn:hover { background:var(--hair); }
+.u-icon-btn.danger:hover { background:var(--bad-2); }
+
+.u-note {
+    margin-top:16px; padding:10px 14px;
+    background:color-mix(in srgb, var(--info) 5%, transparent);
+    border-left:3px solid var(--info); border-radius:0 6px 6px 0;
+    font-size:12.5px; color:var(--ink);
+}
+.u-note a { color:var(--primary); font-weight:600; text-decoration:none; }
+.u-note a:hover { text-decoration:underline; }
+
+/* ─── Form (create/edit) ─── */
+.u-form {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:24px 26px; max-width:560px;
+    display:grid; gap:16px;
+}
+.u-form label {
+    display:grid; gap:6px;
+    font-size:12.5px; font-weight:600; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.05em;
+}
+.u-form input[type=text],
+.u-form input[type=email],
+.u-form input[type=password],
+.u-form select {
+    padding:9px 12px; font:inherit; font-size:14px; font-weight:400;
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--border); border-radius:7px;
+    text-transform:none; letter-spacing:0;
+}
+.u-form input:disabled { background:var(--hair); color:var(--muted); cursor:not-allowed; }
+.u-form input:focus,
+.u-form select:focus { outline:none; border-color:var(--primary); }
+.u-hint { font-size:11px; color:var(--faint); text-transform:none; letter-spacing:0; font-weight:400; }
+.u-optional { font-size:11px; color:var(--faint); font-weight:400; }
+
+.u-checkbox {
+    display:flex; align-items:center; gap:8px;
+    text-transform:none; letter-spacing:0; font-weight:500; color:var(--ink);
+    font-size:13.5px;
+    padding:8px 0;
+}
+.u-checkbox input { width:16px; height:16px; cursor:pointer; }
+
+.u-actions-row {
+    display:flex; justify-content:flex-end; gap:10px;
+    margin-top:8px; padding-top:16px; border-top:1px solid var(--hair);
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+    /account/2fa/setup — TOTP enrolment.
+
+    Shows QR code + manual key + first-code verification form.
+    Reached via "Enable 2FA" button on /account.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Enable 2FA — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/account.css}">
+    <style>
+        .totp-wrap { display:grid; grid-template-columns:220px 1fr; gap:28px; align-items:start; }
+        @media (max-width:720px) { .totp-wrap { grid-template-columns:1fr; } }
+        .totp-qr { background:#fff; padding:14px; border-radius:12px;
+                   border:1px solid var(--border); text-align:center; }
+        .totp-qr img { display:block; width:192px; height:192px; margin:0 auto; }
+        .totp-steps ol { padding-left:18px; margin:0 0 20px; }
+        .totp-steps li { margin-bottom:10px; line-height:1.5; font-size:13.5px; }
+        .totp-secret {
+            display:inline-block; margin-top:4px;
+            padding:7px 11px; background:var(--hair); color:var(--ink);
+            border-radius:6px; font-family:'IBM Plex Mono', monospace;
+            font-size:13px; font-weight:600; letter-spacing:.08em;
+        }
+        .totp-code-input {
+            width:100%; max-width:260px; padding:12px 16px;
+            font:600 22px 'IBM Plex Mono', monospace;
+            text-align:center; letter-spacing:.4em; text-indent:.4em;
+            background:var(--surface); color:var(--ink);
+            border:1.5px solid var(--border); border-radius:9px;
+            box-sizing:border-box;
+        }
+        .totp-code-input:focus { outline:none; border-color:var(--primary); }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='account')}"></div>
+<main class="app-main">
+
+    <div class="ac-head">
+        <h1>Enable two-factor</h1>
+        <p class="sub">Scan this code with your authenticator app, then type the first 6-digit code it shows.</p>
+    </div>
+
+    <div class="ac-card">
+        <div class="totp-wrap">
+            <div class="totp-qr">
+                <img th:src="${qrDataUri}" alt="2FA QR code">
+            </div>
+
+            <div class="totp-steps">
+                <ol>
+                    <li>Open your authenticator app (Google Authenticator, Authy, 1Password, etc.).</li>
+                    <li>Tap "Add account" and <b>Scan QR code</b>. Point the camera at the QR above.</li>
+                    <li>If scanning isn't possible, add manually with:
+                        <div style="margin-top:6px">
+                            Account: <code th:text="${'AngleApp:' + username}">AngleApp:admin</code><br/>
+                            Key:     <span class="totp-secret" th:text="${secret}">JBSWY3DPEHPK3PXP</span>
+                        </div>
+                    </li>
+                    <li>Enter the 6-digit code the app shows right now:</li>
+                </ol>
+
+                <form method="post" action="/account/2fa/enable" class="ac-form" autocomplete="off">
+                    <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="text" name="code"
+                           class="totp-code-input"
+                           inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                           autocomplete="one-time-code" autofocus
+                           placeholder="------">
+                    <div class="ac-actions" style="margin-top:14px">
+                        <button type="submit" class="ac-btn primary">✅ Verify &amp; enable</button>
+                        <a href="/account" class="ac-btn">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="ac-card">
+        <p class="ac-sub">
+            <b>If you lose your phone:</b> ask an admin to reset 2FA for you from
+            <code>/admin/users</code>. There are no recovery codes in this version.
+            Treat your authenticator app like a key — losing it means locked out.
+        </p>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

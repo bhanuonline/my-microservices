@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--
+    /admin/users/new   → create form (mode=create)
+    /admin/users/{id}  → edit form   (mode=edit, user bound)
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/users.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='users')}"></div>
+<main class="app-main">
+
+    <div class="u-head">
+        <div>
+            <h1 th:text="${mode == 'create'} ? 'Add user' : ('Edit ' + ${user.username})">Add user</h1>
+            <p class="sub"
+               th:text="${mode == 'create'} ? 'New user starts enabled with the role you pick.' : 'Changes save on submit.'">
+                 New user starts enabled.
+            </p>
+        </div>
+        <a href="/admin/users" class="u-btn">← Back</a>
+    </div>
+
+    <form th:action="@{${mode == 'create'} ? '/admin/users' : '/admin/users/' + ${user.id}}"
+          method="post" class="u-form">
+        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <label>Username
+            <input type="text" name="username" required minlength="3" maxlength="64"
+                   th:value="${user.username}" th:disabled="${mode == 'edit'}" autofocus>
+            <small th:if="${mode == 'edit'}" class="u-hint">Username can't be changed after creation.</small>
+        </label>
+
+        <label th:if="${mode == 'create'}">Password
+            <input type="password" name="password" required minlength="6" maxlength="100">
+            <small class="u-hint">At least 6 characters. Will be bcrypt-hashed.</small>
+        </label>
+
+        <label>Email <span class="u-optional">(optional)</span>
+            <input type="email" name="email" maxlength="120" th:value="${user.email}">
+            <small class="u-hint">Used for password reset later (Phase E).</small>
+        </label>
+
+        <label>Role
+            <select name="role">
+                <option value="ROLE_USER"  th:selected="${user.role == 'ROLE_USER' or user.role == null}">USER — read-only trader</option>
+                <option value="ROLE_ADMIN" th:selected="${user.role == 'ROLE_ADMIN'}">ADMIN — full access</option>
+            </select>
+        </label>
+
+        <label class="u-checkbox">
+            <input type="checkbox" name="enabled" value="true"
+                   th:checked="${user.enabled != null and user.enabled}">
+            <span>Enabled (can log in)</span>
+        </label>
+
+        <div class="u-actions-row">
+            <a href="/admin/users" class="u-btn">Cancel</a>
+            <button type="submit" class="u-btn primary"
+                    th:text="${mode == 'create'} ? '✅ Create user' : '💾 Save changes'">Save</button>
+        </div>
+    </form>
+
+</main>
+</div>
+</body>
+</html>

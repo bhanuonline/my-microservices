@@ -38,6 +38,14 @@
 
                 <div class="error" th:if="${error}" th:text="${error}">Error placeholder</div>
 
+                <!-- Info banner for session expired / signed out (not an error) -->
+                <div th:if="${info}" th:text="${info}"
+                     style="padding:10px 14px;margin-bottom:14px;border-radius:8px;
+                            background:var(--info-2,#e6f0ff);color:var(--info,#2962ff);
+                            border-left:3px solid var(--info,#2962ff);font-size:13px;font-weight:500">
+                    Session expired placeholder
+                </div>
+
                 <div class="warning-banner" th:if="${locked}">
                     Account temporarily locked after too many failed attempts.
                     Try again in <span th:text="${lockMinutes}">5</span> minutes.
@@ -97,8 +105,12 @@
                     Try <code>alex / demo123</code> or <code>admin / admin123</code>
                 </div>
 
+                <div th:if="${param.signup}" style="padding:10px 14px;margin-top:16px;border-radius:8px;background:var(--good-2);color:var(--good);border-left:3px solid var(--good);font-size:13px;font-weight:500">
+                    ✅ Account created. Sign in with your new credentials.
+                </div>
+
                 <div class="link-row">
-                    New here? <a th:href="@{/register}">Create an account</a>
+                    New here? <a th:href="@{/auth/signup}">Create an account</a>
                 </div>
             </div>
         </div>

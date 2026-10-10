@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--
+    /auth/signup — public signup form.
+    Mounted outside the shared app-shell because the user isn't logged in yet.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign up — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <style>
+        body { margin:0; background:var(--bg); color:var(--ink);
+               font-family:'Inter',sans-serif; font-size:14px;
+               min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+        .su-card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+                   padding:36px 40px; width:100%; max-width:420px;
+                   box-shadow:0 10px 40px -12px rgba(0,0,0,.1); }
+        .su-logo { width:48px; height:48px; border-radius:12px;
+                   background:linear-gradient(135deg, var(--primary), var(--info));
+                   color:#fff; font:800 20px 'Inter'; display:flex; align-items:center; justify-content:center;
+                   margin-bottom:20px; }
+        .su-card h1 { margin:0 0 6px; font-size:22px; font-weight:700; letter-spacing:-.02em; }
+        .su-card .sub { color:var(--muted); font-size:13.5px; margin:0 0 24px; }
+        .su-flash { padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:13px; font-weight:500;
+                    background:var(--bad-2); color:var(--bad); border-left:3px solid var(--bad); }
+        form { display:grid; gap:14px; }
+        label { display:grid; gap:5px; font-size:12px; font-weight:600; color:var(--muted);
+                text-transform:uppercase; letter-spacing:.05em; }
+        input[type=text], input[type=email], input[type=password] {
+            padding:10px 12px; font:inherit; font-size:14px; font-weight:400;
+            background:var(--surface); color:var(--ink);
+            border:1px solid var(--border); border-radius:8px;
+            text-transform:none; letter-spacing:0;
+        }
+        input:focus { outline:none; border-color:var(--primary); }
+        .hint { font-size:11px; color:var(--faint); text-transform:none; letter-spacing:0; font-weight:400; }
+        .btn-primary { padding:11px; font:600 14px 'Inter'; background:var(--primary); color:#fff;
+                       border:0; border-radius:8px; cursor:pointer; margin-top:4px; }
+        .btn-primary:hover { background:color-mix(in srgb, var(--primary) 85%, black); }
+        .foot { margin-top:20px; padding-top:16px; border-top:1px solid var(--hair);
+                font-size:13px; color:var(--muted); text-align:center; }
+        .foot a { color:var(--primary); font-weight:600; text-decoration:none; }
+        .foot a:hover { text-decoration:underline; }
+
+        /* Honeypot — hidden from humans, visible to naive bots.
+           Positioned off-screen + aria-hidden so screen readers skip it too. */
+        .hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+    </style>
+</head>
+<body>
+
+<div class="su-card">
+    <div class="su-logo">A</div>
+    <h1>Create your account</h1>
+    <p class="sub">You'll be able to log in once your account is created.</p>
+
+    <div th:if="${error}" class="su-flash" th:text="${error}">Something went wrong</div>
+
+    <form method="post" action="/auth/signup" autocomplete="on">
+        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <label>Username
+            <input type="text" name="username" required
+                   minlength="3" maxlength="64"
+                   pattern="[a-zA-Z0-9._\-]+"
+                   th:value="${username}"
+                   autocomplete="username" autofocus>
+            <small class="hint">Letters, digits, dot, underscore, dash. 3–64 chars.</small>
+        </label>
+
+        <label>Email <span style="color:var(--faint);font-weight:400;text-transform:none">(optional)</span>
+            <input type="email" name="email" maxlength="120" th:value="${email}"
+                   autocomplete="email">
+        </label>
+
+        <label>Password
+            <input type="password" name="password" required
+                   th:attr="minlength=${minPwdLen}"
+                   maxlength="100"
+                   autocomplete="new-password">
+            <small class="hint" th:text="'At least ' + ${minPwdLen} + ' characters.'">At least 8 characters.</small>
+        </label>
+
+        <!-- Honeypot: real users leave this blank. Bots fill it → signup silently rejected. -->
+        <div class="hp" aria-hidden="true">
+            <label>Website (leave blank)
+                <input type="text" name="website" tabindex="-1" autocomplete="off">
+            </label>
+        </div>
+
+        <button type="submit" class="btn-primary">Create account</button>
+    </form>
+
+    <div class="foot">
+        Already have an account? <a href="/auth/login">Log in</a>
+    </div>
+</div>
+
+</body>
+</html>

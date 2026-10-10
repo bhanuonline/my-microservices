@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!--
+    /admin/audit — Login audit log viewer.
+
+    Table of recent login attempts (success + failure). Admin-only.
+    IPs that have failed-only in the last 24h get a 🚩 suspicious flag.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Audit Log — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/users.css}">
+    <style>
+        .au-filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; align-items:end; }
+        .au-filters label { font-size:11px; font-weight:600; color:var(--muted);
+                            text-transform:uppercase; letter-spacing:.05em; }
+        .au-filters input, .au-filters select {
+            padding:7px 10px; font:inherit; font-size:13px;
+            background:var(--surface); color:var(--ink);
+            border:1px solid var(--border); border-radius:7px;
+        }
+        .au-filters input:focus, .au-filters select:focus { outline:none; border-color:var(--primary); }
+        .au-chip-ok  { background:var(--good-2); color:var(--good); }
+        .au-chip-bad { background:var(--bad-2); color:var(--bad); }
+        .au-chip     { display:inline-block; padding:2px 8px; border-radius:999px;
+                       font-size:10.5px; font-weight:700; letter-spacing:.05em; }
+        .au-reason   { font-family:'IBM Plex Mono',monospace; font-size:11.5px;
+                       color:var(--muted); background:var(--hair);
+                       padding:1px 6px; border-radius:4px; }
+        .au-ua       { font-size:11.5px; color:var(--muted); max-width:260px;
+                       overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .au-flag     { font-size:11px; margin-left:4px; }
+        .au-page { display:flex; justify-content:space-between; align-items:center;
+                   margin-top:14px; font-size:12.5px; color:var(--muted); }
+        .au-page a { color:var(--primary); text-decoration:none; margin:0 6px; }
+        .au-page a:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='audit')}"></div>
+<main class="app-main">
+
+    <div class="u-head">
+        <div>
+            <h1>Login Audit</h1>
+            <p class="sub">Every login attempt — success and failure.
+                <span th:if="${!suspiciousIps.isEmpty()}">
+                    🚩 flag = IP has <b>only failed</b> in the last 24h.
+                </span>
+            </p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form class="au-filters" method="get" action="/admin/audit">
+        <div>
+            <label for="f-user">Username</label><br/>
+            <input id="f-user" type="text" name="username" th:value="${filterUsername}" placeholder="any">
+        </div>
+        <div>
+            <label for="f-success">Status</label><br/>
+            <select id="f-success" name="success">
+                <option value=""     th:selected="${filterSuccess == null}">any</option>
+                <option value="true" th:selected="${filterSuccess != null and filterSuccess}">success</option>
+                <option value="false" th:selected="${filterSuccess != null and !filterSuccess}">failed</option>
+            </select>
+        </div>
+        <div>
+            <label for="f-since">Last N hours</label><br/>
+            <input id="f-since" type="number" name="since" min="1" max="720"
+                   style="width:90px" th:value="${filterSince}">
+        </div>
+        <div>
+            <label for="f-size">Page size</label><br/>
+            <input id="f-size" type="number" name="size" min="10" max="500"
+                   style="width:80px" th:value="${rows.size}">
+        </div>
+        <button type="submit" class="u-btn primary">Apply</button>
+        <a href="/admin/audit" class="u-btn">Reset</a>
+    </form>
+
+    <table class="u-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Username</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th>IP</th>
+                <th>User-Agent</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="r : ${rows.content}">
+                <td class="u-mono" th:text="${#temporals.format(r.createdAt, 'dd MMM HH:mm:ss')}">10 Oct 10:14:03</td>
+                <td class="u-username" th:text="${r.username}">admin</td>
+                <td>
+                    <span th:if="${r.success}" class="au-chip au-chip-ok">✓ ok</span>
+                    <span th:unless="${r.success}" class="au-chip au-chip-bad">✗ fail</span>
+                </td>
+                <td>
+                    <span th:if="${r.failureReason}" class="au-reason" th:text="${r.failureReason}">BAD_CREDENTIALS</span>
+                    <span th:unless="${r.failureReason}" style="color:var(--faint)">—</span>
+                </td>
+                <td class="u-mono" th:text="${r.ipAddress}">192.168.1.42
+                    <span th:if="${suspiciousIps.contains(r.ipAddress)}" class="au-flag" title="Only failures from this IP in last 24h">🚩</span>
+                </td>
+                <td class="au-ua" th:text="${r.userAgent ?: '—'}" th:title="${r.userAgent}">Mozilla/5.0 ...</td>
+            </tr>
+            <tr th:if="${rows.empty}">
+                <td colspan="6" class="u-empty">No matching audit rows.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Simple pagination -->
+    <div class="au-page" th:if="${rows.totalPages > 1}">
+        <div>
+            Showing page <b th:text="${rows.number + 1}">1</b> of
+            <b th:text="${rows.totalPages}">10</b>
+            (<span th:text="${rows.totalElements}">500</span> total)
+        </div>
+        <div>
+            <a th:if="${rows.hasPrevious()}"
+               th:href="@{/admin/audit(username=${filterUsername},success=${filterSuccess},since=${filterSince},page=${rows.number - 1},size=${rows.size})}">← Prev</a>
+            <a th:if="${rows.hasNext()}"
+               th:href="@{/admin/audit(username=${filterUsername},success=${filterSuccess},since=${filterSince},page=${rows.number + 1},size=${rows.size})}">Next →</a>
+        </div>
+    </div>
+
+    <div class="u-note">
+        <b>Retention:</b> rows older than <code>security.audit.retention-days</code>
+        (default 90) are pruned nightly at 03:17.
+        &nbsp;·&nbsp; <b>Tip:</b> Drill in with
+        <code>?username=admin&success=false&since=24</code> to see today's bad passwords for admin.
+    </div>
+
+</main>
+</div>
+</body>
+</html>

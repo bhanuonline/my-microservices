@@ -45,14 +45,33 @@ public class AngelClient implements BrokerClient {
     @Override
     public List<Candle> getCandles(Exchange exchange, String symbolToken,
                                    Interval interval, LocalDate from, LocalDate to) {
+        // Default intraday window — correct for NSE/BSE equities & indices.
+        // Callers that need other exchange hours (MCX, CDS) must use
+        // getCandlesInRange(...) with explicit times.
+        return getCandlesInRange(exchange, symbolToken, interval,
+                from.atTime(9, 15), to.atTime(15, 30));
+    }
+
+    /**
+     * Variant that lets callers supply exact fromtime/totime — needed when the
+     * default NSE 9:15–15:30 window doesn't match the instrument's exchange
+     * (MCX opens 9:00, overnight sessions, etc.).
+     *
+     * Used by {@link com.angle.trading.orb.OrbService} for ORB backfill where
+     * the opening-range window must start at the real session open.
+     */
+    public List<Candle> getCandlesInRange(Exchange exchange, String symbolToken,
+                                          Interval interval,
+                                          java.time.LocalDateTime fromDateTime,
+                                          java.time.LocalDateTime toDateTime) {
         BrokerProperties.Angel cfg = brokerProperties.getAngel();
 
         Map<String, Object> body = Map.of(
                 "exchange", exchange.name(),                  // NSE / NFO / BSE / BFO / MCX / CDS
                 "symboltoken", symbolToken,
                 "interval", toAngelInterval(interval),
-                "fromdate", from.atTime(9, 15).format(ANGEL_DATE_FMT),
-                "todate", to.atTime(15, 30).format(ANGEL_DATE_FMT)
+                "fromdate", fromDateTime.format(ANGEL_DATE_FMT),
+                "todate",   toDateTime.format(ANGEL_DATE_FMT)
         );
 
         log.debug("Fetching Angel candles: {}", body);

@@ -1,0 +1,29 @@
+# Local secrets — NEVER commit.
+# Parent .gitignore already catches these but we repeat here as insurance:
+# if angle-app is ever extracted to its own repo, the ignores still apply.
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Build output
+target/
+*.jar
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Reports — generated at close-of-day, don't commit personal trading history
+reports/

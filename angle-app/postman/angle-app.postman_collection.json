@@ -3165,6 +3165,338 @@
       ]
     },
     {
+      "name": "User Management — Admin",
+      "description": "Admin-only user CRUD at /admin/users. All endpoints need an admin session cookie (login via GET /auth/login → POST /auth/login first). CSRF token required on POSTs. These are form-based, not JSON APIs — Postman's test scripts will need to extract the CSRF token from the HTML form first (see first request's test script for the pattern). For curl, use the dedicated \"Auth\" folder requests.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "List all users (HTML)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Count users from the rendered HTML table rows (quick smoke check).",
+                  "var rows = (pm.response.text().match(/<tr>/g) || []).length - 1;  // subtract thead",
+                  "console.log('Users visible in table: ' + Math.max(0, rows));",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Rendered Thymeleaf page. Open in browser for actual UI. API-mode users should use the JSON endpoints below.",
+            "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin", "users"] }
+          }
+        },
+        {
+          "name": "New-user form (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/admin/users/new", "host": ["{{baseUrl}}"], "path": ["admin", "users", "new"] }
+          }
+        },
+        {
+          "name": "Create user (form POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "trader1" },
+                { "key": "password", "value": "hello1234" },
+                { "key": "email",    "value": "trader1@example.com" },
+                { "key": "role",     "value": "ROLE_USER" },
+                { "key": "enabled",  "value": "true" },
+                { "key": "_csrf",    "value": "{{csrfToken}}", "description": "Extract from /admin/users GET response first" }
+              ]
+            },
+            "description": "Admin creates a new user. CSRF token required — load /admin/users first and extract from the hidden input, then paste as {{csrfToken}} variable.",
+            "url": { "raw": "{{baseUrl}}/admin/users", "host": ["{{baseUrl}}"], "path": ["admin", "users"] }
+          }
+        },
+        {
+          "name": "Edit-user form (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "users", "1"],
+              "variable": [{ "key": "userId", "value": "1", "description": "DB id of the user to edit" }]
+            }
+          }
+        },
+        {
+          "name": "Update user (change email / role / enabled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email",    "value": "new@example.com" },
+                { "key": "role",     "value": "ROLE_ADMIN", "description": "ROLE_USER or ROLE_ADMIN" },
+                { "key": "enabled",  "value": "true" },
+                { "key": "_csrf",    "value": "{{csrfToken}}" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/admin/users/2", "host": ["{{baseUrl}}"], "path": ["admin", "users", "2"] }
+          }
+        },
+        {
+          "name": "Admin reset password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "newPassword", "value": "freshpass999" },
+                { "key": "_csrf",       "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Admin force-resets a user's password without needing the old one.",
+            "url": { "raw": "{{baseUrl}}/admin/users/2/password", "host": ["{{baseUrl}}"], "path": ["admin", "users", "2", "password"] }
+          }
+        },
+        {
+          "name": "Enable / disable user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "on",    "value": "false", "description": "true = enable, false = disable" },
+                { "key": "_csrf", "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Guard: can't disable your own account (server rejects with error flash).",
+            "url": { "raw": "{{baseUrl}}/admin/users/2/enable", "host": ["{{baseUrl}}"], "path": ["admin", "users", "2", "enable"] }
+          }
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_csrf", "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Guard: can't delete your own account.",
+            "url": { "raw": "{{baseUrl}}/admin/users/2/delete", "host": ["{{baseUrl}}"], "path": ["admin", "users", "2", "delete"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management — Self-Service",
+      "description": "/account page — any logged-in user can view/edit their own profile. Form-based with CSRF. The GET loads a session cookie if you aren't already logged in.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          { "key": "username", "value": "{{adminUser}}", "type": "string" },
+          { "key": "password", "value": "{{adminPass}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "My account (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Shows profile card + password change form + email change form + logout button.",
+            "url": { "raw": "{{baseUrl}}/account", "host": ["{{baseUrl}}"], "path": ["account"] }
+          }
+        },
+        {
+          "name": "Change my password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "currentPassword", "value": "admin123" },
+                { "key": "newPassword",     "value": "newpass456" },
+                { "key": "confirmPassword", "value": "newpass456" },
+                { "key": "_csrf",           "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Requires current password. New + confirm must match. Min 6 chars.",
+            "url": { "raw": "{{baseUrl}}/account/password", "host": ["{{baseUrl}}"], "path": ["account", "password"] }
+          }
+        },
+        {
+          "name": "Change my email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "me@example.com", "description": "Blank clears the email" },
+                { "key": "_csrf", "value": "{{csrfToken}}" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/account/email", "host": ["{{baseUrl}}"], "path": ["account", "email"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management — Public Signup",
+      "description": "Public signup at /auth/signup. Returns 404 when signup.enabled=false (default). Enable via application.properties → restart. Protections: honeypot field, IP rate limit (5/hr default), server-side validation.",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "Signup form (HTML)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 404) {",
+                  "  console.log('⚠️  signup.enabled=false — set it to true in application.properties and restart.');",
+                  "} else {",
+                  "  console.log('✅ Signup is enabled.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "GET returns 404 when signup is disabled. Shows the form otherwise.",
+            "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] }
+          }
+        },
+        {
+          "name": "Submit signup (form POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "bob" },
+                { "key": "password", "value": "bobsecret123", "description": "min 8 chars (configurable)" },
+                { "key": "email",    "value": "bob@example.com" },
+                { "key": "website",  "value": "", "description": "Honeypot — MUST stay blank; bots filling this get silently rejected" },
+                { "key": "_csrf",    "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Creates ROLE_USER account. Redirects to /auth/login?signup=ok on success. Honeypot field 'website' MUST be empty — if filled, server pretends success but creates nothing.",
+            "url": { "raw": "{{baseUrl}}/auth/signup", "host": ["{{baseUrl}}"], "path": ["auth", "signup"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management — Auth / Session",
+      "description": "Login + logout endpoints. Use these to drive flow before hitting any form-POST endpoint above.",
+      "auth": { "type": "noauth" },
+      "item": [
+        {
+          "name": "Login form (HTML)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Extract CSRF token from the login HTML form so you can reuse it.",
+                  "var m = pm.response.text().match(/name=\"_csrf\"\\s+value=\"([^\"]+)\"/);",
+                  "if (m) {",
+                  "  pm.collectionVariables.set('csrfToken', m[1]);",
+                  "  console.log('✅ CSRF token extracted and saved as collection variable {{csrfToken}}');",
+                  "} else {",
+                  "  console.log('⚠️  No CSRF token found in HTML.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "GET the login page first — the test script auto-extracts the CSRF token and saves it as {{csrfToken}} for use in subsequent POSTs.",
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Submit login (form POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "username", "value": "{{adminUser}}" },
+                { "key": "password", "value": "{{adminPass}}" },
+                { "key": "_csrf",    "value": "{{csrfToken}}", "description": "Run \"Login form (HTML)\" first to populate this" }
+              ]
+            },
+            "description": "Starts a session (JSESSIONID cookie). Successful login redirects to /dashboard. In Postman the cookie is auto-stored and reused on subsequent requests.",
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "_csrf", "value": "{{csrfToken}}" }
+              ]
+            },
+            "description": "Clears session cookie, invalidates server-side session.",
+            "url": { "raw": "{{baseUrl}}/logout", "host": ["{{baseUrl}}"], "path": ["logout"] }
+          }
+        }
+      ]
+    },
+    {
       "name": "Home",
       "auth": { "type": "noauth" },
       "item": [

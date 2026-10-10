@@ -1,41 +1,79 @@
 <!DOCTYPE html>
+<!--
+    /auth/2fa — second-factor code entry.
+
+    Shown after password login succeeds for users who've enrolled TOTP.
+    Standalone layout (no sidebar) — the user hasn't completed auth yet.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verify it's you — Meridian</title>
-    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Two-factor code — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <style>
+        body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif;
+               font-size:14px; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+        .mfa-card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+                    padding:36px 36px; width:100%; max-width:420px;
+                    box-shadow:0 10px 40px -12px rgba(0,0,0,.1); }
+        .mfa-brand { font-weight:700; letter-spacing:-.02em; font-size:16px; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+        .mfa-brand .dot { width:8px; height:8px; border-radius:50%; background:var(--primary); }
+        .mfa-sub { color:var(--muted); font-size:13px; margin:0 0 24px; }
+        h1 { margin:12px 0 6px; font-size:20px; font-weight:700; letter-spacing:-.02em; }
+        .mfa-you { color:var(--muted); font-size:13px; margin:0 0 20px; }
+        .mfa-you code { font-family:'IBM Plex Mono',monospace; background:var(--hair); color:var(--ink);
+                        padding:1px 7px; border-radius:4px; font-size:12.5px; }
+        .mfa-err { padding:10px 14px; margin-bottom:14px; border-radius:8px;
+                   background:var(--bad-2); color:var(--bad); border-left:3px solid var(--bad);
+                   font-size:13px; font-weight:500; }
+        .mfa-code-input {
+            width:100%; padding:14px 18px; font:600 24px 'IBM Plex Mono',monospace;
+            text-align:center; letter-spacing:.5em; text-indent:.5em;
+            background:var(--surface); color:var(--ink);
+            border:1.5px solid var(--border); border-radius:10px;
+            box-sizing:border-box;
+        }
+        .mfa-code-input:focus { outline:none; border-color:var(--primary); }
+        .mfa-btn { width:100%; margin-top:14px; padding:12px 16px;
+                   font:600 14px 'Inter',sans-serif;
+                   background:var(--primary); color:#fff;
+                   border:1px solid var(--primary); border-radius:9px;
+                   cursor:pointer; }
+        .mfa-btn:hover { background:color-mix(in srgb, var(--primary) 85%, black); }
+        .mfa-footer { text-align:center; margin-top:18px; font-size:12.5px; color:var(--faint); }
+        .mfa-footer a { color:var(--primary); text-decoration:none; margin:0 4px; }
+        .mfa-footer a:hover { text-decoration:underline; }
+    </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="card">
-        <h1>Verify it's you</h1>
-        <p class="subtitle">Enter the 6-digit code we sent to your authenticator app.</p>
 
-        <div class="error" th:if="${error}" th:text="${error}">Incorrect code. Try again.</div>
+<div class="mfa-card">
+    <div class="mfa-brand"><span class="dot"></span>AngleApp</div>
 
-        <form th:action="@{/miniapp/2fa}" method="post" id="otpForm">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <input type="hidden" name="code" id="otpValue">
+    <h1>Two-factor code</h1>
+    <p class="mfa-you">
+        Signed in as <code th:text="${username}">admin</code>.
+        Open your authenticator app and enter the 6-digit code.
+    </p>
 
-            <div class="otp-row">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-                <input class="otp-box" type="text" inputmode="numeric" maxlength="1">
-            </div>
+    <div class="mfa-err" th:if="${error}" th:text="${error}">Error placeholder</div>
 
-            <div class="otp-meta">
-                Didn't get a code? <a href="#">Resend</a>
-            </div>
+    <form th:action="@{/auth/2fa}" method="post" autocomplete="off">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="text" name="code" class="mfa-code-input"
+               inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+               autocomplete="one-time-code" autofocus
+               placeholder="------">
+        <button type="submit" class="mfa-btn">Verify</button>
+    </form>
 
-            <button type="submit" class="submit">Verify</button>
-        </form>
+    <div class="mfa-footer">
+        Lost your device? <a href="/logout">Sign out</a> and ask an admin to reset 2FA.
     </div>
 </div>
 
-<script th:src="@{/miniapp/app.js}"></script>
 </body>
 </html>

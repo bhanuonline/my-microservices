@@ -153,6 +153,44 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+
+        <!--
+            spring-dotenv — auto-loads a .env file at the project root into
+            Spring's Environment on boot. Secrets never need to live in
+            application.properties or be exported manually.
+
+            Only active for local dev — in prod you set real env vars.
+            Repo: https://github.com/paulschwarz/spring-dotenv
+        -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
+        <!--
+            Bucket4j — token-bucket rate limiter.
+            Used by RateLimitFilter to throttle /api/** per-caller.
+            Pure-Java, thread-safe, no external dependencies.
+            Repo: https://github.com/bucket4j/bucket4j
+        -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+
+        <!--
+            samstevens TOTP — RFC 6238 time-based OTP + QR code generation.
+            Powers /account 2FA enrolment and the /auth/2fa verify filter.
+            Transitive deps: commons-codec, zxing-core, zxing-javase.
+            Repo: https://github.com/samdjstevens/java-totp
+        -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
     </dependencies>
 
 <!--    <build>-->

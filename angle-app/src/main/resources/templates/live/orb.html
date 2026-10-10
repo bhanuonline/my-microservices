@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<!--
+    /live/orb — Opening Range Breakout signals dashboard.
+
+    One row per instrument. Each row has one card per configured timeframe.
+    Card shows: timeframe · signal (BUY/SHORT/WAIT/FORMING/NO_TRADE) · OR_HIGH/LOW · breakout price.
+    Polls /api/live/orb every 2 seconds; silently retries on error.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ORB Signals — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/live-orb.css}">
+    <!-- HTMX for the ORB config card (toggle buttons swap the card in place). -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"
+            integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2"
+            crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='orb')}"></div>
+<main class="app-main">
+<div class="wrap" style="max-width:none;padding:0">
+
+    <div class="head">
+        <div>
+            <h1>ORB Signals</h1>
+            <p>Opening Range Breakout verdicts, live. One row per instrument × one card per timeframe.
+               Each card tracks its own opening-range window from session open.</p>
+        </div>
+        <div class="head-right">
+            <div class="status-pill" id="status"><span class="dot"></span><span id="statusText">Loading…</span></div>
+            <div class="clock" id="clock">—</div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <span class="chip buy">BUY — price broke above OR high</span>
+        <span class="chip short">SHORT — price broke below OR low</span>
+        <span class="chip waiting">WAIT — OR formed, no breakout yet</span>
+        <span class="chip forming">FORMING — building OR</span>
+        <span class="chip notrade">NO TRADE — session ended inside OR</span>
+    </div>
+
+    <!-- Runtime ORB settings — toggle cadence, threshold, combination mode. -->
+    <div th:replace="~{fragments/orb-config :: orbConfig}"></div>
+
+    <div id="rows"></div>
+
+    <div class="footer-note">
+        Backed by <code>GET /api/live/orb</code>. State is tick-driven from Angel's WebSocket feed
+        and persists in-memory for the current trading day. Resets at 00:30 IST overnight.
+    </div>
+</div>
+</main>
+</div>
+
+<script th:inline="javascript">
+    const TIMEFRAMES = /*[[${timeframes}]]*/ [5, 15, 30, 60, 75, 125];
+
+    const rowsEl    = document.getElementById('rows');
+    const statusEl  = document.getElementById('status');
+    const statusText= document.getElementById('statusText');
+    const clockEl   = document.getElementById('clock');
+
+    function setStatus(cls, text) {
+        statusEl.className = 'status-pill ' + cls;
+        statusText.textContent = text;
+    }
+
+    function fmt(n) {
+        if (n == null) return '—';
+        return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(+n);
+    }
+
+    function fmtTime(ms) {
+        if (!ms) return '—';
+        return new Date(ms).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // "OR locks in 3m" / "OR locks in 2h 15m" / "OR locks in <1m"
+    // Returns "soon" if the lock time has already passed (edge case: data not yet in).
+    function fmtCountdown(ms) {
+        if (!ms) return '';
+        const diffSec = Math.round((ms - Date.now()) / 1000);
+        if (diffSec <= 0) return 'any moment';
+        if (diffSec < 60)   return '<1m';
+        const totalMin = Math.round(diffSec / 60);
+        if (totalMin < 60)  return totalMin + 'm';
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return m === 0 ? h + 'h' : (h + 'h ' + m + 'm');
+    }
+
+    // Format timeframe label — 60 → "1h", 125 → "125m", etc.
+    function tfLabel(m) {
+        if (m === 60)  return '1h';
+        if (m === 120) return '2h';
+        return m + 'm';
+    }
+
+    // Build / replace a single instrument row
+    function renderRow(row) {
+        const cards = row.cells.map(cell => cardHtml(cell)).join('');
+        return `
+          <section class="instr">
+            <header class="instr-head">
+                <div class="instr-name">${row.name}</div>
+                <div class="instr-sub">${row.exchange} · session ${row.sessionOpen}–${row.sessionClose} · token ${row.symbolToken}</div>
+            </header>
+            <div class="cards">${cards}</div>
+          </section>`;
+    }
+
+    function cardHtml(cell) {
+        // Headline uses combinedSignal (ORB ∧ ADX). Fallback to raw ORB signal if
+        // combinedSignal missing (backward-compat during API transition).
+        const sig = cell.combinedSignal || cell.signal;
+        const rawOrb = cell.signal;
+        const cls = sig.toLowerCase().replace('_', '');
+        const label = sig === 'NO_TRADE' ? 'NO TRADE' :
+                      sig === 'WAITING'  ? 'WAIT'     :
+                      sig === 'FORMING'  ? 'FORMING'  :
+                      sig;   // BUY / SHORT
+        const arrow = sig === 'BUY' ? '▲' : (sig === 'SHORT' ? '▼' : '');
+        // ALWAYS show H/L — during FORMING these are the running values that update
+        // every minute as new 1m candles close. After OR locks, they become the frozen OR.
+        const hasHL = cell.orHigh != null && cell.orLow != null;
+        const or = hasHL
+            ? `<div class="or"><span>H ${fmt(cell.orHigh)}</span><span>L ${fmt(cell.orLow)}</span></div>`
+            : `<div class="or forming">H — &nbsp; L — &nbsp;(no candles yet)</div>`;
+        const lockLine = (sig === 'FORMING')
+            ? `<div class="lock-hint">OR locks in ${fmtCountdown(cell.orClosesAtEpochMs)} (${fmtTime(cell.orClosesAtEpochMs)})</div>`
+            : '';
+
+        // LIVE LTP line — shown whenever a tick has arrived. Arrow compares LTP to OR_HIGH / OR_LOW.
+        let ltpLine = '';
+        if (cell.ltp != null) {
+            let ltpArrow = ''; let ltpCls = '';
+            if (hasHL) {
+                if (+cell.ltp > +cell.orHigh)      { ltpArrow = '▲'; ltpCls = 'up'; }
+                else if (+cell.ltp < +cell.orLow)  { ltpArrow = '▼'; ltpCls = 'down'; }
+                else                                { ltpArrow = '·'; ltpCls = 'flat'; }
+            }
+            ltpLine = `<div class="ltp-row ${ltpCls}">LTP ${ltpArrow} ${fmt(cell.ltp)}</div>`;
+        }
+
+        // Breakout history — small line showing the latest triggering candle (not live).
+        const breakout = (sig === 'BUY' || sig === 'SHORT')
+            ? `<div class="breakout ${cls}">triggered ${arrow} ${fmt(cell.breakoutPrice)} @ ${fmtTime(cell.breakoutAt)}</div>`
+            : (sig === 'WAITING' ? `<div class="breakout waiting">inside range</div>` : '');
+
+        // ADX/DI line — shows trend strength and direction. Colored by whichever DI dominates.
+        //   bullish-DI = green, bearish-DI = red, neither (ADX low / data missing) = muted.
+        let adxLine = '';
+        if (cell.adx != null && cell.plusDi != null && cell.minusDi != null) {
+            const bullish = +cell.plusDi > +cell.minusDi;
+            const trending = +cell.adx > 25;
+            const adxCls = !trending ? 'adx-flat' : (bullish ? 'adx-up' : 'adx-down');
+            // If ORB signal is BUY/SHORT but ADX blocked it (combinedSignal != raw signal),
+            // show a tiny "⚠ ADX blocked" hint so you know why the card isn't firing.
+            const blocked = (rawOrb === 'BUY' || rawOrb === 'SHORT') && sig === 'WAITING'
+                ? ' <span class="blocked">⚠ ADX blocked ' + rawOrb + '</span>' : '';
+            adxLine = `<div class="adx-line ${adxCls}">
+                ADX ${(+cell.adx).toFixed(1)} · +DI ${(+cell.plusDi).toFixed(1)} · −DI ${(+cell.minusDi).toFixed(1)}${blocked}
+            </div>`;
+        }
+
+        return `
+          <div class="card ${cls}">
+            <div class="tf">${tfLabel(cell.minutes)}</div>
+            <div class="sig ${cls}">${arrow ? arrow + ' ' : ''}${label}</div>
+            ${or}
+            ${ltpLine}
+            ${adxLine}
+            ${lockLine}
+            ${breakout}
+          </div>`;
+    }
+
+    async function tick() {
+        clockEl.textContent = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        try {
+            const r = await fetch('/api/live/orb', { cache: 'no-store' });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const rows = await r.json();
+            setStatus('on', 'Live');
+            if (!rows.length) {
+                rowsEl.innerHTML = '<div class="empty">No enabled instruments. Add some under /admin/instruments.</div>';
+                return;
+            }
+            rowsEl.innerHTML = rows.map(renderRow).join('');
+        } catch (err) {
+            setStatus('off', 'Reconnecting…');
+            console.warn('ORB poll failed:', err);
+        }
+    }
+
+    tick();
+    setInterval(tick, 2000);
+</script>
+
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

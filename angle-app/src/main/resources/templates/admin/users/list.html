@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<!--
+    /admin/users — User admin list.
+    Uses shared app-shell so navigation is consistent.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Users — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/users.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='users')}"></div>
+<main class="app-main">
+
+    <div class="u-head">
+        <div>
+            <h1>Users</h1>
+            <p class="sub">Manage who can log in. Passwords are bcrypt-hashed in the <code>app_user</code> table.</p>
+        </div>
+        <a href="/admin/users/new" class="u-btn primary">➕ Add user</a>
+    </div>
+
+    <div th:if="${flash}" class="u-flash ok" th:text="${flash}">User created</div>
+    <div th:if="${error}" class="u-flash err" th:text="${error}">Something went wrong</div>
+
+    <table class="u-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>2FA</th>
+                <th>Last login</th>
+                <th>Password changed</th>
+                <th style="text-align:right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.id}">1</td>
+                <td class="u-username" th:text="${u.username}">admin</td>
+                <td th:text="${u.email} ?: '—'">—</td>
+                <td>
+                    <span th:class="'u-role-chip ' + ${u.role == 'ROLE_ADMIN' ? 'admin' : 'user'}"
+                          th:text="${u.role.replace('ROLE_', '')}">USER</span>
+                </td>
+                <td>
+                    <span th:class="'u-status-dot ' + (${u.enabled} ? 'on' : 'off')"></span>
+                    <span th:text="${u.enabled} ? 'enabled' : 'disabled'">enabled</span>
+                    <!-- Lock chip: only shown while lockedUntil is in the future -->
+                    <span th:if="${u.lockedUntil != null and u.lockedUntil.isAfter(T(java.time.Instant).now())}"
+                          class="u-lock-chip"
+                          th:title="'Locked until ' + ${#temporals.format(u.lockedUntil, 'HH:mm')}">
+                        🔒 locked
+                    </span>
+                    <span th:if="${u.failedLoginAttempts > 0 and (u.lockedUntil == null or u.lockedUntil.isBefore(T(java.time.Instant).now()))}"
+                          class="u-fail-count"
+                          th:title="'Consecutive failed logins'"
+                          th:text="'⚠ ' + ${u.failedLoginAttempts} + ' fails'">⚠ 3 fails</span>
+                </td>
+                <td>
+                    <span th:if="${u.totpEnabled}" class="u-role-chip admin" style="background:var(--good-2); color:var(--good)">● on</span>
+                    <span th:unless="${u.totpEnabled}" style="color:var(--faint); font-size:12px">— off</span>
+                </td>
+                <td class="u-mono" th:text="${u.lastLoginAt != null ? #temporals.format(u.lastLoginAt, 'dd MMM HH:mm') : 'never'}">10 Oct 07:14</td>
+                <td class="u-mono" th:text="${u.passwordChangedAt != null ? #temporals.format(u.passwordChangedAt, 'dd MMM yy') : '—'}">10 Oct 26</td>
+                <td class="u-actions">
+                    <!-- Unlock: only renders while the user is currently locked -->
+                    <form th:if="${u.lockedUntil != null and u.lockedUntil.isAfter(T(java.time.Instant).now())}"
+                          th:action="@{/admin/users/{id}/unlock(id=${u.id})}" method="post" style="display:inline">
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="u-icon-btn" title="Unlock account">🔓</button>
+                    </form>
+
+                    <!-- Reset 2FA: only if 2FA is on. Lost-phone recovery. -->
+                    <form th:if="${u.totpEnabled}"
+                          th:action="@{/admin/users/{id}/2fa/reset(id=${u.id})}" method="post" style="display:inline"
+                          onsubmit="return confirm('Clear 2FA for this user? They will have to re-enrol next login.');">
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="u-icon-btn" title="Reset 2FA (lost-phone recovery)">🔄</button>
+                    </form>
+
+                    <a th:href="@{/admin/users/{id}(id=${u.id})}" title="Edit">✏️</a>
+
+                    <form th:action="@{/admin/users/{id}/password(id=${u.id})}" method="post" style="display:inline">
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="password" name="newPassword" placeholder="new pwd" required minlength="6"
+                               style="width:90px;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px">
+                        <button type="submit" title="Reset password" class="u-icon-btn">🔑</button>
+                    </form>
+
+                    <form th:action="@{/admin/users/{id}/enable(id=${u.id})}" method="post" style="display:inline">
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <input type="hidden" name="on" th:value="${!u.enabled}"/>
+                        <button type="submit" class="u-icon-btn"
+                                th:title="${u.enabled} ? 'Disable' : 'Enable'"
+                                th:text="${u.enabled} ? '🚫' : '✅'">🚫</button>
+                    </form>
+
+                    <form th:action="@{/admin/users/{id}/delete(id=${u.id})}" method="post" style="display:inline"
+                          onsubmit="return confirm('Delete user permanently? This cannot be undone.')">
+                        <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="u-icon-btn danger" title="Delete">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(users)}">
+                <td colspan="9" class="u-empty">No users yet. Click <b>Add user</b> above.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="u-note">
+        <b>Tip:</b> You can't disable or delete your own account (safety guard).
+        To change your own password, use <a href="/account">/account</a>.
+    </div>
+
+</main>
+</div>
+</body>
+</html>

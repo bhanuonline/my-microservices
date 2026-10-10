@@ -70,6 +70,17 @@
         return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
     }
 
+    function fmtSigned(n) {
+        const sign = n > 0 ? '+' : (n < 0 ? '' : '');   // minus already in number
+        return sign + fmt(n);
+    }
+
+    function renderChange(msg) {
+        if (msg.change === undefined || msg.changePct === undefined) return '';
+        const cls = msg.change > 0 ? 'up' : (msg.change < 0 ? 'down' : '');
+        return `<span class="chg ${cls}">${fmtSigned(msg.change)} (${fmtSigned(msg.changePct)}%)</span>`;
+    }
+
     function timeAgo(ts) {
         const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
         return s + 's ago';
@@ -81,16 +92,21 @@
         if (!card) {
             const el = document.createElement('div');
             el.className = 'card';
+            const displayName = msg.name && msg.name !== msg.token ? msg.name : 'Unknown';
             el.innerHTML = `
-                <div class="sym">token</div>
-                <div class="name">${msg.token}</div>
+                <div class="sym" data-name>${displayName}</div>
+                <div class="name">token ${msg.token}</div>
                 <div class="ltp" data-ltp>${fmt(msg.ltp)}</div>
+                <div class="chg-row" data-chg>${renderChange(msg)}</div>
                 <div class="meta">
                     <span data-updated>updated just now</span>
                     <span class="n" data-ts>${new Date(msg.ts).toLocaleTimeString()}</span>
                 </div>`;
             grid.appendChild(el);
-            card = { el, ltpEl: el.querySelector('[data-ltp]'), updatedEl: el.querySelector('[data-updated]'),
+            card = { el, ltpEl: el.querySelector('[data-ltp]'),
+                     nameEl: el.querySelector('[data-name]'),
+                     chgEl: el.querySelector('[data-chg]'),
+                     updatedEl: el.querySelector('[data-updated]'),
                      tsEl: el.querySelector('[data-ts]'), lastLtp: msg.ltp, flashTimer: null };
             cards.set(msg.token, card);
             return;
@@ -101,6 +117,12 @@
         card.ltpEl.textContent = fmt(now);
         card.tsEl.textContent = new Date(msg.ts).toLocaleTimeString();
         card.updatedEl.textContent = 'updated just now';
+        // Backfill name if it resolved later (e.g. instrument master loaded after first tick)
+        if (card.nameEl && msg.name && msg.name !== msg.token && card.nameEl.textContent === 'Unknown') {
+            card.nameEl.textContent = msg.name;
+        }
+        // Update change line every tick (prev-close may have loaded after first tick too)
+        if (card.chgEl) card.chgEl.innerHTML = renderChange(msg);
 
         if (now > prev) {
             card.ltpEl.classList.add('up'); card.ltpEl.classList.remove('down');

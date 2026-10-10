@@ -23,8 +23,21 @@
     position: sticky;
     top: 0;
     height: 100vh;
-    overflow-y: auto;
+    overflow: hidden;              /* parent never scrolls — the inner nav does */
 }
+
+/* The nav is the scrollable middle region. Brand and theme toggle stay pinned. */
+.app-nav {
+    overflow-y: auto;
+    flex: 1 1 auto;                /* take all remaining height */
+    min-height: 0;                 /* required so flex child can actually shrink + scroll */
+    scrollbar-width: thin;         /* Firefox */
+    scrollbar-gutter: stable;      /* reserve space so hover doesn't cause layout shift */
+}
+/* Visible slim scrollbar on WebKit (Chrome/Safari) — macOS otherwise auto-hides it */
+.app-nav::-webkit-scrollbar       { width: 6px; }
+.app-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.app-nav::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
 .app-brand {
     display: flex; align-items: center; gap: 10px;

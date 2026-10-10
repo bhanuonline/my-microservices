@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!--
+    /account — self-service page for the logged-in user.
+    Shows profile (read-only) + password change + email change forms.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My Account — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/account.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='account')}"></div>
+<main class="app-main">
+
+    <div class="ac-head">
+        <h1>My account</h1>
+        <p class="sub">Manage your login, password, and email. Changes apply to <b th:text="${me.username}">admin</b> only.</p>
+    </div>
+
+    <div th:if="${flash}" class="ac-flash ok" th:text="${flash}">Saved</div>
+    <div th:if="${error}" class="ac-flash err" th:text="${error}">Error</div>
+
+    <!-- ─────────── Profile card (read-only) ─────────── -->
+    <div class="ac-card">
+        <h2>Profile</h2>
+        <dl class="ac-kv">
+            <dt>Username</dt>
+            <dd th:text="${me.username}">admin</dd>
+
+            <dt>Role</dt>
+            <dd>
+                <span th:class="'ac-chip ' + ${me.role == 'ROLE_ADMIN' ? 'admin' : 'user'}"
+                      th:text="${me.role.replace('ROLE_', '')}">ADMIN</span>
+            </dd>
+
+            <dt>Status</dt>
+            <dd>
+                <span th:class="'ac-dot ' + (${me.enabled} ? 'on' : 'off')"></span>
+                <span th:text="${me.enabled} ? 'Active' : 'Disabled'">Active</span>
+            </dd>
+
+            <dt>Email</dt>
+            <dd th:text="${me.email} ?: '— (not set)'">— (not set)</dd>
+
+            <dt>Account created</dt>
+            <dd class="ac-mono"
+                th:text="${me.createdAt != null ? #temporals.format(me.createdAt, 'dd MMM yyyy HH:mm') : '—'}">10 Oct 2026 07:14</dd>
+
+            <dt>Last login</dt>
+            <dd class="ac-mono"
+                th:text="${me.lastLoginAt != null ? #temporals.format(me.lastLoginAt, 'dd MMM yyyy HH:mm') : 'never'}">10 Oct 2026 07:20</dd>
+
+            <dt>Password changed</dt>
+            <dd class="ac-mono"
+                th:text="${me.passwordChangedAt != null ? #temporals.format(me.passwordChangedAt, 'dd MMM yyyy') : '—'}">10 Oct 2026</dd>
+        </dl>
+    </div>
+
+    <!-- ─────────── Change password ─────────── -->
+    <div class="ac-card">
+        <h2>Change password</h2>
+        <p class="ac-sub">You'll stay logged in. Use the new password on next login.</p>
+        <form method="post" action="/account/password" class="ac-form">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+            <label>Current password
+                <input type="password" name="currentPassword" required autocomplete="current-password">
+            </label>
+
+            <label>New password
+                <input type="password" name="newPassword" required minlength="6" autocomplete="new-password">
+                <small class="ac-hint">At least 6 characters.</small>
+            </label>
+
+            <label>Confirm new password
+                <input type="password" name="confirmPassword" required minlength="6" autocomplete="new-password">
+            </label>
+
+            <div class="ac-actions">
+                <button type="submit" class="ac-btn primary">🔑 Change password</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ─────────── Change email ─────────── -->
+    <div class="ac-card">
+        <h2>Email</h2>
+        <p class="ac-sub">Optional today. Used for password reset once SMTP is configured (Phase E).</p>
+        <form method="post" action="/account/email" class="ac-form">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+            <label>Email
+                <input type="email" name="email" maxlength="120" th:value="${me.email}"
+                       placeholder="you@example.com">
+                <small class="ac-hint">Clear the field and save to remove your email.</small>
+            </label>
+
+            <div class="ac-actions">
+                <button type="submit" class="ac-btn primary">💾 Save email</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ─────────── Two-factor authentication ─────────── -->
+    <div class="ac-card">
+        <h2>Two-factor authentication</h2>
+
+        <p class="ac-sub" th:if="${!me.totpEnabled}">
+            Add a 6-digit code from your phone on top of your password.
+            Works with Google Authenticator, Authy, 1Password, Bitwarden, etc.
+        </p>
+        <p class="ac-sub" th:if="${me.totpEnabled}">
+            Status: <span style="color:var(--good); font-weight:600">● Enabled</span>
+            — every login requires a code from your authenticator app.
+            Enabled on
+            <span class="ac-mono"
+                  th:text="${me.totpEnabledAt != null ? #temporals.format(me.totpEnabledAt, 'dd MMM yyyy HH:mm') : '—'}">10 Oct 2026 11:14</span>.
+        </p>
+
+        <div class="ac-actions" th:if="${!me.totpEnabled}" style="margin-top:4px">
+            <a href="/account/2fa/setup" class="ac-btn primary">🔐 Enable two-factor</a>
+        </div>
+
+        <form th:if="${me.totpEnabled}" method="post" action="/account/2fa/disable" class="ac-form" style="margin-top:8px">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <label>Enter current password or a 6-digit code to disable
+                <input type="text" name="confirm" required autocomplete="off"
+                       placeholder="password or 6-digit code">
+            </label>
+            <div class="ac-actions">
+                <button type="submit" class="ac-btn danger"
+                        onclick="return confirm('Disable 2FA? Your account will be protected only by password.')">
+                    ⚠ Disable 2FA
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ─────────── Logout footer ─────────── -->
+    <div class="ac-card danger-zone">
+        <h2>Session</h2>
+        <p class="ac-sub">End your current session.</p>
+        <form method="post" action="/logout" style="margin-top:10px">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="ac-btn danger">🚪 Log out</button>
+        </form>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

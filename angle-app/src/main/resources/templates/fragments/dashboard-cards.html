@@ -344,5 +344,107 @@
     </form>
 </div>
 
+<!-- ═════════════════════════════════════════════════════════════════════════
+     Logging card — runtime log-level toggles.
+     One row per managed package; one button per level. Click to flip; the
+     whole card HTMX-swaps in place with the new effective levels.
+
+     Expected model attribute (set by DashboardController.buildLoggingStatus
+     and refreshed by LogLevelController after each toggle):
+       logs.levels   : LinkedHashMap<String,String>  pkg → effective level
+       logs.packages : List<String>                  packages shown
+       logs.choices  : List<String>                  level buttons (TRACE..OFF)
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div th:fragment="loggingCard" id="logging-card" class="lm-svc c-orange" th:with="lg=${logs}">
+    <div class="lm-svc-top">
+        <div class="lm-svc-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 4h16v4H4z"/><path d="M4 10h16v4H4z"/><path d="M4 16h16v4H4z"/>
+                <circle cx="7" cy="6" r=".5" fill="currentColor"/>
+                <circle cx="7" cy="12" r=".5" fill="currentColor"/>
+                <circle cx="7" cy="18" r=".5" fill="currentColor"/>
+            </svg>
+        </div>
+        <div class="lm-svc-name">Log Levels</div>
+        <span class="lm-svc-badge ok"><span class="dot"></span><span>Runtime</span></span>
+    </div>
+
+    <!-- ROW LAYOUT:
+         ┌─────────────────────────────────────────────────┐
+         │ ORB Signals                   [DEBUG badge]     │   ← label + current level
+         │ com.angle.trading.orb                           │   ← raw package (muted)
+         │ [TRACE] [DEBUG] [INFO] [WARN] [ERROR] [OFF]     │   ← click to change
+         └─────────────────────────────────────────────────┘
+    -->
+    <div class="lm-svc-metrics"
+         style="flex-direction:column;align-items:stretch;gap:8px;max-height:340px;overflow-y:auto;padding-right:4px">
+        <div th:each="pkg : ${lg.packages}" class="log-row"
+             style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;
+                    background:var(--surface-2);display:flex;flex-direction:column;gap:4px">
+
+            <!-- Row 1: friendly name + current level badge (right-aligned) -->
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <span style="font-weight:700;font-size:12px;color:var(--ink)"
+                      th:text="${lg.labels.get(pkg) ?: pkg}">ORB Signals</span>
+                <span class="log-level-badge"
+                      th:classappend="' lvl-' + ${#strings.toLowerCase(lg.levels.get(pkg))}"
+                      style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:700;
+                             padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.03em"
+                      th:text="${lg.levels.get(pkg)}">DEBUG</span>
+            </div>
+
+            <!-- Row 2: raw package path (muted, mono) -->
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+                 th:text="${pkg}">com.angle.trading.orb</div>
+
+            <!-- Row 3: all 6 level buttons, evenly spread -->
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:2px">
+                <button th:each="lv : ${lg.choices}"
+                        type="button"
+                        th:text="${lv}"
+                        th:classappend="' lvl-' + ${#strings.toLowerCase(lv)} + (${lg.levels.get(pkg) == lv} ? ' active' : '')"
+                        th:hx-post="'/api/log-level/set?pkg=' + ${pkg} + '&level=' + ${lv}"
+                        hx-target="#logging-card" hx-swap="outerHTML" hx-indicator="#logging-card"
+                        class="log-btn"
+                        style="font:700 9.5px 'Inter',sans-serif;padding:5px 2px;border-radius:4px;
+                               background:var(--surface);color:var(--muted);
+                               border:1px solid var(--border);cursor:pointer;text-align:center">LVL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-actions" style="margin-top:10px">
+        <button class="card-btn neutral"
+                hx-post="/api/log-level/set?pkg=com.angle.trading.orb&level=DEBUG"
+                hx-target="#logging-card" hx-swap="outerHTML" hx-indicator="#logging-card"
+                style="flex:1">ORB on (DEBUG)</button>
+        <button class="card-btn danger"
+                hx-post="/api/log-level/set?pkg=com.angle.trading.orb&level=WARN"
+                hx-target="#logging-card" hx-swap="outerHTML" hx-indicator="#logging-card"
+                style="flex:1">ORB quiet (WARN)</button>
+    </div>
+
+    <style>
+        /* ───── level badge colors (shown next to each service name) ───── */
+        .log-level-badge.lvl-trace { background:#D3D5F0; color:#4F42BF; }
+        .log-level-badge.lvl-debug { background:#CCE4FF; color:#1B5FB2; }
+        .log-level-badge.lvl-info  { background:#D4F0E0; color:#2A7D55; }
+        .log-level-badge.lvl-warn  { background:#FBE8C8; color:#8A5A1A; }
+        .log-level-badge.lvl-error { background:#FBD2D4; color:#9C2A2E; }
+        .log-level-badge.lvl-off   { background:#E0E2EC; color:#6E7190; }
+
+        /* ───── level buttons: active state uses matching color ───── */
+        .log-btn:hover { background:var(--hair); color:var(--ink); }
+        .log-btn.active.lvl-trace { background:#4F42BF; color:#fff; border-color:#4F42BF; }
+        .log-btn.active.lvl-debug { background:#1B5FB2; color:#fff; border-color:#1B5FB2; }
+        .log-btn.active.lvl-info  { background:#2A7D55; color:#fff; border-color:#2A7D55; }
+        .log-btn.active.lvl-warn  { background:#8A5A1A; color:#fff; border-color:#8A5A1A; }
+        .log-btn.active.lvl-error { background:#9C2A2E; color:#fff; border-color:#9C2A2E; }
+        .log-btn.active.lvl-off   { background:#6E7190; color:#fff; border-color:#6E7190; }
+    </style>
+</div>
+
 </body>
 </html>

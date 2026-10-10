@@ -1,28 +1,67 @@
 <!DOCTYPE html>
+<!--
+    /auth/access-denied — shown by Spring Security when a logged-in user
+    tries to open a page their role doesn't allow (e.g. ROLE_USER opening
+    /admin/users).
+
+    Standalone layout (no sidebar) — the user hasn't got the right role so
+    we keep it simple + offer a way out.
+-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Access denied — Meridian</title>
-    <link rel="stylesheet" th:href="@{/miniapp/style.css}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Access denied — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <style>
+        body { margin:0; background:var(--bg); color:var(--ink);
+               font-family:'Inter',sans-serif; font-size:14px;
+               min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px; }
+        .ad-card { background:var(--surface); border:1px solid var(--border); border-radius:14px;
+                   padding:40px 44px; width:100%; max-width:460px; text-align:center;
+                   box-shadow:0 10px 40px -12px rgba(0,0,0,.1); }
+        .ad-icon { width:56px; height:56px; border-radius:50%;
+                   background:var(--bad-2); color:var(--bad);
+                   display:flex; align-items:center; justify-content:center;
+                   margin:0 auto 20px; }
+        .ad-icon svg { width:28px; height:28px; }
+        h1 { margin:0 0 8px; font-size:22px; font-weight:700; letter-spacing:-.02em; }
+        .ad-sub { color:var(--muted); font-size:14px; margin:0 0 24px; line-height:1.5; }
+        .ad-sub code { font-family:'IBM Plex Mono', monospace;
+                       background:var(--hair); color:var(--ink);
+                       padding:1px 7px; border-radius:4px; font-size:12.5px; }
+        .ad-actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+        .ad-btn {
+            padding:10px 18px; font:600 13px 'Inter'; border-radius:8px;
+            text-decoration:none; border:1px solid var(--border);
+            background:var(--surface); color:var(--ink);
+        }
+        .ad-btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .ad-btn.primary:hover { background:color-mix(in srgb, var(--primary) 85%, black); }
+        .ad-btn:hover { border-color:var(--primary); color:var(--primary); }
+    </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="card">
-        <div class="status-icon danger">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="9"/>
-                <path d="M9 9 L15 15 M15 9 L9 15" stroke-linecap="round"/>
-            </svg>
-        </div>
-        <h1>403 — Access denied</h1>
-        <p class="subtitle">
-            Signed in as <b th:text="${user}">alex</b>, but this account doesn't have the
-            <code class="mono">ADMIN</code> role this page requires.
-        </p>
 
-        <a th:href="@{/miniapp/welcome}" class="submit">Back to dashboard</a>
+<div class="ad-card">
+    <div class="ad-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M9 9 L15 15 M15 9 L9 15"/>
+        </svg>
+    </div>
+    <h1>403 — Access denied</h1>
+    <p class="ad-sub">
+        You're signed in, but this page requires the <code>ADMIN</code> role.
+        If you believe this is a mistake, ask an administrator to grant you access.
+    </p>
+    <div class="ad-actions">
+        <a href="/dashboard" class="ad-btn primary">← Back to dashboard</a>
+        <a href="/account" class="ad-btn">My account</a>
     </div>
 </div>
+
 </body>
 </html>

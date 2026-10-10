@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!--
+    ORB Config fragment — runtime toggles for the ORB engine.
+
+    Included on /live/orb. HTMX-swap-safe (root id="orb-config-card").
+    Each setting posts to /api/orb/config/set?key=X&value=Y and the controller
+    returns this fragment refreshed with the new state.
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="orbConfig" id="orb-config-card" class="orb-config" th:with="cfg=${orbCfg}">
+    <div class="cfg-head">
+        <div class="cfg-title">ORB Config</div>
+        <span class="status-pill on"><span class="dot"></span><span>Live</span></span>
+    </div>
+
+    <!-- ADX Cadence -->
+    <div class="cfg-row">
+        <div class="cfg-label">
+            <div class="k">ADX update cadence</div>
+            <div class="hint">When ADX/+DI/−DI are recomputed</div>
+        </div>
+        <div class="cfg-buttons">
+            <button th:each="opt : ${cfg.cadenceChoices}"
+                    type="button"
+                    th:text="${opt == 'TF_BOUNDARY'} ? 'Per TF close' : 'Every 1m'"
+                    th:classappend="${cfg.adxCadence == opt} ? ' active' : ''"
+                    th:hx-post="'/api/orb/config/set?key=adxCadence&value=' + ${opt}"
+                    hx-target="#orb-config-card" hx-swap="outerHTML" hx-indicator="#orb-config-card"
+                    class="cfg-btn">btn</button>
+        </div>
+    </div>
+
+    <!-- ORB Cadence -->
+    <div class="cfg-row">
+        <div class="cfg-label">
+            <div class="k">ORB signal cadence</div>
+            <div class="hint">When BUY/SHORT/WAIT verdict is checked</div>
+        </div>
+        <div class="cfg-buttons">
+            <button th:each="opt : ${cfg.cadenceChoices}"
+                    type="button"
+                    th:text="${opt == 'TF_BOUNDARY'} ? 'Per TF close' : 'Every 1m'"
+                    th:classappend="${cfg.orbCadence == opt} ? ' active' : ''"
+                    th:hx-post="'/api/orb/config/set?key=orbCadence&value=' + ${opt}"
+                    hx-target="#orb-config-card" hx-swap="outerHTML" hx-indicator="#orb-config-card"
+                    class="cfg-btn">btn</button>
+        </div>
+    </div>
+
+    <!-- ADX Threshold -->
+    <div class="cfg-row">
+        <div class="cfg-label">
+            <div class="k">ADX trend threshold</div>
+            <div class="hint">Minimum ADX for signal to confirm (25 = Wilder default)</div>
+        </div>
+        <div class="cfg-buttons">
+            <button th:each="opt : ${cfg.thresholdChoices}"
+                    type="button"
+                    th:text="${opt == '0'} ? 'none' : opt"
+                    th:classappend="${cfg.adxThreshold == opt} ? ' active' : ''"
+                    th:hx-post="'/api/orb/config/set?key=adxThreshold&value=' + ${opt}"
+                    hx-target="#orb-config-card" hx-swap="outerHTML" hx-indicator="#orb-config-card"
+                    class="cfg-btn narrow">25</button>
+        </div>
+    </div>
+
+    <!-- Combination Mode -->
+    <div class="cfg-row">
+        <div class="cfg-label">
+            <div class="k">Signal combination</div>
+            <div class="hint">How ORB + ADX agree to produce final BUY/SHORT/WAIT</div>
+        </div>
+        <div class="cfg-buttons wide">
+            <button th:each="opt : ${cfg.modeChoices}"
+                    type="button"
+                    th:text="${opt == 'REQUIRE_BOTH'} ? 'Both agree' : (${opt == 'ORB_ONLY'} ? 'ORB only' : 'ADX only')"
+                    th:classappend="${cfg.combinationMode == opt} ? ' active' : ''"
+                    th:hx-post="'/api/orb/config/set?key=combinationMode&value=' + ${opt}"
+                    hx-target="#orb-config-card" hx-swap="outerHTML" hx-indicator="#orb-config-card"
+                    class="cfg-btn">btn</button>
+        </div>
+    </div>
+
+    <div class="cfg-footer">
+        <button type="button"
+                hx-post="/api/orb/config/reset"
+                hx-target="#orb-config-card" hx-swap="outerHTML" hx-indicator="#orb-config-card"
+                class="cfg-reset">Reset to defaults</button>
+        <span class="cfg-note">Changes take effect on the next tick / candle. No restart needed.</span>
+    </div>
+</div>
+
+</body>
+</html>

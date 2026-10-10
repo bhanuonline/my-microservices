@@ -142,10 +142,23 @@
     const macdChart = makeChart('macdChart', { timeScale: { visible: false, borderColor: '#262838' } });
     const volChart  = makeChart('volChart',  { timeScale: { borderColor: '#262838', timeVisible: true, secondsVisible: false } });
 
-    // Sync all time-axis panning
+    // Sync all time-axis panning.
+    // Guards:
+    //   - r may have null .from/.to while a pane is still empty → skip
+    //   - subscribing-and-setting creates infinite feedback loops → _syncing flag breaks the chain
+    //   - setVisibleRange can throw if the destination chart has no data covering r → wrap in try
+    let _syncing = false;
     [chart, rsiChart, macdChart, volChart].forEach(src => {
         src.timeScale().subscribeVisibleTimeRangeChange(r => {
-            [chart, rsiChart, macdChart, volChart].forEach(dst => { if (dst !== src && r) dst.timeScale().setVisibleRange(r); });
+            if (_syncing) return;
+            if (!r || r.from == null || r.to == null) return;
+            _syncing = true;
+            try {
+                [chart, rsiChart, macdChart, volChart].forEach(dst => {
+                    if (dst === src) return;
+                    try { dst.timeScale().setVisibleRange(r); } catch (e) { /* dst has no data yet — ignore */ }
+                });
+            } finally { _syncing = false; }
         });
     });
 

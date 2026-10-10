@@ -1,281 +1,343 @@
 # Features
 
-Complete inventory of what's built in `angle-app`. Scannable reference —
-find any capability by section, then jump to the linked deep-dive doc.
+AngleApp is a personal algorithmic-trading platform for Indian markets
+(NSE / BSE / MCX via Angel One SmartAPI). Built with Spring Boot + Thymeleaf
++ HTMX + MySQL + Claude AI.
 
-For the "why" behind these, see [ARCHITECTURE.md](ARCHITECTURE.md).
-For hands-on flows, see [ONBOARDING.md](ONBOARDING.md) and
-[LIVE-TRADING-GUIDE.md](LIVE-TRADING-GUIDE.md).
-
----
-
-## 1. Infrastructure
-
-| # | Item | Notes |
-|---|------|-------|
-| 1 | `AngleAppApplication` | Spring Boot entry point |
-| 2 | Server port `9010` | Configured in `application.properties` |
-| 3 | `nosec` Spring profile | Disables security config for local dev |
-| 4 | IntelliJ run configs | AngleApp (secure) + AngleApp (nosec) under `.run/` |
-| 5 | `FilterConfig` | Keeps `TraditionalFilter` registered even when security is disabled |
-| 6 | Angel logout on shutdown | `@PreDestroy` in `AngelAuthService` closes broker session cleanly |
-| 7 | Global `RestClient` config | Separate clients for broker calls (15s) and master file (2 min + gzip) |
+This document is a capability inventory for teammates joining the project.
+For end-user walkthroughs see `HOW-TO-USE.md`. For architecture see
+`ARCHITECTURE.md`.
 
 ---
 
-## 2. Broker layer
+## Trading signals pipeline
 
-| # | Item | Notes |
-|---|------|-------|
-| 8 | `Exchange` enum | NSE, BSE, NFO, BFO, MCX, CDS |
-| 9 | `BrokerClient` interface | Common contract for every broker |
-| 10 | `AngelClient` | Live SmartAPI integration (TOTP login, candles, headers) |
-| 11 | `AngelAuthService` | JWT caching + auto-refresh + logout on shutdown |
-| 12 | `TotpGenerator` | RFC 6238 TOTP (matches Google Authenticator) |
-| 13 | `KiteClient`, `UpstoxClient` | Stubs, ready to implement |
-| 14 | `MarketDataService` | Routes candle requests to the right broker by name |
-| 15 | `BrokerProperties` | Config binding for every broker's credentials |
+### Signal detection
+- 8 technical strategies: moving-average-crossover, rsi-mean-reversion,
+  macd-crossover, volume-breakout, bollinger-bounce, ob-retest (SMC order
+  blocks), sweep-fvg (SMC liquidity sweep + fair value gap), ensemble.
+- Consensus voting: configurable `min-agreement` (default 3) of 7 member
+  strategies (ensemble excluded from vote).
+- Fires on candle-close events for configured intervals (default FIVE_MINUTE,
+  FIFTEEN_MINUTE).
+- Dedupe window (default 15 min) prevents same-symbol/same-action spam.
 
-**Deep dive:** [BROKER-INTEGRATION.md](BROKER-INTEGRATION.md)
+### Pre-save filters (each independently toggleable)
+1. **Regime** — Time-of-day + India VIX + ADX classifier (RANGE / MIXED /
+   TREND). Default allows MIXED + TREND inside 09:30-12:00 + 14:00-15:00 IST
+   with VIX ≤ 22.
+2. **Multi-Timeframe Confirmation** — Signal direction must be confirmed by
+   higher timeframes (default FIFTEEN_MINUTE + ONE_HOUR). Methods: EMA_STACK,
+   PRICE_VS_EMA, SUPERTREND. Modes: ALL / MAJORITY / ANY.
+3. **News Blackout** — YAML calendar of RBI / FOMC / earnings / F&O expiry.
+   Severity threshold filterable (default MEDIUM). Per-symbol targeting
+   (e.g. Reliance earnings blocks only Reliance).
+4. **Dedupe** — same (symbol, action) in last N min.
 
----
+### Lifecycle tracking
+- `bias_signal` table — one row per signal.
+- Status: OPEN → HIT_TARGET / HIT_STOP / EXPIRED / CANCELLED.
+- `LiveSignalMonitor` listens to live ticks, closes signals on target/stop
+  hit.
+- Scheduled expirer sweeps stale OPEN signals.
+- Profit calc: points, percent, rupees (if lot size set).
 
-## 3. Instrument master
+### Trailing stops
+- 4 modes: FIXED (N pts), PERCENT (N% behind peak), MILESTONE (ladder like
+  `50:0,75:33,90:66`), ATR (K × ATR14).
+- Activation delay (default 30% of entry→target range).
+- Ratchet-only — never loosens.
+- Applied per tick in `LiveSignalMonitor`.
 
-| # | Item | Notes |
-|---|------|-------|
-| 16 | `InstrumentMasterService` | Downloads Angel scrip master; 20h disk cache; async load |
-| 17 | `Instrument` record | Typed accessors: `expiryDate()`, `strikeValue()`, `optionType()`, `lotSizeInt()` |
-| 18 | `OptionType` enum | CE / PE |
-| 19 | `InstrumentController` | 8 REST endpoints for lookup, option chain, futures |
-| 20 | Case-insensitive expiry parser | Handles Angel's `15SEP2026` all-caps format |
-| 21 | `isFuture()` / `isOption()` | Prefix match — recognises FUTIDX, FUTSTK, FUTCOM, FUTCUR, OPTIDX, OPTSTK, OPTCUR |
+### AI confirmer
+- After consensus signal saves, async BiasSheet → Claude.
+- Claude returns LONG/SHORT/WAIT/AVOID + confidence + rationale.
+- Non-WAIT replies saved as separate row (`source=AI`) on `/signals`.
+- Lets you compare "did AI agree with technicals?" over time.
 
----
-
-## 4. Indicators
-
-| # | Item | Notes |
-|---|------|-------|
-| 22 | `Indicator` interface | Contract: `List<BigDecimal> compute(candles)` |
-| 23 | `SimpleMovingAverage` | Existing |
-| 24 | `ExponentialMovingAverage` | SMA-seeded, standard EMA formula |
-| 25 | `RelativeStrengthIndex` | Wilder's smoothing, matches TradingView |
-| 26 | `MACD` | With `MacdValue` record for line + signal + histogram |
-
----
-
-## 5. Strategies
-
-| # | Item | Notes |
-|---|------|-------|
-| 27 | `Strategy` interface | Returns `List<TradeIntent>` |
-| 28 | `TradeIntent` record | Action, entry, stop, target, rationale |
-| 29 | `IntentAction` enum | ENTER_LONG, ENTER_SHORT, EXIT, HOLD |
-| 30 | `ExitReason` enum | STOP, TARGET, SIGNAL_EXIT, END_OF_SERIES |
-| 31 | Shared `Trade` record | Used by Backtester + PaperOrderBook |
-| 32 | `MovingAverageCrossover` | SMA short/long crossover — signal-driven exits |
-| 33 | `RsiMeanReversion` | RSI oversold/overbought crossings |
-| 34 | `MacdCrossover` | MACD line / signal line crossings |
-| 35 | `OrderBlockRetestStrategy` | SMC — enter on OB touch in direction of bias, stop at OB edge |
-| 36 | `LiquiditySweepFvgStrategy` | SMC — enter on FVG retest after liquidity sweep |
-| 37 | `EnsembleStrategy` | Combines all 5 with tunable `minAgreement` + SMC fallback |
-| 38 | `StrategyRegistry` | Auto-collects every `Strategy` bean, look up by name |
-
-**Deep dive:** [STRATEGY-GUIDE.md](STRATEGY-GUIDE.md)
+### Pages & endpoints
+- `/signals` — card list with filters (status, source, token, hours).
+- `/api/signals/feed` — JSON API.
+- `/admin/pipeline` — unified gate dashboard with inline toggles.
 
 ---
 
-## 6. SMC (Smart Money Concepts) pipeline
+## Backtest harness
 
-| # | Item | Notes |
-|---|------|-------|
-| 39 | `SwingDetector` | Configurable lookback (default 3), strict comparison |
-| 40 | `StructureAnalyzer` | Walks swings; emits BOS + CHoCH events |
-| 41 | `SwingPoint`, `StructureEvent`, `Direction`, `StructureEventType` | Records/enums |
-| 42 | `OrderBlockDetector` | Last opposing candle before BOS; tracks mitigation |
-| 43 | `FvgDetector` | 3-candle imbalance; tracks mitigation |
-| 44 | `LiquidityDetector` | BSL / SSL levels; sweep detection (wick + close-back-inside) |
-| 45 | `OrderBlock`, `FairValueGap`, `LiquidityLevel`, `LiquiditySweep`, `LiquiditySide` | Zone records |
-| 46 | `MarketContextBuilder` | Combines everything as-of any candle; safe for backtesting |
-| 47 | `MarketContext` | Queryable snapshot with `nearestBullishOBBelow(price)` etc. |
+### Pipeline replay
+- `/admin/backtest` — form + results on one page.
+- Replays historical candles through consensus + trailing stops.
+- Walk-forward with NO look-ahead (strategies see only past + current bar).
+- `SignalMarkerService.consensusMarkers()` called once per run, markers
+  indexed by bar — ~30× faster than per-bar slicing.
 
-**Deep dive:** [SMC-LIQUIDITY-PLAN.md](SMC-LIQUIDITY-PLAN.md)
+### Realism fixes
+- Skips intraday signals after 15:00 IST (can't reach target before close).
+- Rejects signals where strategy's entry price is outside the bar's
+  [low, high] range (unreachable).
+- Same-bar target+stop resolution prefers STOP (pessimistic).
 
----
+### Metrics returned
+- Signals fired, wins, losses, trailed exits, expired.
+- Win rate, avg return, total return, max drawdown.
+- Profit factor, expectancy per trade.
+- Equity curve + per-trade log (entry/exit/P&L/strategy names).
 
-## 7. Backtesting
-
-| # | Item | Notes |
-|---|------|-------|
-| 48 | `Backtester` | Long + short + stops + targets + signal exits + force-close at series end |
-| 49 | `BacktestResult` | Total trades, winners, losers, net P&L, full trade log |
-| 50 | Auto-exit rules | Stop wins if stop+target hit in same candle (conservative) |
-
-**Deep dive:** [BACKTESTING.md](BACKTESTING.md)
-
----
-
-## 8. Analyst
-
-| # | Item | Notes |
-|---|------|-------|
-| 51 | `AnalystService` | Runs all strategies, aggregates consensus, produces recommendation |
-| 52 | `AnalystReport` | Instrument, market summary, per-strategy signals, consensus, recommendation |
-| 53 | Consensus rules | Majority wins, MINIMAL = 1 agreeing (skip), STRONG = 4+ |
-| 54 | Stop/target priority | SMC strategies first, then indicators, then MarketContext fallback |
+### Position sizing
+- RISK_BASED (default): position = (capital × risk%) / stop_distance,
+  rounded down to whole lots.
+- FIXED_LOTS: force N lots per trade regardless of capital.
+- Instrument lot size (Nifty=75, Bank Nifty=15, etc.) stored on
+  `BiasInstrumentEntity.lotSize`.
 
 ---
 
-## 9. Paper trading
+## Portfolio & medium-term investing
 
-| # | Item | Notes |
-|---|------|-------|
-| 55 | `CandleSource` interface | Contract for pushing candles into a session |
-| 56 | `HistoricalReplayCandleSource` | Replays bundled Nifty CSV at N cps |
-| 57 | `AngelLiveCandleSource` | Live Angel polling with warmup + per-exchange market hours |
-| 58 | `AngelHistoricalReplayCandleSource` | Fetches Angel history for a date range, replays at speed |
-| 59 | Per-exchange market hours | NSE 09:15–15:30, MCX 09:00–23:30, CDS 09:00–17:00 |
-| 60 | `PaperOrderBook` | Thread-safe open position + trade log |
-| 61 | `PaperPosition` record | Direction, entry, stop, target, rationale |
-| 62 | `PaperTradingSession` | Orchestrator per session |
-| 63 | Console output | `OPEN`/`CLOSE` at INFO with P&L; periodic status every 50 candles |
-| 64 | `PaperTradingSessionManager` | Multi-session in-memory registry |
-| 65 | `PaperTradingController` | REST endpoints: create / list / get / stop |
-| 66 | `PaperAutostartService` | Boot-time session creation via `paper.autostart.*` config |
-| 67 | `SessionSnapshot` | GET response: candles, trades, open position, P&L |
+### AI stock picks (`/portfolio`)
+- Click "Generate" → scans all enabled instruments.
+- For each: fetches 60-day daily candles + computes RSI14, 50-DMA, 60-day
+  range, 30d/90d returns.
+- Ships batch to Claude with pipe-delimited response format.
+- Saves BUY/HOLD/AVOID with entry/target/stop/confidence/horizon/rationale.
+- Dedupe window (default 7 days) prevents spamming same stock.
 
-**Deep dive:** [LIVE-TRADING-GUIDE.md](LIVE-TRADING-GUIDE.md)
+### Outcome tracker
+- Daily cron at 15:45 IST walks all OPEN picks.
+- Checks target/stop hit using daily candles since pick date.
+- Expires if horizon days elapsed with no hit.
+- Return % computed and persisted.
 
----
-
-## 10. REST endpoints
-
-### Analysis
-| Method | URL | Purpose |
-|--------|-----|---------|
-| GET | `/api/analysis/backtest` | Backtest a strategy on the CSV |
-| GET | `/api/analysis/backtest?strategy=ensemble&minAgreement=3` | Backtest with per-call override |
-| GET | `/api/analysis/strategies` | List all registered strategies |
-| GET | `/api/analysis/analyst` | One-shot decision (CSV) |
-| GET | `/api/analysis/analyst?broker=ANGEL&symbolToken=...` | One-shot decision (live Angel) |
-| GET | `/api/analysis/structure` | Swings + BOS + CHoCH events |
-| GET | `/api/analysis/zones` | Order blocks + FVGs + liquidity |
-| GET | `/api/analysis/context` | Full market context at last candle |
-| GET | `/api/analysis/context?asOfIndex=N` | Historical context at candle N |
-| GET | `/api/analysis/candles?...` | Raw broker candles for a date range |
-
-### Instruments
-| Method | URL | Purpose |
-|--------|-----|---------|
-| GET | `/api/instruments/status` | Loaded count |
-| POST | `/api/instruments/refresh` | Force redownload |
-| GET | `/api/instruments/lookup?symbol=X` | By symbol |
-| GET | `/api/instruments/lookup-by-token?token=X` | By numeric token |
-| GET | `/api/instruments/option?underlying=NIFTY&expiry=...&strike=...&type=CE` | Option lookup |
-| GET | `/api/instruments/expiries?underlying=X` | All expiries for an underlying |
-| GET | `/api/instruments/option-chain?underlying=X&expiry=Y` | Full option chain |
-| GET | `/api/instruments/futures?underlying=X` | All active futures |
-
-### Paper trading
-| Method | URL | Purpose |
-|--------|-----|---------|
-| POST | `/api/paper/sessions` | Start (replay / live / historical replay) |
-| GET | `/api/paper/sessions` | List all sessions |
-| GET | `/api/paper/sessions/{id}` | Session snapshot (poll this) |
-| POST | `/api/paper/sessions/{id}/stop` | Force stop + close open position |
-
-**Deep dive:** [API.md](API.md)
+### Scorecard
+- Win rate across 180-day window.
+- Avg return per pick.
+- Best / worst performer.
+- Per-pick: outcome + closed price + return.
 
 ---
 
-## 11. Configuration surface
+## News suite
 
-| Key | Purpose |
-|-----|---------|
-| `server.port` | App port (default 9010) |
-| `broker.angel.*` | Angel credentials via env vars |
-| `broker.kite.*`, `broker.upstox.*` | Other broker stubs |
-| `analysis.nifty.data-file` | CSV path for backtesting |
-| `analysis.strategy.default-strategy` | Which strategy `/backtest` uses when none specified |
-| `analysis.strategy.sma.short-period` / `long-period` | SMA crossover periods |
-| `analysis.strategy.rsi.period` / `oversold` / `overbought` | RSI thresholds |
-| `analysis.strategy.macd.fast-period` / `slow-period` / `signal-period` | MACD periods |
-| `analysis.strategy.ensemble.min-agreement` | Ensemble vote threshold |
-| `analysis.smc.swing.lookback` | Swing detector sensitivity |
-| `analysis.smc.sweep.window-candles` | How recent a sweep counts as "recent" |
-| `paper.autostart.enabled` | Enable auto-start on boot |
-| `paper.autostart.sessions[N].*` | Per-session auto-start config |
+### Global Markets (`/markets`)
+- 8 instruments via Alpha Vantage free tier:
+  Brent oil (BNO), Gold (GLD), USD/INR, Dow (DIA), Nasdaq (QQQ), Nikkei
+  (EWJ), Hang Seng (EWH), US VIX (VXX).
+- Scheduled refresh every 15 min (configurable). Market-hours gate avoids
+  wasting daily quota (500 calls/day).
+- 13-sec delay between calls respects 5-calls/min limit.
+- Impact-analysis line auto-generated ("US closed higher. Oil down 1.5%").
+- Rule-based per-card note ("⚠️ oil spike — bearish for Nifty").
 
-**Deep dive:** [CONFIGURATION.md](CONFIGURATION.md)
+### News Headlines (`/news`)
+- 5 default RSS sources: MoneyControl Markets/Business, Economic Times,
+  Business Standard, LiveMint.
+- Dependency-free RSS 2.0 parser (regex-based).
+- Dedupe by URL (unique index on `news_headline.url`).
+- Scheduled fetch + tag loop every 15 min.
+- Claude tags each untagged headline: BULLISH/BEARISH/NEUTRAL + sector
+  (BANKING/IT/OIL_GAS/etc.) + 1-sentence rationale.
+- Batch size 10 per Claude call keeps cost ~$1/month.
+- Retention default 30 days; daily purge at 00:10 IST.
+- UI filters by source, sentiment, sector, hours.
 
----
-
-## 12. Documentation
-
-| Doc | Purpose |
-|-----|---------|
-| [README.md](README.md) | Overview |
-| [SETUP.md](SETUP.md) | How to install and run |
-| [ONBOARDING.md](ONBOARDING.md) | 10-step new-developer tour |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | High-level design |
-| [API.md](API.md) | REST endpoint reference |
-| [CONFIGURATION.md](CONFIGURATION.md) | All properties |
-| [ENV-VARIABLES.md](ENV-VARIABLES.md) | Angel/broker credentials |
-| [BROKER-INTEGRATION.md](BROKER-INTEGRATION.md) | How brokers plug in |
-| [STRATEGY-GUIDE.md](STRATEGY-GUIDE.md) | Writing a strategy |
-| [BACKTESTING.md](BACKTESTING.md) | Backtester internals |
-| [DATA-FORMAT.md](DATA-FORMAT.md) | Candle CSV format |
-| [FLOW-DIAGRAM.md](FLOW-DIAGRAM.md) | 9 Mermaid diagrams |
-| [DESIGN-PATTERNS-IN-USE.md](DESIGN-PATTERNS-IN-USE.md) | Every pattern in the code |
-| [SMC-LIQUIDITY-PLAN.md](SMC-LIQUIDITY-PLAN.md) | SMC design + phases |
-| [LIVE-TRADING-GUIDE.md](LIVE-TRADING-GUIDE.md) | End-to-end live trading workflow |
-| [SECURITY.md](SECURITY.md) | Auth + secrets |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Docker / systemd / nginx |
-| [TESTING.md](TESTING.md) | JUnit patterns |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues |
-| [CHANGELOG.md](CHANGELOG.md) | Release notes (stale — this doc supersedes) |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution rules |
-| [ROADMAP.md](ROADMAP.md) | Future plans |
+### Pre-Market Briefing (`/briefing`)
+- Scheduled 08:30 IST weekdays. Also manually triggerable.
+- Snapshots Global Markets + last-24h top 25 tagged headlines.
+- Claude writes:
+  - BIAS (BULLISH/BEARISH/NEUTRAL/CAUTIOUS)
+  - 3-5 KEY DRIVERS bullets
+  - 200-word summary (serif body for readable long-form)
+- Persisted to `briefing` table — one row per `for_date` (upsert).
+- 30-day history page.
+- Email + Telegram delivery stubs; log-only until SMTP / bot token set.
 
 ---
 
-## 13. Postman
+## Bias engine
 
-| Item | Notes |
-|------|-------|
-| `postman/angle-app.postman_collection.json` | 12 folders, ~50 requests |
-| `postman/angle-app.postman_environment.json` | 30+ env vars |
-| `postman/README.md` | Import + usage guide |
+### Daily bias sheets
+- Full market analysis per instrument every 15 min via warmer.
+- Sections: market context, VIX, breadth (A/D), multi-TF bias, trend filters,
+  market structure (BOS/CHoCH), zones (OB/FVG/liquidity), correlated check
+  (Bank Nifty vs Nifty), consolidated score, trade plan.
+- Cached in Caffeine (L1) + Redis (L2) + MySQL (L3).
+- `/bias` page per instrument; AI opinion button for on-demand Claude
+  analysis.
 
-Folders: Analysis (Backtest, Analyst, SMC, Candles), Instruments,
-Paper Trading (Replay / Live NSE / Live MCX / Session management),
-Portfolio & Trading, Auth, Dashboard, Admin, Home.
+### Change detection
+- `BiasChangeDetector` detects: bias flip, score jump ≥ N, new structural
+  event, new sweep, ADX cross, divergence (Nifty ↔ Bank Nifty), VIX spike,
+  breadth flip.
+- `recentChanges` surface on dashboard.
 
----
-
-## 14. What's NOT built (future work)
-
-- Real order placement to Angel — currently paper-only
-- Persistence for sessions / trades — restart wipes everything
-- Alerts (Telegram / Slack / email) on trade events
-- Frontend chart with trades overlaid
-- Multi-timeframe strategies (H4 bias + M15 entries)
-- Position sizing / risk management (currently 1 unit per trade)
-- Trailing stops / max holding period / time-of-day exits
-- Metrics dashboard (max drawdown, Sharpe, equity curve)
-- ML-driven strategies
-- Regime-aware ensemble weighting
-- Options-specific strategies (spreads, straddles)
-
-See [ROADMAP.md](ROADMAP.md) for priority ordering.
+### Sub-modules (independently toggleable)
+- VIX section.
+- Breadth section (A/D ratio of Nifty 50 constituents).
+- Correlated instrument check (Bank Nifty parallel).
+- SMC structure analysis.
+- Change alerts.
 
 ---
 
-## Number of production Java files
+## Live streaming
 
-Roughly 70+ across:
-- 8 packages: `analyst`, `backtest`, `broker`, `config`, `controller`, `indicator`, `marketdata`, `marketstructure`, `paper`, `strategy`
-- Plus web/auth layer (existing): `security`, `filter`, `service`, `dto`, `miniapp`
+### Phase 1 — WebSocket ingestion
+- Angel SmartStream connects on app boot.
+- Subscribes to all enabled instruments.
+- Binary tick decoder parses mode-1/mode-3 packets.
+- Publishes `TickEvent` via Spring event bus.
 
-Line count is small on purpose — most classes stay under 100 lines, each doing one thing.
+### Phase 2 — Tick-to-candle aggregation
+- Rolling buckets per (symbol, interval).
+- Emits `CandleClosedEvent` when a bucket flushes.
+- `SignalDetector` listens to these for signal generation.
+
+### Phase 3 — Browser push via SSE
+- `/api/live/stream` SSE endpoint with throttling + heartbeat.
+- `/live/ticker` demo page with grid of price cards flashing on tick.
+
+### Phase 4 — Live chart
+- `/live/chart` with TradingView Lightweight Charts.
+- Indicator overlays: EMA9/20/50, VWAP, SuperTrend.
+- Sub-panes: RSI14, MACD, Volume.
+- Signal markers (BUY/SELL arrows) via consensus or single-strategy toggle.
+- Preset buttons (Compact / Full / Price only).
+
+---
+
+## Dashboard & UI
+
+### Theme system
+- CSS variables in `theme.css`.
+- Light (default) + Dark palettes.
+- Toggle button in sidebar + inline on each page.
+- Choice persisted to `localStorage`.
+- OS preference detected on first visit via `prefers-color-scheme`.
+- Anti-flash init script runs before first paint.
+
+### Shared sidebar
+- `fragments/app-sidebar.html` used by `/signals`, `/admin/pipeline`,
+  `/admin/news`, `/admin/instruments`, `/admin/backtest`, `/markets`,
+  `/news`, `/briefing`, `/portfolio`, `/live/ticker`.
+- Active-link highlighted via `sidebar(active='signals')` parameter.
+- Hidden on screens < 900px.
+
+### HTMX partial refresh
+- Cards swap in place without full-page reload.
+- Used by: Bias Engine (ON/OFF), Cache Service (Warm/Clear), Warmer Job
+  (Force/Reset), Daily Reports (Finalize), Bias Modules (pill toggles),
+  Backtest card (ON/OFF + gear edit form).
+- Controllers dual-mode: HTMX request → return fragment; plain POST →
+  return JSON.
+- 14 KB `htmx.org@1.9.12` from CDN.
+
+### Pipeline dashboard
+- `/admin/pipeline` — 4 gate cards (regime, MTF, trailing, news).
+- Inline enable/disable per gate + sub-flags.
+- Mode / method quick-swap buttons.
+- Today's gate-rejection counts.
+- Active-news warning strip when a blackout is live.
+
+### Elevated card style
+- Colored accent stripe at top (via class `.c-blue/green/orange/purple/
+  pink/cyan`).
+- Subtle gradient tint in matching color.
+- Hover lift + larger shadow.
+- Icon with colored halo.
+
+---
+
+## Infrastructure
+
+### Spring Security chains (4)
+1. `/api/**` — stateless HTTP Basic, 401 on fail, no CSRF.
+2. `/actuator/**` — HTTP Basic + ROLE_ADMIN, no CSRF.
+3. `/admin/**` — form login + ROLE_ADMIN + custom access-denied page.
+4. Catch-all — form login + session.
+
+### Caching
+- `bias.cache.provider` = caffeine | redis | caffeine-mysql.
+- Keys per (instrument, interval).
+- TTL + max size configurable.
+
+### Warmer (`BiasWarmer`)
+- Scheduled bias-sheet pre-fetch (cron: every 15 min during market hours).
+- Circuit breaker: opens after N consecutive failures.
+- Reset endpoint: `POST /admin/warmer/circuit/reset`.
+- Stats endpoint: `GET /admin/warmer/stats`.
+
+### Database (MySQL via JPA)
+- `ddl-auto=update` (auto-migrates new columns on startup).
+- Tables: `bias_signal`, `ai_pick`, `briefing`, `news_headline`,
+  `bias_instrument`, `angel_token`, `candle_history`, `audit_log`, more.
+
+### Observability
+- Actuator at `/actuator/health`, `/actuator/info`, `/actuator/refresh`.
+- Hot-reload @RefreshScope beans via `POST /actuator/refresh`.
+- Structured debug logging under `com.angle.trading`.
+
+---
+
+## Operational tools
+
+### Instrument management
+- `/admin/instruments` CRUD UI.
+- Autocomplete lookup against Angel scrip master.
+- Fields: symbol, broker, exchange, symbol_token, interval, enabled,
+  priority, lot_size.
+
+### Admin dashboard (`/dashboard`)
+- 13 service cards: App, Broker, Cache, Warmer, Market Calendar,
+  Bias Engine, Trading Config, Database, Alerts, Bias Modules, Daily Reports,
+  Paper Trading, Backtest.
+- Health badge (critical / warn / healthy).
+- Quick actions and recent-changes feed.
+
+### Cache debug
+- `/admin/cache/candles/stats` — hits, misses, hit rate, size.
+- `/admin/cache/candles/keys` — list all cached keys.
+- `/admin/cache/candles/clear` — wipe entries.
+- `/admin/cache/candles/warm?force=true` — force-warm bypass breaker.
+
+### Reports
+- `/api/reports/today` — markdown render of today's report.
+- `/api/reports/today/finalize` — write to disk.
+- Scheduled auto-finalize at 15:35 IST (post-close).
+
+---
+
+## Config properties (prefixes)
+
+| Prefix | What it controls |
+|---|---|
+| `broker.angel.*`     | Angel SmartAPI credentials + stream config |
+| `broker.angel.stream.*` | WebSocket, aggregation, SSE live-stream |
+| `broker.upstox.*`    | Stub (not wired) |
+| `broker.kite.*`      | Stub (not wired) |
+| `bias.*`             | Bias engine (lookback, timeframes, warmer) |
+| `bias.cache.*`       | Cache provider + TTL |
+| `bias.warmer.*`      | Cron + circuit breaker |
+| `bias.vix.*`         | VIX fetch + thresholds |
+| `bias.breadth.*`     | A/D ratio |
+| `bias.correlated.*`  | Bank Nifty vs Nifty divergence |
+| `bias.change-alerts.*` | Change detection flags |
+| `analysis.*`         | Strategy params (periods, thresholds) |
+| `signals.detector.*` | Consensus threshold, intervals, AI-confirm |
+| `signals.monitor.*`  | Expiry hours + sweep |
+| `signals.feed.*`     | UI defaults + auto-refresh |
+| `regime.*`           | Time-of-day + VIX + ADX gate |
+| `mtf.*`              | Multi-timeframe confirmation |
+| `trailing.*`         | Trailing stop mode + knobs |
+| `news.*`             | Blackout calendar |
+| `news-feed.*`        | Headlines feed + AI tagging |
+| `global-markets.*`   | Alpha Vantage dashboard |
+| `briefing.*`         | Pre-market briefing + delivery |
+| `ai.*`               | Claude API + model + cache |
+| `ai-picks.*`         | Stock picks (portfolio) |
+| `backtest.card.*`    | Dashboard tile customization |
+| `trading.*`          | Capital + risk% + option strikes |
+| `reports.*`          | Daily report output + auto-write |
+| `paper.*`            | Paper trading sessions |
+| `alerts.*`           | Slack / Telegram / WhatsApp alerts (stubs) |
+
+See `CONFIGURATION.md` for every property + default + what it does.
