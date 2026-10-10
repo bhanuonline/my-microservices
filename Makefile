@@ -3,7 +3,8 @@
 # See docs/microservices/topologies.md for the full comparison.
 #
 # TOPOLOGIES (pick one; mutually exclusive):
-#   make up-nano         → platform only (no business svcs). 6 containers (~1.5 GB)
+#   make up-nano         → platform only (no business svcs). 7 containers (~1.6 GB)
+#   make up-nano-trace   → nano + zipkin for traces. 8 containers (~1.8 GB)
 #   make up-minimal      → core incl. business svcs + Prom/Grafana. 12 containers (~2.5 GB)
 #   make up / up-shared  → shared-db + all optional (full profile). ~26 containers
 #   make up-individual   → shared-db + 4 per-service MySQLs. ~30 containers

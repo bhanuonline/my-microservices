@@ -223,7 +223,8 @@ Now that it's running:
 
 ```bash
 # Pure-Docker mode
-make up-nano              # start, platform only (6 containers, biz svcs OFF)
+make up-nano              # start, platform only (7 containers, biz svcs OFF)
+make up-nano-trace        # nano + zipkin for distributed traces (8 containers)
 make up-minimal           # start, platform + biz svcs (12 containers)
 make up                   # start, everything (26 containers)
 make down                 # stop

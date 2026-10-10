@@ -106,11 +106,15 @@ Rest of this doc is about the pure-Docker path (`make up` family).
 
 | Command | What you get |
 |---|---|
-| `make up-minimal` | ~11 containers — core only. Fastest. |
-| `make up` *(= `make up-shared`)* | ~25 containers — core + all optional (mailhog, zipkin, loki, kafka-ui, …). |
-| `make up-individual` | ~29 containers — same as shared-db but with 4 per-service MySQLs. |
+| `make up-nano` | 7 containers — platform only (mysql, kafka, redis, eureka, config, auth, gateway). Business services OFF — run them from your IDE. |
+| `make up-nano-trace` | 8 containers — nano + zipkin + tracing enabled. |
+| `make up-minimal` | 12 containers — nano + business services + Prometheus/Grafana. |
+| `make up` *(= `make up-shared`)* | 26 containers — core + all optional (mailhog, zipkin, loki, kafka-ui, …). |
+| `make up-individual` | 30 containers — same as shared-db but with 4 per-service MySQLs. |
 
 Behind the scenes:
+- `make up-nano` → `COMPOSE_PROFILES=cache docker compose up -d <7 service names>`
+- `make up-nano-trace` → `TRACING_ENABLED=true ZIPKIN_ENDPOINT=… COMPOSE_PROFILES=cache,tracing docker compose up -d <8 service names>`
 - `make up-minimal` → `docker compose up -d`
 - `make up` → `COMPOSE_PROFILES=full docker compose up -d`
 - `make up-individual` → `COMPOSE_PROFILES=full docker compose -f docker-compose.yml -f docker-compose.topology-individual.yml up -d`

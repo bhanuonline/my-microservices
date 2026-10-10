@@ -14,7 +14,8 @@ Pick a mode based on what you're actually trying to do.
 
 | Mode | Command | Containers | ~RAM | What's in it |
 |---|---|---|---|---|
-| **nano** | `make up-nano` | 6 | ~1.5 GB | Platform floor only: mysql-shared, kafka, eureka-server, config-server, auth-server, api-gateway. NO business services (run them from your IDE). |
+| **nano** | `make up-nano` | 7 | ~1.6 GB | Platform floor only: mysql-shared, kafka, redis, eureka-server, config-server, auth-server, api-gateway. NO business services (run them from your IDE). |
+| **nano-trace** | `make up-nano-trace` | 8 | ~1.8 GB | nano + zipkin — set `TRACING_ENABLED=true` for distributed traces across services. |
 | **minimal** (default) | `make up-minimal` OR plain `docker compose up -d` | 12 | ~2.5 GB | nano + user, product, order, payment-service + Prometheus + Grafana. |
 | **shared-db** | `make up` OR `make up-shared` | 26 | ~5.5 GB | Minimal + ALL optional (notification, resource-server, mailhog, zipkin, loki/promtail, kafka-ui/exporter, elasticsearch, schema-registry, kafka-connect+postgres, redis, vault). |
 | **individual** | `make up-individual` | 30 | ~6.5 GB | Shared-db PLUS 4 per-service MySQL containers (mysql-user:3307, mysql-product:3308, mysql-auth:3309, mysql-payment:3310). |
@@ -27,7 +28,7 @@ repo and not sure what to run.
 
 ## Mode: nano (lightest — IDE workflow)
 
-Platform floor + nothing else. 6 containers, ~1.5 GB RAM. Business
+Platform floor + nothing else. 7 containers, ~1.6 GB RAM. Business
 services (user, product, order, payment) are **OFF** — you run them
 yourself from your IDE or `mvn spring-boot:run`.
 
@@ -41,6 +42,7 @@ What's running:
 |---|---|---|
 | `mysql-shared` | 3306 | DB for business services you'll start |
 | `kafka` | 9092 | Saga + outbox bus |
+| `redis` | 6379 | Required by api-gateway (rate-limit, cache, api-keys, idempotency) |
 | `eureka-server` | 8761 | Service discovery (apps register here on startup) |
 | `config-server` | 8888 | Serves yml from `/config-repo` |
 | `auth-server` | 8095 | OAuth2 tokens |
@@ -66,6 +68,36 @@ make down   # when you're done
 - POST /checkout (needs order-service + payment-service)
 - Any saga flow
 - View metrics (prometheus + grafana are OFF too)
+
+**Note on tracing:** api-gateway hits zipkin aggressively (Netty reactive
+reporter). To avoid DNS crashes when zipkin isn't running, nano mode sets
+`MANAGEMENT_TRACING_ENABLED=false` across all services — spans aren't
+recorded. If you need traces, use `make up-nano-trace` instead.
+
+---
+
+## Mode: nano-trace (nano + distributed tracing)
+
+Same as nano but adds the zipkin container and flips tracing ON for every
+service. 8 containers, ~1.8 GB RAM.
+
+```
+make up-nano-trace
+```
+
+Equivalent to:
+```bash
+TRACING_ENABLED=true \
+ZIPKIN_ENDPOINT=http://zipkin:9411/api/v2/spans \
+COMPOSE_PROFILES=cache,tracing \
+docker compose up -d mysql-shared kafka redis eureka-server config-server \
+                     auth-server api-gateway zipkin
+```
+
+Zipkin UI: http://localhost:9411
+
+**Use when:** debugging a cross-service request path and need to see the
+timing + hops in a flame-graph view.
 
 ---
 
