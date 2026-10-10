@@ -8,5 +8,5 @@ RUN mvn -pl services/notification -am clean package -DskipTests
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /workspace/services/notification/target/*.jar app.jar
-# notification has no HTTP port by default
+EXPOSE 8099
 ENTRYPOINT ["java", "-jar", "app.jar"]

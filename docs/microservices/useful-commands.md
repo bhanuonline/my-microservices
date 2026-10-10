@@ -283,7 +283,7 @@ curl -u admin:admin123 -X POST http://localhost:8080/admin/flags/new-payment-pro
 
 ```bash
 # Subscribe (keep the terminal open). Pipe to grep to visualise events as they land.
-curl -N http://localhost:9999/notifications/stream/order-abc-123
+curl -N http://localhost:8099/notifications/stream/order-abc-123
 
 # In another terminal: produce a payment.completed event
 docker exec -it kafka kafka-console-producer.sh \

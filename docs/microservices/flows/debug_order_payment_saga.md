@@ -77,7 +77,7 @@ Simple business rules, but every step crosses a service boundary — which is ex
          Kafka topics                          (published only on compensation)
               │                  │
      ┌────────┴────────┐    ┌────┴──────────────┐
-     │ payment-service │    │ notification :8090│
+     │ payment-service │    │ notification :8099│
      │   :8091         │    │                   │
      │                 │    │ NotifyUserCommand │
      │ PaymentCommand  │    │  Handler          │
@@ -129,7 +129,7 @@ Must see:
 - ✅ order-service (8083) UP
 - ✅ product-service (8082) UP
 - ✅ payment-service (8091) UP
-- ✅ notification (8090) UP
+- ✅ notification (8099) UP
 - ✅ Eureka lists all 5 services registered
 
 auth-server is OK to be 302 (JWKS still serves). resource-server can be DOWN (unused in this flow).

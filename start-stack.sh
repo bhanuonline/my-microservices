@@ -100,7 +100,7 @@ APPS=(
   "product-service:services/product-service:8082::target/product-service-*.jar:eureka-server config-server"
   "order-service:services/order-service:8083::target/order-service-*.jar:eureka-server config-server product-service"
   "payment-service:services/paymentservice:8091::target/payment-service-*.jar:eureka-server config-server"
-  "notification:services/notification:9999::target/notification-*.jar:eureka-server"
+  "notification:services/notification:8099::target/notification-*.jar:eureka-server"
   "order-query:services/order-query:8086::target/order-query-*.jar:eureka-server"
   "product-query:services/product-query:8088::target/product-query-*.jar:eureka-server"
   "graphql-bff:bff/graphql-bff:8087::target/graphql-bff-*.jar:eureka-server"

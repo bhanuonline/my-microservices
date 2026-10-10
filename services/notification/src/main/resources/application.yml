@@ -59,7 +59,8 @@ spring:
           content-type: application/json
 
 server:
-  port: 8090
+  # 8099 — moved from 8090 which collided with backoffice-ui + kafka-ui.
+  port: 8099
 
 management:
   endpoints:

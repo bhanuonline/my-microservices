@@ -89,7 +89,7 @@ ORDER_QUERY_URL=http://order-query:8086
 PROMETHEUS_URL=http://prometheus:9090
 GRAFANA_URL=http://grafana:3000
 ZIPKIN_URL=http://zipkin:9411
-NOTIFICATION_URL=http://notification:9999
+NOTIFICATION_URL=http://notification:8099
 ADMIN_USER=admin
 ADMIN_PASSWORD=admin123
 ```

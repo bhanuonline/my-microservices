@@ -353,6 +353,8 @@ services:
       JAVA_TOOL_OPTIONS: "-Xms96m -Xmx256m -XX:+UseSerialGC"
       SPRING_CLOUD_STREAM_KAFKA_BINDER_BROKERS: kafka:29092
       MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8099:8099"
     depends_on:
       kafka:
         condition: service_healthy

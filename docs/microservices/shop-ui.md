@@ -161,7 +161,7 @@ submits the FIRST cart line; the rest sit in the cart silently.
 
 ### Confirm page polls, doesn't push
 Current confirm page uses `<meta refresh=3>`. Upgrade to SSE:
-1. Point the browser at `GET http://notification:9999/notifications/stream/{orderId}`
+1. Point the browser at `GET http://notification:8099/notifications/stream/{orderId}`
    (built in Tier 4).
 2. Replace meta-refresh with `new EventSource(…)` + DOM swap on
    `payment-completed` event.
