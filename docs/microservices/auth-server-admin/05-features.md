@@ -93,7 +93,7 @@ MODIFY  templates/admin/clients/form.html   (conditional checkbox block)
 ```
 Verify:
 ```bash
-docker exec mysql-auth mysql -uroot -ppass1234 -N \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N \
   -e "USE authdb_jdbc; SELECT client_id, token_settings LIKE '%reuse-refresh-tokens\":false%' AS rotates FROM oauth2_registered_client;"
 ```
 
@@ -251,7 +251,7 @@ mvn -pl infra/auth-server spring-boot:run -Dspring-boot.run.profiles=jdbc
 
 # 3. Check Require PKCE, submit.
 #    → 302 to /admin/clients, new row.
-docker exec mysql-auth mysql -uroot -ppass1234 -N \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N \
   -e "USE authdb_jdbc; SELECT client_id, client_settings LIKE '%require-proof-key\":true%' AS pkce FROM oauth2_registered_client WHERE client_id='test-public';"
 # → test-public  1
 
@@ -452,7 +452,7 @@ Both writes happen in a single transaction. Example — client CREATE:
 # 4. Edit the same client → /admin/audit shows: UPDATE CLIENT <clientId>
 # 5. Rotate the signing key → /admin/audit shows: ROTATE KEY <new-kid>
 # 6. Verify DB rows:
-docker exec mysql-auth mysql -uroot -ppass1234 -N -e "
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N -e "
   USE authdb_jdbc;
   SELECT actor, action, subject_type, subject_id, changed_at
     FROM client_audit ORDER BY id;
@@ -573,7 +573,7 @@ MODIFY  templates/admin/users/list.html             +lock badge + Unlock button
 ### The escape hatch for a locked admin
 Only admin can unlock. If the only admin locks themselves out:
 ```bash
-docker exec mysql-auth mysql -uroot -ppass1234 -e "
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "
   USE authdb_jdbc;
   UPDATE app_user SET failed_attempts=0, locked_until=NULL
   WHERE username='admin';
@@ -1075,7 +1075,7 @@ curl -s -X POST http://localhost:8095/connect/register \
           "scope":"openid profile"}' | jq
 
 # 4. DB:
-docker exec mysql-auth mysql -uroot -ppass1234 -N -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N -e \
   "USE authdb_jdbc; SELECT client_id, client_name FROM oauth2_registered_client
    WHERE client_name='dcr-test';"
 

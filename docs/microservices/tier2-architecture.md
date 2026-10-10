@@ -1,5 +1,12 @@
 # Tier 2 Architecture — Data & Messaging Depth
 
+> **📸 Architecture snapshot** — module paths in diagrams use the flat
+> pre-reorg layout (e.g. `paymentservice`, `user-service`). After the
+> Oct 2026 reorg those live under `services/payment-service`,
+> `services/user-service`, etc. The architecture itself is unchanged.
+> For current paths, see [`topologies.md`](topologies.md) or run
+> `./start-stack.sh --list`.
+
 Companion to [tier2-roadmap.md](tier2-roadmap.md). The roadmap tells you
 *what to build*; this doc explains *how it fits together*, with diagrams
 of every data path and failure mode.

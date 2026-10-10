@@ -41,7 +41,7 @@ Expected: single DB transaction wraps both INSERTs.
 
 Query immediately:
 ```bash
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, status, created_at FROM outbox_events ORDER BY created_at DESC LIMIT 1;"
 ```
 

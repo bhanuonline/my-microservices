@@ -151,13 +151,13 @@ Run `GET /admin/clients` in Postman, look at the response body, find the Edit bu
 
 **Option B — go to the DB directly**
 ```bash
-docker exec mysql-auth mysql -uroot -ppass1234 -N \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N \
   -e "SELECT id, client_id FROM authdb_jdbc.oauth2_registered_client;"
 ```
 
 For users:
 ```bash
-docker exec mysql-auth mysql -uroot -ppass1234 -N \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -N \
   -e "SELECT id, username FROM authdb_jdbc.app_user;"
 ```
 

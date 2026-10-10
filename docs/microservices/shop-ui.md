@@ -73,17 +73,18 @@ Every single Tier 1-4 primitive lights up on one checkout. That's the point.
 export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home
 mvn -DskipTests package
 
-# Infra
-docker compose up -d elasticsearch kafka redis zipkin prometheus grafana loki promtail \
-                     mysql-user mysql-product mysql-auth eureka-server auth-server
+# Infra (shared-db default; add individual overlay only if you need per-service MySQLs)
+COMPOSE_PROFILES=full docker compose up -d \
+    mysql-shared kafka redis zipkin prometheus grafana loki promtail \
+    elasticsearch eureka-server auth-server
 
 # App plane
 docker compose up -d api-gateway product-service order-service
 
-# ES read side + the UI from source
-cd order-query && mvn spring-boot:run &
-cd product-query && mvn spring-boot:run &
-cd shop-ui && mvn spring-boot:run &
+# ES read side + the UI from source (modules now live under services/, ui/)
+cd services/order-query  && mvn spring-boot:run &
+cd services/product-query && mvn spring-boot:run &
+cd ui/shop-ui             && mvn spring-boot:run &
 
 # Open the shop
 open http://localhost:8089

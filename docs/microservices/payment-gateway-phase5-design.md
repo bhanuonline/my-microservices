@@ -1,5 +1,19 @@
 # Payment gateway — Phase 5 design
 
+> **📸 This is a design snapshot** — reflects the plan as approved and
+> implemented in commits `8529470`, `7e2dbf7`, `8ed576a`. File paths
+> below use the pre-reorg layout (e.g. `paymentservice/...` without
+> the `services/` prefix). For current paths after the Oct 2026 reorg,
+> the equivalents are:
+>
+> ```
+> paymentservice/        → services/payment-service/
+> order-service/         → services/order-service/
+> common-lib/            → lib/common-lib/
+> ```
+>
+> The design itself (contracts, flow, state transitions) is unchanged.
+
 **Status:** Draft — awaiting approval before implementation.
 **Author:** proposed design, open for review.
 **Scope:** Add Checkout.com as the first provider that uses an explicit

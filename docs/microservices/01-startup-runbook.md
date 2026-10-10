@@ -1,5 +1,24 @@
 # 01 — Startup runbook
 
+> **For the quick way, see [`00-first-time-setup.md`](00-first-time-setup.md).**
+>
+> This doc exists to teach you WHY the stack starts in waves and WHAT
+> each service depends on — understanding you'll need when debugging a
+> stuck boot. For the actual commands you'll run day-to-day, prefer:
+>
+> ```bash
+> make up-minimal           # pure Docker, lightest footprint
+> make up-saga              # pure Docker, saga F1-F3 fully works
+> ./start-stack.sh          # hybrid (infra Docker + apps on host)
+> ```
+>
+> See [topologies.md](topologies.md) for mode selection.
+>
+> The shell commands below assume the OLD 4-MySQL layout (mysql-user,
+> mysql-product, mysql-auth). Current default is ONE shared MySQL
+> (`mysql-shared` with 4 schemas). Mentally substitute, or run
+> `make up-individual` if you want the layout the commands expect.
+
 Order matters. Each phase depends on the previous being healthy.
 
 ## Why start in phases (dependency chain)
@@ -78,7 +97,7 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.0.2.jdk/Contents/Home
 # add to ~/.zshrc to make permanent
 
 cd /Users/bhanupratap/My/my-microservices
-./api-gateway/mvnw clean install -DskipTests   # sanity build, one-off
+./infra/api-gateway/mvnw clean install -DskipTests   # sanity build, one-off
 ```
 
 Expected: `BUILD SUCCESS` for all 11 modules.
@@ -90,7 +109,14 @@ Expected: `BUILD SUCCESS` for all 11 modules.
 ### The command (word-by-word)
 
 ```bash
-docker compose up -d mysql-user mysql-product mysql-auth kafka zipkin
+# Modern (shared-db default):
+docker compose up -d mysql-shared kafka
+# OR for distributed tracing too:
+COMPOSE_PROFILES=tracing docker compose up -d mysql-shared kafka zipkin
+
+# Legacy 4-DB layout (only if you ran `make up-individual`):
+docker compose -f docker-compose.yml -f docker-compose.topology-individual.yml \
+  up -d mysql-user mysql-product mysql-auth kafka
 ```
 
 | Part | Meaning |
@@ -98,9 +124,13 @@ docker compose up -d mysql-user mysql-product mysql-auth kafka zipkin
 | `docker compose` | The compose CLI. Reads `docker-compose.yml` in current dir. |
 | `up` | Create + start containers. Pulls images if missing. |
 | `-d` | Detached mode — runs in background, gives terminal back. Without `-d` logs stream to your terminal and Ctrl+C stops them. |
-| `mysql-user mysql-product mysql-auth kafka zipkin` | Which services to start (names come from `services:` block in yml). Naming these 5 explicitly = infra only, no Java apps. |
+| service names | Pick which to start (names come from `services:` block in yml). Naming only infra services = infra only, no Java apps. |
 
-If you just run `docker compose up -d` (no service names), Docker tries to start **all 12** services including the Java apps — building their Docker images (~10 min first time). We don't want that. Java apps we start manually next, one at a time, to watch their logs.
+If you just run `docker compose up -d` (no service names), Docker starts
+every service that doesn't carry a `profiles:` tag — in the current
+docker-compose.yml that's ~12 containers (minimal mode). Previously it
+would also build the Java app images (~10 min first time); now they're
+pre-tagged and the build only re-runs if source changed.
 
 ### Then check status
 
@@ -113,10 +143,14 @@ docker compose ps
 ### Verify each is actually working
 
 ```bash
-# MySQL — each should list its db
-docker exec mysql-user mysql -uroot -ppass1234 -e "SHOW DATABASES" | grep userdb
-docker exec mysql-product mysql -uroot -ppass1234 -e "SHOW DATABASES" | grep productdb
-docker exec mysql-auth mysql -uroot -ppass1234 -e "SHOW DATABASES" | grep authdb
+# MySQL — shared-db default (one container, 4 schemas)
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES" \
+    | grep -E 'userdb|productdb|authdb|paymentdb'
+
+# Individual-DB mode (only if you ran `make up-individual`):
+# docker exec mysql-user mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES" | grep userdb
+# docker exec mysql-product mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES" | grep productdb
+# docker exec mysql-auth mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES" | grep authdb
 
 # Kafka
 docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list
@@ -131,16 +165,16 @@ open http://localhost:9411
 
 ```bash
 # See logs (last 20 lines) for one service
-docker compose logs --tail 20 mysql-user
+docker compose logs --tail 20 mysql-shared
 
 # Tail logs live (Ctrl+C only stops the tail, NOT the container)
 docker compose logs -f kafka
 
 # Stop one container (keeps data volume)
-docker compose stop mysql-user
+docker compose stop mysql-shared
 
 # Start it again
-docker compose start mysql-user
+docker compose start mysql-shared
 
 # Remove containers (keeps data)
 docker compose down
@@ -195,7 +229,7 @@ Both do the same thing. Style B reads more naturally when starting one service a
 ### 2a — Eureka
 
 ```bash
-cd /Users/bhanupratap/My/my-microservices/eureka-server
+cd /Users/bhanupratap/My/my-microservices/infra/eureka-server
 ./mvnw spring-boot:run
 ```
 
@@ -218,7 +252,7 @@ spring.jpa.hibernate.ddl-auto=update
 After it boots once (creates tables), flip back to `validate`.
 
 ```bash
-cd /Users/bhanupratap/My/my-microservices/auth-server
+cd /Users/bhanupratap/My/my-microservices/infra/auth-server
 ./mvnw spring-boot:run
 ```
 
@@ -236,7 +270,7 @@ Plus Hibernate log lines creating `oauth2_authorization` and related tables (fir
 ### 2c — API Gateway
 
 ```bash
-cd /Users/bhanupratap/My/my-microservices/api-gateway
+cd /Users/bhanupratap/My/my-microservices/infra/api-gateway
 ./mvnw spring-boot:run
 ```
 
@@ -267,31 +301,31 @@ Each in its own terminal tab.
 
 ### user-service
 ```bash
-cd /Users/bhanupratap/My/my-microservices/user-service
+cd /Users/bhanupratap/My/my-microservices/services/user-service
 ./mvnw spring-boot:run
 ```
 
 ### product-service
 ```bash
-cd /Users/bhanupratap/My/my-microservices/product-service
+cd /Users/bhanupratap/My/my-microservices/services/product-service
 ./mvnw spring-boot:run
 ```
 
 ### order-service
 ```bash
-cd /Users/bhanupratap/My/my-microservices/order-service
+cd /Users/bhanupratap/My/my-microservices/services/order-service
 ./mvnw spring-boot:run
 ```
 
 ### payment-service
 ```bash
-cd /Users/bhanupratap/My/my-microservices/payment-service
+cd /Users/bhanupratap/My/my-microservices/services/payment-service
 ./mvnw spring-boot:run
 ```
 
 ### notification
 ```bash
-cd /Users/bhanupratap/My/my-microservices/notification
+cd /Users/bhanupratap/My/my-microservices/services/notification
 ./mvnw spring-boot:run
 ```
 

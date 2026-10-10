@@ -39,7 +39,7 @@ curl -X POST http://localhost:8081/api/v1/users -H "Content-Type: application/js
   -d '{"name":"Alice","email":"a@a.com","password":"secret123"}'
 
 # 2. Immediately query the outbox — see PENDING row
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, status, attempt_count, created_at, sent_at FROM outbox_events ORDER BY created_at DESC LIMIT 5;"
 
 # 3. Wait 1s, re-query → SENT

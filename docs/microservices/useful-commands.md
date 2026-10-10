@@ -442,9 +442,9 @@ open 'http://localhost:8083/h2-console'
 # JDBC URL: jdbc:h2:mem:orderdb;DB_CLOSE_DELAY=-1   user: sa   pass: (blank)
 
 # MySQL — users, products, auth
-docker exec -it mysql-user     mysql -uroot -ppass1234 userdb    -e "SHOW TABLES;"
-docker exec -it mysql-product  mysql -uroot -ppass1234 productdb -e "SHOW TABLES;"
-docker exec -it mysql-auth     mysql -uroot -ppass1234 authdb    -e "SHOW TABLES;"
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb    -e "SHOW TABLES;"
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD productdb -e "SHOW TABLES;"
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD authdb    -e "SHOW TABLES;"
 
 # Postgres (docker-cdc profile)
 docker exec -it postgres-order psql -U order -d orderdb -c "SELECT COUNT(*) FROM outbox_events;"

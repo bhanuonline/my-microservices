@@ -496,7 +496,7 @@ docker exec kafka kafka-console-consumer.sh \
 
 | Symptom | Likely cause | Where to look |
 |---|---|---|
-| `POST /orders` returns 500 with `Product unavailable` | product-service DB is empty or check-availability logic false | product-service logs; `docker exec mysql-product mysql -uroot -ppass1234 productdb -e "SELECT * FROM products;"` |
+| `POST /orders` returns 500 with `Product unavailable` | product-service DB is empty or check-availability logic false | product-service logs; `docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD productdb -e "SELECT * FROM products;"` |
 | `POST /orders` returns instant fallback ("Product service is down") | Circuit breaker is OPEN | `curl http://localhost:8083/actuator/health \| jq '.components.circuitBreakers'` |
 | Order stays in `CREATED` forever | Payment reply never arrived — payment-service dead or Kafka broken | Check payment-service is up, check `payment.commands` topic has message, check `payment.replies` topic has reply |
 | Saga row exists but Order status unchanged | Reply consumer wired wrong, or dedup ate a valid message | Check order-service log for "Skipping duplicate", check `processed_events` table |

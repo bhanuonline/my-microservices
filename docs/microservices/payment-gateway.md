@@ -228,7 +228,7 @@ secret. Both must come from the same Stripe test account.
 | order-service | 8083 | CheckoutController + saga |
 | payment-service | 8091 | /initiate, /webhooks/*, saga command processor |
 | `stripe listen` | — | Tunnels Stripe → http://localhost:8091/webhooks/stripe |
-| mysql-payment | 3310 | Payments table (used under `docker` profile) |
+| mysql-shared | 3306 | Payments table (schema `paymentdb`; used under `docker` profile). Individual mode: mysql-payment:3310. |
 | kafka-ui | 8090 | Browse messages during debugging |
 
 ---
@@ -573,7 +573,7 @@ Then:
 ```bash
 set -a; source .env; set +a
 mvn -pl services/payment-service spring-boot:run
-# ...and leave order-service / Kafka / mysql-payment / notification running too.
+# ...and leave order-service / Kafka / mysql-shared / notification running too.
 ```
 
 ### Checkout.com sandbox test tokens

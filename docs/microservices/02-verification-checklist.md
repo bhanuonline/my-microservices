@@ -1,5 +1,11 @@
 # 02 — Verification checklist
 
+> **Database commands below default to the SHARED-DB layout** (one
+> `mysql-shared` container, 4 schemas). Current project default since
+> the topology refactor. If you ran `make up-individual` you'll have 4
+> per-service MySQL containers (mysql-user, mysql-product, mysql-auth,
+> mysql-payment) — commented variants below show that style.
+
 Copy-paste commands to check every component is truly working, not just "running".
 
 ## ⚡ ONE-COMMAND STATUS — use this first
@@ -18,13 +24,13 @@ Shows all Docker containers + Spring Boot health + Eureka registrations in one s
 ### Option 2 — inline one-liner (works from anywhere)
 
 ```bash
-docker ps --format 'table {{.Names}}\t{{.Status}}' && for p in 8080 8081 8082 8083 8090 8091 8095 8761; do echo -n "port $p: "; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:$p/actuator/health; done
+docker ps --format 'table {{.Names}}\t{{.Status}}' && for p in 8080 8081 8082 8083 8091 8095 8099 8761 8888; do echo -n "port $p: "; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:$p/actuator/health; done
 ```
 
 Output shape:
 ```
 NAME             STATUS
-mysql-user       Up (healthy)
+mysql-shared     Up (healthy)
 kafka            Up (healthy)
 ...
 port 8080: 200      ← gateway UP
@@ -81,16 +87,17 @@ docker compose down
 # Nuclear: also wipe data volumes
 docker compose down -v
 
-# Bring back only the infra pieces
-docker compose up -d mysql-user mysql-product mysql-auth kafka zipkin
+# Bring back only the infra pieces (shared-db default)
+docker compose up -d mysql-shared kafka
+COMPOSE_PROFILES=tracing docker compose up -d zipkin    # if you need tracing
 
 # Peek inside a container (logs)
 docker compose logs -f kafka          # tail live (Ctrl+C stops the tail, NOT the container)
-docker compose logs --tail 50 mysql-user
+docker compose logs --tail 50 mysql-shared
 
 # Run a command INSIDE a container
 docker exec kafka env | grep KAFKA    # inspect env vars
-docker exec -it mysql-user mysql -uroot -ppass1234 userdb   # interactive shell
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb   # interactive shell
 ```
 
 ## Kafka inspection
@@ -125,15 +132,22 @@ docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
 
 ## MySQL inspection
 
-### Container credentials — same for all 3
+### Container credentials — shared-db default (one container, 4 schemas)
 
-| DB | Container name | Host port | User | Password | Database |
+| Mode | Container | Host port | User | Password | Schemas |
 |---|---|---|---|---|---|
-| user-service | `mysql-user` | **3307** | `root` | `pass1234` | `userdb` |
-| product-service | `mysql-product` | **3308** | `root` | `pass1234` | `productdb` |
-| auth-server | `mysql-auth` | **3309** | `root` | `pass1234` | `authdb` |
+| shared-db (default) | `mysql-shared` | **3306** | `root` | `$MYSQL_ROOT_PASSWORD` | userdb, productdb, authdb, paymentdb |
 
-Note: use **host ports** (3307/8/9) from your Mac. Inside the docker network, MySQL always runs on 3306.
+Individual mode (`make up-individual`):
+
+| Service | Container | Host port | User | Password | Database |
+|---|---|---|---|---|---|
+| user-service | `mysql-user` | 3307 | `root` | `$MYSQL_ROOT_PASSWORD` | userdb |
+| product-service | `mysql-product` | 3308 | `root` | `$MYSQL_ROOT_PASSWORD` | productdb |
+| auth-server | `mysql-auth` | 3309 | `root` | `$MYSQL_ROOT_PASSWORD` | authdb |
+| payment-service | `mysql-payment` | 3310 | `root` | `$MYSQL_ROOT_PASSWORD` | paymentdb |
+
+Note: use **host ports** from your Mac. Inside the docker network, every MySQL runs on 3306.
 
 ### Option A — docker exec (fastest, no install needed)
 
@@ -141,29 +155,30 @@ Runs `mysql` CLI inside the container. You never leave your terminal.
 
 ```bash
 # Quick "does it respond?" check
-docker exec mysql-user mysql -uroot -ppass1234 -e "SHOW DATABASES;"
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;"
 
-# Interactive shell (Ctrl+D or 'exit' to leave)
-docker exec -it mysql-user mysql -uroot -ppass1234 userdb
-docker exec -it mysql-product mysql -uroot -ppass1234 productdb
-docker exec -it mysql-auth mysql -uroot -ppass1234 authdb
+# Interactive shell (Ctrl+D or 'exit' to leave) — pick a schema
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD productdb
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD authdb
+docker exec -it mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD paymentdb
 
 # One-shot query — outbox pattern
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, aggregate_type, destination, status, created_at, sent_at FROM outbox_events ORDER BY created_at DESC LIMIT 10;"
 
 # One-shot query — users
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, name, email FROM user;"
 
 # Show tables in a database
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e "SHOW TABLES;"
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e "SHOW TABLES;"
 ```
 
 **Word by word:**
 - `docker exec` = run a command inside a running container
 - `-it` = interactive + TTY (needed for the mysql> prompt)
-- `mysql-user` = container name
+- `mysql-shared` = container name (`mysql-user` etc. in individual mode)
 - `mysql -u... -p...` = the command to run inside
 - `userdb` = which database to `USE` on connect
 
@@ -172,20 +187,28 @@ docker exec mysql-user mysql -uroot -ppass1234 userdb -e "SHOW TABLES;"
 If you have `mysql` CLI installed (`brew install mysql-client`):
 
 ```bash
-mysql -h 127.0.0.1 -P 3307 -uroot -ppass1234 userdb
-mysql -h 127.0.0.1 -P 3308 -uroot -ppass1234 productdb
-mysql -h 127.0.0.1 -P 3309 -uroot -ppass1234 authdb
+# Shared-db (default) — one port, pick schema with the trailing arg
+mysql -h 127.0.0.1 -P 3306 -uroot -p$MYSQL_ROOT_PASSWORD userdb
+mysql -h 127.0.0.1 -P 3306 -uroot -p$MYSQL_ROOT_PASSWORD productdb
+mysql -h 127.0.0.1 -P 3306 -uroot -p$MYSQL_ROOT_PASSWORD authdb
+mysql -h 127.0.0.1 -P 3306 -uroot -p$MYSQL_ROOT_PASSWORD paymentdb
+
+# Individual mode (`make up-individual`):
+# mysql -h 127.0.0.1 -P 3307 -uroot -p$MYSQL_ROOT_PASSWORD userdb
+# mysql -h 127.0.0.1 -P 3308 -uroot -p$MYSQL_ROOT_PASSWORD productdb
+# mysql -h 127.0.0.1 -P 3309 -uroot -p$MYSQL_ROOT_PASSWORD authdb
+# mysql -h 127.0.0.1 -P 3310 -uroot -p$MYSQL_ROOT_PASSWORD paymentdb
 ```
 
 ### Option C — GUI tool (DBeaver / TablePlus / DataGrip / MySQL Workbench)
 
-Create a new MySQL connection with these settings:
+Create a new MySQL connection with these settings (shared-db default):
 
 - **Host:** `localhost`
-- **Port:** `3307` (or 3308 / 3309)
+- **Port:** `3306` (or 3307-3310 in individual mode)
 - **User:** `root`
-- **Password:** `pass1234`
-- **Database:** `userdb` (or productdb / authdb)
+- **Password:** value of `MYSQL_ROOT_PASSWORD` from your `.env`
+- **Database:** `userdb` / `productdb` / `authdb` / `paymentdb`
 
 **⚠️ Extra flags required** — same MySQL 8 auth issue we hit earlier. In the client's "Driver properties" / "Advanced" / "JDBC parameters" tab, add:
 
@@ -243,7 +266,7 @@ cd /Users/bhanupratap/My/my-microservices/eureka-server
 curl -s http://localhost:8080/actuator | jq '._links | keys'
 
 # Dep tree of one module (to catch conflicts / see what's actually pulled in)
-./api-gateway/mvnw -f notification/pom.xml dependency:tree
+./infra/api-gateway/mvnw -f services/notification/pom.xml dependency:tree
 ```
 
 ## Java env
@@ -346,11 +369,11 @@ docker exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
 
 ```bash
 # outbox
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, aggregate_type, destination, status, created_at, sent_at FROM outbox_events ORDER BY created_at DESC LIMIT 10;"
 
 # users
-docker exec mysql-user mysql -uroot -ppass1234 userdb -e \
+docker exec mysql-shared mysql -uroot -p$MYSQL_ROOT_PASSWORD userdb -e \
   "SELECT id, name, email FROM user;"
 ```
 
