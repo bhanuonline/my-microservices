@@ -6,8 +6,11 @@ Living doc for the study project. Filled in as debugging + verification progress
 
 | I want to... | Read |
 |---|---|
+| **I just cloned the repo — how do I get started?** | [00-first-time-setup.md](00-first-time-setup.md) |
 | **Is everything running right now?** | Run `./status.sh` from project root |
 | Understand the whole system in 5 min | [00-architecture-overview.md](00-architecture-overview.md) |
+| Day-to-day Docker commands for this repo | [docker-howto.md](docker-howto.md) |
+| Which mode should I run? (minimal / shared-db / individual) | [topologies.md](topologies.md) |
 | Bring the stack up right now | [01-startup-runbook.md](01-startup-runbook.md) |
 | Know if a service is actually healthy | [02-verification-checklist.md](02-verification-checklist.md) |
 | Understand a specific pattern | [concepts/](concepts/) |
