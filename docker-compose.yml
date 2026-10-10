@@ -614,11 +614,11 @@ services:
   # ---------- Payment service (core) ----------
   # Carries all 5 provider integrations (Mock, Stripe, Razorpay, PayPal,
   # Checkout.com). H2 by default; `docker` profile switches to MySQL.
-  paymentservice:
+  payment-service:
     build:
       context: .
-      dockerfile: services/paymentservice/Dockerfile
-    container_name: paymentservice
+      dockerfile: services/payment-service/Dockerfile
+    container_name: payment-service
     mem_limit: 512m
     environment:
       JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseSerialGC"

@@ -90,7 +90,7 @@ Two ways to trigger it:
 ```
 Option A — Simulate payment-service outage
 ──────────────────────────────────────────
-  docker compose stop paymentservice
+  docker compose stop payment-service
   # Run Flow 2.
   # order-service's PaymentCommand consumer retries 3 times (per
   # application.yml default back-off), then routes to payment.commands.DLT.

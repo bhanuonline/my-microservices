@@ -285,7 +285,7 @@ cd /Users/bhanupratap/My/my-microservices/order-service
 
 ### payment-service
 ```bash
-cd /Users/bhanupratap/My/my-microservices/paymentservice
+cd /Users/bhanupratap/My/my-microservices/payment-service
 ./mvnw spring-boot:run
 ```
 

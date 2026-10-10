@@ -122,7 +122,7 @@ services:
       mysql-auth:
         condition: service_healthy
 
-  paymentservice:
+  payment-service:
     environment:
       PAYMENT_DB_URL: jdbc:mysql://mysql-payment:3306/paymentdb?useSSL=false&allowPublicKeyRetrieval=true
     depends_on:

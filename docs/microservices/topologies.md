@@ -139,10 +139,10 @@ overlay:
 | user-service | `USER_DB_URL` | `jdbc:mysql://mysql-shared:3306/userdb` | `jdbc:mysql://mysql-user:3306/userdb` |
 | product-service | `PRODUCT_DB_URL` | `…/mysql-shared:3306/productdb` | `…/mysql-product:3306/productdb` |
 | auth-server | `AUTH_DB_URL` | `…/mysql-shared:3306/authdb` | `…/mysql-auth:3306/authdb` |
-| paymentservice | `PAYMENT_DB_URL` | `…/mysql-shared:3306/paymentdb` | `…/mysql-payment:3306/paymentdb` |
+| payment-service | `PAYMENT_DB_URL` | `…/mysql-shared:3306/paymentdb` | `…/mysql-payment:3306/paymentdb` |
 
 You can override these from `.env` without touching the compose files
-if, say, you want paymentservice talking to its own DB while the rest
+if, say, you want payment-service talking to its own DB while the rest
 share.
 
 ---

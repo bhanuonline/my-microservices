@@ -113,7 +113,7 @@ Fill them in:
 4. Re-source and re-start payment-service:
    ```bash
    set -a; source .env; set +a
-   mvn -pl services/paymentservice spring-boot:run
+   mvn -pl services/payment-service spring-boot:run
    ```
 
 If you forget to set `STRIPE_SECRET_KEY` and `PAYMENT_STRIPE_ENABLED=true`,
@@ -271,7 +271,7 @@ RAZORPAY_WEBHOOK_SECRET=...             # the string you chose in step 3
 Then:
 ```bash
 set -a; source .env; set +a
-mvn -pl services/paymentservice spring-boot:run
+mvn -pl services/payment-service spring-boot:run
 # AND in another terminal, if you don't have ngrok already:
 ngrok http 8091
 # Copy the https://xxxxx.ngrok.io URL into the Razorpay webhook config.
@@ -425,7 +425,7 @@ ngrok http 8091
 
 # Load env + restart paymentservice
 set -a; source .env; set +a
-mvn -pl services/paymentservice spring-boot:run
+mvn -pl services/payment-service spring-boot:run
 ```
 
 ### Smoke test — payment-service only
@@ -572,7 +572,7 @@ CHECKOUTCOM_TEST_TOKEN=tok_card_visa_1
 Then:
 ```bash
 set -a; source .env; set +a
-mvn -pl services/paymentservice spring-boot:run
+mvn -pl services/payment-service spring-boot:run
 # ...and leave order-service / Kafka / mysql-payment / notification running too.
 ```
 
