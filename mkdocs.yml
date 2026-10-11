@@ -164,6 +164,13 @@ nav:
     - Observability: features/observability-multi-service.md
     - Load testing: features/load-testing.md
     - Elasticsearch Phase 0 smoke: features/elasticsearch-phase0-smoke.md
+  - Diagrams:
+    - Overview: diagrams/README.md
+    - Nano startup order: diagrams/nano-startup-order.md
+    - Request flow: diagrams/request-flow.md
+    - Services effort ladder: diagrams/services-effort-ladder.md
+    - Docker mental model: diagrams/docker-mental-model.md
+    - Dependency stack: diagrams/dependency-stack.md
   - Concepts: concepts/
   - Flows: flows/
   - Postman: postman/

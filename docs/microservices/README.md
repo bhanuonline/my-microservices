@@ -12,6 +12,8 @@ docs/microservices/
 ├── debug/        Troubleshooting, debugging-flows, useful commands
 ├── design/       Architecture tiers, roadmaps, design decisions
 ├── features/     Service- and feature-specific guides (payment, UI, etc.)
+├── diagrams/     Visual (Mermaid) versions of key diagrams — rendered
+│                 as pictures on GitHub/MkDocs; equivalent to ASCII in docs
 │
 ├── concepts/     Reusable patterns (saga, outbox, DLQ, service discovery, …)
 ├── flows/        End-to-end request walkthroughs

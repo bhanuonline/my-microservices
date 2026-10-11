@@ -5,6 +5,9 @@ Not a Docker tutorial — assumes you know what a container is. For
 *which* topology to run, read [`topologies.md`](topologies.md) first;
 this doc is about *using* Docker once you've picked one.
 
+> 📊 Visual version of the mental-model diagram:
+> [`../diagrams/docker-mental-model.md`](../diagrams/docker-mental-model.md).
+
 ---
 
 ## 0. Pure-Docker vs. `start-stack.sh` — which to use

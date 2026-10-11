@@ -1,5 +1,8 @@
 # 01 — Startup runbook
 
+> 📊 Visual version of the dependency-stack diagram:
+> [`../diagrams/dependency-stack.md`](../diagrams/dependency-stack.md).
+
 > **For the quick way, see [`00-first-time-setup.md`](00-first-time-setup.md).**
 >
 > This doc exists to teach you WHY the stack starts in waves and WHAT

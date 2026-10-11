@@ -2,6 +2,10 @@
 
 First time running this project? Start here.
 
+> 📊 **Visual learner?** The ASCII diagrams in this doc have Mermaid
+> (rendered-picture) equivalents in [`../diagrams/`](../diagrams/) —
+> nano startup order, request flow, effort-vs-capability ladder.
+
 ## What you're setting up
 
 This is a Spring Boot microservices playground — a mini e-commerce
