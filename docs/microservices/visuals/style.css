@@ -368,6 +368,192 @@ pre code {
   .live-arch animateMotion { display: none; }
 }
 
+/* ─── Interactive simulator (template pattern) ────── */
+
+.sim {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 14px;
+}
+
+.sim .ctrl label {
+  display: block;
+  font-size: 13px;
+  color: var(--mute);
+  margin-bottom: 12px;
+}
+
+.sim .ctrl input,
+.sim .ctrl select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 8px;
+  font: 14px "IBM Plex Sans", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.sim .ctrl input:focus,
+.sim .ctrl select:focus {
+  outline: 2px solid var(--acc);
+  outline-offset: -1px;
+  border-color: var(--acc);
+}
+
+button.primary {
+  background: var(--acc);
+  color: #fff;
+  border: 1px solid var(--acc);
+  border-radius: 5px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font: 500 14px "IBM Plex Sans", sans-serif;
+  width: 100%;
+  margin-top: 6px;
+}
+
+button.primary:hover,
+button.primary:focus-visible {
+  background: var(--ink);
+  border-color: var(--ink);
+  outline: none;
+}
+
+:root[data-theme="dark"] button.primary {
+  color: var(--bg);
+}
+
+.presets {
+  margin-bottom: 14px;
+}
+
+.presets button {
+  font: 500 12px "IBM Plex Sans", sans-serif;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  margin: 0 6px 6px 0;
+}
+
+.presets button:hover,
+.presets button:focus-visible {
+  border-color: var(--acc);
+  color: var(--acc);
+  outline: none;
+}
+
+/* Simulator SVG */
+
+.sim-svg {
+  width: 100%;
+  display: block;
+  background: var(--code);
+  border-radius: 6px;
+  padding: 12px;
+  min-height: 200px;
+}
+
+.sim-svg .ed {
+  stroke: var(--mute);
+  stroke-opacity: 0.4;
+  stroke-width: 2;
+  fill: none;
+}
+
+.sim-svg .nd { cursor: pointer; outline: none; }
+
+.sim-svg .nd rect {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+.sim-svg .nd text {
+  pointer-events: none;
+  font: 500 12px "IBM Plex Sans", sans-serif;
+  fill: var(--ink);
+}
+
+.sim-svg .nd:hover rect,
+.sim-svg .nd:focus-visible rect {
+  stroke: var(--acc);
+  stroke-width: 2.5;
+}
+
+.sim-svg .nd.ok rect {
+  stroke: var(--good);
+  stroke-width: 2.5;
+}
+
+.sim-svg .nd.err rect {
+  stroke: var(--bad);
+  stroke-width: 2.5;
+}
+
+.sim-svg #sim-pk {
+  transition: transform 0.6s ease-in-out;
+  fill: var(--acc2);
+}
+
+/* Log pane */
+
+.sim-log {
+  font: 12.5px/1.6 "IBM Plex Mono", monospace;
+  background: var(--code);
+  border-radius: 6px;
+  padding: 10px 12px;
+  height: 140px;
+  overflow: auto;
+  margin-top: 10px;
+  color: var(--ink);
+}
+
+.sim-log .ok  { color: var(--good); }
+.sim-log .err { color: var(--bad); }
+
+/* Request / Response panes */
+
+.sim-io {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.sim-io small {
+  color: var(--mute);
+  font: 500 11px "IBM Plex Mono", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sim-io pre {
+  margin-top: 6px;
+  min-height: 110px;
+}
+
+.sim-io pre.good { border-left: 3px solid var(--good); }
+.sim-io pre.bad  { border-left: 3px solid var(--bad); }
+
+.sim-info {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--mute);
+}
+
+@media (max-width: 820px) {
+  .sim { grid-template-columns: 1fr; }
+  .sim-io { grid-template-columns: 1fr; }
+}
+
 /* ─── Prev / Next footer navigation ───────────────── */
 
 .nav-footer {

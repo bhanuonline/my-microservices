@@ -97,7 +97,99 @@ sequenceDiagram
       <li><b>Metrics:</b> Each service exposes <code>/actuator/prometheus</code>. Prometheus scrapes every 15s if running (minimal+ modes).</li>
     </ul>
 
-    <h2>Reproduce it</h2>
+    <h2>Try it live — simulator</h2>
+    <p class="lead">
+      Pick a scenario or change the inputs, then press Send. Watch the packet travel through the system and read the log + response. <b>Click any node</b> in the diagram to see what it does.
+    </p>
+    <div class="box">
+      <div class="presets">
+        <button data-p="ok">Happy path</button>
+        <button data-p="tok">Expired token</button>
+        <button data-p="dis">Service down</button>
+        <button data-p="db">DB connection lost</button>
+      </div>
+
+      <div class="sim">
+        <div class="ctrl">
+          <label>Auth
+            <select id="simAuth">
+              <option value="valid">Valid Basic admin:admin123</option>
+              <option value="expired">Missing / invalid</option>
+            </select>
+          </label>
+          <label>user-service state
+            <select id="simUser">
+              <option value="up">Up &amp; registered</option>
+              <option value="unregistered">Not registered in Eureka</option>
+              <option value="down">Down / timeout</option>
+            </select>
+          </label>
+          <label>mysql-shared state
+            <select id="simDb">
+              <option value="ok">OK — 20 rows</option>
+              <option value="slow">Slow (300ms)</option>
+              <option value="broken">Connection lost</option>
+            </select>
+          </label>
+          <button class="primary" id="simGo">▶ Send request</button>
+        </div>
+
+        <div>
+          <svg class="sim-svg" id="simSvg" viewBox="0 0 560 220" role="img" aria-label="Interactive request flow diagram">
+            <line class="ed" x1="70"  y1="110" x2="195" y2="110"/>
+            <line class="ed" x1="195" y1="110" x2="320" y2="110"/>
+            <line class="ed" x1="320" y1="110" x2="320" y2="40"/>
+            <line class="ed" x1="320" y1="110" x2="440" y2="60"/>
+            <line class="ed" x1="320" y1="110" x2="440" y2="160"/>
+            <line class="ed" x1="440" y1="160" x2="500" y2="200"/>
+
+            <g class="nd" data-id="client" tabindex="0" role="button" transform="translate(20,88)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">curl</text>
+            </g>
+            <g class="nd" data-id="gateway" tabindex="0" role="button" transform="translate(145,88)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">api-gateway</text>
+            </g>
+            <g class="nd" data-id="auth" tabindex="0" role="button" transform="translate(270,10)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">auth-server</text>
+            </g>
+            <g class="nd" data-id="eureka" tabindex="0" role="button" transform="translate(270,88)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">eureka</text>
+            </g>
+            <g class="nd" data-id="user" tabindex="0" role="button" transform="translate(395,38)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">user-service</text>
+            </g>
+            <g class="nd" data-id="db" tabindex="0" role="button" transform="translate(395,138)">
+              <rect width="100" height="44" rx="6"/>
+              <text x="50" y="27" text-anchor="middle">mysql-shared</text>
+            </g>
+
+            <circle id="sim-pk" r="7" cx="0" cy="0" style="transform: translate(70px, 110px);"/>
+          </svg>
+
+          <div class="sim-log" id="simLog" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="sim-io">
+        <div>
+          <small>Request</small>
+          <pre id="simRq">Click Send to begin.</pre>
+        </div>
+        <div>
+          <small>Response</small>
+          <pre id="simRs">—</pre>
+        </div>
+      </div>
+
+      <p class="sim-info" id="simInfo">Click any node in the diagram above to see what it does.</p>
+    </div>
+
+    <h2>Reproduce it for real</h2>
     <div class="box"><pre><code># Prereq: nano running + user-service running
 make up-nano
 make debug-user   # separate terminal
@@ -163,6 +255,176 @@ tail -f logs/user-service-debug.log</code></pre></div>
       el.setAttribute('data-src', el.innerHTML);
     });
     initMermaid();
+  })();
+
+  /* ─── Interactive request simulator ─────────────────────── */
+  (function() {
+    var $ = function(id) { return document.getElementById(id); };
+
+    // Node positions (centre of each rect, matches the SVG transforms above)
+    var POS = {
+      client:  [70,  110],
+      gateway: [195, 110],
+      auth:    [320,  32],
+      eureka:  [320, 110],
+      user:    [445,  60],
+      db:      [445, 160]
+    };
+
+    var INFO = {
+      client:  'curl — your terminal. Sends the HTTP request with Basic auth.',
+      gateway: 'api-gateway — reactive Netty on :8080. Validates JWT, looks up the service in Eureka, proxies the call.',
+      auth:    'auth-server — OAuth2 token issuer on :8095. Gateway asks it to validate incoming credentials.',
+      eureka:  'eureka-server — service registry on :8761. Returns the host:port of a user-service instance.',
+      user:    'user-service — Spring Boot app on :8081. Runs on your host via mvn (nano does not start it).',
+      db:      'mysql-shared — holds the userdb schema. user-service queries it via HikariCP.'
+    };
+
+    var pk    = $('sim-pk');
+    var log   = $('simLog');
+    var runTk = 0;
+
+    function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+    function clearMarks() {
+      document.querySelectorAll('.sim-svg .nd').forEach(function(n) {
+        n.classList.remove('ok', 'err');
+      });
+    }
+    function mark(id, cls) {
+      var n = document.querySelector('.sim-svg .nd[data-id=' + id + ']');
+      if (n) { n.classList.remove('ok', 'err'); n.classList.add(cls); }
+    }
+    function line(txt, cls) {
+      var d = document.createElement('div');
+      d.textContent = txt;
+      if (cls) d.className = cls;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    function putAt(id) {
+      pk.style.transform = 'translate(' + POS[id][0] + 'px, ' + POS[id][1] + 'px)';
+    }
+    async function hopTo(id, msg, cls, tk) {
+      if (tk !== runTk) throw 'cancel';
+      putAt(id);
+      await sleep(650);
+      mark(id, cls);
+      line(msg, cls);
+      await sleep(300);
+    }
+    async function retreat(id, tk) {
+      if (tk !== runTk) throw 'cancel';
+      putAt(id);
+      await sleep(500);
+    }
+    function finish(tk, code, body, retreatPath) {
+      return (async function() {
+        for (var i = 0; i < retreatPath.length; i++) {
+          await retreat(retreatPath[i], tk);
+        }
+        var ok = code < 300;
+        line('← Response ' + code, ok ? 'ok' : 'err');
+        var pane = $('simRs');
+        pane.textContent = 'HTTP ' + code + '\n\n' + JSON.stringify(body, null, 2);
+        pane.className = ok ? 'good' : 'bad';
+      })();
+    }
+
+    async function send() {
+      var tk = ++runTk;
+      log.innerHTML = '';
+      clearMarks();
+      // Snap packet to client without animating
+      pk.style.transition = 'none';
+      putAt('client');
+      void pk.getBoundingClientRect();
+      pk.style.transition = '';
+
+      var auth = $('simAuth').value;
+      var usr  = $('simUser').value;
+      var db   = $('simDb').value;
+
+      $('simRq').textContent =
+        'GET /api/v1/users HTTP/1.1\n' +
+        'Host: localhost:8080\n' +
+        'Authorization: ' + (auth === 'valid' ? 'Basic YWRtaW46YWRtaW4xMjM=' : '(missing)');
+      $('simRs').textContent = 'waiting...';
+      $('simRs').className = '';
+
+      try {
+        await hopTo('client',  '→ curl sends GET /api/v1/users',           'ok', tk);
+        await hopTo('gateway', '→ api-gateway received the request',      'ok', tk);
+
+        if (auth !== 'valid') {
+          await hopTo('auth',    '✗ auth-server: token missing / invalid', 'err', tk);
+          return await finish(tk, 401, { error: 'unauthorized' }, ['gateway', 'client']);
+        }
+        await hopTo('auth',    '✓ auth-server: credentials valid',        'ok', tk);
+        await retreat('gateway', tk);
+
+        if (usr === 'unregistered') {
+          await hopTo('eureka',  '✗ eureka: USER-SERVICE not registered',  'err', tk);
+          return await finish(tk, 503, { error: 'service_unavailable', detail: 'no USER-SERVICE instances' }, ['gateway', 'client']);
+        }
+        await hopTo('eureka',  '✓ eureka: USER-SERVICE → localhost:8081', 'ok', tk);
+        await retreat('gateway', tk);
+
+        if (usr === 'down') {
+          await hopTo('user',    '✗ user-service: connection timeout',    'err', tk);
+          return await finish(tk, 504, { error: 'gateway_timeout', upstream: 'user-service' }, ['gateway', 'client']);
+        }
+        await hopTo('user',    '→ user-service: handling GET /users',    'ok', tk);
+
+        if (db === 'broken') {
+          await hopTo('db',      '✗ mysql-shared: connection refused',    'err', tk);
+          return await finish(tk, 500, { error: 'internal_error', message: 'JDBC connection broken' }, ['user', 'gateway', 'client']);
+        }
+        if (db === 'slow') {
+          await hopTo('db',      '→ mysql-shared: slow query (300ms)',    'ok', tk);
+          await sleep(300);
+        } else {
+          await hopTo('db',      '✓ mysql-shared: 20 rows returned',      'ok', tk);
+        }
+
+        await retreat('user', tk);
+        await retreat('gateway', tk);
+        await finish(tk, 200, [
+          { id: 1, email: 'alice@example.com', name: 'Alice Smith' },
+          { id: 2, email: 'bob@example.com',   name: 'Bob Jones'  },
+          { id: 3, email: '…',                 name: '… 17 more'  }
+        ], ['client']);
+      } catch (e) {
+        // Request was cancelled by a newer Send — do nothing.
+      }
+    }
+
+    // Preset buttons
+    var PRESETS = {
+      ok:  { simAuth: 'valid',   simUser: 'up',           simDb: 'ok' },
+      tok: { simAuth: 'expired', simUser: 'up',           simDb: 'ok' },
+      dis: { simAuth: 'valid',   simUser: 'unregistered', simDb: 'ok' },
+      db:  { simAuth: 'valid',   simUser: 'up',           simDb: 'broken' }
+    };
+    document.querySelectorAll('.presets button').forEach(function(b) {
+      b.onclick = function() {
+        var p = PRESETS[b.dataset.p]; if (!p) return;
+        Object.keys(p).forEach(function(k) { $(k).value = p[k]; });
+        send();
+      };
+    });
+
+    // Click any node for info
+    document.querySelectorAll('.sim-svg .nd').forEach(function(n) {
+      var showInfo = function() { $('simInfo').textContent = INFO[n.dataset.id] || ''; };
+      n.onclick = showInfo;
+      n.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showInfo(); } };
+    });
+
+    // Send button
+    $('simGo').onclick = send;
+
+    // Fire once on load so the user sees something immediately
+    setTimeout(send, 600);
   })();
 </script>
 </body>
