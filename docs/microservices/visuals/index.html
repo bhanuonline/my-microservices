@@ -8,85 +8,113 @@
 </head>
 <body>
 <div class="container">
+
+  <!-- Learning path (sticky at top) -->
+  <nav class="learning-path" aria-label="Learning path">
+    <a href="index.html" class="lp-step active">
+      <span class="step-num"><span>1</span></span> Overview
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="arch/nano-topology.html" class="lp-step">
+      <span class="step-num"><span>2</span></span> Architecture
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="diagram/startup-order.html" class="lp-step">
+      <span class="step-num"><span>3</span></span> Startup order
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="flowchart/request-flow.html" class="lp-step">
+      <span class="step-num"><span>4</span></span> Request flow
+    </a>
+  </nav>
+
   <header>
-    <h1>📊 Visual Documentation</h1>
-    <div class="subtitle">Interactive diagrams, architecture views, and flow charts</div>
+    <h1>Visual Documentation</h1>
+    <div class="subtitle">
+      Follow the learning path above left-to-right. Each page builds on the previous — architecture (what runs) → startup order (how it comes up) → request flow (how traffic moves through it).
+    </div>
   </header>
 
   <section>
-    <h2>What's here?</h2>
+    <h2>How to read these pages</h2>
     <p>
-      Hand-crafted HTML pages with live-rendered Mermaid diagrams.
-      Open any file directly in a browser, or browse via
-      <code>make docs-serve</code> at
-      <code>http://localhost:8000/my-microservices/visuals/</code>.
+      These 4 pages are a <strong>guided tour of nano mode</strong>
+      (the 7-container platform). Read them in order:
     </p>
+    <ol>
+      <li><strong>Overview (this page)</strong> — the big picture + how to use the tour.</li>
+      <li><strong>Architecture</strong> — what runs in nano mode and why each container exists.</li>
+      <li><strong>Startup order</strong> — the healthcheck-gated sequence Compose follows to bring everything up.</li>
+      <li><strong>Request flow</strong> — a single API call traced through every hop.</li>
+    </ol>
     <div class="callout tip">
-      <strong>Scope:</strong> Nano mode only for now. Other modes
-      (minimal, shared-db, full) coming later.
+      <strong>Already running?</strong> If <code>make up-nano</code> is up, keep <code>docker compose ps</code> open in another tab while reading. Match what you see live against the diagrams.
     </div>
   </section>
 
   <section>
-    <h2>🏗 Architecture</h2>
-    <p>Big-picture views — how services, networks, and data layers fit together.</p>
+    <h2>The 4-step tour</h2>
     <table>
-      <thead><tr><th>Diagram</th><th>What it shows</th></tr></thead>
+      <thead>
+        <tr>
+          <th style="width: 60px;">Step</th>
+          <th>Page</th>
+          <th>What you'll learn</th>
+          <th>Approx read time</th>
+        </tr>
+      </thead>
       <tbody>
         <tr>
-          <td><a href="arch/nano-topology.html">Nano topology</a></td>
-          <td>The 7 containers of nano mode, grouped by role, with the ports they expose.</td>
+          <td><strong>1</strong></td>
+          <td><a href="index.html">Overview</a></td>
+          <td>Where you are now. What's covered and what isn't (yet).</td>
+          <td>2 min</td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td><a href="arch/nano-topology.html">🏗 Architecture — Nano topology</a></td>
+          <td>The 7 containers, grouped by role (data / platform / edge), each with its port and purpose.</td>
+          <td>5 min</td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td><a href="diagram/startup-order.html">📐 Diagram — Startup order</a></td>
+          <td>5-wave dependency chain. Why MySQL + Kafka + Redis start first, why gateway is last.</td>
+          <td>4 min</td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td><a href="flowchart/request-flow.html">🔀 Flowchart — Request flow</a></td>
+          <td>A <code>GET /api/v1/users</code> request traced from <code>curl</code> all the way to MySQL and back.</td>
+          <td>5 min</td>
         </tr>
       </tbody>
     </table>
+    <div class="callout">
+      <strong>Total: ~16 min.</strong> After this tour you'll understand how nano mode fits together and know what to try next.
+    </div>
   </section>
 
   <section>
-    <h2>📐 Diagrams</h2>
-    <p>Component-level visuals — specific relationships and dependencies.</p>
-    <table>
-      <thead><tr><th>Diagram</th><th>What it shows</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><a href="diagram/startup-order.html">Startup order</a></td>
-          <td>The 5-wave dependency chain, with healthcheck gates between each wave.</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>🔀 Flow charts</h2>
-    <p>End-to-end runtime flows — follow a single request as it moves through the system.</p>
-    <table>
-      <thead><tr><th>Flow</th><th>What it shows</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><a href="flowchart/request-flow.html">Request flow</a></td>
-          <td>A <code>GET /api/v1/users</code> request from <code>curl</code> all the way to MySQL and back, step by step.</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Why HTML (not Markdown)?</h2>
+    <h2>Scope</h2>
     <p>
-      Markdown Mermaid blocks (in <a href="../diagrams/">docs/microservices/diagrams/</a>)
-      render fine for simple cases. These HTML pages add:
+      This tour covers <strong>nano mode only</strong> (<code>make up-nano</code>, 7 containers, ~1.6&nbsp;GB RAM). Other modes have more containers and more complex flows:
     </p>
     <ul>
-      <li><strong>Color-coded panels</strong> with a consistent dark palette</li>
-      <li><strong>Side panels</strong> with explanations next to diagrams</li>
-      <li><strong>Interactive Mermaid</strong> with pan/zoom and clickable nodes</li>
-      <li><strong>Standalone-friendly</strong> — share a single <code>.html</code> file over Slack / email, no renderer required</li>
+      <li><strong>Minimal</strong> (<code>make up-minimal</code>) — nano + 4 business services + Prometheus/Grafana</li>
+      <li><strong>Full</strong> (<code>make up</code>) — minimal + Zipkin + Kafka UI + Loki + Vault + Elasticsearch</li>
+      <li><strong>Individual</strong> (<code>make up-individual</code>) — full + 4 per-service MySQLs</li>
     </ul>
-    <div class="callout">
-      <strong>Both exist on purpose.</strong> Markdown Mermaid for in-doc
-      context; standalone HTML for presentations, screenshots, and
-      sharing.
-    </div>
+    <p>Visual tours for those modes will come later.</p>
   </section>
+
+  <!-- Prev/Next navigation -->
+  <nav class="nav-footer" aria-label="Page navigation">
+    <a href="arch/nano-topology.html" class="only-next nav-next">
+      <span class="nav-label">Next →</span>
+      <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
+    </a>
+  </nav>
 
   <footer>
     Source docs:

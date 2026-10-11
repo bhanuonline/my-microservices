@@ -36,12 +36,29 @@
 </head>
 <body>
 <div class="container">
-  <div class="breadcrumb">
-    <a href="../index.html">📊 Visuals</a> &nbsp;→&nbsp; Flow charts &nbsp;→&nbsp; Request flow
-  </div>
+
+  <!-- Learning path -->
+  <nav class="learning-path" aria-label="Learning path">
+    <a href="../index.html" class="lp-step done">
+      <span class="step-num"><span>1</span></span> Overview
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="../arch/nano-topology.html" class="lp-step done">
+      <span class="step-num"><span>2</span></span> Architecture
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="../diagram/startup-order.html" class="lp-step done">
+      <span class="step-num"><span>3</span></span> Startup order
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="request-flow.html" class="lp-step active">
+      <span class="step-num"><span>4</span></span> Request flow
+    </a>
+  </nav>
+
   <header>
     <h1>🔀 Request Flow</h1>
-    <div class="subtitle"><code>GET /api/v1/users</code> from <code>curl</code> to MySQL and back</div>
+    <div class="subtitle">Step 4 of 4 · <code>GET /api/v1/users</code> from <code>curl</code> to MySQL and back</div>
   </header>
 
   <section>
@@ -153,6 +170,18 @@ curl -u admin:admin123 http://localhost:8080/api/v1/users
 docker compose logs -f api-gateway auth-server
 tail -f logs/user-service-debug.log</code></pre>
   </section>
+
+  <!-- Prev/Next -->
+  <nav class="nav-footer" aria-label="Page navigation">
+    <a href="../diagram/startup-order.html" class="nav-prev">
+      <span class="nav-label">← Previous · Step 3</span>
+      <span class="nav-title">📐 Startup order — how it all comes up</span>
+    </a>
+    <a href="../index.html" class="nav-next">
+      <span class="nav-label">Tour complete 🎉</span>
+      <span class="nav-title">Back to Overview — try minimal mode next</span>
+    </a>
+  </nav>
 
   <footer>
     <a href="../index.html">← Back to Visuals index</a>

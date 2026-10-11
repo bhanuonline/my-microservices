@@ -27,12 +27,29 @@
 </head>
 <body>
 <div class="container">
-  <div class="breadcrumb">
-    <a href="../index.html">📊 Visuals</a> &nbsp;→&nbsp; Diagrams &nbsp;→&nbsp; Startup order
-  </div>
+
+  <!-- Learning path -->
+  <nav class="learning-path" aria-label="Learning path">
+    <a href="../index.html" class="lp-step done">
+      <span class="step-num"><span>1</span></span> Overview
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="../arch/nano-topology.html" class="lp-step done">
+      <span class="step-num"><span>2</span></span> Architecture
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="startup-order.html" class="lp-step active">
+      <span class="step-num"><span>3</span></span> Startup order
+    </a>
+    <span class="lp-arrow">→</span>
+    <a href="../flowchart/request-flow.html" class="lp-step">
+      <span class="step-num"><span>4</span></span> Request flow
+    </a>
+  </nav>
+
   <header>
     <h1>📐 Nano Startup Order</h1>
-    <div class="subtitle">5 healthcheck-gated waves · ~45-60s warm boot · ~5-8 min first boot</div>
+    <div class="subtitle">Step 3 of 4 · 5 healthcheck-gated waves · ~45-60s warm boot · ~5-8 min first boot</div>
   </header>
 
   <section>
@@ -130,6 +147,18 @@ docker compose logs --tail 30 &lt;stuck-service&gt;
       <code>make down &amp;&amp; make up-nano</code> to recover cleanly.
     </div>
   </section>
+
+  <!-- Prev/Next -->
+  <nav class="nav-footer" aria-label="Page navigation">
+    <a href="../arch/nano-topology.html" class="nav-prev">
+      <span class="nav-label">← Previous · Step 2</span>
+      <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
+    </a>
+    <a href="../flowchart/request-flow.html" class="nav-next">
+      <span class="nav-label">Next · Step 4 →</span>
+      <span class="nav-title">🔀 Request flow — tracing an API call</span>
+    </a>
+  </nav>
 
   <footer>
     <a href="../index.html">← Back to Visuals index</a>
