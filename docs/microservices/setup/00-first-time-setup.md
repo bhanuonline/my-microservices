@@ -408,6 +408,17 @@ make kafka-groups                                  # list consumer groups
 make kafka-group-describe GROUP=order-saga         # group lag
 make kafka-shell                                   # shell into container
 
+# Kafka UI (browser)   http://localhost:8090
+COMPOSE_PROFILES=cache,kafka-ops docker compose up -d kafka-ui
+
+# Run a service with debugger attached (unique port per service)
+make debug-user              # :8081 app, :5005 debugger
+make debug-product           # :8082 app, :5006 debugger
+make debug-order             # :8083 app, :5007 debugger
+make debug-payment           # :8091 app, :5008 debugger
+make debug-notification      # :8099 app, :5009 debugger
+make debug-list              # all services + debug ports
+
 # Hybrid mode
 ./start-stack.sh                        # auto-detect + run
 ./start-stack.sh --minimal              # explicit minimal
@@ -568,6 +579,25 @@ Expected:
 > ```
 >
 > For anything exotic: `./scripts/kafka.sh --help`.
+>
+> **Tip — Kafka GUI (browser UI):** the project already includes
+> [Provectus Kafka UI](https://github.com/provectus/kafka-ui) behind
+> the `kafka-ops` profile. Start it on top of what you have:
+>
+> ```bash
+> COMPOSE_PROFILES=cache,kafka-ops docker compose up -d kafka-ui
+> open http://localhost:8090
+> ```
+>
+> What you get at http://localhost:8090:
+> - **Topics** — browse messages (JSON view), produce from the browser,
+>   see per-partition offsets.
+> - **Consumer Groups** — live lag per partition (critical for saga
+>   debugging), reset offsets with a click.
+> - **Brokers** — broker metadata + config.
+>
+> No login required (dev mode). ~384 MB extra RAM. To include it
+> automatically, use `make up-kafka-debug` instead of `make up-nano`.
 
 **4. Spring Boot services — HTTP health probes**
 
@@ -595,47 +625,297 @@ after 1 minute, that service hasn't registered — check its logs:
 
 ### After nano is up — next steps
 
-**1. Open the Eureka dashboard**
+Nano gives you the platform. To hit `/api/v1/*` endpoints or exercise
+a saga, you need to run at least one business service alongside it.
+This section walks through how.
 
-```
-http://localhost:8761
-```
+#### 1 · Confirm the platform is reachable
 
-You should see 2 services registered: `API-GATEWAY` and `CONFIG-SERVER`.
-(auth-server registers lazily — refresh after ~10s to see it join.)
+**Eureka dashboard** — http://localhost:8761 should list 2 services:
+`API-GATEWAY` and `CONFIG-SERVER` (auth-server joins lazily, refresh
+after ~10s).
 
-**2. Hit the gateway**
+**Gateway health** — JSON including `"status":"UP"` and components for
+`redis`, `eureka`, `r2dbc`:
 
 ```bash
 curl -s http://localhost:8080/actuator/health | head -c 400
 ```
 
-Should return JSON including `"status":"UP"` and components for
-`redis`, `eureka`, `r2dbc` (gateway's own H2).
+#### 2 · Pick which business service(s) to run
 
-**3. Add a business service from your IDE or terminal**
+| Service | Port | Depends on | What you need it for |
+|---|---|---|---|
+| `user-service` | 8081 | auth-server, mysql, kafka, config-server | `/api/v1/users` CRUD, user registration saga |
+| `product-service` | 8082 | mysql, kafka, config-server | `/api/v1/products`, inventory check |
+| `order-service` | 8083 | mysql, kafka, config-server, product-service | `/checkout`, order creation + saga orchestrator |
+| `payment-service` | 8091 | mysql, kafka, config-server | Payment providers (Mock, Stripe, Razorpay, PayPal, Checkout.com) |
+| `notification` | 8099 | kafka, config-server | Saga notify step (needed if you want `NOTIFIED` state) |
+
+**Quick picks:**
+- **Just want product CRUD?** → `product-service`
+- **Full order flow?** → `product-service` + `order-service` + `payment-service`
+- **End-to-end saga (user registered → emails sent)?** → add `notification` too
+
+#### 3 · Run a service — via `mvn` (terminal)
+
+Pin Java 17 first (project is Java 17; your shell may default to another):
 
 ```bash
-# From the repo root
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 export PATH=$JAVA_HOME/bin:$PATH
-
-cd services/user-service
-mvn spring-boot:run
+java --version      # verify: openjdk 17.x
 ```
 
-Wait ~30 seconds. Refresh http://localhost:8761 — `USER-SERVICE` now
-appears. Then:
+**Normal start:**
 
 ```bash
-curl -u admin:admin123 http://localhost:8080/api/v1/users
+cd /Users/bhanupratap/My/my-microservices
+mvn -pl services/user-service -am spring-boot:run
 ```
 
-End-to-end flow works: browser → gateway (JWT check) → Eureka lookup →
-user-service → MySQL.
+- `-pl services/user-service` — build only this one module
+- `-am` — also build its dependencies (common-lib, etc.)
 
-Repeat for product/order/payment services as needed. See
-[`topologies.md`](topologies.md) "Mode: nano — Typical workflow."
+**With a Spring profile:**
+
+```bash
+mvn -pl services/user-service -am spring-boot:run \
+    -Dspring-boot.run.profiles=dev
+```
+
+Profiles common in this project:
+- `docker` — points at `mysql-shared:3306`, `kafka:29092` (container
+  hostnames). Only use when running INSIDE Docker.
+- `dev` — host-side defaults (`localhost:3306`, `localhost:9092`).
+  Pick this when running via `mvn` on your Mac. Often implicit via
+  `application.yml` defaults.
+- `test` — in-memory H2 + embedded Kafka. For running unit tests.
+- Multiple at once: `-Dspring-boot.run.profiles=dev,canary`
+
+**With debugger attached (JVM remote debug):**
+
+Two ways — pick either:
+
+**Option 1 — shortcut (recommended):**
+
+[`scripts/run-service.sh`](../../../scripts/run-service.sh) pins Java
+17, picks a unique debug port per service, and sets sensible JDWP
+defaults. Wrapped by `make debug-<service>`:
+
+```bash
+make debug-user           # port :8081, debugger on :5005
+make debug-product        # port :8082, debugger on :5006
+make debug-order          # port :8083, debugger on :5007
+make debug-payment        # port :8091, debugger on :5008
+make debug-notification   # port :8099, debugger on :5009
+make debug-list           # see full list + ports
+
+# Override the Spring profile:
+make debug-user PROFILE=dev,canary
+
+# Or call the script directly for finer control:
+./scripts/run-service.sh user dev           # default
+./scripts/run-service.sh user dev --suspend # JVM pauses until debugger attaches
+```
+
+**Option 2 — raw mvn (if you want full control):**
+
+```bash
+mvn -pl services/user-service -am spring-boot:run \
+    -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+```
+
+- `server=y` — JVM waits for debugger to attach
+- `suspend=n` — don't block startup; service runs normally even if no
+  debugger connects (use `suspend=y` to pause until you attach)
+- `address=*:5005` — port 5005 for IntelliJ/VSCode to connect to
+
+Pick a different port per service to debug multiple at once:
+`user-service: 5005`, `product-service: 5006`, `order-service: 5007`,
+`payment-service: 5008`, `notification: 5009`.
+
+**Attach from IntelliJ** (same for both options):
+**Run → Edit Configurations → + → Remote JVM Debug** → host
+`localhost`, port = whichever one above matches your service → click
+Debug.
+
+Running multiple services with debug? Each gets its own port, so no
+conflicts. Create one Remote JVM Debug config per service.
+
+**With extra JVM options (heap, GC, system properties):**
+
+```bash
+mvn -pl services/user-service -am spring-boot:run \
+    -Dspring-boot.run.jvmArguments="-Xms256m -Xmx512m -Dcustom.flag=true"
+```
+
+**Override a config value from command line:**
+
+```bash
+mvn -pl services/user-service -am spring-boot:run \
+    -Dspring-boot.run.arguments="--server.port=9999 --spring.datasource.url=jdbc:h2:mem:test"
+```
+
+Watch the output. You'll see Spring Boot startup, then:
+```
+Started UserServiceApplication in 23.456 seconds
+Registered with eureka ... status: 204
+```
+
+Terminal is now blocked by the running service. Open a new terminal
+for anything else. Stop it with Ctrl+C.
+
+#### 4 · Run a service — via IntelliJ IDEA
+
+**One-time setup:**
+
+1. **File → Open** → point at `/Users/bhanupratap/My/my-microservices`
+2. Wait for IntelliJ to import the Maven project (~1 min)
+3. **File → Project Structure → Project SDK → Java 17**
+4. Open the service's `pom.xml` → right-click → **Add as Maven Project**
+
+**Run the service:**
+
+1. Find the `*Application.java` class, e.g.
+   `services/user-service/src/main/java/.../UserServiceApplication.java`
+2. Click the ▶ green arrow next to `public static void main(...)`
+3. First run creates a Run Configuration automatically
+
+**Set a Spring profile for the Run Configuration:**
+
+1. **Run → Edit Configurations…**
+2. Pick your service's config in the left list
+3. **Environment variables** → add:
+   ```
+   SPRING_PROFILES_ACTIVE=dev
+   ```
+   (or `docker`, `test`, or comma-separated: `dev,canary`)
+4. Save. The profile applies next time you Run or Debug.
+
+**Alternatively** — add to **VM options**:
+```
+-Dspring.profiles.active=dev
+```
+
+**Attach the debugger (local — simpler):**
+
+- Set breakpoints by clicking in the gutter (left of line numbers)
+- Instead of ▶ Run, click 🐞 **Debug** on the same Run Configuration
+- Make a request through the gateway — IntelliJ stops at your breakpoint
+- Step through, inspect variables, change values, resume
+- Hot-swap works: edit a method body, `⌘F9` to recompile, hits with
+  new code without restart
+
+**Attach the debugger (remote — when service is run via mvn):**
+
+Use this when you started the service with the `-agentlib:jdwp...`
+flag shown in section 3.
+
+1. **Run → Edit Configurations… → + → Remote JVM Debug**
+2. Host `localhost`, Port `5005` (or whatever port you used)
+3. Name it `Debug user-service remote` (or similar)
+4. Click 🐞 **Debug**
+5. Hit a breakpoint — IntelliJ shows the running JVM's stack
+
+Difference:
+- Local debug = IDE owns the JVM. Fastest, hot-swap works.
+- Remote debug = IDE attaches to an already-running JVM (started by
+  mvn or Docker). Needed when you can't launch from IDE directly
+  (e.g. the service runs inside a container).
+
+**Fast rebuild loop** — IntelliJ's auto-build on save means code
+changes recompile instantly. Hit `Ctrl+F9` (⌘F9 on Mac) to rebuild
++ hot-swap into the running JVM for most edits (methods, not class
+structure).
+
+#### 5 · Verify the service registered
+
+```bash
+# Does Eureka know about it?
+curl -s http://localhost:8761/eureka/apps | grep -oE '<name>[^<]+' | sort -u
+# Expected: your service name now shows up (e.g. USER-SERVICE)
+
+# Can the gateway route to it?
+curl -u admin:admin123 http://localhost:8080/api/v1/users
+# Expected: 200 OK with JSON (empty [] is fine)
+
+# Or hit the service directly, bypassing gateway:
+curl -s http://localhost:8081/actuator/health
+# Expected: {"status":"UP"}
+```
+
+Flow for an API call:
+
+```
+   browser / curl
+        │
+        ▼  (HTTP :8080, HTTP Basic admin:admin123)
+   ┌─────────────┐
+   │ api-gateway │ ──── validates JWT via auth-server
+   └──────┬──────┘ ──── looks up USER-SERVICE in Eureka
+          │
+          ▼  (HTTP :8081, direct network call)
+   ┌─────────────┐
+   │ user-service│ ──── queries mysql-shared on userdb
+   └─────────────┘
+```
+
+#### 6 · Multi-service workflow (full order flow)
+
+Open 4 terminal tabs/windows. Each runs one service.
+
+**Terminal 1 — product-service (no dependencies on others):**
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17); export PATH=$JAVA_HOME/bin:$PATH
+mvn -pl services/product-service -am spring-boot:run
+```
+
+**Terminal 2 — order-service (needs product-service running):**
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17); export PATH=$JAVA_HOME/bin:$PATH
+mvn -pl services/order-service -am spring-boot:run
+```
+
+**Terminal 3 — payment-service:**
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17); export PATH=$JAVA_HOME/bin:$PATH
+mvn -pl services/payment-service -am spring-boot:run
+```
+
+**Terminal 4 — notification (optional, for the NOTIFIED saga state):**
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17); export PATH=$JAVA_HOME/bin:$PATH
+mvn -pl services/notification -am spring-boot:run
+```
+
+Wait ~30 seconds per service to boot. Then verify:
+
+```bash
+make verify            # health check all + Eureka registrations
+```
+
+Trigger the order flow:
+```bash
+curl -u admin:admin123 -X POST http://localhost:8080/checkout \
+  -H "Content-Type: application/json" \
+  -d '{"userId":1,"productIds":[1,2],"paymentProvider":"mock"}'
+```
+
+Watch the saga progress in `make kafka-consume TOPIC=order.events FROM_BEGINNING=1`.
+
+#### 7 · Pitfalls
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `BUILD FAILURE ... release version 17 not supported` | Shell is on Java 11 or 8 | `export JAVA_HOME=$(/usr/libexec/java_home -v 17)` before `mvn` |
+| `Port 8081 already in use` | Service already running (from Docker or previous mvn) | `lsof -i :8081` then `kill PID`. OR check `docker compose ps` for a running container with that port. |
+| Service starts but doesn't show in Eureka | Wrong Eureka URL (e.g. `eureka-server` doesn't resolve from host) | Service's `application.yml` should have `defaultZone: http://localhost:8761/eureka/` as fallback. Spring profile `docker` points at `eureka-server:8761` which only works inside containers. |
+| `Failed to configure a DataSource` | MySQL not reachable | Check nano is running: `docker compose ps mysql-shared`. Then `make verify` for MySQL probe. |
+| Gateway returns 503 for your service | Service didn't finish starting yet | Wait 10 more seconds, retry. Gateway's Eureka cache refreshes every ~30s. |
+| 401 Unauthorized on all `/api/v1/*` calls | Missing `-u admin:admin123` | Dev mode uses HTTP Basic. Add the `-u` flag. |
+
+For deeper issues, see [`../debug/troubleshooting.md`](../debug/troubleshooting.md).
 
 ### Nano-specific troubleshooting
 

@@ -72,6 +72,15 @@ help:
 	@echo "  make kafka-group-describe GROUP=bar   — consumer group + lag"
 	@echo "  make kafka-shell      — shell into kafka container (advanced)"
 	@echo ""
+	@echo "Run a service in debug mode (JDWP, attach IntelliJ to shown port):"
+	@echo "  make debug-user       — user-service    (:8081, debug :5005)"
+	@echo "  make debug-product    — product-service (:8082, debug :5006)"
+	@echo "  make debug-order      — order-service   (:8083, debug :5007)"
+	@echo "  make debug-payment    — payment-service (:8091, debug :5008)"
+	@echo "  make debug-notification — notification  (:8099, debug :5009)"
+	@echo "  make debug-list       — full list of debug-able services + ports"
+	@echo "  (override profile: make debug-user PROFILE=dev,canary)"
+	@echo ""
 	@echo "Data lifecycle (destructive — read before running):"
 	@echo "  make migrate-db-to-shared  — one-time dump+restore from 4 old DBs"
 	@echo "                                into mysql-shared (safe to re-run)"
@@ -232,6 +241,39 @@ kafka-group-describe:
 kafka-shell:
 	./scripts/kafka.sh shell
 
+# ─── Service debug-mode shortcuts ──────────────────────────────────────
+# Runs a business service via mvn with JDWP (debugger) enabled on a
+# per-service port (so you can debug multiple at once).
+#   make debug-user      → user-service    on :8081, debugger on :5005
+#   make debug-product   → product-service on :8082, debugger on :5006
+#   make debug-order     → order-service   on :8083, debugger on :5007
+#   make debug-payment   → payment-service on :8091, debugger on :5008
+#   make debug-notification → notification on :8099, debugger on :5009
+#
+# Pass PROFILE=foo to override Spring profile (default: dev)
+#   make debug-user PROFILE=dev,canary
+#
+# Attach IntelliJ: Run → Edit Configurations → + Remote JVM Debug →
+#                  Host localhost, Port <debug-port>.
+debug-user:
+	./scripts/run-service.sh user         $(if $(PROFILE),$(PROFILE),dev)
+
+debug-product:
+	./scripts/run-service.sh product      $(if $(PROFILE),$(PROFILE),dev)
+
+debug-order:
+	./scripts/run-service.sh order        $(if $(PROFILE),$(PROFILE),dev)
+
+debug-payment:
+	./scripts/run-service.sh payment      $(if $(PROFILE),$(PROFILE),dev)
+
+debug-notification:
+	./scripts/run-service.sh notification $(if $(PROFILE),$(PROFILE),dev)
+
+# Lists every service the script knows about + its ports
+debug-list:
+	@./scripts/run-service.sh --help
+
 logs:
 	docker compose logs -f --tail=100
 
@@ -265,5 +307,6 @@ build:
         mysql mysql-user mysql-product mysql-auth mysql-payment \
         redis redis-info redis-keys redis-flush \
         kafka-topics kafka-groups kafka-consume kafka-describe kafka-group-describe kafka-shell \
+        debug-user debug-product debug-order debug-payment debug-notification debug-list \
         up-kafka-debug up-with down restart ps stats logs \
         migrate-db-to-shared reset-shared-db saga-test build
