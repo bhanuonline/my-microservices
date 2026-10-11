@@ -2,97 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Request flow — Flow chart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>User API flow · Visual Tour</title>
   <link rel="stylesheet" href="../style.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'base',
-      themeVariables: {
-        primaryColor: '#ffffff',
-        primaryTextColor: '#0a2540',
-        primaryBorderColor: '#c1c9d2',
-        lineColor: '#8792a2',
-        actorBkg: '#efefff',
-        actorBorder: '#635bff',
-        actorTextColor: '#0a2540',
-        signalColor: '#425466',
-        signalTextColor: '#0a2540',
-        labelBoxBkgColor: '#efefff',
-        labelBoxBorderColor: '#635bff',
-        labelTextColor: '#0a2540',
-        noteBkgColor: '#fff8e6',
-        noteBorderColor: '#c47600',
-        noteTextColor: '#5a3600',
-        activationBkgColor: '#efefff',
-        activationBorderColor: '#635bff',
-        fontSize: '14px',
-        fontFamily: 'Inter, -apple-system, system-ui, sans-serif'
-      }
-    });
-  </script>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
 
-  <aside class="sidebar">
-    <a href="../index.html" class="sidebar-brand">
-      <span class="brand-title">Visual Tour</span>
-      <span class="brand-sub">nano mode · 8 pages · ~30 min</span>
+  <nav class="sidenav">
+    <a href="../index.html" class="nav-brand">
+      <b>Visual Tour</b>
+      <small>nano mode · 8 pages · ~30 min</small>
     </a>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Overview</div>
-      <a href="../index.html" class="sidebar-link"><span class="emoji">📊</span>Start here</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Architecture</div>
-      <a href="../arch/nano-topology.html" class="sidebar-link"><span class="emoji">🏗</span>Nano topology</a>
-      <a href="../arch/service-dependencies.html" class="sidebar-link"><span class="emoji">🔗</span>Service dependencies</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Startup</div>
-      <a href="../diagram/startup-order.html" class="sidebar-link"><span class="emoji">📐</span>Startup order</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Request flows</div>
-      <a href="request-flow.html" class="sidebar-link active"><span class="emoji">👤</span>User API</a>
-      <a href="product-flow.html" class="sidebar-link"><span class="emoji">🛍</span>Product API</a>
-      <a href="order-checkout-flow.html" class="sidebar-link"><span class="emoji">🧾</span>Order checkout</a>
-      <a href="payment-flow.html" class="sidebar-link"><span class="emoji">💳</span>Payment flow</a>
-    </div>
-  </aside>
+    <div class="nav-group">Overview</div>
+    <a href="../index.html">📊 Start here</a>
+    <div class="nav-group">Architecture</div>
+    <a href="../arch/nano-topology.html">🏗 Nano topology</a>
+    <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
+    <div class="nav-group">Startup</div>
+    <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Request flows</div>
+    <a href="request-flow.html" class="on">👤 User API</a>
+    <a href="product-flow.html">🛍 Product API</a>
+    <a href="order-checkout-flow.html">🧾 Order checkout</a>
+    <a href="payment-flow.html">💳 Payment flow</a>
+    <button class="theme-btn" id="themeBtn">Toggle theme</button>
+  </nav>
 
-  <main class="main-content">
-
-  <header>
+  <main>
     <h1>👤 User API — Request Flow</h1>
-    <div class="subtitle">Step 5 of 8 · <code>GET /api/v1/users</code> from <code>curl</code> to MySQL and back</div>
-  </header>
+    <p class="lead">Step 5 of 8 — <code>GET /api/v1/users</code> from <code>curl</code> all the way to MySQL and back.</p>
+    <div class="meta">
+      <span class="tag">sync HTTP</span>
+      <span class="tag ok">~20-40ms warm</span>
+      <span class="tag">10 hops</span>
+    </div>
 
-  <section>
     <h2>The full lifecycle</h2>
-    <p>
-      Every request from your terminal to a business service hops through
-      the gateway, auth-server (for JWT verification), Eureka (for
-      service lookup), the service itself, and finally the database.
-      This is the happy path.
-    </p>
-
-    <div class="mermaid">
+    <p>Every request hops through gateway → auth → eureka → service → database. This is the happy path.</p>
+    <div class="box">
+      <div class="mermaid">
 sequenceDiagram
     autonumber
-    participant C as 💻 Browser / curl
-    participant G as 🌐 api-gateway<br/>:8080
-    participant A as 🔐 auth-server<br/>:8095
-    participant E as 📋 eureka-server<br/>:8761
-    participant U as 👤 user-service<br/>:8081
-    participant M as 💾 mysql-shared<br/>:3306
+    participant C as Browser / curl
+    participant G as api-gateway :8080
+    participant A as auth-server :8095
+    participant E as eureka :8761
+    participant U as user-service :8081
+    participant M as mysql-shared :3306
 
-    C->>G: GET /api/v1/users<br/>Authorization: Basic admin:admin123
+    C->>G: GET /api/v1/users (Basic admin:admin123)
     activate G
-    G->>A: Validate credentials → JWT
+    G->>A: Validate JWT
     A-->>G: ✓ JWT valid, roles=[ADMIN]
     G->>E: Lookup USER-SERVICE instances
     E-->>G: [localhost:8081]
@@ -107,69 +69,34 @@ sequenceDiagram
     G-->>C: 200 OK + JSON body
     deactivate G
 
-    Note over C,M: Total latency ~20-40ms warm,<br/>~200ms cold (JWT validation + eureka lookup)
+    Note over C,M: Total latency ~20-40ms warm, ~200ms cold
+      </div>
     </div>
-  </section>
 
-  <section>
-    <h2>Step-by-step narration</h2>
-    <table>
-      <thead>
-        <tr><th>#</th><th>Hop</th><th>What happens</th><th>If it fails</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>1</td>
-          <td>curl → gateway</td>
-          <td>HTTP request lands on gateway's reactive Netty listener</td>
-          <td>Connection refused — gateway not running</td>
-        </tr>
-        <tr>
-          <td>2-3</td>
-          <td>gateway → auth</td>
-          <td>Gateway's security filter validates the Basic auth header</td>
-          <td>401 Unauthorized returned to curl</td>
-        </tr>
-        <tr>
-          <td>4-5</td>
-          <td>gateway → eureka</td>
-          <td>Gateway asks Eureka for instances of <code>USER-SERVICE</code> (cached ~30s)</td>
-          <td>503 Service Unavailable — user-service not registered</td>
-        </tr>
-        <tr>
-          <td>6</td>
-          <td>gateway → user-service</td>
-          <td>Proxied HTTP call. Gateway strips <code>/api/v1</code> prefix</td>
-          <td>Timeout or 500 if user-service unhealthy</td>
-        </tr>
-        <tr>
-          <td>7-8</td>
-          <td>user-service → mysql</td>
-          <td>Hibernate query via HikariCP pool</td>
-          <td>500 if DB connection broken</td>
-        </tr>
-        <tr>
-          <td>9-10</td>
-          <td>response unwinds</td>
-          <td>JSON serialization at each hop (minimal — <code>User</code> is a flat record)</td>
-          <td>—</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+    <h2>Step-by-step</h2>
+    <div class="box">
+      <table>
+        <thead><tr><th>#</th><th>Hop</th><th>What happens</th><th>If it fails</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>curl → gateway</td><td>HTTP lands on Netty listener</td><td>Connection refused — gateway down</td></tr>
+          <tr><td>2-3</td><td>gateway → auth</td><td>Validates Basic auth header</td><td>401 Unauthorized</td></tr>
+          <tr><td>4-5</td><td>gateway → eureka</td><td>Asks for <code>USER-SERVICE</code> instances (cached ~30s)</td><td>503 — user-service not registered</td></tr>
+          <tr><td>6</td><td>gateway → user-service</td><td>Proxied HTTP, strips <code>/api/v1</code> prefix</td><td>Timeout or 500 if unhealthy</td></tr>
+          <tr><td>7-8</td><td>user → mysql</td><td>Hibernate query via HikariCP pool</td><td>500 if DB connection broken</td></tr>
+          <tr><td>9-10</td><td>response unwinds</td><td>JSON serialization at each hop</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-  <section>
     <h2>Observability touchpoints</h2>
     <ul>
-      <li><strong>Correlation ID:</strong> Gateway stamps <code>X-Correlation-Id</code> on request. Every downstream service logs with it. Grep logs to trace one request end-to-end.</li>
-      <li><strong>Tracing:</strong> In nano mode, tracing is OFF (<code>MANAGEMENT_TRACING_ENABLED=false</code>). Switch to <code>make up-nano-trace</code> to see spans in Zipkin at <code>:9411</code>.</li>
-      <li><strong>Metrics:</strong> Each service exposes <code>/actuator/prometheus</code>. Prometheus (if running in minimal+ mode) scrapes every 15s.</li>
+      <li><b>Correlation ID:</b> Gateway stamps <code>X-Correlation-Id</code>; every downstream log line carries it. Grep by it to trace one request.</li>
+      <li><b>Tracing:</b> OFF in nano (<code>MANAGEMENT_TRACING_ENABLED=false</code>). Use <code>make up-nano-trace</code> for Zipkin at :9411.</li>
+      <li><b>Metrics:</b> Each service exposes <code>/actuator/prometheus</code>. Prometheus scrapes every 15s if running (minimal+ modes).</li>
     </ul>
-  </section>
 
-  <section>
     <h2>Reproduce it</h2>
-    <pre><code># Prereq: nano running + user-service running from your IDE
+    <div class="box"><pre><code># Prereq: nano running + user-service running
 make up-nano
 make debug-user   # separate terminal
 
@@ -178,27 +105,63 @@ curl -u admin:admin123 http://localhost:8080/api/v1/users
 
 # Watch the hops in the logs:
 docker compose logs -f api-gateway auth-server
-tail -f logs/user-service-debug.log</code></pre>
-  </section>
+tail -f logs/user-service-debug.log</code></pre></div>
 
-  <nav class="nav-footer" aria-label="Page navigation">
-    <a href="../diagram/startup-order.html" class="nav-prev">
-      <span class="nav-label">← Previous · Step 4</span>
-      <span class="nav-title">📐 Startup order — how it all comes up</span>
-    </a>
-    <a href="product-flow.html" class="nav-next">
-      <span class="nav-label">Next · Step 6 →</span>
-      <span class="nav-title">🛍 Product API — same hops, different service</span>
-    </a>
-  </nav>
-
-  <footer>
-    <a href="../index.html">← Back to Overview</a>
-    &nbsp;·&nbsp;
-    Source: <a href="../../setup/00-first-time-setup.md">00-first-time-setup.md</a>
-  </footer>
-
+    <nav class="nav-footer" aria-label="Page navigation">
+      <a href="../diagram/startup-order.html" class="nav-prev">
+        <span class="nav-label">← Previous · Step 4</span>
+        <span class="nav-title">📐 Startup order — how it all comes up</span>
+      </a>
+      <a href="product-flow.html" class="nav-next">
+        <span class="nav-label">Next · Step 6 →</span>
+        <span class="nav-title">🛍 Product API — same hops, different service</span>
+      </a>
+    </nav>
+    <div class="page-footer">Source: <a href="../../setup/00-first-time-setup.md">00-first-time-setup.md</a></div>
   </main>
 </div>
+
+<script>
+  (function() {
+    var root = document.documentElement;
+    var saved = localStorage.getItem('theme');
+    if (saved) root.dataset.theme = saved;
+    var btn = document.getElementById('themeBtn');
+    if (btn) btn.onclick = function() {
+      var next = (root.dataset.theme === 'dark') ? 'light' : 'dark';
+      root.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      initMermaid();
+    };
+    function initMermaid() {
+      var dark = root.dataset.theme === 'dark';
+      mermaid.initialize({
+        startOnLoad: false, theme: dark ? 'dark' : 'base',
+        themeVariables: {
+          fontFamily: 'IBM Plex Sans, system-ui, sans-serif', fontSize: '14px',
+          primaryColor: dark ? '#18212b' : '#fff',
+          primaryTextColor: dark ? '#e6ebf1' : '#1d2b3a',
+          primaryBorderColor: dark ? '#2a3541' : '#d6e5f2',
+          lineColor: dark ? '#97a3b3' : '#5f7186',
+          actorBkg: dark ? '#18212b' : '#e9f4fc',
+          actorBorder: dark ? '#3cc0cd' : '#148799',
+          actorTextColor: dark ? '#e6ebf1' : '#1d2b3a',
+          signalColor: dark ? '#97a3b3' : '#5f7186',
+          clusterBkg: dark ? '#10161d' : '#f4f9fd',
+          clusterBorder: dark ? '#2a3541' : '#d6e5f2'
+        }
+      });
+      document.querySelectorAll('.mermaid').forEach(function(el) {
+        el.removeAttribute('data-processed');
+        el.innerHTML = el.getAttribute('data-src') || el.innerHTML;
+      });
+      mermaid.run();
+    }
+    document.querySelectorAll('.mermaid').forEach(function(el) {
+      el.setAttribute('data-src', el.innerHTML);
+    });
+    initMermaid();
+  })();
+</script>
 </body>
 </html>

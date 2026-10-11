@@ -2,75 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Service dependencies — Architecture</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Service dependencies · Visual Tour</title>
   <link rel="stylesheet" href="../style.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'base',
-      themeVariables: {
-        primaryColor: '#ffffff',
-        primaryTextColor: '#0a2540',
-        primaryBorderColor: '#c1c9d2',
-        lineColor: '#8792a2',
-        secondaryColor: '#f6f9fc',
-        tertiaryColor: '#ffffff',
-        clusterBkg: '#f6f9fc',
-        clusterBorder: '#c1c9d2',
-        fontSize: '14px',
-        fontFamily: 'Inter, -apple-system, system-ui, sans-serif'
-      }
-    });
-  </script>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
 
-  <aside class="sidebar">
-    <a href="../index.html" class="sidebar-brand">
-      <span class="brand-title">Visual Tour</span>
-      <span class="brand-sub">nano mode · 8 pages · ~30 min</span>
+  <nav class="sidenav">
+    <a href="../index.html" class="nav-brand">
+      <b>Visual Tour</b>
+      <small>nano mode · 8 pages · ~30 min</small>
     </a>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Overview</div>
-      <a href="../index.html" class="sidebar-link"><span class="emoji">📊</span>Start here</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Architecture</div>
-      <a href="nano-topology.html" class="sidebar-link"><span class="emoji">🏗</span>Nano topology</a>
-      <a href="service-dependencies.html" class="sidebar-link active"><span class="emoji">🔗</span>Service dependencies</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Startup</div>
-      <a href="../diagram/startup-order.html" class="sidebar-link"><span class="emoji">📐</span>Startup order</a>
-    </div>
-    <div class="sidebar-group">
-      <div class="sidebar-group-title">Request flows</div>
-      <a href="../flowchart/request-flow.html" class="sidebar-link"><span class="emoji">👤</span>User API</a>
-      <a href="../flowchart/product-flow.html" class="sidebar-link"><span class="emoji">🛍</span>Product API</a>
-      <a href="../flowchart/order-checkout-flow.html" class="sidebar-link"><span class="emoji">🧾</span>Order checkout</a>
-      <a href="../flowchart/payment-flow.html" class="sidebar-link"><span class="emoji">💳</span>Payment flow</a>
-    </div>
-  </aside>
+    <div class="nav-group">Overview</div>
+    <a href="../index.html">📊 Start here</a>
+    <div class="nav-group">Architecture</div>
+    <a href="nano-topology.html">🏗 Nano topology</a>
+    <a href="service-dependencies.html" class="on">🔗 Service dependencies</a>
+    <div class="nav-group">Startup</div>
+    <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Request flows</div>
+    <a href="../flowchart/request-flow.html">👤 User API</a>
+    <a href="../flowchart/product-flow.html">🛍 Product API</a>
+    <a href="../flowchart/order-checkout-flow.html">🧾 Order checkout</a>
+    <a href="../flowchart/payment-flow.html">💳 Payment flow</a>
+    <button class="theme-btn" id="themeBtn">Toggle theme</button>
+  </nav>
 
-  <main class="main-content">
-
-  <header>
+  <main>
     <h1>🔗 Service Dependencies</h1>
-    <div class="subtitle">Step 3 of 8 · Who calls whom at runtime · "if I stop X, what breaks?"</div>
-  </header>
+    <p class="lead">Step 3 of 8 — who calls whom at runtime. Answers "if I stop X, what breaks?"</p>
+    <div class="meta">
+      <span class="tag">runtime call graph</span>
+      <span class="tag ok">12 components</span>
+    </div>
 
-  <section>
     <h2>Runtime call graph</h2>
     <p>
-      This diagram shows which services call which at <strong>runtime</strong>
-      (not startup — that's the next page). An arrow <code>A → B</code> means
-      "A sends requests to B". If B is down, calls from A to B fail.
+      An arrow <code>A → B</code> means "A sends requests to B". <b>Solid</b>
+      arrows are sync calls (HTTP, DB). <b>Dotted</b> are startup-only (Eureka
+      registration, config fetch).
     </p>
-
-    <div class="mermaid">
+    <div class="box">
+      <div class="mermaid">
 graph LR
   CLIENT([curl / browser])
   GW[api-gateway]
@@ -87,184 +62,130 @@ graph LR
   REDIS[(redis)]
 
   CLIENT -->|HTTP| GW
-
   GW -->|JWT validate| AUTH
   GW -->|lookup| EUREKA
   GW -->|rate limit, cache| REDIS
   GW -->|proxy| USER
   GW -->|proxy| PROD
   GW -->|proxy| ORDER
-
   USER -->|SELECT/INSERT| MYSQL
   PROD -->|SELECT/INSERT| MYSQL
   ORDER -->|SELECT/INSERT| MYSQL
   PAY -->|SELECT/INSERT| MYSQL
   AUTH -->|user lookup| MYSQL
-
   ORDER -->|check stock| PROD
   ORDER -->|emit event| KAFKA
   PAY -->|consume + emit| KAFKA
   PROD -->|consume reserve-stock| KAFKA
   NOTIF -->|consume notify-user| KAFKA
-
   USER -.register.-> EUREKA
   PROD -.register.-> EUREKA
   ORDER -.register.-> EUREKA
   PAY -.register.-> EUREKA
   NOTIF -.register.-> EUREKA
-
   USER -.fetch config.-> CONFIG
   PROD -.fetch config.-> CONFIG
   ORDER -.fetch config.-> CONFIG
   PAY -.fetch config.-> CONFIG
-
-  classDef data fill:#fef3c7,stroke:#c47600,color:#5a3600,stroke-width:2px
-  classDef platform fill:#dbeafe,stroke:#0073e6,color:#0a2540,stroke-width:2px
-  classDef biz fill:#efe6ff,stroke:#6c47ff,color:#0a2540,stroke-width:2px
-  classDef edge fill:#fee,stroke:#d93333,color:#0a2540,stroke-width:2px
-  class MYSQL,KAFKA,REDIS data
-  class EUREKA,CONFIG,AUTH platform
-  class USER,PROD,ORDER,PAY,NOTIF biz
-  class GW edge
+      </div>
     </div>
 
-    <div class="legend">
-      <div class="legend-item"><span class="swatch data"></span> Infrastructure</div>
-      <div class="legend-item"><span class="swatch platform"></span> Platform</div>
-      <div class="legend-item"><span class="swatch biz"></span> Business services</div>
-      <div class="legend-item"><span class="swatch edge"></span> Edge (gateway)</div>
-    </div>
-
-    <p><strong>Solid arrows</strong> = sync calls (HTTP, DB queries). <strong>Dotted arrows</strong> = async / startup-only (Eureka registration, config fetch at boot).</p>
-  </section>
-
-  <section>
     <h2>"If I stop X, what breaks?"</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>If this stops…</th>
-          <th>These break immediately</th>
-          <th>These degrade gracefully</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>mysql-shared</code></td>
-          <td>All business services, auth-server (can't query users)</td>
-          <td>Gateway stays up (uses Redis + Eureka only)</td>
-        </tr>
-        <tr>
-          <td><code>kafka</code></td>
-          <td>Order sagas stop progressing. Notifications stop firing.</td>
-          <td>Read APIs (<code>GET /users</code>, <code>GET /products</code>) still work</td>
-        </tr>
-        <tr>
-          <td><code>redis</code></td>
-          <td>Gateway refuses to start (hard dep)</td>
-          <td>—</td>
-        </tr>
-        <tr>
-          <td><code>eureka-server</code></td>
-          <td>New service instances can't register. Gateway can't find services.</td>
-          <td>Existing requests complete (gateway caches Eureka state ~30s)</td>
-        </tr>
-        <tr>
-          <td><code>config-server</code></td>
-          <td>New service starts fail (can't fetch config)</td>
-          <td>Already-running services keep working with cached config</td>
-        </tr>
-        <tr>
-          <td><code>auth-server</code></td>
-          <td>Gateway returns 401 on every call (can't validate JWT)</td>
-          <td>—</td>
-        </tr>
-        <tr>
-          <td><code>api-gateway</code></td>
-          <td>All external requests fail (only exposed port)</td>
-          <td>Services keep running internally; can be hit directly on their ports</td>
-        </tr>
-        <tr>
-          <td><code>user-service</code></td>
-          <td><code>/api/v1/users</code> endpoints return 503</td>
-          <td>Everything else works</td>
-        </tr>
-        <tr>
-          <td><code>product-service</code></td>
-          <td><code>/api/v1/products</code> + order checkout (stock check fails)</td>
-          <td>User/payment APIs unaffected</td>
-        </tr>
-        <tr>
-          <td><code>order-service</code></td>
-          <td>Checkout API returns 503. In-flight sagas stall.</td>
-          <td>Browse/user APIs work</td>
-        </tr>
-        <tr>
-          <td><code>payment-service</code></td>
-          <td>Checkouts stall after order created (saga waits for payment reply)</td>
-          <td>Browse/user APIs work</td>
-        </tr>
-        <tr>
-          <td><code>notification</code></td>
-          <td>Order status stays at <code>PAID</code>, never reaches <code>NOTIFIED</code></td>
-          <td>Everything else works</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+    <div class="box">
+      <table>
+        <thead>
+          <tr><th>If this stops…</th><th>These break</th><th>These degrade gracefully</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>mysql-shared</code></td><td>All business services, auth-server</td><td>Gateway stays up</td></tr>
+          <tr><td><code>kafka</code></td><td>Order sagas stall. Notifications stop.</td><td>Read APIs still work</td></tr>
+          <tr><td><code>redis</code></td><td>Gateway refuses to start</td><td>—</td></tr>
+          <tr><td><code>eureka-server</code></td><td>New instances can't register</td><td>Existing requests complete (gateway caches ~30s)</td></tr>
+          <tr><td><code>config-server</code></td><td>New service starts fail</td><td>Already-running services keep working</td></tr>
+          <tr><td><code>auth-server</code></td><td>Gateway returns 401 on everything</td><td>—</td></tr>
+          <tr><td><code>api-gateway</code></td><td>All external requests fail</td><td>Services keep running internally</td></tr>
+          <tr><td><code>user-service</code></td><td><code>/api/v1/users</code> returns 503</td><td>Everything else works</td></tr>
+          <tr><td><code>product-service</code></td><td><code>/api/v1/products</code> + checkout stock-check fails</td><td>User/payment APIs unaffected</td></tr>
+          <tr><td><code>order-service</code></td><td>Checkout returns 503</td><td>Browse/user APIs work</td></tr>
+          <tr><td><code>payment-service</code></td><td>Checkouts stall after order created</td><td>Browse/user APIs work</td></tr>
+          <tr><td><code>notification</code></td><td>Order stays <code>PAID</code>, never <code>NOTIFIED</code></td><td>Everything else works</td></tr>
+        </tbody>
+      </table>
+    </div>
 
-  <section>
-    <h2>Call types explained</h2>
-    <h3>Sync HTTP calls</h3>
+    <h2>Call types</h2>
+    <h3>Sync HTTP</h3>
     <ul>
-      <li><strong>Gateway → business service</strong> — request/response, caller waits</li>
-      <li><strong>Gateway → auth-server</strong> — JWT validation (cached briefly)</li>
-      <li><strong>order-service → product-service</strong> — stock availability check during checkout</li>
+      <li><b>Gateway → business service</b> — request/response, caller waits</li>
+      <li><b>Gateway → auth-server</b> — JWT validation (cached briefly)</li>
+      <li><b>order-service → product-service</b> — stock availability check</li>
     </ul>
-    <h3>Async Kafka events</h3>
+    <h3>Async Kafka</h3>
     <ul>
-      <li><strong>order-service → Kafka → product-service</strong> — "reserve stock" command</li>
-      <li><strong>order-service → Kafka → payment-service</strong> — "charge payment" command</li>
-      <li><strong>payment-service → Kafka → order-service</strong> — "payment succeeded/failed" reply</li>
-      <li><strong>order-service → Kafka → notification</strong> — "notify user" event</li>
+      <li><b>order → Kafka → product</b> — reserve-stock command</li>
+      <li><b>order → Kafka → payment</b> — charge-payment command</li>
+      <li><b>payment → Kafka → order</b> — payment succeeded/failed reply</li>
+      <li><b>order → Kafka → notification</b> — notify-user event</li>
     </ul>
-    <h3>Infrastructure calls</h3>
-    <ul>
-      <li><strong>Every service → mysql-shared</strong> — JPA/Hibernate queries via HikariCP</li>
-      <li><strong>Every service → eureka-server</strong> — register at boot, heartbeat every 30s</li>
-      <li><strong>Every service → config-server</strong> — fetch YAML config at boot</li>
-      <li><strong>api-gateway → redis</strong> — rate-limit counters, API-key cache, idempotency keys</li>
-    </ul>
-  </section>
 
-  <section>
-    <h2>Reading the diagram during an outage</h2>
     <div class="callout warn">
-      <strong>Example:</strong> Your checkout is stuck. The diagram tells you to check: <code>order-service → product-service</code> (sync) and <code>order-service → Kafka → payment-service</code> (async). Use <code>make kafka-group-describe GROUP=order-saga</code> to see if lag is growing.
+      <b>Checkout stuck?</b> Check <code>order-service → product-service</code> (sync) and <code>order-service → Kafka → payment-service</code> (async). Use <code>make kafka-group-describe GROUP=order-saga</code> to see if lag is growing.
     </div>
     <div class="callout tip">
-      <strong>Example:</strong> Gateway says 401 on every call. The diagram points at <code>gateway → auth-server</code>. Check <code>docker compose logs auth-server</code> first.
+      <b>Gateway 401 on everything?</b> The diagram points at <code>gateway → auth-server</code>. Check <code>docker compose logs auth-server</code> first.
     </div>
-  </section>
 
-  <nav class="nav-footer" aria-label="Page navigation">
-    <a href="nano-topology.html" class="nav-prev">
-      <span class="nav-label">← Previous · Step 2</span>
-      <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
-    </a>
-    <a href="../diagram/startup-order.html" class="nav-next">
-      <span class="nav-label">Next · Step 4 →</span>
-      <span class="nav-title">📐 Startup order — how it all comes up</span>
-    </a>
-  </nav>
-
-  <footer>
-    <a href="../index.html">← Back to Overview</a>
-    &nbsp;·&nbsp;
-    Source: <a href="../../setup/01-startup-runbook.md">01-startup-runbook.md</a>
-  </footer>
-
+    <nav class="nav-footer" aria-label="Page navigation">
+      <a href="nano-topology.html" class="nav-prev">
+        <span class="nav-label">← Previous · Step 2</span>
+        <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
+      </a>
+      <a href="../diagram/startup-order.html" class="nav-next">
+        <span class="nav-label">Next · Step 4 →</span>
+        <span class="nav-title">📐 Startup order — how it all comes up</span>
+      </a>
+    </nav>
+    <div class="page-footer">Source: <a href="../../setup/01-startup-runbook.md">01-startup-runbook.md</a></div>
   </main>
 </div>
+
+<script>
+  (function() {
+    var root = document.documentElement;
+    var saved = localStorage.getItem('theme');
+    if (saved) root.dataset.theme = saved;
+    var btn = document.getElementById('themeBtn');
+    if (btn) btn.onclick = function() {
+      var next = (root.dataset.theme === 'dark') ? 'light' : 'dark';
+      root.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      initMermaid();
+    };
+    function initMermaid() {
+      var dark = root.dataset.theme === 'dark';
+      mermaid.initialize({
+        startOnLoad: false, theme: dark ? 'dark' : 'base',
+        themeVariables: {
+          fontFamily: 'IBM Plex Sans, system-ui, sans-serif', fontSize: '14px',
+          primaryColor: dark ? '#18212b' : '#fff',
+          primaryTextColor: dark ? '#e6ebf1' : '#1d2b3a',
+          primaryBorderColor: dark ? '#2a3541' : '#d6e5f2',
+          lineColor: dark ? '#97a3b3' : '#5f7186',
+          clusterBkg: dark ? '#10161d' : '#f4f9fd',
+          clusterBorder: dark ? '#2a3541' : '#d6e5f2'
+        }
+      });
+      document.querySelectorAll('.mermaid').forEach(function(el) {
+        el.removeAttribute('data-processed');
+        el.innerHTML = el.getAttribute('data-src') || el.innerHTML;
+      });
+      mermaid.run();
+    }
+    document.querySelectorAll('.mermaid').forEach(function(el) {
+      el.setAttribute('data-src', el.innerHTML);
+    });
+    initMermaid();
+  })();
+</script>
 </body>
 </html>
