@@ -35,7 +35,7 @@
         <module>ui/backoffice-ui</module>
 
         <!-- Trading / study project (angle-app) builds only with -Pwith-angle. -->
-
+        <module>angle-app</module>
         <!-- Study / practice projects live under study-projects/ and are
              NOT built by default. Uncomment individually to include. -->
         <!--

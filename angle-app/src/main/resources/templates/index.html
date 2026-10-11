@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,8 +29,34 @@
             <a href="#pricing">Pricing</a>
         </nav>
         <div class="nav-actions">
-            <a class="ghost" href="/auth/login">Log in</a>
-            <a class="btn btn-secondary" href="/bias">Bias</a>            <a class="btn btn-primary" href="/dashboard/welcome">App</a>
+
+            <!-- NOT logged in: show Log in -->
+            <a sec:authorize="isAnonymous()" class="ghost" href="/auth/login">Log in</a>
+
+            <!-- Logged in: show username (also as link to /account) -->
+            <a sec:authorize="isAuthenticated()" class="ghost" href="/account"
+               style="font-weight:600"
+               sec:authentication="name">admin</a>
+
+            <!-- Shared action — Bias (available to everyone; routes through auth if needed) -->
+            <a class="btn btn-secondary" href="/bias">Bias</a>
+
+            <!-- App button: show for everyone, requires auth so unlogged users
+                 get bounced to login first -->
+            <a class="btn btn-primary" href="/dashboard">App</a>
+
+            <!-- Logged in: Log out — POST + CSRF.
+                 Spring auto-injects the CSRF hidden input into any th:action POST form,
+                 so we don't add one manually (would duplicate). -->
+            <form sec:authorize="isAuthenticated()"
+                  th:action="@{/logout}" method="post"
+                  style="display:inline; margin-left:8px">
+                <button type="submit" class="ghost"
+                        style="background:transparent; border:0; cursor:pointer;
+                               padding:0; font:inherit; color:inherit">
+                    Log out
+                </button>
+            </form>
         </div>
     </div>
 </header>

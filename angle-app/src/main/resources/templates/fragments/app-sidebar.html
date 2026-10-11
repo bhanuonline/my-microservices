@@ -156,7 +156,7 @@
     <div class="app-side-spacer"></div>
 
     <!-- Theme toggle inline — same pattern as dashboard sidebar. -->
-    <div style="padding:0 18px 12px">
+    <div style="padding:0 18px 10px">
         <button type="button" id="sidebarThemeBtn"
                 onclick="var n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;localStorage.setItem('angle-theme',n);document.getElementById('sidebarThemeBtn').textContent=n==='dark'?'🌙 Dark Theme':'☀️ Light Theme';"
                 style="width:100%;padding:10px 12px;font:600 12.5px 'Inter',sans-serif;
@@ -166,6 +166,22 @@
             ☀️ Light Theme
         </button>
     </div>
+
+    <!-- Logout — POST + CSRF. Spring Security refuses GET /logout. -->
+    <div style="padding:0 18px 12px">
+        <form th:action="@{/logout}" method="post" style="margin:0">
+            <input type="hidden" th:if="${_csrf}"
+                   th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit"
+                    style="width:100%;padding:10px 12px;font:600 12.5px 'Inter',sans-serif;
+                           background:transparent;color:var(--bad, #ef4444);
+                           border:1px solid var(--border);border-radius:8px;
+                           cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+                🚪 Log out
+            </button>
+        </form>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var btn = document.getElementById('sidebarThemeBtn');

@@ -138,7 +138,8 @@ public class SecurityConfig {
     public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/css/**", "/js/**", "/images/**").permitAll()
+                        // Public landing page + auth pages + static assets
+                        .requestMatchers("/", "/auth/**", "/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(this::configureFormSession)
                 .formLogin(login -> login
