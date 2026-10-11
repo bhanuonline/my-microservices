@@ -44,6 +44,19 @@ curl it." No deep explanations here — the architecture lives in
 - [What's next](#whats-next)
 - [Quick reference card](#quick-reference-card)
 - [Option A deep dive — nano mode](#option-a-deep-dive--nano-mode)
+    - [Why these 7 containers](#why-these-7-containers)
+    - [Startup order (handled by `depends_on` healthchecks)](#startup-order-handled-by-depends_on-healthchecks)
+    - [Verify each container is healthy](#verify-each-container-is-healthy)
+    - [After nano is up — next steps](#after-nano-is-up--next-steps)
+        - 1 · Confirm the platform is reachable
+        - 2 · Pick which business service(s) to run
+        - 3 · Run a service — via `mvn` (terminal)
+        - 4 · Run a service — via IntelliJ IDEA
+        - 5 · Verify the service registered
+        - 6 · How many services do I actually need to run?
+        - 7 · Multi-service workflow (full order flow)
+        - 8 · Pitfalls
+    - [Nano-specific troubleshooting](#nano-specific-troubleshooting)
 
 ---
 
@@ -373,8 +386,11 @@ Now that it's running:
 
 ## Quick reference card
 
+### Lifecycle — Pure-Docker mode
+
+Driven by the [`Makefile`](../../../Makefile).
+
 ```bash
-# Pure-Docker mode
 make up-nano              # start, platform only (7 containers, biz svcs OFF)
 make up-nano-trace        # nano + zipkin for distributed traces (8 containers)
 make up-minimal           # start, platform + biz svcs (12 containers)
@@ -384,22 +400,44 @@ make logs                 # tail everything
 make logs-user-service    # tail one service
 make stats                # live CPU/MEM usage
 make ps                   # what's running
-make verify               # health-check all running services
+```
 
-# MySQL shell shortcuts (password pulled from .env)
+### Health check
+
+Script: [`scripts/verify-stack.sh`](../../../scripts/verify-stack.sh)
+
+```bash
+make verify               # compose ps + stats + infra probes + HTTP + Eureka
+```
+
+### MySQL shell
+
+Script: [`scripts/mysql.sh`](../../../scripts/mysql.sh) · password pulled from `.env`
+
+```bash
 make mysql                # root prompt, no schema
 make mysql-user           # into userdb
 make mysql-product        # into productdb
 make mysql-auth           # into authdb
 make mysql-payment        # into paymentdb
+```
 
-# Redis shell shortcuts (no password — dev only)
+### Redis shell
+
+Script: [`scripts/redis.sh`](../../../scripts/redis.sh) · no password (dev only)
+
+```bash
 make redis                # redis-cli interactive prompt
 make redis-info           # INFO (version/memory/clients)
 make redis-keys           # list ALL keys
 make redis-flush          # wipe all data (confirms first)
+```
 
-# Kafka CLI shortcuts (TOPIC= and GROUP= where shown)
+### Kafka CLI
+
+Script: [`scripts/kafka.sh`](../../../scripts/kafka.sh) · hides the long `docker exec …` prefix
+
+```bash
 make kafka-topics                                  # list topics
 make kafka-describe TOPIC=order.created            # one topic
 make kafka-consume  TOPIC=order.created            # tail live
@@ -407,27 +445,70 @@ make kafka-consume  TOPIC=order.created FROM_BEGINNING=1
 make kafka-groups                                  # list consumer groups
 make kafka-group-describe GROUP=order-saga         # group lag
 make kafka-shell                                   # shell into container
+```
 
-# Kafka UI (browser)   http://localhost:8090
+### Kafka UI (browser)   http://localhost:8090
+
+```bash
 COMPOSE_PROFILES=cache,kafka-ops docker compose up -d kafka-ui
+```
 
-# Run a service with debugger attached (unique port per service)
+### Run a service with debugger attached (one at a time, foreground)
+
+Script: [`scripts/run-service.sh`](../../../scripts/run-service.sh) · unique debug port per service
+
+Each `make debug-*` call **blocks its terminal** showing the service's live
+log output. Open one terminal per service. Stop with `Ctrl+C`.
+
+```bash
 make debug-user              # :8081 app, :5005 debugger
 make debug-product           # :8082 app, :5006 debugger
 make debug-order             # :8083 app, :5007 debugger
 make debug-payment           # :8091 app, :5008 debugger
 make debug-notification      # :8099 app, :5009 debugger
 make debug-list              # all services + debug ports
+```
 
-# Hybrid mode
+### Multi-service debug (background, one terminal)
+
+For when you need several services at once but don't want to juggle
+terminals. Each service goes to `logs/<service>-debug.log`. Debug ports
+unchanged — attach IntelliJ to any one. Stop all with `make debug-stop`.
+
+```bash
+make debug-saga        # product + order + payment       (3 services)
+make debug-core        # + user                           (4 services)
+make debug-all         # + notification                   (5 services)
+make debug-stop        # stops every background debug JVM
+
+# Follow a specific service's log
+tail -f logs/order-service-debug.log
+
+# Or watch all interleaved
+tail -f logs/*-debug.log
+```
+
+Pick `debug-saga` for order-flow debugging, `debug-all` for full saga
+including `NOTIFIED` state.
+
+### Hybrid mode (infra in Docker, apps on host)
+
+Scripts: [`start-stack.sh`](../../../start-stack.sh) · [`stop-stack.sh`](../../../stop-stack.sh)
+
+```bash
 ./start-stack.sh                        # auto-detect + run
 ./start-stack.sh --minimal              # explicit minimal
 ./start-stack.sh user-service           # one service + its deps
 ./start-stack.sh --status               # what's running
 ./stop-stack.sh                         # stop
 ./stop-stack.sh --apps-only             # stop apps, keep infra
+```
 
-# Docker directly
+### Docker directly (no wrapper)
+
+If you'd rather skip `make` / scripts, these are the raw equivalents:
+
+```bash
 docker compose ps                       # list containers
 docker compose logs -f <service>        # tail one service
 docker compose exec <service> sh        # shell inside a container
@@ -861,7 +942,73 @@ Flow for an API call:
    └─────────────┘
 ```
 
-#### 6 · Multi-service workflow (full order flow)
+#### 6 · How many services do I actually need to run?
+
+Short answer: **start with 0, add one at a time, only run what you need
+for the thing you're trying to do.** Running everything "just in case"
+wastes RAM and makes logs noisy.
+
+**Pick by what you want to do:**
+
+| What you want to do | Services needed | Count | Why |
+|---|---|---|---|
+| Prove nano works | None | 0 | Nano already gives you gateway + eureka + mysql. Just curl their `/actuator/health`. |
+| Edit one service in your IDE | That one service | 1 | e.g. editing `UserController.java` → run `user-service`. |
+| Call `/api/v1/users` | `user-service` | 1 | Gateway routes to it. |
+| Call `/api/v1/products` | `product-service` | 1 | Same, for products. |
+| Place an order (`/checkout`) | product + order + payment | 3 | Order calls product to check stock, then payment for the saga. |
+| Full saga incl. notifications | + `notification` | 4 | Needed to reach the `NOTIFIED` state. |
+| Browser UI (shop or admin) | + `shop-ui` or `backoffice-ui` | 5+ | Browser-facing frontends. |
+
+**Visual guide — effort vs. capability:**
+
+```
+     EFFORT (services to run)
+   ▲
+ 5 │                             ▪ Full saga + UI
+ 4 │                       ▪ Full saga (with notifications)
+ 3 │                 ▪ Place an order end-to-end
+ 1 │       ▪ One API endpoint
+ 0 │ ▪ Prove nano is healthy
+   └──────────────────────────────▶ CAPABILITY (what you can do)
+```
+
+More services = more capability, but also more RAM and more terminal
+tabs (unless you use `make debug-saga` / `-all` which run them in the
+background).
+
+**Recommended path for first-time learners:**
+
+```
+Day 1  →  make up-nano + make debug-user
+          Play with the user API, Eureka dashboard, OAuth2 tokens.
+          Set a breakpoint. Understand how a request flows.
+
+Day 2  →  Keep nano. Add `make debug-product` in a 3rd terminal.
+          Try  curl -u admin:admin123 http://localhost:8080/api/v1/products
+
+Day 3  →  Add `make debug-order` (or just use `make debug-saga` to get
+          product + order + payment all at once).
+          Try  POST /checkout.
+          Watch the saga events in Kafka UI (http://localhost:8090)
+          or via `make kafka-consume TOPIC=order.events`.
+
+Day 4  →  `make debug-all` — adds notification. Full saga.
+          Trace an order through all 4 services.
+```
+
+**Rule of thumb:**
+
+- **New to the project?** → 1 service at a time, foreground (`make debug-user`).
+- **Testing a specific flow?** → Use a group shortcut (`make debug-saga` for order flow).
+- **Running everything?** → `make debug-all` + Kafka UI + Grafana.
+
+Don't start services you don't need. Each is ~400 MB RAM and your laptop
+has limits.
+
+---
+
+#### 7 · Multi-service workflow (full order flow)
 
 Open 4 terminal tabs/windows. Each runs one service.
 
@@ -904,7 +1051,7 @@ curl -u admin:admin123 -X POST http://localhost:8080/checkout \
 
 Watch the saga progress in `make kafka-consume TOPIC=order.events FROM_BEGINNING=1`.
 
-#### 7 · Pitfalls
+#### 8 · Pitfalls
 
 | Symptom | Cause | Fix |
 |---|---|---|

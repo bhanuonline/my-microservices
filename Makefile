@@ -81,6 +81,12 @@ help:
 	@echo "  make debug-list       — full list of debug-able services + ports"
 	@echo "  (override profile: make debug-user PROFILE=dev,canary)"
 	@echo ""
+	@echo "Multi-service debug (background; logs/<svc>-debug.log):"
+	@echo "  make debug-saga       — product + order + payment (3 services)"
+	@echo "  make debug-core       — + user (4 services)"
+	@echo "  make debug-all        — + notification (5 services)"
+	@echo "  make debug-stop       — stop all background debug services"
+	@echo ""
 	@echo "Data lifecycle (destructive — read before running):"
 	@echo "  make migrate-db-to-shared  — one-time dump+restore from 4 old DBs"
 	@echo "                                into mysql-shared (safe to re-run)"
@@ -274,6 +280,84 @@ debug-notification:
 debug-list:
 	@./scripts/run-service.sh --help
 
+# ─── Multi-service launch (background) ─────────────────────────────────
+# Starts a GROUP of business services in the background. Each service's
+# stdout+stderr goes to logs/<service>-debug.log. Debugger ports are the
+# same as single `make debug-*`. Stop them all with `make debug-stop`.
+#
+# Preset groups:
+#   debug-saga     → product + order + payment       (3 services)
+#   debug-core     → user + product + order + payment (4 services)
+#   debug-all      → above + notification             (5 services)
+#
+# After launching, follow a specific log:
+#   tail -f logs/order-service-debug.log
+#
+# Or watch all of them interleaved:
+#   tail -f logs/*-debug.log
+
+debug-saga:
+	@mkdir -p logs
+	@echo "Starting product + order + payment in background..."
+	@./scripts/run-service.sh product dev > logs/product-service-debug.log 2>&1 & echo "  product-service (debug :5006) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh order   dev > logs/order-service-debug.log   2>&1 & echo "  order-service   (debug :5007) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh payment dev > logs/payment-service-debug.log 2>&1 & echo "  payment-service (debug :5008) PID $$!"
+	@echo ""
+	@echo "Logs:        tail -f logs/*-debug.log"
+	@echo "Stop all:    make debug-stop"
+	@echo "Wait ~30-45s for services to register with Eureka."
+
+debug-core:
+	@mkdir -p logs
+	@echo "Starting user + product + order + payment in background..."
+	@./scripts/run-service.sh user    dev > logs/user-service-debug.log    2>&1 & echo "  user-service    (debug :5005) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh product dev > logs/product-service-debug.log 2>&1 & echo "  product-service (debug :5006) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh order   dev > logs/order-service-debug.log   2>&1 & echo "  order-service   (debug :5007) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh payment dev > logs/payment-service-debug.log 2>&1 & echo "  payment-service (debug :5008) PID $$!"
+	@echo ""
+	@echo "Logs:        tail -f logs/*-debug.log"
+	@echo "Stop all:    make debug-stop"
+	@echo "Wait ~30-45s for services to register with Eureka."
+
+debug-all:
+	@mkdir -p logs
+	@echo "Starting user + product + order + payment + notification in background..."
+	@./scripts/run-service.sh user         dev > logs/user-service-debug.log         2>&1 & echo "  user-service         (debug :5005) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh product      dev > logs/product-service-debug.log      2>&1 & echo "  product-service      (debug :5006) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh order        dev > logs/order-service-debug.log        2>&1 & echo "  order-service        (debug :5007) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh payment      dev > logs/payment-service-debug.log      2>&1 & echo "  payment-service      (debug :5008) PID $$!"
+	@sleep 2
+	@./scripts/run-service.sh notification dev > logs/notification-debug.log         2>&1 & echo "  notification         (debug :5009) PID $$!"
+	@echo ""
+	@echo "Logs:        tail -f logs/*-debug.log"
+	@echo "Stop all:    make debug-stop"
+	@echo "Wait ~30-45s for services to register with Eureka."
+
+# Stops every java process started by debug-saga/debug-core/debug-all.
+# Matches on `-agentlib:jdwp` (unique to our debug-mode runs) so it
+# won't touch unrelated JVMs on your Mac.
+debug-stop:
+	@pids=$$(pgrep -f "agentlib:jdwp.*address=\*:50[0-9][0-9]" 2>/dev/null); \
+	if [ -z "$$pids" ]; then \
+		echo "No debug-mode services running."; \
+	else \
+		echo "Stopping debug-mode services:"; \
+		for pid in $$pids; do \
+			cmd=$$(ps -p $$pid -o command= 2>/dev/null | grep -oE "services/[a-z-]+" | head -1); \
+			echo "  killing PID $$pid ($$cmd)"; \
+			kill $$pid 2>/dev/null; \
+		done; \
+		echo "Done."; \
+	fi
+
 logs:
 	docker compose logs -f --tail=100
 
@@ -308,5 +392,6 @@ build:
         redis redis-info redis-keys redis-flush \
         kafka-topics kafka-groups kafka-consume kafka-describe kafka-group-describe kafka-shell \
         debug-user debug-product debug-order debug-payment debug-notification debug-list \
+        debug-saga debug-core debug-all debug-stop \
         up-kafka-debug up-with down restart ps stats logs \
         migrate-db-to-shared reset-shared-db saga-test build
