@@ -311,6 +311,63 @@ pre code {
   overflow-x: auto;
 }
 
+/* ─── Live-traffic SVG diagrams (template pattern) ── */
+
+.live-arch {
+  width: 100%;
+  display: block;
+  background: var(--code);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.live-arch text {
+  font: 500 12px "IBM Plex Sans", sans-serif;
+  fill: var(--ink);
+}
+
+.live-arch .sub {
+  font-size: 10.5px;
+  fill: var(--mute);
+  font-weight: 400;
+}
+
+.live-arch .node {
+  fill: var(--card);
+  stroke: var(--ink);
+  stroke-width: 1.2;
+}
+
+.live-arch .node.accent {
+  stroke: var(--acc);
+  stroke-width: 2;
+}
+
+.live-arch .wire {
+  stroke: var(--mute);
+  stroke-width: 1.4;
+  fill: none;
+  stroke-dasharray: 5 4;
+  animation: wire-dash 1.2s linear infinite;
+}
+
+.live-arch .wire.slow {
+  animation-duration: 2.4s;
+}
+
+.live-arch .dot {
+  fill: var(--acc2);
+}
+
+@keyframes wire-dash {
+  to { stroke-dashoffset: -18; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-arch .wire { animation: none; }
+  .live-arch animateMotion { display: none; }
+}
+
 /* ─── Prev / Next footer navigation ───────────────── */
 
 .nav-footer {

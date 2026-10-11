@@ -13,7 +13,7 @@
   <nav class="sidenav">
     <a href="../index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
     <div class="nav-group">Overview</div>
     <a href="../index.html">📊 Start here</a>
@@ -22,6 +22,8 @@
     <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
     <div class="nav-group">Startup</div>
     <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="../diagram/data-model.html">🗄 Data model (ER)</a>
     <div class="nav-group">Request flows</div>
     <a href="request-flow.html">👤 User API</a>
     <a href="product-flow.html">🛍 Product API</a>
@@ -32,7 +34,7 @@
 
   <main>
     <h1>🧾 Order Checkout — The Saga</h1>
-    <p class="lead">Step 7 of 8 — <code>POST /checkout</code>. Multi-service orchestration via Kafka. The most interesting flow in the project.</p>
+    <p class="lead">Step 8 of 9 — <code>POST /checkout</code>. Multi-service orchestration via Kafka. The most interesting flow in the project.</p>
     <div class="meta">
       <span class="tag warn">multi-service</span>
       <span class="tag">Kafka saga</span>
@@ -186,11 +188,11 @@ curl -u admin:admin123 -X POST http://localhost:8080/checkout \
 
     <nav class="nav-footer" aria-label="Page navigation">
       <a href="product-flow.html" class="nav-prev">
-        <span class="nav-label">← Previous · Step 6</span>
+        <span class="nav-label">← Previous · Step 7</span>
         <span class="nav-title">🛍 Product API — same hops, different service</span>
       </a>
       <a href="payment-flow.html" class="nav-next">
-        <span class="nav-label">Next · Step 8 →</span>
+        <span class="nav-label">Next · Step 9 →</span>
         <span class="nav-title">💳 Payment flow — Kafka consumer side</span>
       </a>
     </nav>

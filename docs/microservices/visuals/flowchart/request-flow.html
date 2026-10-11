@@ -13,7 +13,7 @@
   <nav class="sidenav">
     <a href="../index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
     <div class="nav-group">Overview</div>
     <a href="../index.html">📊 Start here</a>
@@ -22,6 +22,8 @@
     <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
     <div class="nav-group">Startup</div>
     <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="../diagram/data-model.html">🗄 Data model (ER)</a>
     <div class="nav-group">Request flows</div>
     <a href="request-flow.html" class="on">👤 User API</a>
     <a href="product-flow.html">🛍 Product API</a>
@@ -32,7 +34,7 @@
 
   <main>
     <h1>👤 User API — Request Flow</h1>
-    <p class="lead">Step 5 of 8 — <code>GET /api/v1/users</code> from <code>curl</code> all the way to MySQL and back.</p>
+    <p class="lead">Step 6 of 9 — <code>GET /api/v1/users</code> from <code>curl</code> all the way to MySQL and back.</p>
     <div class="meta">
       <span class="tag">sync HTTP</span>
       <span class="tag ok">~20-40ms warm</span>
@@ -108,12 +110,12 @@ docker compose logs -f api-gateway auth-server
 tail -f logs/user-service-debug.log</code></pre></div>
 
     <nav class="nav-footer" aria-label="Page navigation">
-      <a href="../diagram/startup-order.html" class="nav-prev">
-        <span class="nav-label">← Previous · Step 4</span>
-        <span class="nav-title">📐 Startup order — how it all comes up</span>
+      <a href="../diagram/data-model.html" class="nav-prev">
+        <span class="nav-label">← Previous · Step 5</span>
+        <span class="nav-title">🗄 Data model — the 4 MySQL schemas</span>
       </a>
       <a href="product-flow.html" class="nav-next">
-        <span class="nav-label">Next · Step 6 →</span>
+        <span class="nav-label">Next · Step 7 →</span>
         <span class="nav-title">🛍 Product API — same hops, different service</span>
       </a>
     </nav>

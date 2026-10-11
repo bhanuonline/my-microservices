@@ -13,7 +13,7 @@
   <nav class="sidenav">
     <a href="../index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
     <div class="nav-group">Overview</div>
     <a href="../index.html">📊 Start here</a>
@@ -22,6 +22,8 @@
     <a href="service-dependencies.html">🔗 Service dependencies</a>
     <div class="nav-group">Startup</div>
     <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="../diagram/data-model.html">🗄 Data model (ER)</a>
     <div class="nav-group">Request flows</div>
     <a href="../flowchart/request-flow.html">👤 User API</a>
     <a href="../flowchart/product-flow.html">🛍 Product API</a>
@@ -32,7 +34,7 @@
 
   <main>
     <h1>🏗 Nano Topology</h1>
-    <p class="lead">Step 2 of 8 — the 7 containers that make up the nano mode platform floor.</p>
+    <p class="lead">Step 2 of 9 — the 7 containers that make up the nano mode platform floor.</p>
     <div class="meta">
       <span class="tag ok">7 containers</span>
       <span class="tag">~1.6 GB RAM</span>
@@ -46,6 +48,81 @@
       Run those from your IDE or via <code>mvn spring-boot:run</code>.
     </p>
 
+    <h3>Live traffic flow</h3>
+    <p>Animated dots show how a client request flows through the gateway to the data layer. Each dot = one request in flight.</p>
+    <div class="box">
+      <svg class="live-arch" viewBox="0 0 820 280" role="img" aria-label="Nano topology with live traffic animation">
+        <!-- Wires (paths) -->
+        <path id="path-client-gw" class="wire" d="M110 140 H230"/>
+        <path id="path-gw-auth" class="wire" d="M345 125 Q 400 80 460 70"/>
+        <path id="path-gw-redis" class="wire" d="M345 155 Q 400 200 460 220"/>
+        <path id="path-gw-eureka" class="wire slow" d="M345 140 H460"/>
+        <path id="path-gw-user" class="wire slow" d="M345 165 Q 460 230 560 210"/>
+        <path id="path-user-mysql" class="wire slow" d="M655 190 Q 720 150 735 110"/>
+        <path id="path-auth-mysql" class="wire slow" d="M570 70 H735"/>
+
+        <!-- Nodes -->
+        <g>
+          <rect class="node accent" x="20" y="115" width="90" height="50" rx="6"/>
+          <text x="65" y="140" text-anchor="middle">curl / browser</text>
+          <text class="sub" x="65" y="156" text-anchor="middle">your Mac</text>
+        </g>
+        <g>
+          <rect class="node accent" x="230" y="115" width="115" height="50" rx="6"/>
+          <text x="287" y="138" text-anchor="middle">api-gateway</text>
+          <text class="sub" x="287" y="154" text-anchor="middle">:8080</text>
+        </g>
+        <g>
+          <rect class="node" x="460" y="45" width="110" height="50" rx="6"/>
+          <text x="515" y="68" text-anchor="middle">auth-server</text>
+          <text class="sub" x="515" y="84" text-anchor="middle">:8095</text>
+        </g>
+        <g>
+          <rect class="node" x="460" y="115" width="110" height="50" rx="6"/>
+          <text x="515" y="138" text-anchor="middle">eureka-server</text>
+          <text class="sub" x="515" y="154" text-anchor="middle">:8761</text>
+        </g>
+        <g>
+          <rect class="node" x="460" y="195" width="110" height="50" rx="6"/>
+          <text x="515" y="218" text-anchor="middle">redis</text>
+          <text class="sub" x="515" y="234" text-anchor="middle">:6379</text>
+        </g>
+        <g>
+          <rect class="node" x="560" y="190" width="100" height="50" rx="6"/>
+          <text x="610" y="213" text-anchor="middle">user-service</text>
+          <text class="sub" x="610" y="229" text-anchor="middle">on your IDE</text>
+        </g>
+        <g>
+          <rect class="node" x="690" y="70" width="100" height="50" rx="6"/>
+          <text x="740" y="93" text-anchor="middle">mysql-shared</text>
+          <text class="sub" x="740" y="109" text-anchor="middle">:3306</text>
+        </g>
+
+        <!-- Moving dots -->
+        <circle class="dot" r="4">
+          <animateMotion dur="2s" repeatCount="indefinite"><mpath href="#path-client-gw"/></animateMotion>
+        </circle>
+        <circle class="dot" r="4">
+          <animateMotion dur="2s" begin="0.4s" repeatCount="indefinite"><mpath href="#path-gw-auth"/></animateMotion>
+        </circle>
+        <circle class="dot" r="4">
+          <animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite"><mpath href="#path-gw-eureka"/></animateMotion>
+        </circle>
+        <circle class="dot" r="4">
+          <animateMotion dur="2s" begin="1.2s" repeatCount="indefinite"><mpath href="#path-gw-redis"/></animateMotion>
+        </circle>
+        <circle class="dot" r="4">
+          <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite"><mpath href="#path-gw-user"/></animateMotion>
+        </circle>
+      </svg>
+    </div>
+    <p class="lead" style="margin-top:8px;">
+      <b>Highlighted</b> nodes (teal border) are reachable from your Mac.
+      Everything else is network-internal. The business service
+      (<code>user-service</code>) runs on your host — nano doesn't start it.
+    </p>
+
+    <h3>Full topology (Mermaid)</h3>
     <div class="box">
       <div class="mermaid">
 graph TB

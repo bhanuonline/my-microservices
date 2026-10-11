@@ -12,7 +12,7 @@
   <nav class="sidenav">
     <a href="index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
 
     <div class="nav-group">Overview</div>
@@ -24,6 +24,8 @@
 
     <div class="nav-group">Startup</div>
     <a href="diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="diagram/data-model.html">🗄 Data model (ER)</a>
 
     <div class="nav-group">Request flows</div>
     <a href="flowchart/request-flow.html">👤 User API</a>
@@ -41,8 +43,8 @@
       startup order, then four runtime request flows.
     </p>
     <div class="meta">
-      <span class="tag ok">8 pages</span>
-      <span class="tag">~30 min</span>
+      <span class="tag ok">9 pages</span>
+      <span class="tag">~35 min</span>
       <span class="tag">nano mode scope</span>
     </div>
 
@@ -58,7 +60,7 @@
       open in another tab while reading. Match what you see live against the diagrams.
     </div>
 
-    <h2>The 8-page tour</h2>
+    <h2>The 9-page tour</h2>
     <div class="box">
       <table>
         <thead>
@@ -70,59 +72,20 @@
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>1</td>
-            <td>📊 <a href="index.html">Overview</a></td>
-            <td>You're here. The map of the whole tour.</td>
-            <td><code>2 min</code></td>
-          </tr>
-          <tr>
-            <td>2</td>
-            <td>🏗 <a href="arch/nano-topology.html">Nano topology</a></td>
-            <td>The 7 containers, grouped by role.</td>
-            <td><code>5 min</code></td>
-          </tr>
-          <tr>
-            <td>3</td>
-            <td>🔗 <a href="arch/service-dependencies.html">Service dependencies</a></td>
-            <td>Who calls whom. "If I stop X, what breaks?"</td>
-            <td><code>4 min</code></td>
-          </tr>
-          <tr>
-            <td>4</td>
-            <td>📐 <a href="diagram/startup-order.html">Startup order</a></td>
-            <td>5-wave dependency chain. Why MySQL/Kafka/Redis start first.</td>
-            <td><code>4 min</code></td>
-          </tr>
-          <tr>
-            <td>5</td>
-            <td>👤 <a href="flowchart/request-flow.html">User API</a></td>
-            <td><code>GET /api/v1/users</code> — the simplest request to trace.</td>
-            <td><code>4 min</code></td>
-          </tr>
-          <tr>
-            <td>6</td>
-            <td>🛍 <a href="flowchart/product-flow.html">Product API</a></td>
-            <td><code>GET /api/v1/products</code> — same hops, different service.</td>
-            <td><code>3 min</code></td>
-          </tr>
-          <tr>
-            <td>7</td>
-            <td>🧾 <a href="flowchart/order-checkout-flow.html">Order checkout</a></td>
-            <td><code>POST /checkout</code> — multi-service saga via Kafka.</td>
-            <td><code>6 min</code></td>
-          </tr>
-          <tr>
-            <td>8</td>
-            <td>💳 <a href="flowchart/payment-flow.html">Payment flow</a></td>
-            <td>Event-driven service + 5 provider implementations.</td>
-            <td><code>5 min</code></td>
-          </tr>
+          <tr><td>1</td><td>📊 <a href="index.html">Overview</a></td><td>You're here. The map of the whole tour.</td><td><code>2 min</code></td></tr>
+          <tr><td>2</td><td>🏗 <a href="arch/nano-topology.html">Nano topology</a></td><td>The 7 containers, grouped by role. Live-traffic animation.</td><td><code>5 min</code></td></tr>
+          <tr><td>3</td><td>🔗 <a href="arch/service-dependencies.html">Service dependencies</a></td><td>Who calls whom. "If I stop X, what breaks?"</td><td><code>4 min</code></td></tr>
+          <tr><td>4</td><td>📐 <a href="diagram/startup-order.html">Startup order</a></td><td>5-wave dependency chain.</td><td><code>4 min</code></td></tr>
+          <tr><td>5</td><td>🗄 <a href="diagram/data-model.html">Data model</a></td><td>ER diagrams for all 4 MySQL schemas.</td><td><code>5 min</code></td></tr>
+          <tr><td>6</td><td>👤 <a href="flowchart/request-flow.html">User API</a></td><td><code>GET /api/v1/users</code> — the simplest request to trace.</td><td><code>4 min</code></td></tr>
+          <tr><td>7</td><td>🛍 <a href="flowchart/product-flow.html">Product API</a></td><td><code>GET /api/v1/products</code> — same hops, different service.</td><td><code>3 min</code></td></tr>
+          <tr><td>8</td><td>🧾 <a href="flowchart/order-checkout-flow.html">Order checkout</a></td><td><code>POST /checkout</code> — multi-service saga via Kafka.</td><td><code>6 min</code></td></tr>
+          <tr><td>9</td><td>💳 <a href="flowchart/payment-flow.html">Payment flow</a></td><td>Event-driven service + 5 provider implementations.</td><td><code>5 min</code></td></tr>
         </tbody>
       </table>
     </div>
     <div class="callout">
-      <b>Total: ~33 min.</b> First 4 pages = architecture. Last 4 = runtime flows.
+      <b>Total: ~38 min.</b> First 5 pages = architecture + data. Last 4 = runtime flows.
     </div>
 
     <h2>Scope</h2>

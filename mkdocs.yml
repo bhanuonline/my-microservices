@@ -176,6 +176,7 @@ nav:
     - 🏗 Nano topology: visuals/arch/nano-topology.html
     - 🔗 Service dependencies: visuals/arch/service-dependencies.html
     - 📐 Startup order: visuals/diagram/startup-order.html
+    - 🗄 Data model (ER): visuals/diagram/data-model.html
     - 👤 User API flow: visuals/flowchart/request-flow.html
     - 🛍 Product API flow: visuals/flowchart/product-flow.html
     - 🧾 Order checkout saga: visuals/flowchart/order-checkout-flow.html

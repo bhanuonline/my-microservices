@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Data model · Visual Tour</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="sidenav">
+    <a href="../index.html" class="nav-brand">
+      <b>Visual Tour</b>
+      <small>nano mode · 9 pages · ~35 min</small>
+    </a>
+    <div class="nav-group">Overview</div>
+    <a href="../index.html">📊 Start here</a>
+    <div class="nav-group">Architecture</div>
+    <a href="../arch/nano-topology.html">🏗 Nano topology</a>
+    <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
+    <div class="nav-group">Startup</div>
+    <a href="startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="data-model.html" class="on">🗄 Data model (ER)</a>
+    <div class="nav-group">Request flows</div>
+    <a href="../flowchart/request-flow.html">👤 User API</a>
+    <a href="../flowchart/product-flow.html">🛍 Product API</a>
+    <a href="../flowchart/order-checkout-flow.html">🧾 Order checkout</a>
+    <a href="../flowchart/payment-flow.html">💳 Payment flow</a>
+    <button class="theme-btn" id="themeBtn">Toggle theme</button>
+  </nav>
+
+  <main>
+    <h1>🗄 Data Model</h1>
+    <p class="lead">The 4 MySQL schemas held in <code>mysql-shared</code>: <code>userdb</code>, <code>productdb</code>, <code>authdb</code>, <code>paymentdb</code>. One container, four logically separate databases.</p>
+    <div class="meta">
+      <span class="tag ok">1 container</span>
+      <span class="tag">4 schemas</span>
+      <span class="tag">no cross-schema joins</span>
+    </div>
+
+    <h2>Why share one MySQL in nano mode?</h2>
+    <p>
+      Production microservices typically run <b>one DB per service</b>
+      for isolation. This project does that for the <code>individual</code>
+      topology (<code>make up-individual</code>). But nano/minimal/full
+      modes all use <b>one shared MySQL</b> with 4 schemas to save RAM
+      and startup time on dev laptops.
+    </p>
+    <p>
+      The schemas are still logically isolated — each service only
+      touches its own. Cross-schema joins are forbidden by convention
+      (no FKs across schemas, enforced in code review).
+    </p>
+
+    <h2>userdb — managed by user-service</h2>
+    <div class="box">
+      <div class="mermaid">
+erDiagram
+    USER {
+        bigint id PK
+        string email UK
+        string first_name
+        string last_name
+        string phone
+        timestamp created_at
+        timestamp updated_at
+    }
+    ADDRESS {
+        bigint id PK
+        bigint user_id FK
+        string type "shipping|billing"
+        string line1
+        string city
+        string country
+        string postal_code
+    }
+    OUTBOX_EVENT {
+        bigint id PK
+        string aggregate_type
+        bigint aggregate_id
+        string event_type
+        text payload
+        string status
+        timestamp created_at
+        timestamp sent_at
+    }
+    USER ||--o{ ADDRESS : has
+      </div>
+    </div>
+    <p><code>OUTBOX_EVENT</code> is the transactional outbox table — events get written in the same transaction as the business change, then a poller publishes them to Kafka. Prevents dual-write inconsistency.</p>
+
+    <h2>productdb — managed by product-service</h2>
+    <div class="box">
+      <div class="mermaid">
+erDiagram
+    PRODUCT {
+        bigint id PK
+        string name
+        string description
+        decimal price
+        string currency
+        int stock_quantity
+        boolean active
+        timestamp created_at
+    }
+    CATEGORY {
+        bigint id PK
+        string name UK
+        string slug UK
+    }
+    PRODUCT_CATEGORY {
+        bigint product_id FK
+        bigint category_id FK
+    }
+    INVENTORY_RESERVATION {
+        bigint id PK
+        bigint product_id FK
+        bigint order_id
+        int quantity
+        string status "RESERVED|RELEASED|COMMITTED"
+        timestamp expires_at
+    }
+    PRODUCT ||--o{ PRODUCT_CATEGORY : "has many"
+    CATEGORY ||--o{ PRODUCT_CATEGORY : "has many"
+    PRODUCT ||--o{ INVENTORY_RESERVATION : "locks against"
+      </div>
+    </div>
+    <p><code>INVENTORY_RESERVATION</code> is how the saga reserves stock before payment. If payment fails, the reservation is <code>RELEASED</code> (compensation). If payment succeeds, it's <code>COMMITTED</code> and the real <code>stock_quantity</code> is decremented.</p>
+
+    <h2>authdb — managed by auth-server</h2>
+    <div class="box">
+      <div class="mermaid">
+erDiagram
+    OAUTH2_USER {
+        bigint id PK
+        string username UK
+        string password_hash
+        string roles "comma-separated"
+        boolean enabled
+        timestamp created_at
+    }
+    OAUTH2_CLIENT {
+        string client_id PK
+        string client_secret_hash
+        string grant_types
+        string scopes
+        int access_token_ttl_seconds
+    }
+    OAUTH2_AUTHORIZATION {
+        string id PK
+        string client_id FK
+        string principal
+        text access_token_value
+        timestamp issued_at
+        timestamp expires_at
+    }
+    API_KEY {
+        bigint id PK
+        string key_hash UK
+        string label
+        string owner
+        timestamp created_at
+        timestamp expires_at
+        boolean revoked
+    }
+    OAUTH2_CLIENT ||--o{ OAUTH2_AUTHORIZATION : issues
+      </div>
+    </div>
+    <p>Spring Authorization Server's standard tables, plus the project's custom <code>API_KEY</code> table (api-gateway reads it for API-key auth paths).</p>
+
+    <h2>paymentdb — managed by payment-service</h2>
+    <div class="box">
+      <div class="mermaid">
+erDiagram
+    PAYMENT {
+        bigint id PK
+        string order_id UK
+        decimal amount
+        string currency
+        string provider "mock|stripe|razorpay|paypal|checkoutcom"
+        string provider_charge_id
+        string status "PROCESSING|AUTHORIZED|CAPTURED|FAILED|REFUNDED|VOIDED"
+        string idempotency_key UK
+        timestamp created_at
+        timestamp updated_at
+    }
+    PAYMENT_EVENT {
+        bigint id PK
+        bigint payment_id FK
+        string event_type
+        text raw_payload
+        timestamp received_at
+    }
+    REFUND {
+        bigint id PK
+        bigint payment_id FK
+        decimal amount
+        string reason
+        string status
+        timestamp created_at
+    }
+    WEBHOOK_EVENT {
+        bigint id PK
+        string provider
+        string event_id UK
+        text payload
+        string signature
+        boolean verified
+        timestamp received_at
+    }
+    PAYMENT ||--o{ PAYMENT_EVENT : "state transitions"
+    PAYMENT ||--o{ REFUND : "has"
+      </div>
+    </div>
+    <p><code>WEBHOOK_EVENT</code> stores raw provider callbacks for audit. <code>idempotency_key</code> on <code>PAYMENT</code> prevents double-charging on saga retries.</p>
+
+    <h2>Design notes</h2>
+    <ul>
+      <li><b>Money as DECIMAL, not FLOAT.</b> Floats lose precision; always use <code>DECIMAL(19,2)</code> or integer minor units.</li>
+      <li><b>Timestamps in UTC.</b> Hibernate's default is JVM TZ — explicitly configured to UTC in <code>application.yml</code>.</li>
+      <li><b>No FKs across schemas.</b> If a service needs data from another, it calls the other service's API (sync) or consumes its events (async). Never SQL JOIN across <code>userdb.user</code> and <code>productdb.product</code>.</li>
+      <li><b>Outbox pattern.</b> Each service with a <code>OUTBOX_EVENT</code> table publishes to Kafka from there, not from inline <code>kafkaTemplate.send()</code>. Guarantees exactly-once delivery semantics in combination with Kafka's idempotent producer.</li>
+      <li><b>Flyway migrations.</b> Schema changes live in <code>services/&lt;svc&gt;/src/main/resources/db/migration/</code>. Hibernate's <code>ddl-auto=update</code> only runs in dev; prod uses Flyway.</li>
+    </ul>
+
+    <h2>Peek at the data</h2>
+    <div class="box"><pre><code># Pre-req: mysql-shared running (make up-nano)
+
+make mysql-user       # shell into userdb
+mysql&gt; SHOW TABLES;
+mysql&gt; SELECT * FROM user LIMIT 5;
+
+make mysql-product    # shell into productdb
+make mysql-auth       # shell into authdb
+make mysql-payment    # shell into paymentdb</code></pre></div>
+
+    <nav class="nav-footer" aria-label="Page navigation">
+      <a href="startup-order.html" class="nav-prev">
+        <span class="nav-label">← Previous · Step 4</span>
+        <span class="nav-title">📐 Startup order — how it all comes up</span>
+      </a>
+      <a href="../flowchart/request-flow.html" class="nav-next">
+        <span class="nav-label">Next · Step 6 →</span>
+        <span class="nav-title">👤 User API — tracing a request</span>
+      </a>
+    </nav>
+    <div class="page-footer">Source: service <code>src/main/resources/db/migration/</code> files</div>
+  </main>
+</div>
+
+<script>
+  (function() {
+    var root = document.documentElement;
+    var saved = localStorage.getItem('theme');
+    if (saved) root.dataset.theme = saved;
+    var btn = document.getElementById('themeBtn');
+    if (btn) btn.onclick = function() {
+      var next = (root.dataset.theme === 'dark') ? 'light' : 'dark';
+      root.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      initMermaid();
+    };
+    function initMermaid() {
+      var dark = root.dataset.theme === 'dark';
+      mermaid.initialize({
+        startOnLoad: false, theme: dark ? 'dark' : 'base',
+        themeVariables: {
+          fontFamily: 'IBM Plex Sans, system-ui, sans-serif', fontSize: '13px',
+          primaryColor: dark ? '#18212b' : '#fff',
+          primaryTextColor: dark ? '#e6ebf1' : '#1d2b3a',
+          primaryBorderColor: dark ? '#2a3541' : '#d6e5f2',
+          lineColor: dark ? '#97a3b3' : '#5f7186',
+          clusterBkg: dark ? '#10161d' : '#f4f9fd',
+          clusterBorder: dark ? '#2a3541' : '#d6e5f2',
+          attributeBackgroundColorOdd: dark ? '#18212b' : '#fff',
+          attributeBackgroundColorEven: dark ? '#10161d' : '#f0f7fd'
+        }
+      });
+      document.querySelectorAll('.mermaid').forEach(function(el) {
+        el.removeAttribute('data-processed');
+        el.innerHTML = el.getAttribute('data-src') || el.innerHTML;
+      });
+      mermaid.run();
+    }
+    document.querySelectorAll('.mermaid').forEach(function(el) {
+      el.setAttribute('data-src', el.innerHTML);
+    });
+    initMermaid();
+  })();
+</script>
+</body>
+</html>

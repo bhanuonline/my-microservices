@@ -13,7 +13,7 @@
   <nav class="sidenav">
     <a href="../index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
     <div class="nav-group">Overview</div>
     <a href="../index.html">📊 Start here</a>
@@ -22,6 +22,8 @@
     <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
     <div class="nav-group">Startup</div>
     <a href="startup-order.html" class="on">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="data-model.html">🗄 Data model (ER)</a>
     <div class="nav-group">Request flows</div>
     <a href="../flowchart/request-flow.html">👤 User API</a>
     <a href="../flowchart/product-flow.html">🛍 Product API</a>
@@ -32,7 +34,7 @@
 
   <main>
     <h1>📐 Nano Startup Order</h1>
-    <p class="lead">Step 4 of 8 — 5 healthcheck-gated waves. ~45-60s on a warm boot, ~5-8 min first boot.</p>
+    <p class="lead">Step 4 of 9 — 5 healthcheck-gated waves. ~45-60s on a warm boot, ~5-8 min first boot.</p>
     <div class="meta">
       <span class="tag">5 waves</span>
       <span class="tag">healthcheck-gated</span>
@@ -108,9 +110,9 @@ docker compose logs --tail 30 &lt;stuck-service&gt;
         <span class="nav-label">← Previous · Step 3</span>
         <span class="nav-title">🔗 Service dependencies — who calls whom</span>
       </a>
-      <a href="../flowchart/request-flow.html" class="nav-next">
+      <a href="data-model.html" class="nav-next">
         <span class="nav-label">Next · Step 5 →</span>
-        <span class="nav-title">👤 User API — tracing a request</span>
+        <span class="nav-title">🗄 Data model — the 4 MySQL schemas</span>
       </a>
     </nav>
     <div class="page-footer">Source: <a href="../../setup/01-startup-runbook.md">01-startup-runbook.md</a></div>

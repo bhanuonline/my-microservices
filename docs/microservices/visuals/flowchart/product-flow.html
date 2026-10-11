@@ -13,7 +13,7 @@
   <nav class="sidenav">
     <a href="../index.html" class="nav-brand">
       <b>Visual Tour</b>
-      <small>nano mode · 8 pages · ~30 min</small>
+      <small>nano mode · 9 pages · ~35 min</small>
     </a>
     <div class="nav-group">Overview</div>
     <a href="../index.html">📊 Start here</a>
@@ -22,6 +22,8 @@
     <a href="../arch/service-dependencies.html">🔗 Service dependencies</a>
     <div class="nav-group">Startup</div>
     <a href="../diagram/startup-order.html">📐 Startup order</a>
+    <div class="nav-group">Data</div>
+    <a href="../diagram/data-model.html">🗄 Data model (ER)</a>
     <div class="nav-group">Request flows</div>
     <a href="request-flow.html">👤 User API</a>
     <a href="product-flow.html" class="on">🛍 Product API</a>
@@ -32,7 +34,7 @@
 
   <main>
     <h1>🛍 Product API — Request Flow</h1>
-    <p class="lead">Step 6 of 8 — <code>GET /api/v1/products</code>. Same hops as user API, different service.</p>
+    <p class="lead">Step 7 of 9 — <code>GET /api/v1/products</code>. Same hops as user API, different service.</p>
     <div class="meta">
       <span class="tag">sync HTTP</span>
       <span class="tag ok">pattern = user API</span>
@@ -126,11 +128,11 @@ curl -u admin:admin123 http://localhost:8080/api/v1/products</code></pre></div>
 
     <nav class="nav-footer" aria-label="Page navigation">
       <a href="request-flow.html" class="nav-prev">
-        <span class="nav-label">← Previous · Step 5</span>
+        <span class="nav-label">← Previous · Step 6</span>
         <span class="nav-title">👤 User API — tracing a request</span>
       </a>
       <a href="order-checkout-flow.html" class="nav-next">
-        <span class="nav-label">Next · Step 7 →</span>
+        <span class="nav-label">Next · Step 8 →</span>
         <span class="nav-title">🧾 Order checkout — the multi-service saga</span>
       </a>
     </nav>
