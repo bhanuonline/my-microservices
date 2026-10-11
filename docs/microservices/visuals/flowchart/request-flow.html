@@ -189,6 +189,51 @@ sequenceDiagram
       <p class="sim-info" id="simInfo">Click any node in the diagram above to see what it does.</p>
     </div>
 
+    <h2>API client — Postman-style</h2>
+    <p class="lead">
+      Edit the method, URL, headers, or body and press <b>Send</b>. The response is simulated client-side — no real network call is made. Try removing the Authorization header, or setting the path to something invalid.
+    </p>
+    <div class="box pm">
+      <div class="url-bar">
+        <select id="pmMethod" aria-label="HTTP method">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+        </select>
+        <input id="pmUrl" value="http://localhost:8080/api/v1/users" aria-label="URL">
+        <button class="primary send" id="pmSend">▶ Send</button>
+        <button class="curl-btn" id="pmCopyCurl">Copy as curl</button>
+      </div>
+
+      <div class="tabs" id="pmTabs">
+        <button class="on" data-t="h">Headers</button>
+        <button data-t="b">Body</button>
+      </div>
+      <textarea id="pmHeaders" spellcheck="false">Authorization: Basic YWRtaW46YWRtaW4xMjM=
+Accept: application/json
+X-Correlation-Id: demo-abc-123</textarea>
+      <textarea id="pmBody" spellcheck="false" style="display:none">{
+  "email": "new@example.com",
+  "name": "New User"
+}</textarea>
+
+      <div class="stat">
+        <span>Status <b id="pmStatus">—</b></span>
+        <span>Time <b id="pmTime">—</b></span>
+        <span>Size <b id="pmSize">—</b></span>
+      </div>
+
+      <div class="tabs" id="pmRespTabs">
+        <button class="on" data-t="rb">Response body</button>
+        <button data-t="rh">Response headers</button>
+      </div>
+      <pre id="pmRespBody" class="resp">Press Send to see the response.</pre>
+      <pre id="pmRespHdrs" class="resp" style="display:none"></pre>
+
+      <p class="hint">Tip: switch the method to <code>POST</code> and the path stays <code>/api/v1/users</code> — this hits the user-registration endpoint with the Body tab's JSON.</p>
+    </div>
+
     <h2>Reproduce it for real</h2>
     <div class="box"><pre><code># Prereq: nano running + user-service running
 make up-nano
@@ -425,6 +470,166 @@ tail -f logs/user-service-debug.log</code></pre></div>
 
     // Fire once on load so the user sees something immediately
     setTimeout(send, 600);
+  })();
+
+  /* ─── Postman-style API client ─────────────────────────── */
+  (function() {
+    var $ = function(id) { return document.getElementById(id); };
+
+    var STATUS_TEXT = {
+      200: 'OK', 201: 'Created', 204: 'No Content',
+      400: 'Bad Request', 401: 'Unauthorized', 404: 'Not Found',
+      405: 'Method Not Allowed', 422: 'Unprocessable Entity',
+      500: 'Internal Server Error', 503: 'Service Unavailable'
+    };
+
+    // Simple tab-switching helper
+    function wireTabs(groupId, map) {
+      var group = $(groupId); if (!group) return;
+      group.querySelectorAll('button').forEach(function(b) {
+        b.onclick = function() {
+          group.querySelectorAll('button').forEach(function(x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          Object.keys(map).forEach(function(k) {
+            var el = $(map[k]); if (el) el.style.display = (k === b.dataset.t) ? 'block' : 'none';
+          });
+        };
+      });
+    }
+    wireTabs('pmTabs',     { h: 'pmHeaders', b: 'pmBody' });
+    wireTabs('pmRespTabs', { rb: 'pmRespBody', rh: 'pmRespHdrs' });
+
+    // Parse "Key: Value" lines from the Headers textarea
+    function parseHeaders() {
+      var out = {};
+      $('pmHeaders').value.split('\n').forEach(function(ln) {
+        var i = ln.indexOf(':');
+        if (i > 0) {
+          var k = ln.slice(0, i).trim().toLowerCase();
+          var v = ln.slice(i + 1).trim();
+          if (k) out[k] = v;
+        }
+      });
+      return out;
+    }
+
+    function setStatus(code) {
+      var cls = (code >= 200 && code < 300) ? 'good' : 'bad';
+      var el = $('pmStatus');
+      el.textContent = code + ' ' + (STATUS_TEXT[code] || '');
+      el.className = cls;
+    }
+
+    function send() {
+      var startedAt = performance.now();
+      setStatus('—');
+      $('pmRespBody').textContent = 'Sending...';
+      $('pmRespBody').className = 'resp';
+
+      // Simulate network delay 120-400ms
+      var delay = 120 + Math.floor(Math.random() * 280);
+
+      setTimeout(function() {
+        var method  = $('pmMethod').value;
+        var url     = $('pmUrl').value.trim();
+        var headers = parseHeaders();
+        var body;
+        try { body = JSON.parse($('pmBody').value || 'null'); }
+        catch (e) { body = { __invalid_json: true }; }
+
+        var code, respBody;
+
+        // ─── Routing rules (simulated gateway behaviour) ───
+        var pathMatch = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+        var path = pathMatch ? pathMatch[1] : url;
+
+        if (!headers.authorization && !path.startsWith('/public')) {
+          code = 401;
+          respBody = { error: 'unauthorized', detail: 'Missing Authorization header' };
+        }
+        else if (path.startsWith('/api/v1/users')) {
+          if (method === 'GET') {
+            code = 200;
+            respBody = [
+              { id: 1, email: 'alice@example.com', name: 'Alice Smith' },
+              { id: 2, email: 'bob@example.com',   name: 'Bob Jones'  },
+              { id: 3, email: 'carol@example.com', name: 'Carol Lee'  }
+            ];
+          }
+          else if (method === 'POST') {
+            if (body && body.__invalid_json) {
+              code = 400;
+              respBody = { error: 'bad_request', detail: 'Request body is not valid JSON' };
+            }
+            else if (!body || !body.email || !body.name) {
+              code = 422;
+              respBody = { error: 'validation_failed', missing: ['email', 'name'].filter(function(k) { return !body || !body[k]; }) };
+            }
+            else {
+              code = 201;
+              respBody = {
+                id: Math.floor(100 + Math.random() * 900),
+                email: body.email,
+                name: body.name,
+                created_at: '2026-10-11T07:30:00Z'
+              };
+            }
+          }
+          else if (method === 'DELETE' || method === 'PUT') {
+            code = 405;
+            respBody = { error: 'method_not_allowed', detail: 'Use GET to list or POST to create' };
+          }
+        }
+        else {
+          code = 404;
+          respBody = { error: 'not_found', path: path };
+        }
+
+        var txt = JSON.stringify(respBody, null, 2);
+        var ok = code < 300;
+        setStatus(code);
+        $('pmTime').textContent = Math.round(performance.now() - startedAt) + ' ms';
+        $('pmSize').textContent = txt.length + ' B';
+        $('pmRespBody').textContent = txt;
+        $('pmRespBody').className = 'resp ' + (ok ? 'good' : 'bad');
+        $('pmRespHdrs').textContent =
+          'content-type: application/json\n' +
+          'x-correlation-id: ' + (headers['x-correlation-id'] || 'auto-' + Math.random().toString(36).slice(2, 10)) + '\n' +
+          'cache-control: no-store\n' +
+          'content-length: ' + txt.length;
+      }, delay);
+    }
+
+    function copyAsCurl() {
+      var btn    = $('pmCopyCurl');
+      var method = $('pmMethod').value;
+      var url    = $('pmUrl').value.trim();
+      var parts  = ["curl -X " + method + " '" + url + "'"];
+      $('pmHeaders').value.split('\n').forEach(function(ln) {
+        if (ln.trim()) parts.push("-H '" + ln.trim() + "'");
+      });
+      if (method !== 'GET' && method !== 'DELETE') {
+        var body = ($('pmBody').value || '').replace(/\s+/g, ' ').trim();
+        if (body) parts.push("-d '" + body + "'");
+      }
+      var cmd = parts.join(' \\\n  ');
+      var orig = btn.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(function() {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function() { btn.textContent = orig; }, 1600);
+        }, function() {
+          btn.textContent = 'Copy failed';
+          setTimeout(function() { btn.textContent = orig; }, 1600);
+        });
+      } else {
+        btn.textContent = 'Clipboard unsupported';
+        setTimeout(function() { btn.textContent = orig; }, 1600);
+      }
+    }
+
+    $('pmSend').onclick = send;
+    $('pmCopyCurl').onclick = copyAsCurl;
   })();
 </script>
 </body>
