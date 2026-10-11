@@ -28,28 +28,38 @@
 <body>
 <div class="container">
 
-  <!-- Learning path -->
-  <nav class="learning-path" aria-label="Learning path">
-    <a href="../index.html" class="lp-step done">
-      <span class="step-num"><span>1</span></span> Overview
+  <aside class="sidebar">
+    <a href="../index.html" class="sidebar-brand">
+      <span class="brand-title">Visual Tour</span>
+      <span class="brand-sub">nano mode · 8 pages · ~30 min</span>
     </a>
-    <span class="lp-arrow">→</span>
-    <a href="nano-topology.html" class="lp-step active">
-      <span class="step-num"><span>2</span></span> Architecture
-    </a>
-    <span class="lp-arrow">→</span>
-    <a href="../diagram/startup-order.html" class="lp-step">
-      <span class="step-num"><span>3</span></span> Startup order
-    </a>
-    <span class="lp-arrow">→</span>
-    <a href="../flowchart/request-flow.html" class="lp-step">
-      <span class="step-num"><span>4</span></span> Request flow
-    </a>
-  </nav>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Overview</div>
+      <a href="../index.html" class="sidebar-link"><span class="emoji">📊</span>Start here</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Architecture</div>
+      <a href="nano-topology.html" class="sidebar-link active"><span class="emoji">🏗</span>Nano topology</a>
+      <a href="service-dependencies.html" class="sidebar-link"><span class="emoji">🔗</span>Service dependencies</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Startup</div>
+      <a href="../diagram/startup-order.html" class="sidebar-link"><span class="emoji">📐</span>Startup order</a>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Request flows</div>
+      <a href="../flowchart/request-flow.html" class="sidebar-link"><span class="emoji">👤</span>User API</a>
+      <a href="../flowchart/product-flow.html" class="sidebar-link"><span class="emoji">🛍</span>Product API</a>
+      <a href="../flowchart/order-checkout-flow.html" class="sidebar-link"><span class="emoji">🧾</span>Order checkout</a>
+      <a href="../flowchart/payment-flow.html" class="sidebar-link"><span class="emoji">💳</span>Payment flow</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
 
   <header>
     <h1>🏗 Nano Topology</h1>
-    <div class="subtitle">Step 2 of 4 · 7 containers · ~1.6 GB RAM · platform floor only</div>
+    <div class="subtitle">Step 2 of 8 · 7 containers · ~1.6 GB RAM · platform floor only</div>
   </header>
 
   <section>
@@ -185,23 +195,24 @@ graph TB
 make verify              # should show 7 containers, all green</code></pre>
   </section>
 
-  <!-- Prev/Next -->
   <nav class="nav-footer" aria-label="Page navigation">
     <a href="../index.html" class="nav-prev">
       <span class="nav-label">← Previous · Step 1</span>
-      <span class="nav-title">Overview — how to read these pages</span>
+      <span class="nav-title">📊 Overview — how to read these pages</span>
     </a>
-    <a href="../diagram/startup-order.html" class="nav-next">
+    <a href="service-dependencies.html" class="nav-next">
       <span class="nav-label">Next · Step 3 →</span>
-      <span class="nav-title">📐 Startup order — how it all comes up</span>
+      <span class="nav-title">🔗 Service dependencies — who calls whom</span>
     </a>
   </nav>
 
   <footer>
-    <a href="../index.html">← Back to Visuals index</a>
+    <a href="../index.html">← Back to Overview</a>
     &nbsp;·&nbsp;
     Source: <a href="../../setup/00-first-time-setup.md">00-first-time-setup.md</a>
   </footer>
+
+  </main>
 </div>
 </body>
 </html>

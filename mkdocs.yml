@@ -171,7 +171,15 @@ nav:
     - Services effort ladder: diagrams/services-effort-ladder.md
     - Docker mental model: diagrams/docker-mental-model.md
     - Dependency stack: diagrams/dependency-stack.md
-  - Visuals (HTML): visuals/index.html
+  - Visuals (HTML):
+    - Overview: visuals/index.html
+    - 🏗 Nano topology: visuals/arch/nano-topology.html
+    - 🔗 Service dependencies: visuals/arch/service-dependencies.html
+    - 📐 Startup order: visuals/diagram/startup-order.html
+    - 👤 User API flow: visuals/flowchart/request-flow.html
+    - 🛍 Product API flow: visuals/flowchart/product-flow.html
+    - 🧾 Order checkout saga: visuals/flowchart/order-checkout-flow.html
+    - 💳 Payment flow: visuals/flowchart/payment-flow.html
   - Concepts: concepts/
   - Flows: flows/
   - Postman: postman/

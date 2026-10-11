@@ -9,121 +9,151 @@
 <body>
 <div class="container">
 
-  <!-- Learning path (sticky at top) -->
-  <nav class="learning-path" aria-label="Learning path">
-    <a href="index.html" class="lp-step active">
-      <span class="step-num"><span>1</span></span> Overview
+  <aside class="sidebar">
+    <a href="index.html" class="sidebar-brand">
+      <span class="brand-title">Visual Tour</span>
+      <span class="brand-sub">nano mode · 8 pages · ~30 min</span>
     </a>
-    <span class="lp-arrow">→</span>
-    <a href="arch/nano-topology.html" class="lp-step">
-      <span class="step-num"><span>2</span></span> Architecture
-    </a>
-    <span class="lp-arrow">→</span>
-    <a href="diagram/startup-order.html" class="lp-step">
-      <span class="step-num"><span>3</span></span> Startup order
-    </a>
-    <span class="lp-arrow">→</span>
-    <a href="flowchart/request-flow.html" class="lp-step">
-      <span class="step-num"><span>4</span></span> Request flow
-    </a>
-  </nav>
 
-  <header>
-    <h1>Visual Documentation</h1>
-    <div class="subtitle">
-      Follow the learning path above left-to-right. Each page builds on the previous — architecture (what runs) → startup order (how it comes up) → request flow (how traffic moves through it).
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Overview</div>
+      <a href="index.html" class="sidebar-link active"><span class="emoji">📊</span>Start here</a>
     </div>
-  </header>
 
-  <section>
-    <h2>How to read these pages</h2>
-    <p>
-      These 4 pages are a <strong>guided tour of nano mode</strong>
-      (the 7-container platform). Read them in order:
-    </p>
-    <ol>
-      <li><strong>Overview (this page)</strong> — the big picture + how to use the tour.</li>
-      <li><strong>Architecture</strong> — what runs in nano mode and why each container exists.</li>
-      <li><strong>Startup order</strong> — the healthcheck-gated sequence Compose follows to bring everything up.</li>
-      <li><strong>Request flow</strong> — a single API call traced through every hop.</li>
-    </ol>
-    <div class="callout tip">
-      <strong>Already running?</strong> If <code>make up-nano</code> is up, keep <code>docker compose ps</code> open in another tab while reading. Match what you see live against the diagrams.
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Architecture</div>
+      <a href="arch/nano-topology.html" class="sidebar-link"><span class="emoji">🏗</span>Nano topology</a>
+      <a href="arch/service-dependencies.html" class="sidebar-link"><span class="emoji">🔗</span>Service dependencies</a>
     </div>
-  </section>
 
-  <section>
-    <h2>The 4-step tour</h2>
-    <table>
-      <thead>
-        <tr>
-          <th style="width: 60px;">Step</th>
-          <th>Page</th>
-          <th>What you'll learn</th>
-          <th>Approx read time</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>1</strong></td>
-          <td><a href="index.html">Overview</a></td>
-          <td>Where you are now. What's covered and what isn't (yet).</td>
-          <td>2 min</td>
-        </tr>
-        <tr>
-          <td><strong>2</strong></td>
-          <td><a href="arch/nano-topology.html">🏗 Architecture — Nano topology</a></td>
-          <td>The 7 containers, grouped by role (data / platform / edge), each with its port and purpose.</td>
-          <td>5 min</td>
-        </tr>
-        <tr>
-          <td><strong>3</strong></td>
-          <td><a href="diagram/startup-order.html">📐 Diagram — Startup order</a></td>
-          <td>5-wave dependency chain. Why MySQL + Kafka + Redis start first, why gateway is last.</td>
-          <td>4 min</td>
-        </tr>
-        <tr>
-          <td><strong>4</strong></td>
-          <td><a href="flowchart/request-flow.html">🔀 Flowchart — Request flow</a></td>
-          <td>A <code>GET /api/v1/users</code> request traced from <code>curl</code> all the way to MySQL and back.</td>
-          <td>5 min</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="callout">
-      <strong>Total: ~16 min.</strong> After this tour you'll understand how nano mode fits together and know what to try next.
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Startup</div>
+      <a href="diagram/startup-order.html" class="sidebar-link"><span class="emoji">📐</span>Startup order</a>
     </div>
-  </section>
 
-  <section>
-    <h2>Scope</h2>
-    <p>
-      This tour covers <strong>nano mode only</strong> (<code>make up-nano</code>, 7 containers, ~1.6&nbsp;GB RAM). Other modes have more containers and more complex flows:
-    </p>
-    <ul>
-      <li><strong>Minimal</strong> (<code>make up-minimal</code>) — nano + 4 business services + Prometheus/Grafana</li>
-      <li><strong>Full</strong> (<code>make up</code>) — minimal + Zipkin + Kafka UI + Loki + Vault + Elasticsearch</li>
-      <li><strong>Individual</strong> (<code>make up-individual</code>) — full + 4 per-service MySQLs</li>
-    </ul>
-    <p>Visual tours for those modes will come later.</p>
-  </section>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">Request flows</div>
+      <a href="flowchart/request-flow.html" class="sidebar-link"><span class="emoji">👤</span>User API</a>
+      <a href="flowchart/product-flow.html" class="sidebar-link"><span class="emoji">🛍</span>Product API</a>
+      <a href="flowchart/order-checkout-flow.html" class="sidebar-link"><span class="emoji">🧾</span>Order checkout</a>
+      <a href="flowchart/payment-flow.html" class="sidebar-link"><span class="emoji">💳</span>Payment flow</a>
+    </div>
+  </aside>
 
-  <!-- Prev/Next navigation -->
-  <nav class="nav-footer" aria-label="Page navigation">
-    <a href="arch/nano-topology.html" class="only-next nav-next">
-      <span class="nav-label">Next →</span>
-      <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
-    </a>
-  </nav>
+  <main class="main-content">
 
-  <footer>
-    Source docs:
-    <a href="../setup/00-first-time-setup.md">00-first-time-setup.md</a>
-    &middot;
-    <a href="../setup/01-startup-runbook.md">01-startup-runbook.md</a>
-    &middot;
-    <a href="../setup/docker-howto.md">docker-howto.md</a>
-  </footer>
+    <header>
+      <h1>Visual Tour</h1>
+      <div class="subtitle">
+        A guided walk through nano mode in 8 pages — architecture first, then startup order, then four runtime request flows.
+      </div>
+    </header>
+
+    <section>
+      <h2>How to use this tour</h2>
+      <p>
+        Each page builds on the previous. Pick a track:
+      </p>
+      <ul>
+        <li><strong>Linear</strong> — click <strong>Next</strong> at the bottom of each page. Takes ~30 min end-to-end.</li>
+        <li><strong>Jump around</strong> — use the sidebar on the left. Each page is self-contained.</li>
+      </ul>
+      <div class="callout tip">
+        <strong>Already running?</strong> If <code>make up-nano</code> is up, keep <code>docker compose ps</code> open in another tab while reading. Match what you see live against the diagrams.
+      </div>
+    </section>
+
+    <section>
+      <h2>The 8-page tour</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Page</th>
+            <th>What you'll learn</th>
+            <th style="width: 90px;">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1</strong></td>
+            <td>📊 <a href="index.html">Overview</a></td>
+            <td>You're here. The map of the whole tour.</td>
+            <td>2 min</td>
+          </tr>
+          <tr>
+            <td><strong>2</strong></td>
+            <td>🏗 <a href="arch/nano-topology.html">Nano topology</a></td>
+            <td>The 7 containers, grouped by role.</td>
+            <td>5 min</td>
+          </tr>
+          <tr>
+            <td><strong>3</strong></td>
+            <td>🔗 <a href="arch/service-dependencies.html">Service dependencies</a></td>
+            <td>Which services call which. "If I stop X, what breaks?"</td>
+            <td>4 min</td>
+          </tr>
+          <tr>
+            <td><strong>4</strong></td>
+            <td>📐 <a href="diagram/startup-order.html">Startup order</a></td>
+            <td>5-wave dependency chain. Why MySQL/Kafka/Redis start first.</td>
+            <td>4 min</td>
+          </tr>
+          <tr>
+            <td><strong>5</strong></td>
+            <td>👤 <a href="flowchart/request-flow.html">User API</a></td>
+            <td><code>GET /api/v1/users</code> — the simplest request to trace.</td>
+            <td>4 min</td>
+          </tr>
+          <tr>
+            <td><strong>6</strong></td>
+            <td>🛍 <a href="flowchart/product-flow.html">Product API</a></td>
+            <td><code>GET /api/v1/products</code> — same hops, different service.</td>
+            <td>3 min</td>
+          </tr>
+          <tr>
+            <td><strong>7</strong></td>
+            <td>🧾 <a href="flowchart/order-checkout-flow.html">Order checkout</a></td>
+            <td><code>POST /checkout</code> — multi-service saga, orders + Kafka.</td>
+            <td>6 min</td>
+          </tr>
+          <tr>
+            <td><strong>8</strong></td>
+            <td>💳 <a href="flowchart/payment-flow.html">Payment flow</a></td>
+            <td>Payment-service's role in the saga — Kafka consumer side.</td>
+            <td>5 min</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Total: ~33 min.</strong> First 4 pages = architecture. Last 4 = runtime flows.
+      </div>
+    </section>
+
+    <section>
+      <h2>Scope</h2>
+      <p>
+        This tour covers <strong>nano mode only</strong> (<code>make up-nano</code>, 7 containers, ~1.6&nbsp;GB RAM). The request-flow pages assume you've started the relevant business service via <code>make debug-user</code> / <code>debug-product</code> / <code>debug-order</code> / <code>debug-payment</code> alongside nano.
+      </p>
+      <p>Visual tours for other modes (minimal, full, individual) will come later.</p>
+    </section>
+
+    <nav class="nav-footer" aria-label="Page navigation">
+      <a href="arch/nano-topology.html" class="only-next nav-next">
+        <span class="nav-label">Next · Step 2 →</span>
+        <span class="nav-title">🏗 Nano topology — what runs in nano mode</span>
+      </a>
+    </nav>
+
+    <footer>
+      Source docs:
+      <a href="../setup/00-first-time-setup.md">00-first-time-setup.md</a>
+      &middot;
+      <a href="../setup/01-startup-runbook.md">01-startup-runbook.md</a>
+      &middot;
+      <a href="../setup/docker-howto.md">docker-howto.md</a>
+    </footer>
+  </main>
 </div>
 </body>
 </html>

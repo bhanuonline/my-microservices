@@ -63,87 +63,97 @@ html, body {
 }
 
 .container {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 2.5rem 2.5rem 5rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 2rem;
+  min-height: 100vh;
 }
 
-/* ─── Learning-path bar (sticky top nav) ─────────── */
+.main-content {
+  padding: 2.5rem 2.5rem 5rem;
+  min-width: 0;   /* allow grid child to shrink */
+}
 
-.learning-path {
+/* ─── Sidebar (persistent left nav) ──────────────── */
+
+.sidebar {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: var(--white);
-  border-bottom: 1px solid var(--border);
-  padding: 1rem 2rem;
-  margin: -2.5rem -2.5rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  font-size: 0.95rem;
-  box-shadow: 0 1px 0 rgba(10,37,64,0.03);
-}
-
-.lp-step {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.95rem;
-  border-radius: 999px;
-  text-decoration: none;
-  color: var(--muted);
-  font-weight: 500;
-  border: 1px solid transparent;
-  transition: all 0.15s ease;
-}
-
-.lp-step:hover {
+  height: 100vh;
+  overflow-y: auto;
   background: var(--off-white);
-  color: var(--heading);
+  border-right: 1px solid var(--border);
+  padding: 2rem 1.25rem;
+  font-size: 0.95rem;
 }
 
-.lp-step.active {
+.sidebar .sidebar-brand {
+  display: block;
+  text-decoration: none;
+  margin-bottom: 2rem;
+  padding: 0 0.5rem;
+}
+
+.sidebar .sidebar-brand .brand-title {
+  color: var(--heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: block;
+}
+
+.sidebar .sidebar-brand .brand-sub {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 0.1rem;
+  display: block;
+}
+
+.sidebar-group {
+  margin-bottom: 1.5rem;
+}
+
+.sidebar-group-title {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 0.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  color: var(--body);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition: all 0.12s ease;
+  margin-bottom: 2px;
+}
+
+.sidebar-link:hover {
+  background: var(--white);
+  color: var(--heading);
+  text-decoration: none;
+}
+
+.sidebar-link.active {
   background: var(--accent-bg);
   color: var(--accent);
-  border-color: var(--accent);
   font-weight: 600;
 }
 
-.lp-step .step-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--off-white);
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 1px solid var(--border);
-}
-
-.lp-step.active .step-num {
-  background: var(--accent);
-  color: var(--white);
-  border-color: var(--accent);
-}
-
-.lp-step.done .step-num {
-  background: var(--infra);
-  color: var(--white);
-  border-color: var(--infra);
-}
-
-.lp-step.done .step-num::before { content: "✓"; }
-.lp-step.done .step-num span { display: none; }
-
-.lp-arrow {
-  color: var(--faint);
-  font-size: 1.1rem;
+.sidebar-link .emoji {
+  display: inline-block;
+  width: 1.25rem;
+  text-align: center;
+  margin-right: 0.35rem;
 }
 
 /* ─── Prev/Next footer navigation ────────────────── */
@@ -465,9 +475,19 @@ footer a {
 
 /* ─── Responsive ─────────────────────────────────── */
 
-@media (max-width: 640px) {
-  .container { padding: 1.5rem 1rem 3rem; }
-  header h1  { font-size: 1.9rem; }
+@media (max-width: 900px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .main-content { padding: 1.5rem 1.25rem 3rem; }
+  header h1  { font-size: 2rem; }
   header .subtitle { font-size: 1rem; }
   section    { padding: 1.5rem 1.25rem; }
+  .nav-footer { grid-template-columns: 1fr; }
 }
