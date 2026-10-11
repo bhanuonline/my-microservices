@@ -186,6 +186,142 @@ curl -u admin:admin123 -X POST http://localhost:8080/checkout \
       </table>
     </div>
 
+    <h2>Try it live — saga simulator</h2>
+    <p class="lead">
+      Pick a scenario or change the inputs, then press Send. Watch the
+      saga progress through Phase 1 (sync HTTP) and Phase 2 (async
+      Kafka events). <b>Click any node</b> for a one-line description.
+    </p>
+    <div class="box">
+      <div class="presets">
+        <button data-p="ok">Happy path</button>
+        <button data-p="nostock">Out of stock</button>
+        <button data-p="payfail">Payment declined</button>
+        <button data-p="notifdown">Notification offline</button>
+      </div>
+
+      <div class="sim">
+        <div class="ctrl">
+          <label>product-service
+            <select id="sagaProd">
+              <option value="ok">In stock</option>
+              <option value="nostock">Out of stock</option>
+              <option value="down">Service down</option>
+            </select>
+          </label>
+          <label>payment-service
+            <select id="sagaPay">
+              <option value="ok">Charge succeeds</option>
+              <option value="declined">Charge declined</option>
+              <option value="down">Service down</option>
+            </select>
+          </label>
+          <label>notification
+            <select id="sagaNotif">
+              <option value="ok">Email sent</option>
+              <option value="skip">Not running (saga stops at PAID)</option>
+            </select>
+          </label>
+          <button class="primary" id="sagaGo">▶ POST /checkout</button>
+        </div>
+
+        <div>
+          <svg class="sim-svg" id="sagaSvg" viewBox="0 0 600 240" role="img" aria-label="Interactive saga diagram">
+            <!-- Lines -->
+            <line class="ed" x1="70"  y1="120" x2="195" y2="120"/>
+            <line class="ed" x1="195" y1="120" x2="320" y2="120"/>
+            <line class="ed" x1="320" y1="120" x2="320" y2="40"/>
+            <line class="ed" x1="320" y1="120" x2="320" y2="200"/>
+            <line class="ed" x1="320" y1="40"  x2="500" y2="40"/>
+            <line class="ed" x1="320" y1="120" x2="500" y2="120"/>
+            <line class="ed" x1="320" y1="200" x2="500" y2="200"/>
+
+            <!-- Nodes -->
+            <g class="nd" data-id="client" tabindex="0" role="button" transform="translate(20,98)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">curl</text>
+            </g>
+            <g class="nd" data-id="order" tabindex="0" role="button" transform="translate(145,98)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">order-svc</text>
+            </g>
+            <g class="nd" data-id="kafka" tabindex="0" role="button" transform="translate(270,98)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">kafka</text>
+            </g>
+            <g class="nd" data-id="product" tabindex="0" role="button" transform="translate(450,18)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">product-svc</text>
+            </g>
+            <g class="nd" data-id="payment" tabindex="0" role="button" transform="translate(450,98)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">payment-svc</text>
+            </g>
+            <g class="nd" data-id="notif" tabindex="0" role="button" transform="translate(450,178)">
+              <rect width="100" height="44" rx="6"/><text x="50" y="27" text-anchor="middle">notification</text>
+            </g>
+
+            <circle id="saga-pk" r="7" cx="0" cy="0" style="transform: translate(70px, 120px);"/>
+          </svg>
+
+          <div class="sim-log" id="sagaLog" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="sim-io">
+        <div>
+          <small>Request</small>
+          <pre id="sagaRq">Click a preset or press ▶ POST /checkout.</pre>
+        </div>
+        <div>
+          <small>Response + final saga state</small>
+          <pre id="sagaRs">—</pre>
+        </div>
+      </div>
+
+      <p class="sim-info" id="sagaInfo">Click any node in the diagram to see what it does.</p>
+    </div>
+
+    <h2>API client — Postman-style</h2>
+    <p class="lead">
+      Edit the body, press Send. The response is simulated with the
+      saga-aware status (<code>PENDING</code>, <code>FAILED_NO_STOCK</code>, etc.) that order-service would actually return in Phase 1.
+    </p>
+    <div class="box pm">
+      <div class="url-bar">
+        <select id="sagaPmMethod" aria-label="HTTP method">
+          <option>POST</option>
+          <option>GET</option>
+        </select>
+        <input id="sagaPmUrl" value="http://localhost:8080/checkout" aria-label="URL">
+        <button class="primary send" id="sagaPmSend">▶ Send</button>
+        <button class="curl-btn" id="sagaPmCurl">Copy as curl</button>
+      </div>
+
+      <div class="tabs" id="sagaPmTabs">
+        <button class="on" data-t="h">Headers</button>
+        <button data-t="b">Body</button>
+      </div>
+      <textarea id="sagaPmHeaders" spellcheck="false">Authorization: Basic YWRtaW46YWRtaW4xMjM=
+Content-Type: application/json
+X-Correlation-Id: demo-checkout-123</textarea>
+      <textarea id="sagaPmBody" spellcheck="false" style="display:none">{
+  "userId": 1,
+  "productIds": [1, 2],
+  "paymentProvider": "mock"
+}</textarea>
+
+      <div class="stat">
+        <span>Status <b id="sagaPmStatus">—</b></span>
+        <span>Time <b id="sagaPmTime">—</b></span>
+        <span>Size <b id="sagaPmSize">—</b></span>
+      </div>
+
+      <div class="tabs" id="sagaPmRespTabs">
+        <button class="on" data-t="rb">Response body</button>
+        <button data-t="rh">Response headers</button>
+      </div>
+      <pre id="sagaPmRespBody" class="resp">Press Send to see the response.</pre>
+      <pre id="sagaPmRespHdrs" class="resp" style="display:none"></pre>
+
+      <p class="hint">Phase 1 (sync) returns <code>202 Accepted</code> with status <code>PENDING</code>. The saga continues async — use the simulator above to see Phase 2.</p>
+    </div>
+
     <nav class="nav-footer" aria-label="Page navigation">
       <a href="product-flow.html" class="nav-prev">
         <span class="nav-label">← Previous · Step 7</span>
@@ -239,6 +375,351 @@ curl -u admin:admin123 -X POST http://localhost:8080/checkout \
       el.setAttribute('data-src', el.innerHTML);
     });
     initMermaid();
+  })();
+
+  /* ─── Saga simulator (Phase 1 sync + Phase 2 async) ─────── */
+  (function() {
+    var $ = function(id) { return document.getElementById(id); };
+
+    var POS = {
+      client:  [70,  120],
+      order:   [195, 120],
+      kafka:   [320, 120],
+      product: [500,  40],
+      payment: [500, 120],
+      notif:   [500, 200]
+    };
+
+    var INFO = {
+      client:  'curl / browser — POSTs /checkout. Receives 202 Accepted ~100ms later.',
+      order:   'order-service — the saga orchestrator. Writes order (PENDING), emits saga commands to Kafka, consumes replies.',
+      kafka:   'kafka — the event bus. Carries ReserveStockCommand → StockReservedReply, ChargePaymentCommand → PaymentChargedReply, NotifyUserCommand → UserNotifiedReply.',
+      product: 'product-service — consumes ReserveStockCommand, decrements stock, replies StockReservedReply (or NoStockReply).',
+      payment: 'payment-service — consumes ChargePaymentCommand, charges via provider (Mock/Stripe/etc), replies PaymentChargedReply (or PaymentDeclinedReply).',
+      notif:   'notification — consumes NotifyUserCommand, sends email/push, replies UserNotifiedReply.'
+    };
+
+    var pk    = $('saga-pk');
+    var log   = $('sagaLog');
+    var runTk = 0;
+
+    function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+    function clearMarks() {
+      document.querySelectorAll('#sagaSvg .nd').forEach(function(n) {
+        n.classList.remove('ok', 'err');
+      });
+    }
+    function mark(id, cls) {
+      var n = document.querySelector('#sagaSvg .nd[data-id=' + id + ']');
+      if (n) { n.classList.remove('ok', 'err'); n.classList.add(cls); }
+    }
+    function line(txt, cls) {
+      var d = document.createElement('div');
+      d.textContent = txt;
+      if (cls) d.className = cls;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    function putAt(id) {
+      pk.style.transform = 'translate(' + POS[id][0] + 'px, ' + POS[id][1] + 'px)';
+    }
+    async function hopTo(id, msg, cls, tk) {
+      if (tk !== runTk) throw 'cancel';
+      putAt(id);
+      await sleep(600);
+      mark(id, cls);
+      line(msg, cls);
+      await sleep(250);
+    }
+    function finish(tk, code, body, finalState) {
+      return (async function() {
+        line('← HTTP ' + code + '  (final saga state: ' + finalState + ')', code < 300 ? 'ok' : 'err');
+        $('sagaRs').textContent =
+          'HTTP ' + code + '\n' +
+          'Final saga state: ' + finalState + '\n\n' +
+          JSON.stringify(body, null, 2);
+        $('sagaRs').className = code < 300 ? 'good' : 'bad';
+      })();
+    }
+
+    async function send() {
+      var tk = ++runTk;
+      log.innerHTML = '';
+      clearMarks();
+      pk.style.transition = 'none';
+      putAt('client');
+      void pk.getBoundingClientRect();
+      pk.style.transition = '';
+
+      var prod  = $('sagaProd').value;
+      var pay   = $('sagaPay').value;
+      var notif = $('sagaNotif').value;
+
+      $('sagaRq').textContent =
+        'POST /checkout HTTP/1.1\n' +
+        'Host: localhost:8080\n' +
+        'Content-Type: application/json\n' +
+        '\n' +
+        '{ "userId": 1, "productIds": [1, 2], "paymentProvider": "mock" }';
+      $('sagaRs').textContent = 'waiting...';
+      $('sagaRs').className = '';
+
+      try {
+        // ─── Phase 1: sync HTTP ───
+        line('── Phase 1 (sync HTTP, ~100ms) ──');
+        await hopTo('client', '→ curl POST /checkout',           'ok', tk);
+        await hopTo('order',  '→ order-service received request', 'ok', tk);
+
+        // Phase 1 fails if product-service is down (sync stock check)
+        if (prod === 'down') {
+          await hopTo('product', '✗ product-service: connection refused', 'err', tk);
+          return await finish(tk, 503, { error: 'service_unavailable', upstream: 'product-service' }, 'FAILED_UPSTREAM');
+        }
+
+        line('  order-service: INSERT order (status=PENDING)', 'ok');
+        await sleep(200);
+        await hopTo('kafka', '→ emit OrderCreatedEvent', 'ok', tk);
+        await finish(tk, 202, { orderId: 'ord_' + Math.random().toString(36).slice(2, 7), status: 'PENDING' }, 'PENDING (Phase 2 in progress...)');
+
+        // ─── Phase 2: async saga ───
+        await sleep(400);
+        line('── Phase 2 (async Kafka saga, ~1-3s) ──');
+
+        // 2a. Reserve stock
+        await hopTo('kafka',   '→ ReserveStockCommand',           'ok', tk);
+        await hopTo('product', '→ product-service consumes',       'ok', tk);
+        if (prod === 'nostock') {
+          await hopTo('kafka', '← NoStockReply(orderId, ✗)', 'err', tk);
+          await hopTo('order', '✗ saga state: FAILED_NO_STOCK',   'err', tk);
+          return await finish(tk, 202, { orderId: 'ord_...', status: 'FAILED_NO_STOCK' }, 'FAILED_NO_STOCK');
+        }
+        line('  product-service: stock reserved (INVENTORY_RESERVATION)', 'ok');
+        await hopTo('kafka', '← StockReservedReply',              'ok', tk);
+        await hopTo('order', '  saga state: STOCK_RESERVED',       'ok', tk);
+
+        // 2b. Charge payment
+        await hopTo('kafka',   '→ ChargePaymentCommand',          'ok', tk);
+        await hopTo('payment', '→ payment-service consumes',       'ok', tk);
+        if (pay === 'down') {
+          line('  (no reply from payment-service)', 'err');
+          await sleep(600);
+          await hopTo('order', '✗ saga stuck at STOCK_RESERVED (consumer lag)', 'err', tk);
+          return await finish(tk, 202, { orderId: 'ord_...', status: 'STUCK_STOCK_RESERVED' }, 'STUCK_STOCK_RESERVED');
+        }
+        if (pay === 'declined') {
+          line('  payment-service: provider declined', 'err');
+          await hopTo('kafka', '← PaymentDeclinedReply', 'err', tk);
+          await hopTo('order', '→ emit ReleaseStockCommand (compensation)', 'err', tk);
+          await hopTo('kafka', '→ ReleaseStockCommand', 'ok', tk);
+          await hopTo('product', '  product-service: stock released', 'ok', tk);
+          await hopTo('order', '✗ saga state: COMPENSATED',       'err', tk);
+          return await finish(tk, 202, { orderId: 'ord_...', status: 'COMPENSATED', reason: 'payment_declined' }, 'COMPENSATED');
+        }
+        line('  payment-service: charge SUCCEEDED', 'ok');
+        await hopTo('kafka', '← PaymentChargedReply',             'ok', tk);
+        await hopTo('order', '  saga state: PAID',                 'ok', tk);
+
+        // 2c. Notify
+        await hopTo('kafka', '→ NotifyUserCommand',               'ok', tk);
+        if (notif === 'skip') {
+          line('  (notification service not running)', 'err');
+          await sleep(500);
+          await hopTo('order', '✗ saga stays at PAID (never NOTIFIED)', 'err', tk);
+          return await finish(tk, 202, { orderId: 'ord_...', status: 'PAID' }, 'PAID (notification not running)');
+        }
+        await hopTo('notif', '→ notification consumes',           'ok', tk);
+        line('  notification: email sent', 'ok');
+        await hopTo('kafka', '← UserNotifiedReply',               'ok', tk);
+        await hopTo('order', '  saga state: NOTIFIED (terminal)', 'ok', tk);
+        await finish(tk, 202, { orderId: 'ord_...', status: 'NOTIFIED' }, 'NOTIFIED ✓');
+      } catch (e) {
+        // Cancelled by newer Send — do nothing.
+      }
+    }
+
+    var PRESETS = {
+      ok:        { sagaProd: 'ok',      sagaPay: 'ok',       sagaNotif: 'ok'   },
+      nostock:   { sagaProd: 'nostock', sagaPay: 'ok',       sagaNotif: 'ok'   },
+      payfail:   { sagaProd: 'ok',      sagaPay: 'declined', sagaNotif: 'ok'   },
+      notifdown: { sagaProd: 'ok',      sagaPay: 'ok',       sagaNotif: 'skip' }
+    };
+    document.querySelectorAll('#sagaGo').forEach(function() { /* noop */ });
+    document.querySelectorAll('.box .presets button').forEach(function(b) {
+      // Only wire buttons inside the saga section (first .presets block above saga svg)
+    });
+    // Explicitly wire saga presets (the first .presets block in page is for the user-API sim;
+    // we need the saga one, which is the sibling of #sagaSvg).
+    var sagaPresetsHost = document.getElementById('sagaSvg')
+      ? document.getElementById('sagaSvg').closest('.box').querySelector('.presets')
+      : null;
+    if (sagaPresetsHost) {
+      sagaPresetsHost.querySelectorAll('button').forEach(function(b) {
+        b.onclick = function() {
+          var p = PRESETS[b.dataset.p]; if (!p) return;
+          Object.keys(p).forEach(function(k) { $(k).value = p[k]; });
+          send();
+        };
+      });
+    }
+
+    document.querySelectorAll('#sagaSvg .nd').forEach(function(n) {
+      var show = function() { $('sagaInfo').textContent = INFO[n.dataset.id] || ''; };
+      n.onclick = show;
+      n.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); } };
+    });
+
+    $('sagaGo').onclick = send;
+    setTimeout(send, 600);
+  })();
+
+  /* ─── Postman-style client for /checkout ─────────────────── */
+  (function() {
+    var $ = function(id) { return document.getElementById(id); };
+
+    var STATUS_TEXT = {
+      200: 'OK', 202: 'Accepted',
+      400: 'Bad Request', 401: 'Unauthorized', 404: 'Not Found',
+      405: 'Method Not Allowed', 422: 'Unprocessable Entity',
+      503: 'Service Unavailable'
+    };
+
+    function wireTabs(groupId, map) {
+      var g = $(groupId); if (!g) return;
+      g.querySelectorAll('button').forEach(function(b) {
+        b.onclick = function() {
+          g.querySelectorAll('button').forEach(function(x) { x.classList.remove('on'); });
+          b.classList.add('on');
+          Object.keys(map).forEach(function(k) {
+            var el = $(map[k]); if (el) el.style.display = (k === b.dataset.t) ? 'block' : 'none';
+          });
+        };
+      });
+    }
+    wireTabs('sagaPmTabs',     { h: 'sagaPmHeaders', b: 'sagaPmBody' });
+    wireTabs('sagaPmRespTabs', { rb: 'sagaPmRespBody', rh: 'sagaPmRespHdrs' });
+
+    function parseHeaders() {
+      var out = {};
+      $('sagaPmHeaders').value.split('\n').forEach(function(ln) {
+        var i = ln.indexOf(':');
+        if (i > 0) {
+          var k = ln.slice(0, i).trim().toLowerCase();
+          var v = ln.slice(i + 1).trim();
+          if (k) out[k] = v;
+        }
+      });
+      return out;
+    }
+
+    function setStatus(code) {
+      var el = $('sagaPmStatus');
+      el.textContent = code + ' ' + (STATUS_TEXT[code] || '');
+      el.className = (code >= 200 && code < 300) ? 'good' : 'bad';
+    }
+
+    function send() {
+      var startedAt = performance.now();
+      setStatus('—');
+      $('sagaPmRespBody').textContent = 'Sending...';
+      $('sagaPmRespBody').className = 'resp';
+
+      var delay = 150 + Math.floor(Math.random() * 250);
+      setTimeout(function() {
+        var method  = $('sagaPmMethod').value;
+        var url     = $('sagaPmUrl').value.trim();
+        var headers = parseHeaders();
+        var body;
+        try { body = JSON.parse($('sagaPmBody').value || 'null'); }
+        catch (e) { body = { __invalid_json: true }; }
+
+        var pathMatch = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+        var path = pathMatch ? pathMatch[1] : url;
+        var code, respBody;
+
+        if (!headers.authorization) {
+          code = 401;
+          respBody = { error: 'unauthorized' };
+        }
+        else if (path.replace(/\/+$/, '') === '/checkout' && method === 'POST') {
+          if (body && body.__invalid_json) {
+            code = 400;
+            respBody = { error: 'bad_request', detail: 'Request body is not valid JSON' };
+          }
+          else if (!body || !body.userId || !Array.isArray(body.productIds) || body.productIds.length === 0) {
+            code = 422;
+            respBody = {
+              error: 'validation_failed',
+              missing: ['userId', 'productIds'].filter(function(k) {
+                return !body || (k === 'productIds' ? !Array.isArray(body[k]) || body[k].length === 0 : !body[k]);
+              })
+            };
+          }
+          else {
+            code = 202;
+            respBody = {
+              orderId: 'ord_' + Math.random().toString(36).slice(2, 8),
+              status: 'PENDING',
+              hint: 'Phase 2 saga continues async via Kafka — see simulator above'
+            };
+          }
+        }
+        else if (path.startsWith('/orders/')) {
+          code = 200;
+          respBody = {
+            orderId: path.split('/')[2],
+            status: 'NOTIFIED',
+            amount: 149.98,
+            paymentProvider: 'mock'
+          };
+        }
+        else if (method !== 'POST' && method !== 'GET') {
+          code = 405;
+          respBody = { error: 'method_not_allowed', detail: 'Use POST /checkout or GET /orders/{id}' };
+        }
+        else {
+          code = 404;
+          respBody = { error: 'not_found', path: path };
+        }
+
+        var txt = JSON.stringify(respBody, null, 2);
+        var ok = code < 300;
+        setStatus(code);
+        $('sagaPmTime').textContent = Math.round(performance.now() - startedAt) + ' ms';
+        $('sagaPmSize').textContent = txt.length + ' B';
+        $('sagaPmRespBody').textContent = txt;
+        $('sagaPmRespBody').className = 'resp ' + (ok ? 'good' : 'bad');
+        $('sagaPmRespHdrs').textContent =
+          'content-type: application/json\n' +
+          'x-correlation-id: ' + (headers['x-correlation-id'] || 'auto-' + Math.random().toString(36).slice(2, 10)) + '\n' +
+          'location: ' + (code === 202 ? '/orders/' + respBody.orderId : '-') + '\n' +
+          'content-length: ' + txt.length;
+      }, delay);
+    }
+
+    function copyAsCurl() {
+      var btn    = $('sagaPmCurl');
+      var method = $('sagaPmMethod').value;
+      var url    = $('sagaPmUrl').value.trim();
+      var parts  = ["curl -X " + method + " '" + url + "'"];
+      $('sagaPmHeaders').value.split('\n').forEach(function(ln) {
+        if (ln.trim()) parts.push("-H '" + ln.trim() + "'");
+      });
+      if (method === 'POST') {
+        var body = ($('sagaPmBody').value || '').replace(/\s+/g, ' ').trim();
+        if (body) parts.push("-d '" + body + "'");
+      }
+      var cmd = parts.join(' \\\n  ');
+      var orig = btn.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(function() {
+          btn.textContent = 'Copied ✓';
+          setTimeout(function() { btn.textContent = orig; }, 1600);
+        });
+      }
+    }
+
+    $('sagaPmSend').onclick = send;
+    $('sagaPmCurl').onclick = copyAsCurl;
   })();
 </script>
 </body>
