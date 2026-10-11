@@ -64,30 +64,65 @@ Rest of this doc is about the pure-Docker path (`make up` family).
 
 ## 1. Mental model — what's actually running
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Docker host (your Mac)                      │
-│                                                                 │
-│   ┌────────────── network: backend ──────────────────────┐      │
-│   │                                                      │      │
-│   │  [eureka]   [config-server]   [auth-server]          │      │
-│   │                                                      │      │
-│   │  [api-gateway]  ◀── exposed on host :9010            │      │
-│   │       │                                              │      │
-│   │       ▼ routes to                                    │      │
-│   │  [user-service]  [product-service]  [order-service]  │      │
-│   │       │                │                 │           │      │
-│   │       └────────┬───────┴─────────────────┘           │      │
-│   │                ▼                                     │      │
-│   │           [mysql-shared]   [kafka]                   │      │
-│   │                                                      │      │
-│   │  [prometheus] ─scrapes──▶ every /actuator/prometheus │      │
-│   │  [grafana]    ─queries──▶ prometheus                 │      │
-│   │                                                      │      │
-│   └──────────────────────────────────────────────────────┘      │
-│                                                                 │
-│   Volumes: mysql-shared-data, grafana-data, prometheus-data …   │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Host ["🖥  Docker host (your Mac)"]
+        subgraph Net ["network: backend"]
+            subgraph Platform ["Platform"]
+                EUREKA[eureka-server<br/>:8761]
+                CONFIG[config-server<br/>:8888]
+                AUTH[auth-server<br/>:8095]
+            end
+
+            subgraph Edge ["Edge"]
+                GW[api-gateway<br/>:8080 → host :9010]
+            end
+
+            subgraph Biz ["Business services"]
+                USER[user-service<br/>:8081]
+                PROD[product-service<br/>:8082]
+                ORDER[order-service<br/>:8083]
+            end
+
+            subgraph Data ["Data + messaging"]
+                MYSQL[mysql-shared<br/>:3306]
+                KAFKA[kafka<br/>:9092]
+            end
+
+            subgraph Obs ["Observability"]
+                PROM[prometheus<br/>:9090]
+                GRAF[grafana<br/>:3000]
+            end
+        end
+
+        VOL[(Volumes:<br/>mysql-shared-data<br/>grafana-data<br/>prometheus-data)]
+    end
+
+    USER_ME([curl / browser]) -.->|only exposed port| GW
+    GW --> USER
+    GW --> PROD
+    GW --> ORDER
+    USER --> MYSQL
+    PROD --> MYSQL
+    ORDER --> MYSQL
+    USER --> KAFKA
+    ORDER --> KAFKA
+    PROM -.scrapes.-> USER
+    PROM -.scrapes.-> PROD
+    PROM -.scrapes.-> ORDER
+    GRAF --> PROM
+    MYSQL -.persists to.-> VOL
+
+    classDef edge fill:#FF9800,stroke:#E65100,color:#fff
+    classDef platform fill:#2196F3,stroke:#1565C0,color:#fff
+    classDef biz fill:#9C27B0,stroke:#6A1B9A,color:#fff
+    classDef data fill:#4CAF50,stroke:#2E7D32,color:#fff
+    classDef obs fill:#607D8B,stroke:#37474F,color:#fff
+    class GW edge
+    class EUREKA,CONFIG,AUTH platform
+    class USER,PROD,ORDER biz
+    class MYSQL,KAFKA data
+    class PROM,GRAF obs
 ```
 
 - **One network** (`backend`) — every service resolves others by

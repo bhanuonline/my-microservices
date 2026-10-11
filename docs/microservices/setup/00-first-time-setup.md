@@ -538,33 +538,41 @@ Each container earns its spot — remove any one and the stack won't start.
 
 ### Startup order (handled by `depends_on` healthchecks)
 
-```
-   Wave 1  (parallel, independent)
-   ┌───────────────┐  ┌───────┐  ┌───────┐
-   │ mysql-shared  │  │ kafka │  │ redis │
-   └───────┬───────┘  └───┬───┘  └───┬───┘
-           │              │          │
-   Wave 2  │              │          │
-           ▼              │          │
-     ┌──────────────┐     │          │
-     │ eureka-server│     │          │
-     └──────┬───────┘     │          │
-            │             │          │
-   Wave 3   ▼             │          │
-     ┌──────────────┐     │          │
-     │ config-server│     │          │
-     └──────┬───────┘     │          │
-            │             │          │
-   Wave 4   ▼             ▼          │
-     ┌──────────────┐                │
-     │ auth-server  │  (needs mysql) │
-     └──────┬───────┘                │
-            │                        │
-   Wave 5   ▼                        ▼
-     ┌───────────────────────────────────┐
-     │           api-gateway             │
-     │  (needs eureka + auth + redis)    │
-     └───────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Wave1 ["Wave 1 — Infra (parallel, no deps)"]
+        MYSQL[mysql-shared<br/>:3306]
+        KAFKA[kafka<br/>:9092]
+        REDIS[redis<br/>:6379]
+    end
+
+    subgraph Wave2 ["Wave 2"]
+        EUREKA[eureka-server<br/>:8761]
+    end
+
+    subgraph Wave3 ["Wave 3"]
+        CONFIG[config-server<br/>:8888]
+    end
+
+    subgraph Wave4 ["Wave 4"]
+        AUTH[auth-server<br/>:8095]
+    end
+
+    subgraph Wave5 ["Wave 5"]
+        GATEWAY[api-gateway<br/>:8080]
+    end
+
+    EUREKA --> CONFIG
+    MYSQL --> AUTH
+    EUREKA --> AUTH
+    EUREKA --> GATEWAY
+    AUTH --> GATEWAY
+    REDIS --> GATEWAY
+
+    classDef infra fill:#4CAF50,stroke:#2E7D32,color:#fff
+    classDef platform fill:#2196F3,stroke:#1565C0,color:#fff
+    class MYSQL,KAFKA,REDIS infra
+    class EUREKA,CONFIG,AUTH,GATEWAY platform
 ```
 
 Compose waits for each container's healthcheck to pass before starting
@@ -928,18 +936,26 @@ curl -s http://localhost:8081/actuator/health
 
 Flow for an API call:
 
-```
-   browser / curl
-        │
-        ▼  (HTTP :8080, HTTP Basic admin:admin123)
-   ┌─────────────┐
-   │ api-gateway │ ──── validates JWT via auth-server
-   └──────┬──────┘ ──── looks up USER-SERVICE in Eureka
-          │
-          ▼  (HTTP :8081, direct network call)
-   ┌─────────────┐
-   │ user-service│ ──── queries mysql-shared on userdb
-   └─────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Browser / curl
+    participant G as api-gateway<br/>:8080
+    participant A as auth-server<br/>:8095
+    participant E as eureka-server<br/>:8761
+    participant U as user-service<br/>:8081
+    participant M as mysql-shared<br/>:3306
+
+    C->>G: GET /api/v1/users<br/>(Basic admin:admin123)
+    G->>A: Validate JWT
+    A-->>G: ✓ OK
+    G->>E: Lookup USER-SERVICE
+    E-->>G: localhost:8081
+    G->>U: GET /users
+    U->>M: SELECT * FROM user
+    M-->>U: rows
+    U-->>G: JSON array
+    G-->>C: 200 OK
 ```
 
 #### 6 · How many services do I actually need to run?
@@ -960,17 +976,25 @@ wastes RAM and makes logs noisy.
 | Full saga incl. notifications | + `notification` | 4 | Needed to reach the `NOTIFIED` state. |
 | Browser UI (shop or admin) | + `shop-ui` or `backoffice-ui` | 5+ | Browser-facing frontends. |
 
-**Visual guide — effort vs. capability:**
+**Visual guide — effort climbs as capability grows:**
 
-```
-     EFFORT (services to run)
-   ▲
- 5 │                             ▪ Full saga + UI
- 4 │                       ▪ Full saga (with notifications)
- 3 │                 ▪ Place an order end-to-end
- 1 │       ▪ One API endpoint
- 0 │ ▪ Prove nano is healthy
-   └──────────────────────────────▶ CAPABILITY (what you can do)
+```mermaid
+graph LR
+    L0[0 services<br/>Prove nano boots] --> L1[1 service<br/>One API endpoint]
+    L1 --> L3[3 services<br/>product + order + payment<br/>Place an order]
+    L3 --> L4[4 services<br/>+ notification<br/>Full saga]
+    L4 --> L5[5+ services<br/>+ UI<br/>Browser testing]
+
+    classDef lvl0 fill:#E8F5E9,stroke:#4CAF50
+    classDef lvl1 fill:#C8E6C9,stroke:#43A047
+    classDef lvl3 fill:#FFF9C4,stroke:#FBC02D
+    classDef lvl4 fill:#FFE0B2,stroke:#FB8C00
+    classDef lvl5 fill:#FFCCBC,stroke:#E64A19
+    class L0 lvl0
+    class L1 lvl1
+    class L3 lvl3
+    class L4 lvl4
+    class L5 lvl5
 ```
 
 More services = more capability, but also more RAM and more terminal
