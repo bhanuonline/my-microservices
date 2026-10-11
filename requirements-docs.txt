@@ -1,0 +1,14 @@
+# Python deps for building the documentation site.
+# Install with:  make docs-install
+#
+# Pinned to current stable versions as of 2026-10. Bump explicitly;
+# unpinned MkDocs plugins have historically broken on minor releases.
+
+mkdocs==1.6.1                          # core generator
+mkdocs-material==9.5.44                # Material theme (search, nav, dark mode)
+mkdocs-material-extensions==1.3.1      # Material addons
+pymdown-extensions==10.11.2            # admonitions, tabs, superfences
+mkdocs-git-revision-date-localized-plugin==1.2.9  # "Last updated: …" footer
+mkdocs-minify-plugin==0.8.0            # strips whitespace from HTML output
+mkdocs-awesome-pages-plugin==2.9.3     # nicer nav from .pages files (optional)
+mike==2.1.3                            # (optional) versioned docs; harmless if unused

@@ -37,3 +37,7 @@ logs/
 .env
 .env.local
 *.env
+
+# Docs site (MkDocs Material)
+.venv-docs/
+site/

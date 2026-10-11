@@ -1,0 +1,169 @@
+# =====================================================================
+# MkDocs Material site config.
+#
+# Generates a searchable, navigable documentation website from the
+# existing .md files in docs/microservices/. Source Markdown is
+# authoritative — this file just controls theme + nav structure.
+#
+# Dev:   make docs-serve     → http://localhost:8000  (live reload)
+# Build: make docs-build     → ./site/*.html
+# Deploy: make docs-deploy   → pushes to gh-pages branch
+# =====================================================================
+
+site_name: my-microservices
+site_description: Spring Boot microservices playground — e-commerce stack with user, product, order, payment services + saga + observability.
+site_author: bhanuonline
+site_url: https://bhanuonline.github.io/my-microservices/
+
+repo_name: bhanuonline/my-microservices
+repo_url: https://github.com/bhanuonline/my-microservices
+edit_uri: edit/main/docs/
+
+# Point MkDocs at the subdirectory where the microservices docs live.
+docs_dir: docs/microservices
+site_dir: site
+
+# ─── Theme ────────────────────────────────────────────────────────────
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant          # faster page swaps (SPA-like)
+    - navigation.tracking         # URL updates as you scroll
+    - navigation.tabs             # top-level sections as tabs
+    - navigation.tabs.sticky      # tabs stay visible on scroll
+    - navigation.sections         # sections render as groups in sidebar
+    - navigation.expand           # auto-expand sidebar
+    - navigation.top              # back-to-top button
+    - navigation.indexes          # section landing pages via README.md
+    - search.suggest              # autocomplete in search
+    - search.highlight            # highlight hits in page
+    - search.share                # shareable search URL
+    - content.code.copy           # copy button on code blocks
+    - content.code.annotate       # inline code annotations
+    - content.tabs.link           # tabs sync across pages
+    - toc.follow                  # sidebar TOC scrolls with content
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+# ─── Markdown extensions ──────────────────────────────────────────────
+markdown_extensions:
+  # Standard
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+
+  # pymdownx — power features
+  - pymdownx.betterem                # better bold/italic parsing
+  - pymdownx.caret                   # superscript via ^^text^^
+  - pymdownx.details                 # collapsible blocks
+  - pymdownx.highlight:              # syntax highlighting
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite            # inline `code` with highlighting
+  - pymdownx.keys                    # ++cmd+shift+p++ keyboard keys
+  - pymdownx.mark                    # ==highlighted==
+  - pymdownx.smartsymbols
+  - pymdownx.snippets                # include files
+  - pymdownx.superfences:            # nested code + diagrams
+      custom_fences:
+        - name: mermaid              # renders ```mermaid blocks
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:                 # === "Tab A" / === "Tab B"
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: false
+  - pymdownx.tilde                   # subscript via ~~text~~
+
+# ─── Plugins ──────────────────────────────────────────────────────────
+plugins:
+  - search:
+      separator: '[\s\-\.\_]+'
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+      fallback_to_build_date: true
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+
+# ─── Extra ────────────────────────────────────────────────────────────
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bhanuonline/my-microservices
+  generator: false                   # hide "Made with Material for MkDocs"
+
+# ─── Navigation ───────────────────────────────────────────────────────
+# Left sidebar structure. Order and labels can diverge from file names.
+nav:
+  - Home: README.md
+  - Architecture: 00-architecture-overview.md
+  - Setup:
+    - First-time setup: setup/00-first-time-setup.md
+    - Topologies: setup/topologies.md
+    - Docker how-to: setup/docker-howto.md
+    - Startup runbook: setup/01-startup-runbook.md
+    - Verification: setup/02-verification-checklist.md
+    - Legacy setup notes: setup/setup.md
+    - Setup errors: setup/setup-error.md
+  - Debug:
+    - Troubleshooting: debug/troubleshooting.md
+    - Debugging flows: debug/debugging-flows.md
+    - Useful commands: debug/useful-commands.md
+    - Tech errors: debug/tech-error.md
+  - Design:
+    - Architecture high-level: design/high-level.md
+    - Microservices: design/micro-service.md
+    - Communication: design/communication-of-service.md
+    - Tier 1 architecture: design/tier1-architecture.md
+    - Tier 1 roadmap: design/tier1-roadmap.md
+    - Tier 2 architecture: design/tier2-architecture.md
+    - Tier 2 roadmap: design/tier2-roadmap.md
+    - Tier 4 roadmap: design/tier4-roadmap.md
+    - Payment gateway Phase 5 design: design/payment-gateway-phase5-design.md
+  - Features:
+    - Payment gateway: features/payment-gateway.md
+    - Backoffice UI: features/backoffice-ui.md
+    - Shop UI: features/shop-ui.md
+    - REST API: features/rest-api.md
+    - Securing API: features/securing-api.md
+    - Observability: features/observability-multi-service.md
+    - Load testing: features/load-testing.md
+    - Elasticsearch Phase 0 smoke: features/elasticsearch-phase0-smoke.md
+  - Concepts: concepts/
+  - Flows: flows/
+  - Postman: postman/

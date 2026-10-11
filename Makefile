@@ -87,6 +87,12 @@ help:
 	@echo "  make debug-all        — + notification (5 services)"
 	@echo "  make debug-stop       — stop all background debug services"
 	@echo ""
+	@echo "Documentation site (MkDocs Material):"
+	@echo "  make docs-install     — pip install requirements-docs.txt (first time)"
+	@echo "  make docs-serve       — preview at http://localhost:8000 (live reload)"
+	@echo "  make docs-build       — generate static site into ./site/"
+	@echo "  make docs-deploy      — publish to gh-pages branch (GitHub Pages)"
+	@echo ""
 	@echo "Data lifecycle (destructive — read before running):"
 	@echo "  make migrate-db-to-shared  — one-time dump+restore from 4 old DBs"
 	@echo "                                into mysql-shared (safe to re-run)"
@@ -344,6 +350,49 @@ debug-all:
 # Stops every java process started by debug-saga/debug-core/debug-all.
 # Matches on `-agentlib:jdwp` (unique to our debug-mode runs) so it
 # won't touch unrelated JVMs on your Mac.
+# ─── Docs site (MkDocs Material) ──────────────────────────────────────
+# Config lives in mkdocs.yml; Python deps in requirements-docs.txt.
+# Source Markdown is docs/microservices/*.md — unchanged by any of these.
+#
+# All targets use a project-local venv at .venv-docs/ to avoid clashing
+# with Homebrew / system Python (PEP 668 blocks system-wide pip installs).
+VENV_DOCS := .venv-docs
+VENV_BIN  := $(VENV_DOCS)/bin
+
+docs-install:
+	@echo "Creating venv at $(VENV_DOCS) and installing docs deps..."
+	@python3 -m venv $(VENV_DOCS)
+	@$(VENV_BIN)/pip install --quiet --upgrade pip
+	@$(VENV_BIN)/pip install -r requirements-docs.txt
+	@echo ""
+	@echo "✓ Installed. Try:  make docs-serve"
+
+docs-serve:
+	@if [ ! -x "$(VENV_BIN)/mkdocs" ]; then \
+		echo "ERROR: run 'make docs-install' first"; exit 1; \
+	fi
+	@echo "Starting local docs preview — http://localhost:8000 (Ctrl+C to stop)"
+	@$(VENV_BIN)/mkdocs serve
+
+docs-build:
+	@if [ ! -x "$(VENV_BIN)/mkdocs" ]; then \
+		echo "ERROR: run 'make docs-install' first"; exit 1; \
+	fi
+	@echo "Generating static site into ./site/ ..."
+	@$(VENV_BIN)/mkdocs build --clean
+	# Not using --strict yet — anchor warnings exist from pre-existing
+	# Markdown that assumed GitHub's slugger. Site renders fine; fix
+	# in a follow-up by auditing anchor links.
+
+# Pushes ./site to the gh-pages branch and configures GitHub Pages.
+# One-time repo config: Settings → Pages → source = gh-pages branch.
+docs-deploy:
+	@if [ ! -x "$(VENV_BIN)/mkdocs" ]; then \
+		echo "ERROR: run 'make docs-install' first"; exit 1; \
+	fi
+	@echo "Deploying to gh-pages branch..."
+	@$(VENV_BIN)/mkdocs gh-deploy --force --clean
+
 debug-stop:
 	@pids=$$(pgrep -f "agentlib:jdwp.*address=\*:50[0-9][0-9]" 2>/dev/null); \
 	if [ -z "$$pids" ]; then \
@@ -393,5 +442,6 @@ build:
         kafka-topics kafka-groups kafka-consume kafka-describe kafka-group-describe kafka-shell \
         debug-user debug-product debug-order debug-payment debug-notification debug-list \
         debug-saga debug-core debug-all debug-stop \
+        docs-install docs-serve docs-build docs-deploy \
         up-kafka-debug up-with down restart ps stats logs \
         migrate-db-to-shared reset-shared-db saga-test build
