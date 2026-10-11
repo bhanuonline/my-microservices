@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Startup order — Diagram</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      themeVariables: {
+        primaryColor: '#eef2ff',
+        primaryTextColor: '#1e293b',
+        primaryBorderColor: '#6366f1',
+        lineColor: '#6366f1',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="breadcrumb">
+    <a href="../index.html">📊 Visuals</a> &nbsp;→&nbsp; Diagrams &nbsp;→&nbsp; Startup order
+  </div>
+  <header>
+    <h1>📐 Nano Startup Order</h1>
+    <div class="subtitle">5 healthcheck-gated waves · ~45-60s warm boot · ~5-8 min first boot</div>
+  </header>
+
+  <section>
+    <h2>The dependency chain</h2>
+    <p>
+      Docker Compose waits for each wave's healthchecks to pass before
+      starting the next wave. If any wave fails, downstream waves never
+      start — you'll see them stuck in <code>Created</code> state.
+    </p>
+
+    <div class="mermaid">
+graph TD
+    subgraph W1["🚀 Wave 1 — Infra (parallel, no deps between them)"]
+        MYSQL["mysql-shared<br/>:3306<br/><sub>healthcheck: mysqladmin ping</sub>"]
+        KAFKA["kafka<br/>:9092<br/><sub>healthcheck: kafka-topics</sub>"]
+        REDIS["redis<br/>:6379<br/><sub>healthcheck: redis-cli ping</sub>"]
+    end
+
+    subgraph W2["🚀 Wave 2"]
+        EUREKA["eureka-server<br/>:8761<br/><sub>healthcheck: /actuator/health</sub>"]
+    end
+
+    subgraph W3["🚀 Wave 3"]
+        CONFIG["config-server<br/>:8888<br/><sub>needs eureka</sub>"]
+    end
+
+    subgraph W4["🚀 Wave 4"]
+        AUTH["auth-server<br/>:8095<br/><sub>needs mysql + eureka</sub>"]
+    end
+
+    subgraph W5["🚀 Wave 5"]
+        GATEWAY["api-gateway<br/>:8080<br/><sub>needs eureka + auth + redis</sub>"]
+    end
+
+    EUREKA --> CONFIG
+    MYSQL --> AUTH
+    EUREKA --> AUTH
+    EUREKA --> GATEWAY
+    AUTH --> GATEWAY
+    REDIS --> GATEWAY
+
+    classDef infra fill:#fef3c7,stroke:#f59e0b,color:#78350f,stroke-width:2px
+    classDef platform fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a,stroke-width:2px
+    classDef edge fill:#fee2e2,stroke:#ef4444,color:#7f1d1d,stroke-width:2px
+    class MYSQL,KAFKA,REDIS infra
+    class EUREKA,CONFIG,AUTH platform
+    class GATEWAY edge
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch data"></span> Infra (fast, parallel)</div>
+      <div class="legend-item"><span class="swatch platform"></span> Platform (sequential)</div>
+      <div class="legend-item"><span class="swatch edge"></span> Edge (exposed to host)</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Timing breakdown</h2>
+    <table>
+      <thead>
+        <tr><th>Wave</th><th>Service</th><th>Typical time</th><th>What's happening</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="3">1</td><td><code>mysql-shared</code></td><td>~15s</td><td>MySQL init, create 4 schemas (first boot only)</td></tr>
+        <tr><td><code>kafka</code></td><td>~10s</td><td>KRaft broker startup</td></tr>
+        <tr><td><code>redis</code></td><td>~2s</td><td>Fast — no persistence init</td></tr>
+        <tr><td>2</td><td><code>eureka-server</code></td><td>~15s</td><td>Spring Boot startup, listens for registrations</td></tr>
+        <tr><td>3</td><td><code>config-server</code></td><td>~10s</td><td>Registers with Eureka, loads config repo</td></tr>
+        <tr><td>4</td><td><code>auth-server</code></td><td>~15s</td><td>Hibernate DDL, Spring Security, OAuth2 endpoints</td></tr>
+        <tr><td>5</td><td><code>api-gateway</code></td><td>~10s</td><td>Reactive Netty startup, pulls routes from Eureka</td></tr>
+      </tbody>
+    </table>
+    <div class="callout tip">
+      Total warm boot: ~45-60s. First boot (fresh images): add 5-8 min for Maven dep download + Docker image builds.
+    </div>
+  </section>
+
+  <section>
+    <h2>What a stuck boot looks like</h2>
+    <p>
+      If a wave never passes its healthcheck, downstream containers stay
+      in <code>Created</code> status. Diagnose with:
+    </p>
+    <pre><code>docker compose ps
+# Look for anything "Created" (not "Up (healthy)")
+
+docker compose logs --tail 30 &lt;stuck-service&gt;
+# Common culprits:
+#   - port 3306 taken (brew mysql running)
+#   - MYSQL_ROOT_PASSWORD missing from .env
+#   - Docker Desktop OOM-killed something</code></pre>
+    <div class="callout warn">
+      <strong>Don't restart just the stuck container.</strong> If Wave 1
+      failed, Waves 2-5 are in an inconsistent state. Always
+      <code>make down &amp;&amp; make up-nano</code> to recover cleanly.
+    </div>
+  </section>
+
+  <footer>
+    <a href="../index.html">← Back to Visuals index</a>
+    &nbsp;·&nbsp;
+    Source: <a href="../../setup/01-startup-runbook.md">01-startup-runbook.md</a>
+  </footer>
+</div>
+</body>
+</html>

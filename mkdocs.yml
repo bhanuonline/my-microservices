@@ -171,6 +171,7 @@ nav:
     - Services effort ladder: diagrams/services-effort-ladder.md
     - Docker mental model: diagrams/docker-mental-model.md
     - Dependency stack: diagrams/dependency-stack.md
+  - Visuals (HTML): visuals/index.html
   - Concepts: concepts/
   - Flows: flows/
   - Postman: postman/

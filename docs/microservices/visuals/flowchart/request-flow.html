@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request flow — Flow chart</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      themeVariables: {
+        primaryColor: '#eef2ff',
+        primaryTextColor: '#1e293b',
+        primaryBorderColor: '#6366f1',
+        lineColor: '#6366f1',
+        actorBkg: '#dbeafe',
+        actorBorder: '#3b82f6',
+        actorTextColor: '#1e3a8a',
+        signalColor: '#334155',
+        signalTextColor: '#1e293b',
+        labelBoxBkgColor: '#eef2ff',
+        labelBoxBorderColor: '#6366f1',
+        labelTextColor: '#1e293b',
+        noteBkgColor: '#fef3c7',
+        noteBorderColor: '#f59e0b',
+        noteTextColor: '#78350f',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</head>
+<body>
+<div class="container">
+  <div class="breadcrumb">
+    <a href="../index.html">📊 Visuals</a> &nbsp;→&nbsp; Flow charts &nbsp;→&nbsp; Request flow
+  </div>
+  <header>
+    <h1>🔀 Request Flow</h1>
+    <div class="subtitle"><code>GET /api/v1/users</code> from <code>curl</code> to MySQL and back</div>
+  </header>
+
+  <section>
+    <h2>The full lifecycle</h2>
+    <p>
+      Every request from your terminal to a business service hops through
+      the gateway, auth-server (for JWT verification), Eureka (for
+      service lookup), the service itself, and finally the database.
+      This is the happy path.
+    </p>
+
+    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as 💻 Browser / curl
+    participant G as 🌐 api-gateway<br/>:8080
+    participant A as 🔐 auth-server<br/>:8095
+    participant E as 📋 eureka-server<br/>:8761
+    participant U as 👤 user-service<br/>:8081
+    participant M as 💾 mysql-shared<br/>:3306
+
+    C->>G: GET /api/v1/users<br/>Authorization: Basic admin:admin123
+    activate G
+    G->>A: Validate credentials → JWT
+    A-->>G: ✓ JWT valid, roles=[ADMIN]
+    G->>E: Lookup USER-SERVICE instances
+    E-->>G: [localhost:8081]
+    G->>U: GET /users (proxied)
+    activate U
+    U->>M: SELECT * FROM user LIMIT 20
+    activate M
+    M-->>U: 20 rows
+    deactivate M
+    U-->>G: JSON array
+    deactivate U
+    G-->>C: 200 OK + JSON body
+    deactivate G
+
+    Note over C,M: Total latency ~20-40ms warm,<br/>~200ms cold (JWT validation + eureka lookup)
+    </div>
+  </section>
+
+  <section>
+    <h2>Step-by-step narration</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Hop</th><th>What happens</th><th>If it fails</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>curl → gateway</td>
+          <td>HTTP request lands on gateway's reactive Netty listener</td>
+          <td>Connection refused — gateway not running</td>
+        </tr>
+        <tr>
+          <td>2-3</td>
+          <td>gateway → auth</td>
+          <td>Gateway's security filter validates the Basic auth header</td>
+          <td>401 Unauthorized returned to curl</td>
+        </tr>
+        <tr>
+          <td>4-5</td>
+          <td>gateway → eureka</td>
+          <td>Gateway asks Eureka for instances of <code>USER-SERVICE</code> (cached ~30s)</td>
+          <td>503 Service Unavailable — user-service not registered</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>gateway → user-service</td>
+          <td>Proxied HTTP call. Gateway strips <code>/api/v1</code> prefix</td>
+          <td>Timeout or 500 if user-service unhealthy</td>
+        </tr>
+        <tr>
+          <td>7-8</td>
+          <td>user-service → mysql</td>
+          <td>Hibernate query via HikariCP pool</td>
+          <td>500 if DB connection broken</td>
+        </tr>
+        <tr>
+          <td>9-10</td>
+          <td>response unwinds</td>
+          <td>JSON serialization at each hop (minimal — <code>User</code> is a flat record)</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Observability touchpoints</h2>
+    <ul>
+      <li><strong>Correlation ID:</strong> Gateway stamps <code>X-Correlation-Id</code> on request. Every downstream service logs with it. Grep logs to trace one request end-to-end.</li>
+      <li><strong>Tracing:</strong> In nano mode, tracing is OFF (<code>MANAGEMENT_TRACING_ENABLED=false</code>). Switch to <code>make up-nano-trace</code> to see spans in Zipkin at <code>:9411</code>.</li>
+      <li><strong>Metrics:</strong> Each service exposes <code>/actuator/prometheus</code>. Prometheus (if running in minimal+ mode) scrapes every 15s.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Reproduce it</h2>
+    <pre><code># Prereq: nano running + user-service running from your IDE
+make up-nano
+make debug-user   # separate terminal
+
+# Hit it:
+curl -u admin:admin123 http://localhost:8080/api/v1/users
+
+# Watch the hops in the logs:
+docker compose logs -f api-gateway auth-server
+tail -f logs/user-service-debug.log</code></pre>
+  </section>
+
+  <footer>
+    <a href="../index.html">← Back to Visuals index</a>
+    &nbsp;·&nbsp;
+    Source: <a href="../../setup/00-first-time-setup.md">00-first-time-setup.md</a>
+  </footer>
+</div>
+</body>
+</html>
