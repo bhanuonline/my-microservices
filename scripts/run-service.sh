@@ -100,6 +100,23 @@ done
 row=$(lookup "$SERVICE") || { err "unknown service: $SERVICE"; echo; usage; exit 1; }
 IFS=':' read -r name module port dbg_port <<< "$row"
 
+# ─── Infra defaults for laptop-run services ───────────────────────────
+# When services run inside docker-compose, SPRING_DATASOURCE_URL (and
+# other env vars) are injected with the container hostname. When you
+# run on your laptop via this script, Spring falls back to the defaults
+# in each service's application.yml — some of which are stale (e.g.
+# DB_PORT:3307, from an older per-service MySQL setup).
+#
+# Override here so you don't need to prefix every `make debug-*` with
+# `DB_PORT=3306 ...`. Users can still override by exporting before run.
+export DB_HOST="${DB_HOST:-localhost}"
+export DB_PORT="${DB_PORT:-3306}"
+export REDIS_HOST="${REDIS_HOST:-localhost}"
+export REDIS_PORT="${REDIS_PORT:-6379}"
+export KAFKA_BROKERS="${KAFKA_BROKERS:-localhost:9092}"
+export EUREKA_URL="${EUREKA_URL:-http://localhost:8761/eureka/}"
+export CONFIG_SERVER_URI="${CONFIG_SERVER_URI:-http://localhost:8888}"
+
 # ─── Pin Java 17 ──────────────────────────────────────────────────────
 JAVA_HOME_17=$(/usr/libexec/java_home -v 17 2>/dev/null)
 if [ -z "$JAVA_HOME_17" ] || [ ! -d "$JAVA_HOME_17" ]; then
@@ -135,6 +152,10 @@ info "  service:    http://localhost:$port"
 info "  debugger:   localhost:$dbg_port   (suspend=$SUSPEND)"
 info "  profile:    $PROFILE"
 info "  java:       $(java -version 2>&1 | head -1 | awk -F'\"' '{print $2}')"
+info "  mysql:      $DB_HOST:$DB_PORT"
+info "  redis:      $REDIS_HOST:$REDIS_PORT"
+info "  kafka:      $KAFKA_BROKERS"
+info "  eureka:     $EUREKA_URL"
 echo
 if [ "$SUSPEND" = "y" ]; then
   printf "${C_YELLOW}NOTE:${C_RESET} suspend=y — JVM will pause at startup until you attach a debugger.\n"
@@ -143,6 +164,20 @@ fi
 info "Press Ctrl+C to stop the service."
 echo
 
-exec mvn -pl "$module" -am spring-boot:run \
+# ─── One-time install of parent pom + common-lib into ~/.m2 ──────────
+# Why: `mvn -pl <module> -am spring-boot:run` drags the parent pom into
+# the reactor, and `spring-boot:run` fails on the parent (no mainClass).
+# Pre-installing lets us run the module ALONE (no -am) and resolve
+# parent + common-lib from the local Maven repo.
+# Re-run after editing parent pom.xml or common-lib: `make debug-rebuild`.
+COMMON_LIB_DIR="$HOME/.m2/repository/com/example/common-lib"
+if [ ! -d "$COMMON_LIB_DIR" ]; then
+  note "Installing parent + common-lib into ~/.m2 (one-time, ~30s)"
+  mvn -q install -DskipTests -pl lib/common-lib -am || {
+    err "failed to install common-lib — see output above"; exit 1;
+  }
+fi
+
+exec mvn -pl "$module" spring-boot:run \
     -Dspring-boot.run.profiles="$PROFILE" \
     -Dspring-boot.run.jvmArguments="$JDWP"

@@ -557,6 +557,10 @@ public class OrbService {
 
     private static SessionWindow sessionFor(String exchange) {
         return switch (exchange == null ? "NSE" : exchange.toUpperCase()) {
+            // MCX session: 09:00 start. The 09:00 one-minute bar wraps the pre-market
+            // auction activity (orders queued 08:45-08:59) into one synthetic bar with
+            // a wide H/L range. Angel's app INCLUDES this bar in its ORB calculation —
+            // so we do too, to keep our H/L matching what Angel displays.
             case "MCX"           -> new SessionWindow(LocalTime.of(9, 0),  LocalTime.of(23, 30));
             case "NSE", "BSE", "NFO", "BFO", "CDS"
                                   -> new SessionWindow(LocalTime.of(9, 15), LocalTime.of(15, 30));

@@ -19,6 +19,21 @@ spring:
       timeout: 1s
       connect-timeout: 500ms
   datasource:
+    # ─────────────────────────────────────────────────────────────────
+    # NOTE: DB_PORT default is 3308 — legacy from a per-service MySQL
+    # setup (user:3307, product:3308). The project now uses a single
+    # shared container `mysql-shared` on 3306.
+    #
+    # In docker:   SPRING_DATASOURCE_URL is injected in docker-compose
+    #              (jdbc:mysql://mysql-shared:3306/productdb) → this
+    #              default is NEVER consulted → container works fine.
+    # On laptop:   `make debug-product` runs outside docker. The script
+    #              `scripts/run-service.sh` exports DB_PORT=3306 so the
+    #              right port is used despite the stale default below.
+    #
+    # If you run without the script, export DB_PORT=3306 yourself, or
+    # pass -Dspring.datasource.url=jdbc:mysql://localhost:3306/productdb…
+    # ─────────────────────────────────────────────────────────────────
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3308}/productdb?useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:pass1234}

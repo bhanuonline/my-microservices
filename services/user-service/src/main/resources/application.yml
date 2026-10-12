@@ -1,29 +1,93 @@
+# =====================================================================
+# user-service — Spring Boot application config
+# ---------------------------------------------------------------------
+# File scanning order:
+#   1. This file (classpath:application.yml) — baseline defaults
+#   2. config-server (spring.config.import below) — overrides from
+#      the central config-repo (e.g. logging levels, resilience4j,
+#      demo.greeting). Can be refreshed live via /actuator/refresh.
+#   3. Environment variables — docker-compose sets these; they win
+#      over everything above. See ${X:default} entries throughout.
+#   4. --- separators below = Spring profiles. Only the active profile
+#      block is applied; here, `docker` is activated by env in compose.
+#
+# WHERE DOES THE VALUE COME FROM?
+#   - In docker-compose:   env vars from compose win (e.g.
+#     SPRING_DATASOURCE_URL, KAFKA_BROKERS, EUREKA_URL)
+#   - On your laptop via `make debug-user`:   scripts/run-service.sh
+#     exports the right defaults (DB_PORT=3306, etc.) before launch
+#   - On your laptop bare `mvn`:   fallbacks in this file apply as-is
+# =====================================================================
+
 spring:
   application:
+    # Logical service name — used by Eureka to register, Config Server
+    # to look up <appname>.yml, and by metrics as the `application` tag.
     name: user-service
+
   config:
     # `optional:` prefix = boot even if config-server is unreachable, so a
     # dead config-server does not take down user-service. The URI is
     # overridable via env (compose sets CONFIG_SERVER_URI=http://config-server:8888).
     import: "optional:configserver:${CONFIG_SERVER_URI:http://localhost:8888}"
+
   security:
     oauth2:
       resourceserver:
         jwt:
+          # auth-server (Spring Authorization Server) issues JWTs with
+          # this `iss` claim. We validate incoming JWTs against this URL's
+          # /.well-known/openid-configuration (JWKS lookup).
+          # Localhost works because gateway + auth-server + this service
+          # all run on the same host (docker host networking or laptop).
           issuer-uri: http://localhost:8095
+
   datasource:
+    # ─────────────────────────────────────────────────────────────────
+    # NOTE: DB_PORT default is 3307 — legacy from a per-service MySQL
+    # setup (user:3307, product:3308). The project now uses a single
+    # shared container `mysql-shared` on 3306.
+    #
+    # In docker:   SPRING_DATASOURCE_URL is injected in docker-compose
+    #              (jdbc:mysql://mysql-shared:3306/userdb) → this default
+    #              is NEVER consulted → container works fine.
+    # On laptop:   `make debug-user` runs outside docker. The script
+    #              `scripts/run-service.sh` exports DB_PORT=3306 so the
+    #              right port is used despite the stale default below.
+    #
+    # If you run without the script, export DB_PORT=3306 yourself, or
+    # pass -Dspring.datasource.url=jdbc:mysql://localhost:3306/userdb…
+    #
+    # URL parameters:
+    #   useSSL=false                   dev-only; prod should use TLS
+    #   allowPublicKeyRetrieval=true   needed for MySQL 8's default
+    #                                  caching_sha2_password auth plugin
+    # ─────────────────────────────────────────────────────────────────
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/userdb?useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:pass1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
+      # DEV: `update` — Hibernate adds missing tables/columns for @Entity
+      # classes (including common-lib's idempotency_records, dlq_events,
+      # feature_flags) on startup without needing a Flyway migration.
+      # PROD: flip to `validate` and author a Flyway/Liquibase migration
+      # for every cross-cutting entity picked up through common-lib.
       ddl-auto: update
+    # DEV: dumps every SQL statement to stdout. Noisy — turn off in prod.
     show-sql: true
     properties:
       hibernate:
+        # Pins the SQL dialect so Hibernate generates MySQL 8-flavoured
+        # DDL (correct LIMIT syntax, utf8mb4 defaults, etc.).
         dialect: org.hibernate.dialect.MySQL8Dialect
+
   kafka:
+    # Native KafkaTemplate / @KafkaListener client — used by code that
+    # calls KafkaTemplate directly. Spring Cloud Stream (below) is the
+    # higher-level alternative; both talk to the same broker.
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -38,91 +102,146 @@ spring:
       # allows no-config-server boots; these knobs just tune the retry window.
       fail-fast: false
       retry:
-        initial-interval: 1000
-        max-attempts: 6
-        max-interval: 2000
-        multiplier: 1.1
+        initial-interval: 1000   # first retry after 1s
+        max-attempts: 6          # 6 attempts total before giving up
+        max-interval: 2000       # cap gap between retries at 2s
+        multiplier: 1.1          # grow by 10% each retry
     stream:
+      # Spring Cloud Stream (functional binder) — abstracts Kafka so
+      # producers call StreamBridge.send(bindingName, payload) and
+      # consumers declare @Bean Consumer<T> + a binding, no KafkaTemplate.
       kafka:
         binder:
           brokers: ${KAFKA_BROKERS:localhost:9092}
       bindings:
         # Producer binding: <bean-or-bindingName>-out-0
-        # Matches StreamBridge.send("userRegistered-out-0", ...) in UserEventPublisher
+        # Matches StreamBridge.send("userRegistered-out-0", ...) in UserEventPublisher.
+        # Published to Kafka topic `user.registered` for consumers (notification, etc.).
         userRegistered-out-0:
           destination: user.registered
           content-type: application/json
 
+# ─── HTTP server ─────────────────────────────────────────────────────
 server:
+  # user-service listens on 8081 (direct). All external traffic should
+  # go through the gateway on :8080, which routes /api/v1/users/** here
+  # via Eureka service discovery.
   port: 8081
 
+# ─── Demo endpoint fallback ──────────────────────────────────────────
 # demo.greeting MOVED to config-repo/user-service.yml. Keep a fallback here
 # so a cold boot with config-server unreachable still answers the demo
 # endpoint with something recognizable instead of literal "default".
 demo:
   greeting: "Hello from LOCAL FALLBACK (config-server unreachable)"
 
+# ─── Service discovery (Eureka) ──────────────────────────────────────
 eureka:
   client:
     service-url:
+      # Eureka server lives at :8761 in nano mode. In docker, compose
+      # overrides this to http://eureka-server:8761/eureka/ via env.
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    # register-with-eureka  make this service discoverable by others
+    # fetch-registry        pull the registry so this service can call others
     register-with-eureka: true
     fetch-registry: true
   instance:
+    # Register the laptop/container IP instead of hostname. Required
+    # when running on your laptop so the gateway (in docker) can call
+    # back to your laptop IP, not the undiscoverable hostname "LMOL…".
     prefer-ip-address: true
 
+# ─── Actuator / observability ────────────────────────────────────────
 management:
   endpoints:
     web:
       exposure:
+        # Explicit allowlist — do NOT use `include: "*"` in prod, it
+        # exposes /actuator/env (reveals secrets) and /actuator/heapdump.
         include: health,info,refresh,env,configprops,loggers,prometheus,metrics,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads
   endpoint:
     health:
+      # DEV convenience — shows which component failed (DB, Kafka, Redis).
+      # Prod should set `when-authorized` and lock down /actuator with security.
       show-details: always
   health:
     circuitbreakers:
+      # Each resilience4j CB appears as a component in /actuator/health.
       enabled: true
-  # /actuator/info population — build/git from Maven plugins, java/os built-in
+
+  # /actuator/info population — build/git from Maven plugins at build time,
+  # java/os built-in. Confirms which commit/image is actually deployed.
   info:
-    env: { enabled: true }
+    env:   { enabled: true }
     build: { enabled: true }
-    git: { mode: full, enabled: true }
-    java: { enabled: true }
-    os: { enabled: true }
+    git:   { mode: full, enabled: true }
+    java:  { enabled: true }
+    os:    { enabled: true }
+
   metrics:
     tags:
+      # Every metric carries application=<name>, letting Prometheus
+      # scrape many services into one time-series DB without collision.
       application: ${spring.application.name}
     distribution:
       percentiles-histogram:
+        # Produces http_server_requests_seconds_bucket{} histograms —
+        # required for p50/p95/p99 latency panels in Grafana.
         http.server.requests: true
+
   tracing:
     sampling:
+      # 1.0 = sample 100% of requests. Fine for dev, drop to 0.01-0.1
+      # in prod to avoid flooding Zipkin.
       probability: 1.0
+
   zipkin:
     tracing:
+      # In nano mode zipkin is OFF by default — the gateway sets
+      # MANAGEMENT_TRACING_ENABLED=false. If you flip it on with
+      # `make up-nano-trace`, zipkin must be reachable at this URL.
       endpoint: http://localhost:9411/api/v2/spans
 
+# ─── /actuator/info payload ──────────────────────────────────────────
 info:
   app:
     name: User Service
     description: User management REST API
+    # Deliberate mismatch (${server.port:8090} vs 8081) — showcases
+    # that info.app.port is just a label; actual port is `server.port`.
     port: ${server.port:8090}
 
+# ─── Moved to config-repo ────────────────────────────────────────────
 # logging.level and resilience4j blocks MOVED to config-repo/user-service.yml.
-# They are tunable live via `/actuator/refresh` from there.
+# They are tunable live via `/actuator/refresh` from there — no restart needed.
 
 ---
-# Profile: docker — overrides for running fully inside docker
+# =====================================================================
+# Profile: docker — only applied when SPRING_PROFILES_ACTIVE=docker
+# (or spring.profiles.active=docker). Compose sets this automatically.
+#
+# Overrides below use CONTAINER hostnames (mysql-user, kafka,
+# eureka-server) which resolve on the docker user-defined network but
+# NOT on your laptop. Don't activate this profile when running outside
+# docker — the service will fail to reach these hosts.
+# =====================================================================
 spring:
   config:
     activate:
       on-profile: docker
   datasource:
+    # Note: this uses `mysql-user` which may be an older per-service DB
+    # alias. Current compose uses `mysql-shared:3306` via
+    # SPRING_DATASOURCE_URL env, which overrides this.
     url: jdbc:mysql://mysql-user:3306/userdb?useSSL=false&allowPublicKeyRetrieval=true
   kafka:
+    # Inside the kafka docker network, kafka listens on 29092 (internal).
+    # Port 9092 is only exposed to the host for laptop clients.
     bootstrap-servers: kafka:29092
 
 eureka:
   client:
     service-url:
+      # Eureka's container hostname inside the docker network.
       defaultZone: http://eureka-server:8761/eureka/

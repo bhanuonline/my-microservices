@@ -1,0 +1,519 @@
+{
+  "info": {
+    "_postman_id": "nano-debug-flow-0001",
+    "name": "nano-debug-flow",
+    "description": "# nano-mode debug flow — my-microservices\n\n7-container nano stack + laptop-run services. Walks you through:\n\n1. **Preflight** — infra sanity checks (eureka, gateway, config)\n2. **Auth** — get a JWT from auth-server (M2M client credentials)\n3. **User service** — happy path + validation + 401 + 404\n4. **Product service** — same four shapes\n5. **Order service** — happy path + product unavailable\n6. **Checkout saga** — mock provider + out-of-stock + stripe hosted\n7. **Payment service** — initiate + query by order\n8. **Notification** — manual trigger\n9. **Debug tour** — the exact requests that light up breakpoints in each service\n10. **If it goes wrong** — diagnostics (direct-port bypass, actuator peek)\n\n**Prereqs**:\n- `make up-nano` is up (7 containers healthy)\n- `make debug-user` (and whichever other services you want to hit) is running\n- Select the `nano-debug (local)` environment before firing any request\n\n**Auth model**:\n- `/api/v1/**` requires a Bearer JWT. Run **Auth → Get token (M2M)** first; the test script stores the token in `{{access_token}}` so every subsequent request picks it up via collection-level Bearer auth.\n- `/admin/**` on the gateway accepts the same JWT (with admin scope) OR HTTP Basic admin:admin123.\n\n**Chained variables** (populated by test scripts):\n- `{{last_user_id}}`, `{{last_product_id}}`, `{{last_order_id}}`, `{{last_saga_id}}` — set when the previous create succeeds; later requests reuse them.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [ { "key": "token", "value": "{{access_token}}", "type": "string" } ]
+  },
+  "event": [
+    { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [ "// No-op pre-request hook; per-request scripts handle chaining." ] } }
+  ],
+  "variable": [],
+  "item": [
+    {
+      "name": "0 · Preflight",
+      "description": "Confirm nano infra is reachable BEFORE anything else. Run these top-to-bottom; if any fail, no business request will work.",
+      "item": [
+        {
+          "name": "Gateway /actuator/health",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{gateway}}/actuator/health", "host": [ "{{gateway}}" ], "path": [ "actuator", "health" ] },
+            "description": "**Expect 200** with `{\"status\":\"UP\"}` + component list.\n\n**If 503**: downstream dependency (eureka, redis) is DOWN. Check `components.*` for the one in `DOWN`.\n**If ECONNREFUSED**: gateway container isn't up. `docker compose ps api-gateway` → should be `healthy`."
+          }
+        },
+        {
+          "name": "Eureka — list registered apps",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": { "raw": "{{eureka}}/eureka/apps", "host": [ "{{eureka}}" ], "path": [ "eureka", "apps" ] },
+            "description": "**Expect**: `applications.application[*].name` includes **USER-SERVICE** (and any other service you've started with `make debug-*`).\n\n**If list is empty**: your laptop-run service hasn't registered yet. Wait 30s. If still empty, check its logs for `connect to eureka` errors."
+          }
+        },
+        {
+          "name": "Eureka — user-service instance",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": { "raw": "{{eureka}}/eureka/apps/USER-SERVICE", "host": [ "{{eureka}}" ], "path": [ "eureka", "apps", "USER-SERVICE" ] },
+            "description": "**Expect**: `application.instance[0].status: UP` and `ipAddr` = your LAN IP (NOT 127.0.0.1).\n\n**If `ipAddr` is 127.0.0.1**: gateway (in docker) can't reach your laptop. Fix: set `eureka.instance.ip-address` env to your real LAN IP before running `make debug-user`."
+          }
+        },
+        {
+          "name": "Config-server /actuator/health",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{config}}/actuator/health", "host": [ "{{config}}" ], "path": [ "actuator", "health" ] },
+            "description": "**Expect**: 200 `{\"status\":\"UP\"}`.\n\nConfig-server being down does NOT block services (`optional:` prefix), but logging/resilience4j settings served from `config-repo/*.yml` will fall back to defaults."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "1 · Auth — get a JWT",
+      "description": "The gateway's security chain requires a Bearer JWT for `/api/v1/**`. Run **Get token (M2M)** first; its test script writes the token to `{{access_token}}`, which collection-level auth injects as `Authorization: Bearer ...` on every subsequent request.",
+      "item": [
+        {
+          "name": "Get token (M2M · client_credentials) ✅",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}", "type": "string" },
+                { "key": "password", "value": "{{client_secret}}", "type": "string" }
+              ]
+            },
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "body": { "mode": "urlencoded", "urlencoded": [
+              { "key": "grant_type", "value": "client_credentials" },
+              { "key": "scope",      "value": "read write" }
+            ]},
+            "url": { "raw": "{{auth}}/oauth2/token", "host": [ "{{auth}}" ], "path": [ "oauth2", "token" ] },
+            "description": "**Grant**: `client_credentials` (M2M — no user).\n**Client**: `m2m-client` / `m2m-secret` (hard-coded in auth-server's `SecurityConfig.java`, in-memory for nano).\n**Scopes**: `read write`.\n\n**Expect 200**: `{\"access_token\":\"eyJ…\", \"token_type\":\"Bearer\", \"expires_in\":299, \"scope\":\"read write\"}`.\n\n**Test script** stores `access_token` into the environment so every other request uses it automatically."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.environment.set('access_token', j.access_token);",
+            "pm.test('token looks like a JWT', () => pm.expect(j.access_token.split('.')).to.have.lengthOf(3));"
+          ] } } ]
+        },
+        {
+          "name": "Get token — wrong secret ❌ 401",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}",   "type": "string" },
+                { "key": "password", "value": "wrong-secret",    "type": "string" }
+              ]
+            },
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "body": { "mode": "urlencoded", "urlencoded": [ { "key": "grant_type", "value": "client_credentials" } ] },
+            "url": { "raw": "{{auth}}/oauth2/token", "host": [ "{{auth}}" ], "path": [ "oauth2", "token" ] },
+            "description": "**Expect 401** with `WWW-Authenticate: Basic`.\n\nUse this to confirm the auth-server actually validates the client secret — if this returns 200, something is very wrong with the auth config."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+          ] } } ]
+        },
+        {
+          "name": "Get token — unknown client ❌ 401",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "basic", "basic": [
+              { "key": "username", "value": "nonexistent-client", "type": "string" },
+              { "key": "password", "value": "whatever",           "type": "string" }
+            ]},
+            "header": [ { "key": "Content-Type", "value": "application/x-www-form-urlencoded" } ],
+            "body": { "mode": "urlencoded", "urlencoded": [ { "key": "grant_type", "value": "client_credentials" } ] },
+            "url": { "raw": "{{auth}}/oauth2/token", "host": [ "{{auth}}" ], "path": [ "oauth2", "token" ] },
+            "description": "**Expect 401**. Confirms unknown-client is rejected cleanly."
+          }
+        },
+        {
+          "name": "Call /api/v1/users WITHOUT token ❌ 401",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 401** from the gateway (not the service — request never reaches it).\n\nUse this to confirm the gateway's `oauth2ResourceServer` filter is active."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+          ] } } ]
+        }
+      ]
+    },
+
+    {
+      "name": "2 · User service",
+      "description": "Hits user-service via the gateway. Prereq: `make debug-user` is running AND `1 · Auth → Get token` succeeded.",
+      "item": [
+        {
+          "name": "List users ✅ 200",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect**: 200 with JSON array (may be empty on first boot).\n\nUse this as your first smoke test after Auth. If 503, see **9 · If it goes wrong**."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200 OK', () => pm.response.to.have.status(200));",
+            "pm.test('array body', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ] } } ]
+        },
+        {
+          "name": "Create user ✅ 201",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane+{{$timestamp}}@example.com\",\n  \"password\": \"hunter2hunter2\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 201** with the created user.\n\n**Side effect**: a `UserRegisteredEvent` is written to the outbox table and relayed to Kafka topic `user.registered`. Notification service (if running) consumes it.\n\n**Test script** stores the returned id as `{{last_user_id}}` so Get-by-id and others can reuse it."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const u = pm.response.json();",
+            "pm.environment.set('last_user_id', u.id);"
+          ] } } ]
+        },
+        {
+          "name": "Create user — bad email ❌ 400",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Jane\",\n  \"email\": \"not-an-email\",\n  \"password\": \"hunter2hunter2\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 400** — triggers `@Email` validation on `CreateUserRequest`."
+          }
+        },
+        {
+          "name": "Create user — short password ❌ 400",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Jane\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"short\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 400** — triggers `@Size(min=8)` on password."
+          }
+        },
+        {
+          "name": "Create user — missing name ❌ 400",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"jane@example.com\",\n  \"password\": \"hunter2hunter2\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 400** — `@NotBlank` on name."
+          }
+        },
+        {
+          "name": "Get user by id ✅ 200",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/users/{{last_user_id}}", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users", "{{last_user_id}}" ] },
+            "description": "**Prereq**: run `Create user` first — it populates `{{last_user_id}}`.\n**Expect 200** with that user."
+          }
+        },
+        {
+          "name": "Get user by id — not found ❌ 404",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/users/99999999", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users", "99999999" ] },
+            "description": "**Expect 404** — `UserNotFoundException` → `@ControllerAdvice` returns 404."
+          }
+        },
+        {
+          "name": "List users — DIRECT (bypass gateway) ✅ 200",
+          "request": {
+            "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{user_direct}}/api/v1/users", "host": [ "{{user_direct}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Expect 200** — but hitting :8081 directly bypasses the gateway's auth filter.\n\n**Use when**: a gateway-routed call is failing and you want to isolate whether the service itself is up and responding."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3 · Product service",
+      "description": "Prereq: `make debug-product` (service on :8082, debug :5006). Same auth model as user.",
+      "item": [
+        {
+          "name": "List products ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products" ] },
+            "description": "**Expect 200**, JSON array."
+          }
+        },
+        {
+          "name": "Create product ✅ 201",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Widget {{$timestamp}}\",\n  \"description\": \"Debug fixture\",\n  \"price\": 19.99,\n  \"sku\": \"SKU-{{$randomInt}}\",\n  \"category\": \"general\",\n  \"quantityInStock\": 100,\n  \"brand\": \"ACME\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/products", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products" ] },
+            "description": "**Expect 201**. Test stores returned id as `{{last_product_id}}` for the order flow."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.environment.set('last_product_id', pm.response.json().id);"
+          ] } } ]
+        },
+        {
+          "name": "Create product — negative price ❌ 400",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bad Widget\",\n  \"price\": -1,\n  \"sku\": \"X\",\n  \"category\": \"general\",\n  \"quantityInStock\": 10\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/products", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products" ] },
+            "description": "**Expect 400** — `@PositiveOrZero` on price."
+          }
+        },
+        {
+          "name": "Get product by id ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/{{last_product_id}}", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products", "{{last_product_id}}" ] },
+            "description": "**Prereq**: run Create product first."
+          }
+        },
+        {
+          "name": "Check availability ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/{{last_product_id}}/availability", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products", "{{last_product_id}}", "availability" ] },
+            "description": "**Expect**: `\"AVAILABLE\"` or `\"UNAVAILABLE\"`. Order-service's checkout calls this before accepting an order."
+          }
+        },
+        {
+          "name": "Get product by id — not found ❌ 404",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/99999999", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products", "99999999" ] },
+            "description": "**Expect 404**."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4 · Order service",
+      "description": "Prereq: `make debug-order` + `make debug-product` (order calls product sync for availability). Posts to `/api/v1/orders`.",
+      "item": [
+        {
+          "name": "Create order ✅ 201",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": {{last_product_id}},\n  \"quantity\": 2\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/orders", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "orders" ] },
+            "description": "**Prereq**: `last_product_id` is set (run Product → Create first) and that product's availability is `AVAILABLE`.\n\n**Flow**: order-service → `productService.checkAvailability(id)` (sync HTTP via Eureka) → if available, create order row → return 201. Test stores `{{last_order_id}}`."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "pm.environment.set('last_order_id', pm.response.json().id);"
+          ] } } ]
+        },
+        {
+          "name": "Create order — unavailable product ❌ 409",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": 99999999,\n  \"quantity\": 1\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/orders", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "orders" ] },
+            "description": "**Expect 409** — `ProductUnavailableException` thrown by `CheckoutController` when product's availability is not `AVAILABLE`."
+          }
+        },
+        {
+          "name": "Get order by id ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/orders/{{last_order_id}}", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "orders", "{{last_order_id}}" ] },
+            "description": "**Prereq**: Create order first."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5 · Checkout saga",
+      "description": "`POST /api/v1/checkout` triggers the multi-service saga: order → product (sync check) → payment (via Kafka). Payment-service must be running (`make debug-payment`) for the async leg to progress.",
+      "item": [
+        {
+          "name": "Checkout (mock provider) ✅ 201",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": {{last_product_id}},\n  \"quantity\": 1,\n  \"provider\": \"mock\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/checkout", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "checkout" ] },
+            "description": "**Expect 201** with `{ orderId, sagaId, status, provider }`.\n\n**Mock provider**: no HTTP to Stripe/Razorpay; payment-service completes it async via Kafka. Final saga state should reach `NOTIFIED` once notification runs.\n\nTest stores `last_order_id` + `last_saga_id`."
+          },
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201 Created', () => pm.response.to.have.status(201));",
+            "const r = pm.response.json();",
+            "pm.environment.set('last_order_id', r.orderId);",
+            "pm.environment.set('last_saga_id', r.sagaId);"
+          ] } } ]
+        },
+        {
+          "name": "Checkout — product unavailable ❌ 409",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": 99999999,\n  \"quantity\": 1,\n  \"provider\": \"mock\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/checkout", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "checkout" ] },
+            "description": "**Expect 409** `ProductUnavailableException`. Saga is NEVER created because the sync preflight blocks it."
+          }
+        },
+        {
+          "name": "Checkout — invalid provider ❌ 400",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": {{last_product_id}},\n  \"quantity\": 1,\n  \"provider\": \"bogus\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/checkout", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "checkout" ] },
+            "description": "**Expect 400** — `@Pattern(regexp = \"mock|stripe|razorpay|paypal\")` on provider."
+          }
+        },
+        {
+          "name": "Checkout (stripe) — payment-service DOWN scenario",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": {{last_product_id}},\n  \"quantity\": 1,\n  \"provider\": \"stripe\",\n  \"returnUrl\": \"http://localhost:3000/return\",\n  \"cancelUrl\": \"http://localhost:3000/cancel\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/checkout", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "checkout" ] },
+            "description": "**With payment-service UP (make debug-payment)**: expect 201 with `redirectUrl` populated by Stripe sync call.\n\n**With payment-service DOWN**: expect 201 — the order+saga still get created; `redirectUrl` will be null (CheckoutController logs the failure and continues). Client would then poll `/api/v1/payments/by-order/{orderId}` for the redirect once payment-service comes up.\n\n**Simulates a timeout scenario** — this is the right drill for watching the saga NOT get stuck on sync-call failure."
+          }
+        },
+        {
+          "name": "Get order (saga state) ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/orders/{{last_order_id}}", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "orders", "{{last_order_id}}" ] },
+            "description": "Poll this after Checkout. Status progresses: `PENDING → PAID → NOTIFIED`.\n\n**If stuck at PENDING**: payment-service not running or Kafka consumer lag — check `make kafka-group-describe GROUP=order-service`."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "6 · Payment service",
+      "description": "Prereq: `make debug-payment` (service on :8091, debug :5008). The saga normally drives payments via Kafka — these endpoints let you poke it directly.",
+      "item": [
+        {
+          "name": "Initiate payment (hosted) ✅ 200",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"sagaId\": \"{{last_saga_id}}\",\n  \"orderId\": \"{{last_order_id}}\",\n  \"amount\": 19.99,\n  \"provider\": \"stripe\",\n  \"returnUrl\": \"http://localhost:3000/return\",\n  \"cancelUrl\": \"http://localhost:3000/cancel\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/payments/initiate", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "payments", "initiate" ] },
+            "description": "**Expect 200** with `{ redirectUrl, providerRef }`.\n\nIn the full flow, `CheckoutController` calls this via `PaymentClient` for hosted-checkout providers. Hitting it directly is useful when you want to isolate payment-service bugs from the saga."
+          }
+        },
+        {
+          "name": "Get payment by order ✅ 200",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/payments/by-order/{{last_order_id}}", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "payments", "by-order", "{{last_order_id}}" ] },
+            "description": "**Expect**: current Payment row for this order (status: INITIATED / CAPTURED / FAILED).\n\n**Use when**: client needs to recover a redirect URL after a `/checkout` call where payment-service was temporarily down."
+          }
+        },
+        {
+          "name": "Webhook — mock provider",
+          "request": {
+            "method": "POST", "auth": { "type": "noauth" },
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"event\": \"payment.captured\",\n  \"paymentRef\": \"mock_ref_123\",\n  \"amount\": 19.99\n}" },
+            "url": { "raw": "{{payment_direct}}/webhooks/mock", "host": [ "{{payment_direct}}" ], "path": [ "webhooks", "mock" ] },
+            "description": "Direct hit to payment-service (`:8091`). Webhooks are public by design (providers don't carry our JWT). The mock provider accepts any body for testing capture-flow logic."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "7 · Notification",
+      "description": "Prereq: `make debug-notification` (:8099, debug :5009). This service primarily consumes Kafka events (`user.registered`, `NotifyUserCommand`); the HTTP endpoint is for manual tests.",
+      "item": [
+        {
+          "name": "Send notification ✅ 202",
+          "request": {
+            "method": "POST", "auth": { "type": "noauth" },
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"type\": \"EMAIL\",\n  \"recipient\": \"test@example.com\",\n  \"message\": \"Hello from Postman debug flow\",\n  \"metadata\": { \"source\": \"postman\" }\n}" },
+            "url": { "raw": "{{notif_direct}}/api/v1/notifications", "host": [ "{{notif_direct}}" ], "path": [ "api", "v1", "notifications" ] },
+            "description": "**Expect 202 Accepted**. Hits notification directly (no gateway route for this one; it's primarily event-driven).\n\n**If 404**: notification-service not running. `curl http://localhost:8099/actuator/health` to confirm."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "8 · Debug tour (where to breakpoint)",
+      "description": "Each request below is paired with the EXACT file + method to drop a breakpoint on. Fire the request after IntelliJ 'Remote JVM Debug :5005' (or whichever port) is attached — the breakpoint fires on first match.",
+      "item": [
+        {
+          "name": "A. UserController.getAll — simplest hop",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Breakpoint**: `services/user-service/src/main/java/com/example/userservice/controller/UserController.java` → method `getAll()`.\n\n**Why**: shortest controller → repo path, no outbox, no events. Perfect first attach test."
+          }
+        },
+        {
+          "name": "B. UserController.register — tx + outbox",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Debug User\",\n  \"email\": \"debug+{{$timestamp}}@example.com\",\n  \"password\": \"hunter2hunter2\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/users", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "users" ] },
+            "description": "**Breakpoint 1**: `UserController.register` — entry.\n**Breakpoint 2**: `UserRegistrationService.register` — transactional method, inserts user + outbox row in one tx.\n**Breakpoint 3**: step into the OutboxRelay poll (background scheduler) to watch the event hop from DB → Kafka."
+          }
+        },
+        {
+          "name": "C. CheckoutController.checkout — multi-service hop",
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"productId\": {{last_product_id}},\n  \"quantity\": 1,\n  \"provider\": \"mock\"\n}" },
+            "url": { "raw": "{{gateway}}/api/v1/checkout", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "checkout" ] },
+            "description": "**Prereq**: `make debug-saga` (product + order + payment all attached).\n\n**Breakpoint 1**: `CheckoutController.checkout` — entry.\n**Breakpoint 2**: step into `productService.checkAvailability(id)` → crosses process boundary into product-service (if you have :5006 attached, hit `ProductController.getAvailability`).\n**Breakpoint 3**: `orderService.create(...)` — writes order row + saga row + outbox event.\n**Breakpoint 4**: in payment-service, `PaymentInitiateController.initiate` (for stripe/razorpay) OR Kafka listener for mock."
+          }
+        },
+        {
+          "name": "D. ProductController.getAvailability — downstream of order",
+          "request": { "method": "GET",
+            "url": { "raw": "{{gateway}}/api/v1/products/{{last_product_id}}/availability", "host": [ "{{gateway}}" ], "path": [ "api", "v1", "products", "{{last_product_id}}", "availability" ] },
+            "description": "**Breakpoint**: `services/product-service/src/main/java/com/example/productservice/controller/ProductController.java` → method handling `/{id}/availability`.\n\nAlso fired when a Checkout request runs — gives you a split view of the two services exchanging in real time."
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "9 · If it goes wrong (diagnostics)",
+      "description": "Fire the matching request when a request fails. Each one isolates a different layer of the stack.",
+      "item": [
+        {
+          "name": "Service UP? user-service /actuator/health (direct)",
+          "request": { "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{user_direct}}/actuator/health", "host": [ "{{user_direct}}" ], "path": [ "actuator", "health" ] },
+            "description": "**Use when**: `GET /api/v1/users` via gateway returns 503.\n\n**Expect UP**: service is healthy. Problem is in gateway/eureka routing.\n**ECONNREFUSED**: service isn't running — `make debug-user`."
+          }
+        },
+        {
+          "name": "DB UP? user-service /actuator/health/db",
+          "request": { "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{user_direct}}/actuator/health/db", "host": [ "{{user_direct}}" ], "path": [ "actuator", "health", "db" ] },
+            "description": "**Status UP**: DB wired correctly.\n**DOWN with CommunicationsException**: MySQL unreachable or wrong port (this is the exact bug you hit — DB_PORT default 3307 vs mysql-shared 3306)."
+          }
+        },
+        {
+          "name": "Which URL is user-service using? /actuator/env",
+          "request": { "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{user_direct}}/actuator/env/spring.datasource.url", "host": [ "{{user_direct}}" ], "path": [ "actuator", "env", "spring.datasource.url" ] },
+            "description": "**Expect**: `property.value` shows the resolved URL. Confirms whether env override (`DB_PORT=3306`) was actually picked up."
+          }
+        },
+        {
+          "name": "Gateway routes dump",
+          "request": { "method": "GET",
+            "auth": { "type": "basic", "basic": [
+              { "key": "username", "value": "{{admin_user}}", "type": "string" },
+              { "key": "password", "value": "{{admin_pass}}", "type": "string" }
+            ]},
+            "url": { "raw": "{{gateway}}/actuator/gateway/routes", "host": [ "{{gateway}}" ], "path": [ "actuator", "gateway", "routes" ] },
+            "description": "**Use when**: a request through the gateway hits 404 unexpectedly. Shows every route the gateway knows about + the `lb://` URI it will dispatch to."
+          }
+        },
+        {
+          "name": "Service registered? /actuator/info on user-service",
+          "request": { "method": "GET", "auth": { "type": "noauth" },
+            "url": { "raw": "{{user_direct}}/actuator/info", "host": [ "{{user_direct}}" ], "path": [ "actuator", "info" ] },
+            "description": "Confirms which git commit + build this service is running — rules out 'I'm looking at the wrong JAR.'"
+          }
+        }
+      ]
+    }
+  ]
+}

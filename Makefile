@@ -286,6 +286,13 @@ debug-notification:
 debug-list:
 	@./scripts/run-service.sh --help
 
+# Reinstall parent pom + common-lib into ~/.m2. Run this after editing
+# the root pom.xml or anything under lib/common-lib/ — the debug scripts
+# resolve both from the local Maven repo instead of re-adding them to
+# the reactor (which breaks spring-boot:run on the parent).
+debug-rebuild:
+	mvn install -DskipTests -pl lib/common-lib -am
+
 # ─── Multi-service launch (background) ─────────────────────────────────
 # Starts a GROUP of business services in the background. Each service's
 # stdout+stderr goes to logs/<service>-debug.log. Debugger ports are the
