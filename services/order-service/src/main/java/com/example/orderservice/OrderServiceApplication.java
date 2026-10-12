@@ -7,6 +7,8 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 // Scan rules for common-lib cross-cutting entities (recurring footgun):
@@ -26,6 +28,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.example.common.dlq"
 })
 @EnableFeignClients
+@EnableRetry
+@EnableAsync
 @EnableScheduling
 // EntityScan can harmlessly include IdempotencyRecord — JPA entities only need
 // to be scanned once per EntityManagerFactory, duplicate scan = no-op.

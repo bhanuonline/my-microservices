@@ -142,6 +142,18 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Batch — stale order cleanup job -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-batch</artifactId>
+        </dependency>
+
+        <!-- Spring Retry — @Retryable / @Recover on payment-service Feign calls -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
         <!-- OpenAPI 3 + Swagger UI (version pinned in parent). -->
         <dependency>
             <groupId>org.springdoc</groupId>

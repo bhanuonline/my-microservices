@@ -20,6 +20,7 @@
 
         <!-- Business services -->
         <module>services/user-service</module>
+        <module>services/test-service</module>
         <module>services/product-service</module>
         <module>services/order-service</module>
         <module>services/payment-service</module>

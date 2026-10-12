@@ -1,6 +1,7 @@
 package com.example.orderservice.controller;
 
 import com.example.orderservice.client.PaymentClient;
+import com.example.orderservice.service.PaymentService;
 import com.example.orderservice.dto.CheckoutRequest;
 import com.example.orderservice.dto.CheckoutResponse;
 import com.example.orderservice.exception.ProductUnavailableException;
@@ -42,16 +43,16 @@ public class CheckoutController {
     private final ProductService productService;
     private final OrderService orderService;
     private final OrderSagaRepository sagaRepo;
-    private final PaymentClient paymentClient;
+    private final PaymentService paymentService;
 
     public CheckoutController(ProductService productService,
                               OrderService orderService,
                               OrderSagaRepository sagaRepo,
-                              PaymentClient paymentClient) {
+                              PaymentService paymentService) {
         this.productService = productService;
         this.orderService = orderService;
         this.sagaRepo = sagaRepo;
-        this.paymentClient = paymentClient;
+        this.paymentService = paymentService;
     }
 
     @PostMapping
@@ -73,7 +74,7 @@ public class CheckoutController {
             // The saga's Kafka PaymentCommand also fires; payment-service's
             // find-or-create guard converges both paths to the same Payment row.
             try {
-                PaymentClient.InitiateResponse resp = paymentClient.initiate(new PaymentClient.InitiateRequest(
+                PaymentClient.InitiateResponse resp = paymentService.initiate(new PaymentClient.InitiateRequest(
                         saga.getId(),
                         order.getId(),
                         order.getAmount(),
