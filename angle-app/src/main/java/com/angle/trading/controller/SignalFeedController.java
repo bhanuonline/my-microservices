@@ -81,6 +81,7 @@ public class SignalFeedController {
         model.addAttribute("winRate",     (won + lost) == 0 ? 0 : Math.round(100.0 * won / (won + lost)));
         model.addAttribute("aiTotal",     aiTotal);
         model.addAttribute("aiAgreeRate", aiTotal == 0 ? 0 : Math.round(100.0 * aiAgree / aiTotal));
+        model.addAttribute("sidebarActive", "ORB".equals(source) ? "orb-report" : "signals");
 
         return "signals/feed";
     }

@@ -50,6 +50,8 @@ public class OrbSettings {
     private Cadence orbCadence = Cadence.TF_BOUNDARY;
     private BigDecimal adxThreshold = new BigDecimal("25");
     private CombinationMode combinationMode = CombinationMode.REQUIRE_BOTH;
+    private BigDecimal slMultiplier  = new BigDecimal("1.5");
+    private BigDecimal tgtMultiplier = new BigDecimal("3.0");
 
     @PostConstruct
     void logAtStart() {

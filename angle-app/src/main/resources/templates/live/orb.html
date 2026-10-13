@@ -34,6 +34,7 @@
                Each card tracks its own opening-range window from session open.</p>
         </div>
         <div class="head-right">
+            <a href="/signals?source=ORB" class="orb-report-link">View signal log →</a>
             <div class="status-pill" id="status"><span class="dot"></span><span id="statusText">Loading…</span></div>
             <div class="clock" id="clock">—</div>
         </div>
@@ -61,7 +62,12 @@
 </div>
 
 <script th:inline="javascript">
-    const TIMEFRAMES = /*[[${timeframes}]]*/ [5, 15, 30, 60, 75, 125];
+    const TIMEFRAMES     = /*[[${timeframes}]]*/ [5, 15, 30, 60, 75, 125];
+    const ADX_THRESHOLD  = /*[[${orbCfg.adxThreshold}]]*/ 25;
+
+    // SL / TGT multipliers — server-backed via OrbSettings, editable from config panel
+    const SL_MULT  = /*[[${orbCfg.slMultiplier}]]*/ 1.5;
+    const TGT_MULT = /*[[${orbCfg.tgtMultiplier}]]*/ 3.0;
 
     const rowsEl    = document.getElementById('rows');
     const statusEl  = document.getElementById('status');
@@ -95,6 +101,46 @@
         const h = Math.floor(totalMin / 60);
         const m = totalMin % 60;
         return m === 0 ? h + 'h' : (h + 'h ' + m + 'm');
+    }
+
+    // Why is this card showing WAIT?
+    function waitReason(cell) {
+        const sig    = cell.combinedSignal || cell.signal;
+        const rawOrb = cell.signal;
+        if (sig !== 'WAITING') return '';
+
+        // ORB itself hasn't fired — price hasn't broken out yet
+        if (rawOrb === 'WAITING' || rawOrb === 'FORMING') return 'price inside OR range — no breakout yet';
+
+        // ORB fired but ADX data not ready
+        if (cell.adx == null) return 'ADX warming up — need more bars';
+
+        const adx     = +cell.adx;
+        const plusDi  = +cell.plusDi;
+        const minusDi = +cell.minusDi;
+
+        // ADX too weak
+        if (adx <= ADX_THRESHOLD) return `ADX ${adx.toFixed(1)} < ${ADX_THRESHOLD} — trend too weak to confirm ${rawOrb}`;
+
+        // ADX strong but DI disagrees with ORB direction
+        if (rawOrb === 'BUY'   && minusDi >= plusDi) return `ADX ${adx.toFixed(1)} ok but −DI (${minusDi.toFixed(1)}) > +DI (${plusDi.toFixed(1)}) — selling pressure`;
+        if (rawOrb === 'SHORT' && plusDi  >= minusDi) return `ADX ${adx.toFixed(1)} ok but +DI (${plusDi.toFixed(1)}) > −DI (${minusDi.toFixed(1)}) — buying pressure`;
+
+        // MACD check
+        if (cell.macdLine != null && cell.macdSignal != null) {
+            const ml = +cell.macdLine, ms = +cell.macdSignal;
+            if (rawOrb === 'BUY'   && ml <= ms) return `MACD (${ml.toFixed(2)}) below signal (${ms.toFixed(2)}) — bearish momentum`;
+            if (rawOrb === 'SHORT' && ml >= ms) return `MACD (${ml.toFixed(2)}) above signal (${ms.toFixed(2)}) — bullish momentum`;
+        }
+
+        // RSI check
+        if (cell.rsi != null) {
+            const r = +cell.rsi;
+            if (rawOrb === 'BUY'   && r <= 50) return `RSI ${r.toFixed(1)} ≤ 50 — no upward momentum`;
+            if (rawOrb === 'SHORT' && r >= 50) return `RSI ${r.toFixed(1)} ≥ 50 — no downward momentum`;
+        }
+
+        return '';
     }
 
     // Format timeframe label — 60 → "1h", 125 → "125m", etc.
@@ -171,13 +217,56 @@
             </div>`;
         }
 
+        // MACD line — shows MACD, signal, histogram. Green if bullish (hist > 0), red if bearish.
+        let macdLine = '';
+        if (cell.macdLine != null && cell.macdSignal != null && cell.macdHistogram != null) {
+            const hist = +cell.macdHistogram;
+            const macdCls = hist > 0 ? 'macd-up' : (hist < 0 ? 'macd-down' : 'macd-flat');
+            const histStr = (hist >= 0 ? '+' : '') + hist.toFixed(2);
+            macdLine = `<div class="macd-line ${macdCls}">MACD ${(+cell.macdLine).toFixed(2)} · Sig ${(+cell.macdSignal).toFixed(2)} · Hist ${histStr}</div>`;
+        }
+
+        // RSI line — green 50-70 (bullish ok), red 30-50 (bearish ok), orange extremes.
+        let rsiLine = '';
+        if (cell.rsi != null) {
+            const r = +cell.rsi;
+            const rsiCls = r > 70 ? 'rsi-extreme' : r > 50 ? 'rsi-up' : r > 30 ? 'rsi-down' : 'rsi-extreme';
+            const rsiLabel = r > 70 ? 'overbought' : r > 50 ? 'bullish' : r > 30 ? 'bearish' : 'oversold';
+            rsiLine = `<div class="rsi-line ${rsiCls}">RSI ${r.toFixed(1)} — ${rsiLabel}</div>`;
+        }
+
+        // ATR line + stop loss (shown on BUY/SHORT cards)
+        let atrLine = '';
+        if (cell.atr != null) {
+            const atrVal = +cell.atr;
+            atrLine = `<div class="atr-line">ATR ${fmt(atrVal)}</div>`;
+            if ((sig === 'BUY' || sig === 'SHORT') && cell.breakoutPrice != null) {
+                const bp  = +cell.breakoutPrice;
+                const sl  = sig === 'BUY' ? bp - SL_MULT  * atrVal : bp + SL_MULT  * atrVal;
+                const tgt = sig === 'BUY' ? bp + TGT_MULT * atrVal : bp - TGT_MULT * atrVal;
+                const slCls  = sig === 'BUY' ? 'sl-buy'  : 'sl-short';
+                const tgtCls = sig === 'BUY' ? 'tgt-buy' : 'tgt-short';
+                const rr = (TGT_MULT / SL_MULT).toFixed(1);
+                atrLine += `<div class="stop-loss ${slCls}">SL &nbsp;${fmt(sl)} &nbsp;(${SL_MULT}×ATR)</div>`;
+                atrLine += `<div class="tgt-price ${tgtCls}">TGT ${fmt(tgt)} (${TGT_MULT}×ATR)</div>`;
+                atrLine += `<div class="rr-ratio">R:R &nbsp;1 : ${rr}</div>`;
+            }
+        }
+
+        const reason = waitReason(cell);
+        const reasonLine = reason ? `<div class="wait-reason">${reason}</div>` : '';
+
         return `
           <div class="card ${cls}">
             <div class="tf">${tfLabel(cell.minutes)}</div>
             <div class="sig ${cls}">${arrow ? arrow + ' ' : ''}${label}</div>
+            ${reasonLine}
             ${or}
             ${ltpLine}
             ${adxLine}
+            ${macdLine}
+            ${rsiLine}
+            ${atrLine}
             ${lockLine}
             ${breakout}
           </div>`;

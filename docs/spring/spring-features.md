@@ -568,3 +568,13 @@ order-service, user-service   api-gateway, graphql-bff
 | 2026-10-12 | Implemented **Spring Events** in `order-service`: `OrderCancelledEvent` (record), published from `StaleOrderProcessor` via `ApplicationEventPublisher`, consumed by `OrderCancelledEventListener` with `@EventListener` |
 | 2026-10-12 | Implemented **@Async** in `order-service`: `@EnableAsync` on main class, named `ThreadPoolTaskExecutor` (`eventExecutor`, core=2 max=5) in `AsyncConfig`, `@Async("eventExecutor")` on `OrderCancelledEventListener` |
 | 2026-10-12 | Implemented **Web Layer** in `order-service`: `RequestTimingInterceptor` (HandlerInterceptor), `@CurrentUser` annotation + `CurrentUserArgumentResolver`, `RestClient` bean — all wired via `WebMvcConfig` |
+| 2026-10-12 | Added 3 more interceptors: `CorrelationIdInterceptor` (MDC + X-Correlation-ID header), `MaintenanceModeInterceptor` (503 toggle via config), `RateLimitInterceptor` (per-IP 429 with sliding window) |
+| 2026-10-12 | Added `@ApiVersion` ArgumentResolver: custom annotation extracts `X-API-Version` header, defaults to `v1`, normalises missing `v` prefix — registered in `WebMvcConfig` |
+| 2026-10-12 | Added `ApplicationReadyEvent` (`AppStartupListener`) — logs port/profiles/boot-time once app is fully ready |
+| 2026-10-12 | Added `@PostConstruct`/`@PreDestroy` (`OrderServiceLifecycle`) — logs config state on init and graceful shutdown |
+| 2026-10-12 | Added custom `@ValidOrderAmount` constraint + `OrderAmountValidator` — business-level BigDecimal range validation |
+| 2026-10-12 | Added `ResponseBodyAdvice` (`StandardResponseAdvice` + `StandardResponse`) — wraps all controller responses in `{data, status, timestamp, correlationId}` envelope |
+| 2026-10-12 | **Spring Cloud Bus** — added to config-server + order-service; `DynamicConfig` with `@RefreshScope`; POST `/actuator/busrefresh` broadcasts refresh to all instances via Kafka |
+| 2026-10-12 | **Spring Cloud Task** — `@EnableTask` in `BatchTaskConfig`; records every app run in `TASK_EXECUTION` table (start/end/exit-code) |
+| 2026-10-12 | **Spring Cloud Contract** — Groovy contract DSL for `GET /api/v1/orders/{id}`; `OrderContractBaseTest` with `@WebMvcTest` + RestAssured; plugin generates tests + stub jar on `mvn verify` |
+| 2026-10-12 | **Threading** — CompletableFuture parallel checkout (`/checkout/parallel`) + enriched order (`/orders/{id}/enriched`); virtual thread executor (`virtualEventExecutor`); ScheduledExecutorService in batch scheduler; parallel SSE push + broadcast in notification-service |

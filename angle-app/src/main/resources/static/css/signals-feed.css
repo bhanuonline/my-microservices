@@ -95,4 +95,14 @@
         .outcome-line.loss { color:var(--down); font-weight:600; }
 
         .empty { text-align:center; padding:60px 20px; color:var(--faint); font-size:14px; }
+
+        .indicator-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
+        .ind-chip { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+                    background:var(--surface); border:1px solid var(--border);
+                    padding:2px 7px; border-radius:4px; }
+        .ind-chip b { color:var(--ink); }
+        .ind-chip.hist-up   { border-color:var(--up);   color:var(--up); }
+        .ind-chip.hist-up b { color:var(--up); }
+        .ind-chip.hist-down   { border-color:var(--down); color:var(--down); }
+        .ind-chip.hist-down b { color:var(--down); }
     

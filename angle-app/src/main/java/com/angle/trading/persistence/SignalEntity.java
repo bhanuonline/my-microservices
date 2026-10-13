@@ -95,6 +95,31 @@ public class SignalEntity {
     @Column(length = 500)
     private String notes;
 
+    // ── Indicator snapshot at signal time (ORB signals) ──────────────────
+    @Column(name = "adx", precision = 8, scale = 2)
+    private BigDecimal adx;
+
+    @Column(name = "plus_di", precision = 8, scale = 2)
+    private BigDecimal plusDi;
+
+    @Column(name = "minus_di", precision = 8, scale = 2)
+    private BigDecimal minusDi;
+
+    @Column(name = "rsi", precision = 8, scale = 2)
+    private BigDecimal rsi;
+
+    @Column(name = "macd_line", precision = 12, scale = 4)
+    private BigDecimal macdLine;
+
+    @Column(name = "macd_signal", precision = 12, scale = 4)
+    private BigDecimal macdSignal;
+
+    @Column(name = "macd_histogram", precision = 12, scale = 4)
+    private BigDecimal macdHistogram;
+
+    @Column(name = "atr", precision = 12, scale = 4)
+    private BigDecimal atr;
+
     /** "CONSENSUS" (from technical strategies) or "AI" (from Claude). */
     @Column(nullable = false, length = 16)
     private String source = "CONSENSUS";

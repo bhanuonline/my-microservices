@@ -19,12 +19,16 @@ spring:
 server:
   port: 8888
 
+  # Cloud Bus: connect to Kafka so busrefresh events can be broadcast
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+
 management:
   endpoints:
     web:
       exposure:
-        # /actuator/health is used by the Docker healthcheck.
-        include: health,info
+        # busrefresh: POST /actuator/busrefresh → broadcasts refresh to all service instances
+        include: health,info,busrefresh
   endpoint:
     health:
       show-details: when-authorized

@@ -52,6 +52,8 @@ public class OrbConfigController {
                 case "adxCadence" -> settings.setAdxCadence(OrbSettings.Cadence.valueOf(value));
                 case "adxThreshold" -> settings.setAdxThreshold(new BigDecimal(value));
                 case "combinationMode" -> settings.setCombinationMode(OrbSettings.CombinationMode.valueOf(value));
+                case "slMultiplier"   -> settings.setSlMultiplier(new BigDecimal(value));
+                case "tgtMultiplier"  -> settings.setTgtMultiplier(new BigDecimal(value));
                 default -> throw new IllegalArgumentException("Unknown key: " + key);
             }
             log.info("ORB config updated: {} = {}", key, value);
@@ -76,6 +78,8 @@ public class OrbConfigController {
         settings.setAdxCadence(OrbSettings.Cadence.TF_BOUNDARY);
         settings.setAdxThreshold(new BigDecimal("25"));
         settings.setCombinationMode(OrbSettings.CombinationMode.REQUIRE_BOTH);
+        settings.setSlMultiplier(new BigDecimal("1.5"));
+        settings.setTgtMultiplier(new BigDecimal("3.0"));
         log.info("ORB config reset to defaults");
 
         if (hxRequest != null) {
@@ -93,7 +97,9 @@ public class OrbConfigController {
                 "combinationMode",  settings.getCombinationMode().name(),
                 "cadenceChoices",   new String[]{ "TF_BOUNDARY", "EVERY_1M" },
                 "thresholdChoices", new String[]{ "20", "25", "30", "35", "0" },
-                "modeChoices",      new String[]{ "REQUIRE_BOTH", "ORB_ONLY", "ADX_ONLY" }
+                "modeChoices",      new String[]{ "REQUIRE_BOTH", "ORB_ONLY", "ADX_ONLY" },
+                "slMultiplier",     settings.getSlMultiplier().toPlainString(),
+                "tgtMultiplier",    settings.getTgtMultiplier().toPlainString()
         );
     }
 }

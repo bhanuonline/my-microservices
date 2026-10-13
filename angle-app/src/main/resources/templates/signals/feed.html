@@ -17,7 +17,7 @@
 </head>
 <body>
 <div class="app-shell">
-<div th:replace="~{fragments/app-sidebar :: sidebar(active='signals')}"></div>
+<div th:replace="~{fragments/app-sidebar :: sidebar(active=${sidebarActive ?: 'signals'})}"></div>
 <main class="app-main">
 <div class="wrap" style="max-width:none;padding:0">
 
@@ -70,6 +70,7 @@
                 <option value=""          th:selected="${selSource == ''}">All</option>
                 <option value="CONSENSUS" th:selected="${selSource == 'CONSENSUS'}">Consensus only</option>
                 <option value="AI"        th:selected="${selSource == 'AI'}">AI only</option>
+                <option value="ORB"       th:selected="${selSource == 'ORB'}">ORB only</option>
             </select>
         </label>
         <label>Last (hours)
@@ -104,6 +105,19 @@
                       style="margin-left:8px;font-size:11px;color:var(--info);font-weight:600"
                       th:text="'· trailed ' + ${s.trailUpdates} + '× from ' + ${s.originalStop}">
                     · trailed 2× from 24,620
+                </span>
+            </div>
+            <div class="row indicator-row" th:if="${s.source == 'ORB' and s.adx != null}">
+                <span class="ind-chip">ADX <b th:text="${#numbers.formatDecimal(s.adx,1,1)}">26.5</b></span>
+                <span class="ind-chip" th:if="${s.plusDi != null}">+DI <b th:text="${#numbers.formatDecimal(s.plusDi,1,1)}">27.1</b></span>
+                <span class="ind-chip" th:if="${s.minusDi != null}">−DI <b th:text="${#numbers.formatDecimal(s.minusDi,1,1)}">14.3</b></span>
+                <span class="ind-chip" th:if="${s.rsi != null}">RSI <b th:text="${#numbers.formatDecimal(s.rsi,1,1)}">58.7</b></span>
+                <span class="ind-chip" th:if="${s.atr != null}">ATR <b th:text="${#numbers.formatDecimal(s.atr,1,2)}">142.50</b></span>
+                <span class="ind-chip" th:if="${s.macdLine != null}">MACD <b th:text="${#numbers.formatDecimal(s.macdLine,1,2)}">11.09</b></span>
+                <span class="ind-chip" th:if="${s.macdSignal != null}">Sig <b th:text="${#numbers.formatDecimal(s.macdSignal,1,2)}">9.82</b></span>
+                <span th:if="${s.macdHistogram != null}"
+                      th:class="'ind-chip hist-' + (${s.macdHistogram.signum() >= 0} ? 'up' : 'down')">
+                    Hist <b th:text="${s.macdHistogram.signum() >= 0 ? '+' : ''} + ${#numbers.formatDecimal(s.macdHistogram,1,2)}">+1.27</b>
                 </span>
             </div>
             <div class="row" th:if="${s.source == 'CONSENSUS' and s.agreedCount > 0}">

@@ -32,5 +32,10 @@ public record OrbCell(
         Instant ltpAt,                 // when the last tick arrived
         BigDecimal adx,                // trend strength 0-100 (null = not enough data)
         BigDecimal plusDi,             // +DI
-        BigDecimal minusDi             // -DI
+        BigDecimal minusDi,            // -DI
+        BigDecimal macdLine,           // MACD line (null = not enough bars)
+        BigDecimal macdSignal,         // MACD signal line
+        BigDecimal macdHistogram,      // histogram = macdLine - macdSignal
+        BigDecimal rsi,                // RSI 0-100 (null = not enough bars)
+        BigDecimal atr                 // Average True Range (null = not enough bars)
 ) {}

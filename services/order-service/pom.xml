@@ -123,6 +123,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Cloud Contract — producer side: verifies our API matches the contract -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-contract-verifier</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Testcontainers Kafka. Version managed by the Spring Boot BOM (3.2.5 → 1.19.7). -->
         <dependency>
             <groupId>org.testcontainers</groupId>
@@ -140,6 +147,18 @@
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Cloud Task — records every batch job run (start/end/exit-code) in TASK_EXECUTION table -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-task</artifactId>
+        </dependency>
+
+        <!-- Spring Cloud Bus — subscribes to busrefresh events from config-server via Kafka -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-bus</artifactId>
         </dependency>
 
         <!-- Spring Batch — stale order cleanup job -->
@@ -177,6 +196,20 @@
             <plugin>
                 <groupId>io.github.git-commit-id</groupId>
                 <artifactId>git-commit-id-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- Spring Cloud Contract: generates tests from contracts in src/test/resources/contracts/
+                 Run: mvn verify → generates + runs contract tests → produces stub jar -->
+            <plugin>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-contract-maven-plugin</artifactId>
+                <version>4.1.3</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <baseClassForTests>
+                        com.example.orderservice.contract.OrderContractBaseTest
+                    </baseClassForTests>
+                </configuration>
             </plugin>
         </plugins>
     </build>

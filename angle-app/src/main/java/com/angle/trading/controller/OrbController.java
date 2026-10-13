@@ -39,7 +39,9 @@ public class OrbController {
                 "combinationMode",  orbSettings.getCombinationMode().name(),
                 "cadenceChoices",   new String[]{ "TF_BOUNDARY", "EVERY_1M" },
                 "thresholdChoices", new String[]{ "20", "25", "30", "35", "0" },
-                "modeChoices",      new String[]{ "REQUIRE_BOTH", "ORB_ONLY", "ADX_ONLY" }));
+                "modeChoices",      new String[]{ "REQUIRE_BOTH", "ORB_ONLY", "ADX_ONLY" },
+                "slMultiplier",     orbSettings.getSlMultiplier().toPlainString(),
+                "tgtMultiplier",    orbSettings.getTgtMultiplier().toPlainString()));
         return "live/orb";
     }
 

@@ -8,13 +8,18 @@ import com.angle.trading.broker.model.Candle;
 import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
 import com.angle.trading.persistence.BiasInstrumentEntity;
+import com.angle.trading.persistence.SignalEntity;
 import com.angle.trading.service.InstrumentService;
+import com.angle.trading.service.SignalService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.angle.trading.indicator.AverageTrueRange;
+import com.angle.trading.indicator.MACD;
+import com.angle.trading.indicator.RelativeStrengthIndex;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -75,9 +80,14 @@ public class OrbService {
      *  390 trading min/day × 10 days = 3900 bars → 10 is enough; use 15 for safety. */
     public static final int BACKFILL_DAYS = 15;
 
+    private static final MACD MACD_CALC = new MACD();                        // MACD(12,26,9)
+    private static final RelativeStrengthIndex RSI_CALC = new RelativeStrengthIndex(); // RSI(14)
+    private static final AverageTrueRange ATR_CALC = new AverageTrueRange();           // ATR(14)
+
     private final InstrumentService instrumentService;
     private final AngelClient angelClient;   // direct call for session-aware intraday fetch
     private final OrbSettings settings;      // mutable at runtime from the dashboard
+    private final SignalService signalService;
 
     /** Key: "symbolToken|minutes". Value: live mutable cell state. */
     private final Map<String, Cell> state = new ConcurrentHashMap<>();
@@ -135,7 +145,7 @@ public class OrbService {
                     cell.current = null;
                     backfillIfPossible(cell, ins, session, barOpen.toLocalDate());
                 }
-                applyClosedCandle(cell, e.candle(), session, barOpen.toLocalDate());
+                applyClosedCandle(cell, e.candle(), session, barOpen.toLocalDate(), ins);
             }
         }
     }
@@ -148,7 +158,8 @@ public class OrbService {
      * Apply a single closed candle (any interval ≤ our timeframe) to the cell.
      * Candles outside session hours are ignored.
      */
-    private void applyClosedCandle(Cell cell, Candle candle, SessionWindow session, LocalDate day) {
+    private void applyClosedCandle(Cell cell, Candle candle, SessionWindow session, LocalDate day,
+                                   BiasInstrumentEntity ins) {
         ZonedDateTime barOpen  = candle.timestamp().atZone(IST);
         ZonedDateTime barClose = barOpen.plusMinutes(1);  // we subscribe to 1m candles
 
@@ -236,7 +247,17 @@ public class OrbService {
 
         // Combined signal = ORB verdict AND ADX/DI agreement.
         // Recomputed every call so the UI reflects the latest state.
+        OrbSignal prevCombined = cell.combinedSignal;
         cell.combinedSignal = combinedSignal(cell);
+
+        // First time this session the combined signal becomes BUY or SHORT → save to signal log.
+        if (!cell.signalSaved
+                && (cell.combinedSignal == OrbSignal.BUY || cell.combinedSignal == OrbSignal.SHORT)
+                && cell.atr != null && cell.breakoutPrice != null
+                && prevCombined != OrbSignal.BUY && prevCombined != OrbSignal.SHORT) {
+            saveOrbSignal(cell, ins);
+            cell.signalSaved = true;
+        }
     }
 
     /**
@@ -278,6 +299,16 @@ public class OrbService {
             window = new ArrayList<>(cell.tfBars);
         }
         cell.adxDi = AdxDiCalculator.compute(window, ADX_PERIOD);
+
+        List<MACD.MacdValue> macdSeries = MACD_CALC.computeSeries(window);
+        MACD.MacdValue lastMacd = macdSeries.isEmpty() ? null : macdSeries.get(macdSeries.size() - 1);
+        cell.macdVal = (lastMacd != null && lastMacd.macd() != null) ? lastMacd : null;
+
+        List<BigDecimal> rsiSeries = RSI_CALC.compute(window);
+        cell.rsi = rsiSeries.isEmpty() ? null : rsiSeries.get(rsiSeries.size() - 1);
+
+        List<BigDecimal> atrSeries = ATR_CALC.compute(window);
+        cell.atr = atrSeries.isEmpty() ? null : atrSeries.get(atrSeries.size() - 1);
     }
 
     /**
@@ -304,10 +335,24 @@ public class OrbService {
             case ORB_ONLY -> cell.signal;
             case REQUIRE_BOTH -> switch (cell.signal) {
                 case FORMING, NO_TRADE, WAITING -> cell.signal;
-                case BUY -> (cell.adxDi.isBullishDi() && cell.adxDi.isTrending(threshold))
-                            ? OrbSignal.BUY : OrbSignal.WAITING;
-                case SHORT -> (cell.adxDi.isBearishDi() && cell.adxDi.isTrending(threshold))
-                            ? OrbSignal.SHORT : OrbSignal.WAITING;
+                case BUY -> {
+                    boolean adxOk  = cell.adxDi.isBullishDi() && cell.adxDi.isTrending(threshold);
+                    boolean macdOk = cell.macdVal == null
+                                     || (cell.macdVal.macd() != null && cell.macdVal.signal() != null
+                                         && cell.macdVal.macd().compareTo(cell.macdVal.signal()) > 0);
+                    boolean rsiOk  = cell.rsi == null
+                                     || cell.rsi.compareTo(BigDecimal.valueOf(50)) > 0;
+                    yield (adxOk && macdOk && rsiOk) ? OrbSignal.BUY : OrbSignal.WAITING;
+                }
+                case SHORT -> {
+                    boolean adxOk  = cell.adxDi.isBearishDi() && cell.adxDi.isTrending(threshold);
+                    boolean macdOk = cell.macdVal == null
+                                     || (cell.macdVal.macd() != null && cell.macdVal.signal() != null
+                                         && cell.macdVal.macd().compareTo(cell.macdVal.signal()) < 0);
+                    boolean rsiOk  = cell.rsi == null
+                                     || cell.rsi.compareTo(BigDecimal.valueOf(50)) < 0;
+                    yield (adxOk && macdOk && rsiOk) ? OrbSignal.SHORT : OrbSignal.WAITING;
+                }
             };
             case ADX_ONLY -> {
                 if (cell.signal == OrbSignal.FORMING || cell.signal == OrbSignal.NO_TRADE) {
@@ -322,6 +367,50 @@ public class OrbService {
     }
 
     private String nameOf(Cell cell) { return cell.symbolToken + " (" + cell.exchange + ")"; }
+
+    private void saveOrbSignal(Cell cell, BiasInstrumentEntity ins) {
+        BigDecimal entry = cell.breakoutPrice;
+        boolean isBuy = cell.combinedSignal == OrbSignal.BUY;
+        BigDecimal sl  = isBuy
+            ? entry.subtract(settings.getSlMultiplier().multiply(cell.atr))
+            : entry.add(settings.getSlMultiplier().multiply(cell.atr));
+        BigDecimal tgt = isBuy
+            ? entry.add(settings.getTgtMultiplier().multiply(cell.atr))
+            : entry.subtract(settings.getTgtMultiplier().multiply(cell.atr));
+
+        SignalEntity s = new SignalEntity();
+        s.setCreatedAt(Instant.now());
+        s.setSymbolToken(ins.getSymbolToken());
+        s.setSymbol(ins.getSymbol());
+        s.setExchange(ins.getExchange());
+        s.setIntervalType(cell.minutes + "m");
+        s.setAction(isBuy ? "BUY" : "SELL");
+        s.setEntry(entry);
+        s.setStop(sl);
+        s.setOriginalStop(sl);
+        s.setHighWaterMark(entry);
+        s.setTarget(tgt);
+        s.setSource("ORB");
+        s.setAgreedStrategies("ORB+" + cell.minutes + "m,ADX,MACD,RSI");
+        s.setAgreedCount(4);
+        s.setAdx(cell.adxDi.adx());
+        s.setPlusDi(cell.adxDi.plusDi());
+        s.setMinusDi(cell.adxDi.minusDi());
+        s.setRsi(cell.rsi);
+        if (cell.macdVal != null) {
+            s.setMacdLine(cell.macdVal.macd());
+            s.setMacdSignal(cell.macdVal.signal());
+            s.setMacdHistogram(cell.macdVal.histogram());
+        }
+        s.setAtr(cell.atr);
+        try {
+            signalService.save(s);
+            log.info("ORB signal saved: {} {} {}m entry={} sl={} tgt={}",
+                    ins.getSymbol(), s.getAction(), cell.minutes, entry, sl, tgt);
+        } catch (Exception e) {
+            log.warn("ORB signal save failed for {} {}m: {}", ins.getSymbol(), cell.minutes, e.getMessage());
+        }
+    }
 
     // --------------------------------------------------------------------
     //  Backfill from historical candles (cold-start mid-day correctness)
@@ -430,7 +519,7 @@ public class OrbService {
                                 // The effectiveOpen shift is based on the FIRST overall bar
                                 // (today's open on Angel). For historical days it's fine to use
                                 // the same window — session_open is per-exchange, same every day.
-                                applyClosedCandle(other, c, effectiveSession, barDate);
+                                applyClosedCandle(other, c, effectiveSession, barDate, ins);
                                 applied++;
                                 if (other.signal != before) broke++;
                                 // Don't short-circuit — flip rule needs every candle to find
@@ -617,8 +706,13 @@ public class OrbService {
          *  TF boundary, then rolled into {@link #tfBars}. */
         private BarAggregator current;
 
-        // Latest ADX/DI (recomputed on every TF-bar close).
+        // Latest ADX/DI, MACD, RSI (recomputed on every TF-bar close).
         AdxDi adxDi = AdxDi.EMPTY;
+        MACD.MacdValue macdVal = null;
+        BigDecimal rsi = null;
+        BigDecimal atr = null;
+
+        boolean signalSaved = false; // true once BUY/SHORT signal logged for this session
 
         Cell(String symbolToken, String exchange, int minutes, LocalDate sessionDate) {
             this.symbolToken = symbolToken;
@@ -640,6 +734,7 @@ public class OrbService {
             this.orFormedAt = null;
             // ltp/ltpAt intentionally preserved — reflect latest known price even across resets.
             this.backfilled = false;
+            this.signalSaved = false;
             // tfBars/adxDi preserved across resets so ADX stays warm across the midnight boundary.
             this.current = null;
         }
@@ -650,7 +745,12 @@ public class OrbService {
                     minutes, signal, combinedSignal, orHigh, orLow,
                     breakoutPrice, breakoutAt, orFormedAt, orClosesAt,
                     ltp, ltpAt,
-                    adxDi.adx(), adxDi.plusDi(), adxDi.minusDi()
+                    adxDi.adx(), adxDi.plusDi(), adxDi.minusDi(),
+                    macdVal != null ? macdVal.macd()      : null,
+                    macdVal != null ? macdVal.signal()    : null,
+                    macdVal != null ? macdVal.histogram() : null,
+                    rsi,
+                    atr
             );
         }
     }
