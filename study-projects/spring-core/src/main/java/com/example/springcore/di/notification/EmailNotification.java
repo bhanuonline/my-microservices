@@ -1,0 +1,1 @@
+package com.example.springcore.di.notification;import org.springframework.stereotype.Service;@Servicepublic class EmailNotification implements Notification{    @Override    public void send(NotificationData notificationData) {        System.out.println("Sent Notification By Email  to :"+notificationData.getTo());    }}

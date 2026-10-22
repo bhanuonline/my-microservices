@@ -1,0 +1,1 @@
+package com.example.springcore.di.notification;import org.springframework.stereotype.Service;@Servicepublic class SMSNotification implements Notification{    @Override    public void send(NotificationData notificationData) {        System.out.println("Sent Notification By SMS  to :"+notificationData.getTo());    }}

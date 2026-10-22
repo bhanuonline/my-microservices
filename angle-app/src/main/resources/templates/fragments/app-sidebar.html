@@ -130,6 +130,17 @@
             </svg>
             <span>Portfolio (AI)</span>
         </a>
+        <a th:href="@{/journal}"          th:classappend="${active == 'journal'}      ? 'active' : ''" data-nav="journal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <line x1="8" y1="7" x2="16" y2="7"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+                <line x1="8" y1="17" x2="12" y2="17"/>
+                <circle cx="17" cy="17" r="3" fill="currentColor" stroke="none"/>
+                <path d="M16 17h2M17 16v2" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <span>Trade Journal</span>
+        </a>
         <a th:href="@{/admin/instruments}" target="_blank" rel="noopener" th:classappend="${active == 'instruments'} ? 'active' : ''" data-nav="instruments">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="12" width="18" height="4" rx="1"/>

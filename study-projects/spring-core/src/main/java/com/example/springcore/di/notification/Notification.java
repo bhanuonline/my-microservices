@@ -1,0 +1,1 @@
+package com.example.springcore.di.notification;public interface Notification {    public void send(NotificationData notificationData);}

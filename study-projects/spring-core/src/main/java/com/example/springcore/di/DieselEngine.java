@@ -1,0 +1,1 @@
+package com.example.springcore.di;import org.springframework.stereotype.Component;@Componentpublic class DieselEngine implements Engine {    @Override    public String getType() {        return "Diesel";    }}

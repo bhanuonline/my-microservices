@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${editing} ? 'Edit Trade — AngleApp' : 'New Trade — AngleApp'">Trade — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/journal.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='journal')}"></div>
+<main class="app-main">
+
+    <div class="jn-head">
+        <div>
+            <h1 th:text="${editing} ? 'Edit Trade' : 'Log New Trade'">Log New Trade</h1>
+            <p class="sub">Fill in trade details. Exit fields are optional for open trades.</p>
+        </div>
+        <a th:href="@{/journal}" class="jn-btn jn-btn-ghost">← Back to Journal</a>
+    </div>
+
+    <form th:action="${editing} ? @{/journal/__${trade.id}__/update} : @{/journal/save}"
+          method="post"
+          class="jn-form">
+
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <!-- ── Section: Trade Basics ── -->
+        <div class="jn-section">
+            <div class="jn-section-title">Trade Basics</div>
+            <div class="jn-grid">
+
+                <div class="jn-field">
+                    <label>Symbol *</label>
+                    <input type="text" name="symbol" th:value="${trade.symbol}"
+                           placeholder="e.g. NIFTY, BANKNIFTY, RELIANCE" required maxlength="64">
+                </div>
+
+                <div class="jn-field">
+                    <label>Segment *</label>
+                    <select name="segment" required>
+                        <option value="">Select segment</option>
+                        <option th:each="s : ${segments}" th:value="${s}"
+                                th:text="${s}" th:selected="${trade.segment == s}"></option>
+                    </select>
+                </div>
+
+                <div class="jn-field">
+                    <label>Trade Type *</label>
+                    <select name="tradeType" required>
+                        <option value="">Select type</option>
+                        <option value="BUY"  th:selected="${trade.tradeType == 'BUY'}">BUY (Long)</option>
+                        <option value="SELL" th:selected="${trade.tradeType == 'SELL'}">SELL (Short)</option>
+                    </select>
+                </div>
+
+                <div class="jn-field">
+                    <label>Timeframe *</label>
+                    <select name="timeframe" required>
+                        <option value="">Select TF</option>
+                        <option th:each="tf : ${timeframes}" th:value="${tf}"
+                                th:text="${tf}" th:selected="${trade.timeframe == tf}"></option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Section: Entry ── -->
+        <div class="jn-section">
+            <div class="jn-section-title">Entry</div>
+            <div class="jn-grid">
+
+                <div class="jn-field">
+                    <label>Entry Price *</label>
+                    <input type="number" name="entryPrice" th:value="${trade.entryPrice}"
+                           step="0.01" min="0" placeholder="0.00" required>
+                </div>
+
+                <div class="jn-field">
+                    <label>Entry Date &amp; Time *</label>
+                    <input type="datetime-local" name="entryDateTime"
+                           th:value="${trade.entryDateTime != null ? #temporals.format(trade.entryDateTime, 'yyyy-MM-dd''T''HH:mm') : ''}"
+                           required>
+                </div>
+
+                <div class="jn-field">
+                    <label>Stop Loss</label>
+                    <input type="number" name="stopLoss" th:value="${trade.stopLoss}"
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+
+                <div class="jn-field">
+                    <label>Target</label>
+                    <input type="number" name="target" th:value="${trade.target}"
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+
+                <div class="jn-field">
+                    <label>Quantity *</label>
+                    <input type="number" name="quantity" th:value="${trade.quantity}"
+                           min="1" placeholder="1" required>
+                </div>
+
+                <div class="jn-field">
+                    <label>Lot Size</label>
+                    <input type="number" name="lotSize" th:value="${trade.lotSize}"
+                           min="1" placeholder="e.g. 50 for NIFTY">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Section: Exit (optional) ── -->
+        <div class="jn-section">
+            <div class="jn-section-title">Exit <span class="optional">(leave blank if trade is still open)</span></div>
+            <div class="jn-grid">
+
+                <div class="jn-field">
+                    <label>Exit Price</label>
+                    <input type="number" name="exitPrice" th:value="${trade.exitPrice}"
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+
+                <div class="jn-field">
+                    <label>Exit Date &amp; Time</label>
+                    <input type="datetime-local" name="exitDateTime"
+                           th:value="${trade.exitDateTime != null ? #temporals.format(trade.exitDateTime, 'yyyy-MM-dd''T''HH:mm') : ''}">
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ── Section: Setup & Analysis ── -->
+        <div class="jn-section">
+            <div class="jn-section-title">Setup &amp; Analysis</div>
+            <div class="jn-grid">
+
+                <div class="jn-field">
+                    <label>Strategy</label>
+                    <input type="text" name="strategy" th:value="${trade.strategy}"
+                           placeholder="e.g. ORB, Breakout, Swing" maxlength="128">
+                </div>
+
+                <div class="jn-field">
+                    <label>Market Condition</label>
+                    <select name="marketCondition">
+                        <option value="">Select condition</option>
+                        <option th:each="c : ${conditions}" th:value="${c}"
+                                th:text="${c}" th:selected="${trade.marketCondition == c}"></option>
+                    </select>
+                </div>
+
+                <div class="jn-field">
+                    <label>Emotional State</label>
+                    <select name="emotionalState">
+                        <option value="">Select state</option>
+                        <option th:each="e : ${emotions}" th:value="${e}"
+                                th:text="${e}" th:selected="${trade.emotionalState == e}"></option>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- Indicators checkboxes -->
+            <div class="jn-field mt-8">
+                <label>Indicators Used</label>
+                <div class="jn-checkgrid">
+                    <label th:each="ind : ${allIndicators}" class="jn-check">
+                        <input type="checkbox" name="indicators" th:value="${ind}"
+                               th:checked="${selectedIndicators != null and selectedIndicators.contains(ind)}">
+                        <span th:text="${ind}">RSI</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="jn-field mt-8">
+                <label>Reason for Entry</label>
+                <textarea name="reasonForEntry" rows="3" maxlength="1000"
+                          placeholder="Why did you enter this trade? What was your setup?"
+                          th:text="${trade.reasonForEntry}"></textarea>
+            </div>
+        </div>
+
+        <!-- ── Section: Post-Trade Review ── -->
+        <div class="jn-section">
+            <div class="jn-section-title">Post-Trade Review</div>
+            <div class="jn-field">
+                <label>Notes / Learnings</label>
+                <textarea name="notes" rows="4" maxlength="2000"
+                          placeholder="What did you do well? What would you do differently? Key learnings?"
+                          th:text="${trade.notes}"></textarea>
+            </div>
+        </div>
+
+        <div class="jn-actions">
+            <button type="submit" class="jn-btn jn-btn-primary" th:text="${editing} ? 'Update Trade' : 'Save Trade'">Save Trade</button>
+            <a th:href="${editing} ? @{/journal/__${trade.id}__} : @{/journal}" class="jn-btn jn-btn-ghost">Cancel</a>
+        </div>
+
+    </form>
+
+</main>
+</div>
+</body>
+</html>

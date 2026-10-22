@@ -28,6 +28,7 @@
 19. [Spring State Machine](#19-spring-state-machine)
 20. [Spring Vault](#20-spring-vault)
 21. [Spring WebFlux (Reactive)](#21-spring-webflux-reactive)
+22. [Spring Core — Dependency Injection](#22-spring-core--dependency-injection)
 
 ---
 
@@ -557,6 +558,76 @@ order-service, user-service   api-gateway, graphql-bff
 
 ---
 
+## 22. Spring Core — Dependency Injection
+
+**What it does:** Spring automatically wires dependencies (beans) into your classes. Three injection styles exist; each has rules about where annotations must go.
+
+### Injection styles
+
+| Style | How it works | Recommended? |
+|---|---|---|
+| Constructor injection | Spring calls your constructor, passing beans | Yes — field is `final`, can't be null |
+| Setter injection | Spring calls a setter method after construction | Rarely |
+| Field injection | Spring sets the field directly via reflection | No — hard to test, hides dependencies |
+
+### `@Qualifier` — must go on the constructor parameter, not the field
+
+When two beans implement the same interface, Spring doesn't know which one to inject. `@Qualifier` solves this — but **it must be placed where Spring makes its decision**.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Two beans found: dieselEngine, petrolEngine             │
+│                                                          │
+│  Spring resolves constructor injection by reading        │
+│  annotations on the PARAMETER — not on the field.        │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Wrong** — `@Qualifier` on the field is ignored during constructor injection:
+```java
+@Qualifier("petrolEngine")   // ← Spring never reads this
+private final Engine engine;
+
+public ConstructorInjectionCar(Engine engine) { ... }
+```
+
+**Correct** — `@Qualifier` on the constructor parameter:
+```java
+private final Engine engine;
+
+public ConstructorInjectionCar(@Qualifier("petrolEngine") Engine engine) {
+    this.engine = engine;
+}
+```
+
+**Other fixes** (when you control the bean, not the consumer):
+- `@Primary` on one bean — makes it the default when no `@Qualifier` is given
+- Name the parameter to match the bean name (requires `-parameters` compiler flag in Spring 6+)
+
+### Field vs Setter injection — what's the difference?
+
+They look the same (both set a field after construction) but differ in **how Spring sets the value**.
+
+```
+Field injection            Setter injection
+──────────────────         ──────────────────────────────
+Spring uses reflection     Spring calls your method
+to set the field           which sets the field
+directly — your code
+is never involved          you wrote the method → you control it
+```
+
+| | Field | Setter |
+|---|---|---|
+| You can add logic/validation | No | Yes |
+| Dep can be optional | No | Yes (`@Autowired(required=false)`) |
+| Testable without Spring | No | Yes (just call the setter) |
+| Dep can be null | Yes | Yes |
+
+Both are worse than constructor injection. Field injection is the worst — setter at least gives you a method to call in tests without Spring.
+
+---
+
 ## Session Log
 
 | Date | What we discussed / built |
@@ -578,3 +649,4 @@ order-service, user-service   api-gateway, graphql-bff
 | 2026-10-12 | **Spring Cloud Task** — `@EnableTask` in `BatchTaskConfig`; records every app run in `TASK_EXECUTION` table (start/end/exit-code) |
 | 2026-10-12 | **Spring Cloud Contract** — Groovy contract DSL for `GET /api/v1/orders/{id}`; `OrderContractBaseTest` with `@WebMvcTest` + RestAssured; plugin generates tests + stub jar on `mvn verify` |
 | 2026-10-12 | **Threading** — CompletableFuture parallel checkout (`/checkout/parallel`) + enriched order (`/orders/{id}/enriched`); virtual thread executor (`virtualEventExecutor`); ScheduledExecutorService in batch scheduler; parallel SSE push + broadcast in notification-service |
+| 2026-10-14 | **Spring Core DI** — `@Qualifier` on a field is ignored during constructor injection; it must go on the constructor parameter. Added Section 22 with injection styles and correct placement rule. |

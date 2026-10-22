@@ -1,0 +1,1 @@
+package com.example.springcore.di.notification;import lombok.Data;@Datapublic class NotificationData {    Integer notificationId;    String body;    String to;    String cc;    String title;}

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${trade.symbol} + ' — Trade Journal'">Trade Detail — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/journal.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='journal')}"></div>
+<main class="app-main">
+
+    <!-- Flash -->
+    <div th:if="${flash}" class="jn-flash" th:text="${flash}"></div>
+
+    <!-- Header row -->
+    <div class="jn-head">
+        <div class="jn-detail-title">
+            <span th:class="'jn-type lg ' + ${#strings.toLowerCase(trade.tradeType)}" th:text="${trade.tradeType}">BUY</span>
+            <span class="symbol-lg" th:text="${trade.symbol}">NIFTY</span>
+            <span class="jn-seg" th:text="${trade.segment}">NSE</span>
+            <span th:class="'jn-outcome ' + ${#strings.toLowerCase(trade.outcome)}" th:text="${trade.outcome}">WIN</span>
+        </div>
+        <div class="jn-head-actions">
+            <a th:href="@{/journal/__${trade.id}__/edit}" class="jn-btn">Edit</a>
+            <form th:action="@{/journal/__${trade.id}__/delete}" method="post"
+                  onsubmit="return confirm('Delete this trade entry?')" style="display:inline">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button type="submit" class="jn-btn jn-btn-danger">Delete</button>
+            </form>
+            <a th:href="@{/journal}" class="jn-btn jn-btn-ghost">← Journal</a>
+        </div>
+    </div>
+
+    <!-- P&L Banner -->
+    <div th:if="${trade.pnl != null}"
+         th:class="'jn-pnl-banner ' + (${trade.pnl.compareTo(T(java.math.BigDecimal).ZERO) >= 0} ? 'pnl-pos' : 'pnl-neg')">
+        <div class="pnl-val mono" th:text="'₹' + ${trade.pnl}">₹1,000.00</div>
+        <div class="pnl-pct" th:text="${trade.pnlPercent} + '%'">+2.00%</div>
+        <div class="pnl-lbl">Net P&amp;L</div>
+    </div>
+    <div th:unless="${trade.pnl != null}" class="jn-pnl-banner open-pnl">
+        <div class="pnl-val">—</div>
+        <div class="pnl-lbl">Trade still OPEN</div>
+    </div>
+
+    <!-- Detail grid -->
+    <div class="jn-detail-grid">
+
+        <!-- Entry / Exit -->
+        <div class="jn-card">
+            <div class="jn-card-title">Entry &amp; Exit</div>
+            <div class="jn-kv">
+                <div class="k">Entry Price</div>
+                <div class="v mono" th:text="${trade.entryPrice}">500.00</div>
+            </div>
+            <div class="jn-kv">
+                <div class="k">Entry Time</div>
+                <div class="v" th:text="${#temporals.format(trade.entryDateTime, 'dd MMM yyyy HH:mm')}">01 Jan 2026 09:15</div>
+            </div>
+            <div class="jn-kv">
+                <div class="k">Exit Price</div>
+                <div class="v mono" th:text="${trade.exitPrice != null ? trade.exitPrice : '—'}">510.00</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.exitDateTime != null}">
+                <div class="k">Exit Time</div>
+                <div class="v" th:text="${#temporals.format(trade.exitDateTime, 'dd MMM yyyy HH:mm')}">01 Jan 2026 11:30</div>
+            </div>
+        </div>
+
+        <!-- Risk -->
+        <div class="jn-card">
+            <div class="jn-card-title">Risk Management</div>
+            <div class="jn-kv">
+                <div class="k">Quantity</div>
+                <div class="v mono" th:text="${trade.quantity}">100</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.lotSize != null}">
+                <div class="k">Lot Size</div>
+                <div class="v mono" th:text="${trade.lotSize}">50</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.stopLoss != null}">
+                <div class="k">Stop Loss</div>
+                <div class="v mono dn" th:text="${trade.stopLoss}">490.00</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.target != null}">
+                <div class="k">Target</div>
+                <div class="v mono up" th:text="${trade.target}">520.00</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.stopLoss != null and trade.target != null}">
+                <div class="k">R:R Ratio</div>
+                <div class="v mono"
+                     th:with="risk=${trade.entryPrice.subtract(trade.stopLoss).abs()},
+                              reward=${trade.target.subtract(trade.entryPrice).abs()}"
+                     th:text="${risk.compareTo(T(java.math.BigDecimal).ZERO) > 0 ? '1 : ' + reward.divide(risk, 2, T(java.math.RoundingMode).HALF_UP) : '—'}">1 : 2.00</div>
+            </div>
+        </div>
+
+        <!-- Setup -->
+        <div class="jn-card">
+            <div class="jn-card-title">Setup</div>
+            <div class="jn-kv">
+                <div class="k">Timeframe</div>
+                <div class="v" th:text="${trade.timeframe}">5m</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.strategy != null}">
+                <div class="k">Strategy</div>
+                <div class="v" th:text="${trade.strategy}">ORB</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.marketCondition != null}">
+                <div class="k">Market Condition</div>
+                <div class="v" th:text="${trade.marketCondition}">Trending</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.emotionalState != null}">
+                <div class="k">Emotional State</div>
+                <div class="v" th:text="${trade.emotionalState}">Calm</div>
+            </div>
+        </div>
+
+        <!-- Meta -->
+        <div class="jn-card">
+            <div class="jn-card-title">Meta</div>
+            <div class="jn-kv">
+                <div class="k">Logged</div>
+                <div class="v" th:text="${#temporals.format(trade.createdAt, 'dd MMM yyyy HH:mm')}">01 Jan 2026</div>
+            </div>
+            <div class="jn-kv" th:if="${trade.updatedAt != null}">
+                <div class="k">Updated</div>
+                <div class="v" th:text="${#temporals.format(trade.updatedAt, 'dd MMM yyyy HH:mm')}">01 Jan 2026</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Indicators -->
+    <div class="jn-card full-width" th:if="${!#lists.isEmpty(indicatorList)}">
+        <div class="jn-card-title">Indicators Used</div>
+        <div class="jn-tags">
+            <span class="jn-tag" th:each="ind : ${indicatorList}" th:text="${ind}">RSI</span>
+        </div>
+    </div>
+
+    <!-- Reason for entry -->
+    <div class="jn-card full-width" th:if="${trade.reasonForEntry != null and !trade.reasonForEntry.isBlank()}">
+        <div class="jn-card-title">Reason for Entry</div>
+        <p class="jn-text" th:text="${trade.reasonForEntry}">Trade rationale here.</p>
+    </div>
+
+    <!-- Notes -->
+    <div class="jn-card full-width" th:if="${trade.notes != null and !trade.notes.isBlank()}">
+        <div class="jn-card-title">Post-Trade Notes &amp; Learnings</div>
+        <p class="jn-text" th:text="${trade.notes}">Notes here.</p>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

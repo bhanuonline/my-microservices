@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trade Journal — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/journal.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='journal')}"></div>
+<main class="app-main">
+
+    <!-- Header -->
+    <div class="jn-head">
+        <div>
+            <h1>Trade Journal</h1>
+            <p class="sub">Log every trade, review your patterns, improve your edge.</p>
+        </div>
+        <a th:href="@{/journal/new}" class="jn-btn jn-btn-primary">+ New Entry</a>
+    </div>
+
+    <!-- Flash message -->
+    <div th:if="${flash}" class="jn-flash" th:text="${flash}"></div>
+
+    <!-- Stats row -->
+    <div class="jn-stats">
+        <a th:href="@{/journal}" th:class="'jn-stat' + (${filterOutcome == null and filterSegment == null and filterQ == null} ? ' active-filter' : '')">
+            <div class="lbl">Total Trades</div>
+            <div class="val" th:text="${total}">0</div>
+        </a>
+        <a th:href="@{/journal(outcome='WIN')}" th:class="'jn-stat win' + (${filterOutcome == 'WIN'} ? ' active-filter' : '')">
+            <div class="lbl">Wins</div>
+            <div class="val" th:text="${wins}">0</div>
+        </a>
+        <a th:href="@{/journal(outcome='LOSS')}" th:class="'jn-stat loss' + (${filterOutcome == 'LOSS'} ? ' active-filter' : '')">
+            <div class="lbl">Losses</div>
+            <div class="val" th:text="${losses}">0</div>
+        </a>
+        <a th:href="@{/journal(outcome='OPEN')}" th:class="'jn-stat open' + (${filterOutcome == 'OPEN'} ? ' active-filter' : '')">
+            <div class="lbl">Open</div>
+            <div class="val" th:text="${opens}">0</div>
+        </a>
+        <div class="jn-stat wr">
+            <div class="lbl">Win Rate</div>
+            <div class="val" th:text="${winRate} + '%'">0%</div>
+        </div>
+        <div th:class="'jn-stat pnl' + (${totalPnl != null and totalPnl.compareTo(T(java.math.BigDecimal).ZERO) >= 0} ? ' pnl-pos' : ' pnl-neg')">
+            <div class="lbl">Total P&amp;L</div>
+            <div class="val mono" th:text="'₹' + ${totalPnl}">₹0.00</div>
+        </div>
+    </div>
+
+    <!-- Filter bar -->
+    <form th:action="@{/journal}" method="get" class="jn-filters">
+        <input type="text" name="q" placeholder="Search symbol…" th:value="${filterQ}"
+               class="jn-search">
+
+        <select name="outcome" class="jn-select" onchange="this.form.submit()">
+            <option value="">All outcomes</option>
+            <option value="WIN"       th:selected="${filterOutcome == 'WIN'}">WIN</option>
+            <option value="LOSS"      th:selected="${filterOutcome == 'LOSS'}">LOSS</option>
+            <option value="BREAKEVEN" th:selected="${filterOutcome == 'BREAKEVEN'}">BREAKEVEN</option>
+            <option value="OPEN"      th:selected="${filterOutcome == 'OPEN'}">OPEN</option>
+        </select>
+
+        <select name="segment" class="jn-select" onchange="this.form.submit()">
+            <option value="">All segments</option>
+            <option value="NSE" th:selected="${filterSegment == 'NSE'}">NSE</option>
+            <option value="BSE" th:selected="${filterSegment == 'BSE'}">BSE</option>
+            <option value="NFO" th:selected="${filterSegment == 'NFO'}">NFO</option>
+            <option value="BFO" th:selected="${filterSegment == 'BFO'}">BFO</option>
+            <option value="MCX" th:selected="${filterSegment == 'MCX'}">MCX</option>
+            <option value="CDS" th:selected="${filterSegment == 'CDS'}">CDS</option>
+        </select>
+
+        <button type="submit" class="jn-btn">Search</button>
+        <a th:href="@{/journal}" class="jn-btn jn-btn-ghost">Clear</a>
+    </form>
+
+    <!-- Empty state -->
+    <div th:if="${#lists.isEmpty(trades)}" class="jn-empty">
+        No trades found.
+        <a th:href="@{/journal/new}" class="jn-link">Log your first trade →</a>
+    </div>
+
+    <!-- Trade table -->
+    <div th:unless="${#lists.isEmpty(trades)}" class="jn-table-wrap">
+        <table class="jn-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Symbol</th>
+                    <th>Seg</th>
+                    <th>Type</th>
+                    <th>TF</th>
+                    <th class="num">Entry</th>
+                    <th class="num">Exit</th>
+                    <th class="num">Qty</th>
+                    <th class="num">P&amp;L</th>
+                    <th>Outcome</th>
+                    <th>Strategy</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="t : ${trades}"
+                    th:onclick="|window.location='@{/journal/__${t.id}__}'|"
+                    class="jn-row">
+                    <td class="mono" th:text="${#temporals.format(t.entryDateTime, 'dd MMM yy HH:mm')}">01 Jan 26</td>
+                    <td class="bold" th:text="${t.symbol}">NIFTY</td>
+                    <td><span class="jn-seg" th:text="${t.segment}">NSE</span></td>
+                    <td><span th:class="'jn-type ' + ${#strings.toLowerCase(t.tradeType)}" th:text="${t.tradeType}">BUY</span></td>
+                    <td class="muted" th:text="${t.timeframe}">5m</td>
+                    <td class="num mono" th:text="${t.entryPrice}">500</td>
+                    <td class="num mono" th:text="${t.exitPrice != null ? t.exitPrice : '—'}">510</td>
+                    <td class="num" th:text="${t.quantity}">100</td>
+                    <td class="num mono"
+                        th:if="${t.pnl != null}"
+                        th:class="'num mono ' + (${t.pnl.compareTo(T(java.math.BigDecimal).ZERO) >= 0} ? 'up' : 'dn')"
+                        th:text="'₹' + ${t.pnl}">₹1000</td>
+                    <td class="num muted" th:unless="${t.pnl != null}">—</td>
+                    <td><span th:class="'jn-outcome ' + ${#strings.toLowerCase(t.outcome)}" th:text="${t.outcome}">WIN</span></td>
+                    <td class="muted small" th:text="${t.strategy != null ? t.strategy : '—'}">ORB</td>
+                    <td class="actions" onclick="event.stopPropagation()">
+                        <a th:href="@{/journal/__${t.id}__/edit}" class="jn-act" title="Edit">✏️</a>
+                        <form th:action="@{/journal/__${t.id}__/delete}" method="post"
+                              onsubmit="return confirm('Delete this trade entry?')" style="display:inline">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                            <button type="submit" class="jn-act-del" title="Delete">🗑</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

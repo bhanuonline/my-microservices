@@ -53,6 +53,7 @@
         <module>study-projects/kite</module>
         <module>study-projects/algolia</module>
         -->
+        <module>study-projects/spring-core</module>
     </modules>
 
     <parent>
