@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>F&amp;O Screener — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/screener.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='screener')}"></div>
+<main class="app-main">
+
+    <!-- Header -->
+    <div class="sc-head">
+        <div>
+            <h1>F&amp;O Screener</h1>
+            <p class="sub">Daily candle scan — ADX, RSI, EMA200 trend alignment. Higher score = stronger setup.</p>
+        </div>
+        <div class="sc-head-right">
+            <span class="sc-scanned" th:text="'Scanned: ' + ${lastScanned}">Scanned: —</span>
+            <a th:href="@{/screener(refresh=true)}" class="sc-btn sc-btn-primary">↻ Re-scan</a>
+        </div>
+    </div>
+
+    <!-- Stale warning -->
+    <div th:if="${stale}" class="sc-stale">
+        Cache is older than 15 minutes. Click <b>Re-scan</b> to get fresh data.
+    </div>
+
+    <!-- Summary stats -->
+    <div class="sc-stats">
+        <div class="sc-stat ready">
+            <div class="lbl">Strong Setup</div>
+            <div class="val" th:text="${ready}">0</div>
+            <div class="hint">Score ≥ 4</div>
+        </div>
+        <div class="sc-stat decent">
+            <div class="lbl">Developing</div>
+            <div class="val" th:text="${decent}">0</div>
+            <div class="hint">Score = 3</div>
+        </div>
+        <div class="sc-stat weak">
+            <div class="lbl">Weak / Ranging</div>
+            <div class="val" th:text="${weak}">0</div>
+            <div class="hint">Score ≤ 2</div>
+        </div>
+        <div class="sc-stat err" th:if="${errors > 0}">
+            <div class="lbl">Data Errors</div>
+            <div class="val" th:text="${errors}">0</div>
+            <div class="hint">No data</div>
+        </div>
+    </div>
+
+    <!-- Score legend -->
+    <div class="sc-legend">
+        <span class="sc-dot pass"></span> ADX &gt; 25
+        <span class="sc-dot pass ml"></span> Close &gt; EMA200
+        <span class="sc-dot pass ml"></span> EMA50 &gt; EMA200
+        <span class="sc-dot pass ml"></span> RSI 40–65
+        <span class="sc-dot pass ml"></span> Open Signal
+        <span class="ml2">Each criterion = +1 point &nbsp;|&nbsp; Max score = 6</span>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${#lists.isEmpty(rows)}" class="sc-empty">
+        No instruments found. Add instruments via <a th:href="@{/admin/instruments}">Admin → Instruments</a>.
+    </div>
+
+    <!-- Main table -->
+    <div th:unless="${#lists.isEmpty(rows)}" class="sc-table-wrap">
+        <table class="sc-table">
+            <thead>
+                <tr>
+                    <th>Score</th>
+                    <th>Symbol</th>
+                    <th>Exch</th>
+                    <th>Trend</th>
+                    <th class="num">Last Close</th>
+                    <th class="num">EMA50</th>
+                    <th class="num">EMA200</th>
+                    <th class="num">RSI(14)</th>
+                    <th class="num">ADX(14)</th>
+                    <th class="num">ATR(14)</th>
+                    <th>Lot</th>
+                    <th>Criteria</th>
+                    <th>Signal</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="r : ${rows}"
+                    th:class="'sc-row' + (${r.error != null} ? ' sc-error-row' : '') +
+                                         (${r.score >= 4}    ? ' sc-highlight'  : '')">
+
+                    <!-- Score badge -->
+                    <td>
+                        <span th:if="${r.error == null}"
+                              th:class="'sc-score s' + ${r.score}"
+                              th:text="${r.score} + '/6'">4/6</span>
+                        <span th:if="${r.error != null}" class="sc-score s0">—</span>
+                    </td>
+
+                    <!-- Symbol -->
+                    <td class="bold" th:text="${r.symbol}">NIFTY</td>
+
+                    <!-- Exchange -->
+                    <td><span class="sc-exch" th:text="${r.exchange}">NSE</span></td>
+
+                    <!-- Trend bias -->
+                    <td>
+                        <span th:if="${r.error == null}"
+                              th:class="'sc-trend ' + ${#strings.toLowerCase(r.trendBias)}"
+                              th:text="${r.trendBias}">BULLISH</span>
+                        <span th:if="${r.error != null}" class="sc-trend neutral">—</span>
+                    </td>
+
+                    <!-- Price columns -->
+                    <td class="num mono" th:text="${r.lastClose != null ? r.lastClose : '—'}">500</td>
+                    <td class="num mono muted" th:text="${r.ema50   != null ? r.ema50   : '—'}">490</td>
+                    <td class="num mono muted" th:text="${r.ema200  != null ? r.ema200  : '—'}">450</td>
+
+                    <!-- RSI -->
+                    <td class="num mono"
+                        th:if="${r.rsi != null}"
+                        th:class="'num mono ' + (${r.rsiHealthy} ? 'pass-val' : 'warn-val')"
+                        th:text="${r.rsi}">55</td>
+                    <td class="num muted" th:unless="${r.rsi != null}">—</td>
+
+                    <!-- ADX -->
+                    <td class="num mono"
+                        th:if="${r.adx != null}"
+                        th:class="'num mono ' + (${r.adxStrong} ? 'pass-val' : 'muted')"
+                        th:text="${r.adx}">28</td>
+                    <td class="num muted" th:unless="${r.adx != null}">—</td>
+
+                    <!-- ATR -->
+                    <td class="num mono muted" th:text="${r.atr != null ? r.atr : '—'}">12</td>
+
+                    <!-- Lot size -->
+                    <td class="muted small" th:text="${r.lotSize}">75</td>
+
+                    <!-- Criteria dots -->
+                    <td class="sc-criteria">
+                        <span th:if="${r.error == null}">
+                            <span th:class="'sc-dot ' + (${r.adxStrong}   ? 'pass' : 'fail')" title="ADX > 25"></span>
+                            <span th:class="'sc-dot ' + (${r.aboveEma200} ? 'pass' : 'fail')" title="Close > EMA200"></span>
+                            <span th:class="'sc-dot ' + (${r.emaCross}    ? 'pass' : 'fail')" title="EMA50 > EMA200"></span>
+                            <span th:class="'sc-dot ' + (${r.rsiHealthy}  ? 'pass' : 'fail')" title="RSI 40-65"></span>
+                            <span th:class="'sc-dot ' + (${r.hasSignal}   ? 'pass' : 'fail')" title="Open signal"></span>
+                        </span>
+                        <span th:if="${r.error != null}" class="sc-err-msg" th:text="${r.error}">error</span>
+                    </td>
+
+                    <!-- Signal count -->
+                    <td>
+                        <span th:if="${r.openSignals > 0}" class="sc-sig-badge" th:text="${r.openSignals} + ' OPEN'">1 OPEN</span>
+                        <span th:if="${r.openSignals == 0}" class="muted small">—</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- How scoring works -->
+    <div class="sc-guide">
+        <div class="sc-guide-title">How to use this screener</div>
+        <div class="sc-guide-grid">
+            <div class="sc-guide-item">
+                <div class="sc-guide-label">Score 5–6</div>
+                <div class="sc-guide-desc">Strong setup. All trend filters aligned. Prioritise these for trade entry this week.</div>
+            </div>
+            <div class="sc-guide-item">
+                <div class="sc-guide-label">Score 3–4</div>
+                <div class="sc-guide-desc">Developing setup. Watch for entry trigger on lower timeframe (15m/1h breakout).</div>
+            </div>
+            <div class="sc-guide-item">
+                <div class="sc-guide-label">Score 0–2</div>
+                <div class="sc-guide-desc">Ranging or weak. Avoid directional trades. Options sellers may find theta plays here.</div>
+            </div>
+            <div class="sc-guide-item">
+                <div class="sc-guide-label">ATR value</div>
+                <div class="sc-guide-desc">Daily ATR = expected daily move. Use to set stop loss and check if risk is within your budget per lot.</div>
+            </div>
+        </div>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

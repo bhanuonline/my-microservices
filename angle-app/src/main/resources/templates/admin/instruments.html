@@ -30,6 +30,7 @@
                 ☀️ Light
             </button>
             <script>document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('themeBtn');if(b)b.textContent=document.documentElement.dataset.theme==='dark'?'🌙 Dark':'☀️ Light';});</script>
+            <button class="btn ghost" onclick="bulkSeedFo()" id="seedBtn">🌱 Seed 50 F&amp;O Stocks</button>
             <button class="btn primary" onclick="openAdd()">+ Add Instrument</button>
         </div>
     </div>
@@ -78,6 +79,11 @@
                             <button class="icon-btn" title="Edit"
                                     th:attr="onclick=|openEdit(${i.id})|">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button class="icon-btn" title="Backfill candles"
+                                    th:attr="onclick=|backfill('${i.symbolToken}', '${#strings.escapeJavaScript(i.symbol)}')|"
+                                    style="color:var(--primary)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                             </button>
                             <button class="icon-btn del" title="Delete"
                                     th:attr="onclick=|delRow(${i.id}, '${#strings.escapeJavaScript(i.symbol)}')|">
@@ -294,6 +300,41 @@ function hideAc() { $('ac').classList.remove('open'); }
 $('mBd').addEventListener('click', (e) => { if (e.target === $('mBd')) closeM(); });
 // ESC key
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeM(); });
+
+// ---------- Candle backfill (single stock) ----------
+async function backfill(token, symbol) {
+    if (!confirm('Backfill candle history for "' + symbol + '"?\nThis fetches the last 730 days of daily candles and 30 days of intraday candles from Angel One.')) return;
+    const r = await fetch('/jobs/run/' + token, {method:'POST'});
+    const d = await r.json();
+    if (r.status === 409) { toast('Job already running — go to Candle Jobs page', true); return; }
+    if (d.ok) toast('Backfill started for ' + symbol + ' (run #' + d.runId + ')');
+    else toast('Backfill failed: ' + (d.reason || 'unknown'), true);
+}
+
+// ---------- Bulk seed F&O ----------
+async function bulkSeedFo() {
+    if (!confirm('Seed the top 50 NSE F&O stocks?\n\nThis looks up each stock in the Angel scrip master and adds any that are not already in the DB.\n\nExisting instruments are NOT changed.')) return;
+    const btn = $('seedBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Seeding…';
+    try {
+        const r = await fetch('/admin/instruments/bulk-seed', { method: 'POST' });
+        const d = await r.json();
+        const msg =
+            `✅ Done!\n\n` +
+            `Added:     ${d.addedCount} stocks\n` +
+            `Skipped:   ${d.skippedCount} (already in DB)\n` +
+            `Not found: ${d.notFoundCount} (scrip master miss)\n\n` +
+            (d.notFound && d.notFound.length ? `Not found in scrip master: ${d.notFound.join(', ')}` : '');
+        alert(msg);
+        if (d.addedCount > 0) location.reload();
+    } catch (e) {
+        alert('❌ Bulk seed failed: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🌱 Seed 50 F&O Stocks';
+    }
+}
 </script>
 
 </main>

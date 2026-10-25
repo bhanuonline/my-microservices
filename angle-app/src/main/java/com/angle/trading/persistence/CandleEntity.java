@@ -35,7 +35,9 @@ import java.time.Instant;
                 columnNames = {"broker", "exchange", "symbol_token", "interval_type", "ts"}
         ),
         indexes = {
-                @Index(name = "idx_lookup", columnList = "symbol_token,interval_type,ts"),
+                // Covering index — includes close so screener reads don't hit the table row.
+                // (symbol_token, interval_type, ts) is the range filter; close avoids extra lookup.
+                @Index(name = "idx_lookup",   columnList = "symbol_token,interval_type,ts,close"),
                 @Index(name = "idx_saved_at", columnList = "saved_at")
         }
 )
@@ -52,7 +54,7 @@ public class CandleEntity {
     private String broker;               // ANGEL
 
     @Column(nullable = false, length = 8)
-    private String exchange;             // NSE / MCX / NFO ...
+    private String exchange;             // NSE / MCX / NFO / CDS
 
     @Column(name = "symbol_token", nullable = false, length = 32)
     private String symbolToken;
@@ -61,7 +63,7 @@ public class CandleEntity {
     private String intervalType;         // FIVE_MINUTE / ONE_DAY ...
 
     @Column(nullable = false)
-    private Instant ts;                  // candle timestamp
+    private Instant ts;                  // candle open time (UTC)
 
     @Column(nullable = false, precision = 15, scale = 4)
     private BigDecimal open;
@@ -78,11 +80,24 @@ public class CandleEntity {
     @Column(nullable = false)
     private long volume;
 
+    // Denormalised display name (e.g. "Nifty 50") — populated from bias_instrument
+    // at save time so candles are identifiable without a JOIN if bias_instrument is
+    // later modified or cleaned up.
+    @Column(length = 64)
+    private String symbol;
+
+    // Open interest — populated only for NFO/MCX futures contracts.
+    // NULL for NSE equity, index candles, and any instrument where OI is not
+    // available from the Angel One historical API response.
+    @Column(name = "open_interest")
+    private Long openInterest;
+
     @Column(name = "saved_at", nullable = false)
     private Instant savedAt;
 
     public CandleEntity(String broker, String exchange, String symbolToken, String intervalType,
-                        Instant ts, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, long volume) {
+                        Instant ts, BigDecimal open, BigDecimal high, BigDecimal low,
+                        BigDecimal close, long volume, String symbol, Long openInterest) {
         this.broker = broker;
         this.exchange = exchange;
         this.symbolToken = symbolToken;
@@ -93,6 +108,8 @@ public class CandleEntity {
         this.low = low;
         this.close = close;
         this.volume = volume;
+        this.symbol = symbol;
+        this.openInterest = openInterest;
         this.savedAt = Instant.now();
     }
 }

@@ -18,9 +18,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Admin UI + REST API for managing tracked instruments.
@@ -86,6 +89,108 @@ public class InstrumentAdminController {
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("id", id, "deleted", true);
+    }
+
+    /**
+     * Bulk-seed the top 50 NSE F&O stocks.
+     *
+     * For each ticker in the hardcoded list, looks up "{TICKER}-EQ" in the
+     * Angel scrip master (NSE cash equity segment). Skips any that are already
+     * in the DB (by token). Returns a summary: added / skipped / not_found.
+     */
+    @PostMapping("/bulk-seed")
+    @ResponseBody
+    public Map<String, Object> bulkSeed() {
+        // Top-50 F&O universe — NSE tickers (Angel symbol = "{TICKER}-EQ")
+        List<String> tickers = List.of(
+                "NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY",
+                "RELIANCE", "HDFCBANK", "INFY", "TCS", "ICICIBANK",
+                "KOTAKBANK", "SBIN", "AXISBANK", "BAJFINANCE", "WIPRO",
+                "HCLTECH", "TATAMOTORS", "MARUTI", "SUNPHARMA", "HINDUNILVR",
+                "ITC", "TITAN", "ADANIENT", "BAJAJFINSV", "DIVISLAB",
+                "DRREDDY", "CIPLA", "EICHERMOT", "HEROMOTOCO", "NESTLEIND",
+                "POWERGRID", "NTPC", "COALINDIA", "ONGC", "BPCL",
+                "INDUSINDBK", "FEDERALBNK", "PNB", "BANKBARODA", "CANBK",
+                "TATASTEEL", "JSWSTEEL", "HINDALCO", "SAIL", "VEDL",
+                "ULTRACEMCO", "GRASIM", "ASIANPAINT", "PIDILITIND",
+                "APOLLOHOSP", "TATACONSUM"
+        );
+
+        // Existing tokens to skip duplicates
+        Set<String> existingTokens = service.listAll().stream()
+                .map(BiasInstrumentEntity::getSymbolToken)
+                .collect(Collectors.toSet());
+
+        List<String> added    = new ArrayList<>();
+        List<String> skipped  = new ArrayList<>();
+        List<String> notFound = new ArrayList<>();
+
+        int priority = service.listAll().stream()
+                .mapToInt(BiasInstrumentEntity::getPriority).max().orElse(0) + 10;
+
+        for (String ticker : tickers) {
+            // Indices are listed directly (e.g. "NIFTY"), equities as "TICKER-EQ"
+            boolean isIndex = List.of("NIFTY","BANKNIFTY","FINNIFTY","MIDCPNIFTY").contains(ticker);
+
+            String lookupSymbol = isIndex ? ticker : (ticker + "-EQ");
+            var opt = masterService.findBySymbol(lookupSymbol);
+
+            // Fallback: name search for the first NSE EQ match
+            if (opt.isEmpty()) {
+                opt = masterService.searchByNameOrSymbol(ticker, 20).stream()
+                        .filter(i -> "NSE".equalsIgnoreCase(i.exchSeg())
+                                  && (isIndex || "EQ".equalsIgnoreCase(i.instrumentType())))
+                        .findFirst();
+            }
+
+            if (opt.isEmpty()) {
+                log.warn("bulkSeed: '{}' not found in scrip master", ticker);
+                notFound.add(ticker);
+                continue;
+            }
+
+            Instrument instr = opt.get();
+            if (existingTokens.contains(instr.token())) {
+                skipped.add(ticker);
+                continue;
+            }
+
+            // Determine exchange
+            String exchange = "NSE";
+            if (instr.exchSeg() != null && !instr.exchSeg().isBlank()) {
+                exchange = instr.exchSeg().toUpperCase();
+            }
+
+            BiasInstrumentEntity entity = new BiasInstrumentEntity();
+            entity.setSymbol(instr.name() != null ? instr.name() : ticker);
+            entity.setBroker("ANGEL");
+            entity.setExchange(exchange);
+            entity.setSymbolToken(instr.token());
+            entity.setIntervalType("FIVE_MINUTE");
+            entity.setEnabled(true);
+            entity.setPriority(priority);
+            entity.setLotSize(instr.lotSizeInt());
+
+            try {
+                service.create(entity);
+                added.add(ticker);
+                existingTokens.add(instr.token());
+                priority += 10;
+            } catch (Exception e) {
+                log.warn("bulkSeed: failed to save '{}' — {}", ticker, e.getMessage());
+                skipped.add(ticker + " (save error)");
+            }
+        }
+
+        log.info("bulkSeed: added={} skipped={} notFound={}", added.size(), skipped.size(), notFound.size());
+        return Map.of(
+                "added",    added,
+                "skipped",  skipped,
+                "notFound", notFound,
+                "addedCount",    added.size(),
+                "skippedCount",  skipped.size(),
+                "notFoundCount", notFound.size()
+        );
     }
 
     /**

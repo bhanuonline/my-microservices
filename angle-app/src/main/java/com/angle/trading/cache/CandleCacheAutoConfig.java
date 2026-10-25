@@ -8,6 +8,7 @@ import com.angle.trading.cache.impl.MysqlCandleStore;
 import com.angle.trading.cache.impl.NoopCandleCache;
 import com.angle.trading.cache.impl.NoopCandleStore;
 import com.angle.trading.cache.impl.RedisCandleCache;
+import com.angle.trading.persistence.BiasInstrumentRepository;
 import com.angle.trading.persistence.CandleRepository;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -133,7 +134,8 @@ public class CandleCacheAutoConfig {
      * provider actually persists, Noop otherwise. Simplifies consumer wiring.
      */
     @Bean
-    public CandleStore candleStore(java.util.Optional<CandleRepository> repo) {
+    public CandleStore candleStore(java.util.Optional<CandleRepository> repo,
+                                   java.util.Optional<BiasInstrumentRepository> instrumentRepo) {
         String p = properties.getProvider();
         boolean needsMysql = "mysql".equalsIgnoreCase(p)
                 || "layered3".equalsIgnoreCase(p)
@@ -142,6 +144,7 @@ public class CandleCacheAutoConfig {
         if (repo.isPresent() && needsMysql) {
             return new MysqlCandleStore(
                     repo.get(),
+                    instrumentRepo.orElse(null),
                     properties.getMysql().getAsyncPoolSize(),
                     properties.getMysql().getBatchSize());
         }

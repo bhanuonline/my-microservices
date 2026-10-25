@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Candle Jobs — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/jobs.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='jobs')}"></div>
+<main class="app-main">
+
+    <!-- Header -->
+    <div class="jb-head">
+        <div>
+            <h1>Candle History Jobs</h1>
+            <p class="sub">Backfill, monitor and retry candle data saves across all instruments.</p>
+        </div>
+    </div>
+
+    <!-- Status card -->
+    <div class="jb-status-card" id="statusCard">
+        <div class="jb-status-row">
+            <span class="jb-dot idle" id="statusDot"></span>
+            <span class="jb-status-label" id="statusLabel">IDLE</span>
+            <span class="jb-status-meta" id="statusMeta"></span>
+            <span class="spacer"></span>
+            <button class="jb-btn jb-btn-danger" id="cancelBtn" style="display:none" onclick="cancelJob()">■ Cancel</button>
+        </div>
+        <!-- Progress bar (shown when running) -->
+        <div id="progressWrap" style="display:none; margin-top:14px">
+            <div class="jb-progress-track">
+                <div class="jb-progress-bar" id="progressBar" style="width:0%"></div>
+            </div>
+            <div class="jb-progress-info">
+                <span id="progressText">0/0</span>
+                <span id="progressStock" class="muted"></span>
+                <span id="progressSaved" class="muted"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trigger buttons -->
+    <div class="jb-triggers">
+        <div class="jb-trigger-group">
+            <div class="jb-section-title">Run All Instruments</div>
+            <div class="jb-btn-row">
+                <button class="jb-btn jb-btn-primary" onclick="runJob('ALL')">▶ All Intervals</button>
+                <button class="jb-btn" onclick="runJob('1D')">▶ Daily (1D)</button>
+                <button class="jb-btn" onclick="runJob('INTRADAY')">▶ Intraday (5m/15m/1h)</button>
+            </div>
+        </div>
+
+        <div class="jb-trigger-group">
+            <div class="jb-section-title">Run Single Stock</div>
+            <div class="jb-single-row">
+                <select id="singleToken" class="jb-select">
+                    <option value="">Select stock…</option>
+                    <option th:each="i : ${instruments}"
+                            th:value="${i.symbolToken}"
+                            th:text="${i.symbol} + ' (' + ${i.exchange} + ')'">NIFTY (NSE)</option>
+                </select>
+                <select id="singleInterval" class="jb-select">
+                    <option value="ALL">All intervals</option>
+                    <option value="1D">Daily (1D)</option>
+                    <option value="INTRADAY">Intraday (5m/15m/1h)</option>
+                    <option value="5M">5 Min</option>
+                    <option value="15M">15 Min</option>
+                    <option value="1H">1 Hour</option>
+                </select>
+                <input type="number" id="singleLookback" class="jb-input" placeholder="Lookback days" value="730" style="width:120px">
+                <button class="jb-btn jb-btn-primary" onclick="runSingle()">▶ Run</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run history table -->
+    <div class="jb-section-title" style="margin-top:28px">Run History</div>
+    <div th:if="${#lists.isEmpty(history)}" class="jb-empty">
+        No runs yet. Click a button above to start the first backfill.
+    </div>
+
+    <div th:unless="${#lists.isEmpty(history)}" class="jb-table-wrap">
+        <table class="jb-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Trigger</th>
+                    <th>Job</th>
+                    <th>Stock</th>
+                    <th>Started</th>
+                    <th class="num">Duration</th>
+                    <th class="num">Stocks</th>
+                    <th class="num">Saved</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="r : ${history}" class="jb-row">
+                    <td class="mono muted" th:text="${r.id}">1</td>
+                    <td><span class="jb-trigger" th:text="${r.triggerType}">MANUAL</span></td>
+                    <td class="muted" th:text="${r.jobName}">ALL</td>
+                    <td class="muted small" th:text="${r.targetToken != null ? r.targetToken : '—'}">—</td>
+                    <td class="mono small" th:text="${#temporals.format(r.startedAt, 'dd MMM HH:mm')}">25 Oct 09:00</td>
+                    <td class="num mono small"
+                        th:text="${r.endedAt != null ?
+                            (T(java.time.temporal.ChronoUnit).SECONDS.between(r.startedAt, r.endedAt) / 60) + 'm ' +
+                            (T(java.time.temporal.ChronoUnit).SECONDS.between(r.startedAt, r.endedAt) % 60) + 's' : '…'}">
+                        2m 34s</td>
+                    <td class="num" th:text="${r.doneCount} + '/' + ${r.totalCount}">50/50</td>
+                    <td class="num mono" th:text="${r.totalSaved}">4821</td>
+                    <td>
+                        <span th:class="'jb-status-badge ' + ${#strings.toLowerCase(r.status)}"
+                              th:text="${r.status}">COMPLETED</span>
+                        <span th:if="${r.failedCount > 0}" class="jb-failed-badge"
+                              th:text="${r.failedCount} + 'F'">2F</span>
+                    </td>
+                    <td>
+                        <button th:if="${r.failedCount > 0 or r.status == 'CANCELLED'}"
+                                class="jb-btn jb-btn-small"
+                                th:onclick="'retryRun(' + ${r.id} + ')'">↻ Retry</button>
+                        <button class="jb-btn jb-btn-small jb-btn-ghost"
+                                th:onclick="'showDetail(' + ${r.id} + ')'">Detail</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Detail modal -->
+    <div id="detailModal" class="jb-modal-backdrop" style="display:none" onclick="if(event.target===this)closeDetail()">
+        <div class="jb-modal">
+            <div class="jb-modal-head">
+                <span id="detailTitle">Run Detail</span>
+                <button class="jb-btn jb-btn-ghost" onclick="closeDetail()">✕</button>
+            </div>
+            <div class="jb-modal-body" id="detailBody">Loading…</div>
+        </div>
+    </div>
+
+</main>
+</div>
+
+<script>
+// CSRF token from meta tag (set by Thymeleaf)
+const csrfToken  = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+
+function postFetch(url) {
+    return fetch(url, { method:'POST', headers: { [csrfHeader]: csrfToken } });
+}
+
+// ── Job trigger ────────────────────────────────────────────────────
+async function runJob(interval) {
+    const r = await postFetch('/jobs/run?interval=' + interval);
+    const d = await r.json();
+    if (r.status === 409) { alert('Job already running. Wait for it to finish or cancel it.'); return; }
+    if (d.ok) startPolling();
+    else alert('Error: ' + (d.reason || 'Unknown'));
+}
+
+async function runSingle() {
+    const token    = document.getElementById('singleToken').value;
+    const interval = document.getElementById('singleInterval').value;
+    const lookback = document.getElementById('singleLookback').value;
+    if (!token) { alert('Select a stock first.'); return; }
+    const url = '/jobs/run/' + token + '?interval=' + interval + '&lookbackDays=' + lookback;
+    const r = await postFetch(url);
+    const d = await r.json();
+    if (r.status === 409) { alert('Job already running.'); return; }
+    if (d.ok) startPolling();
+    else alert('Error: ' + (d.reason || 'Unknown'));
+}
+
+async function cancelJob() {
+    await postFetch('/jobs/cancel');
+}
+
+async function retryRun(runId) {
+    const r = await postFetch('/jobs/retry/' + runId);
+    const d = await r.json();
+    if (r.status === 409) { alert('Job already running.'); return; }
+    if (d.ok) startPolling();
+    else alert(d.reason || 'Nothing to retry');
+}
+
+// ── Detail modal ───────────────────────────────────────────────────
+async function showDetail(runId) {
+    document.getElementById('detailTitle').textContent = 'Run #' + runId + ' — Instrument Detail';
+    document.getElementById('detailModal').style.display = 'flex';
+    document.getElementById('detailBody').innerHTML = 'Loading…';
+    const rows = await fetch('/jobs/history/' + runId + '/detail').then(r => r.json());
+    if (!rows.length) { document.getElementById('detailBody').innerHTML = 'No detail records.'; return; }
+    let html = '<table class="jb-table"><thead><tr><th>Symbol</th><th>Token</th><th>Status</th><th class="num">Saved</th><th class="num">Duration</th><th>Error</th></tr></thead><tbody>';
+    rows.forEach(r => {
+        const cls = r.status === 'DONE' ? 'completed' : r.status === 'FAILED' ? 'failed' : 'cancelled';
+        html += `<tr><td>${r.symbol||'—'}</td><td class="mono small">${r.symbolToken}</td>
+                 <td><span class="jb-status-badge ${cls.toLowerCase()}">${r.status}</span></td>
+                 <td class="num">${r.candlesSaved}</td>
+                 <td class="num mono small">${r.durationMs ? (r.durationMs/1000).toFixed(1)+'s' : '—'}</td>
+                 <td class="small muted">${r.errorMsg||''}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('detailBody').innerHTML = html;
+}
+
+function closeDetail() { document.getElementById('detailModal').style.display = 'none'; }
+
+// ── Live polling ───────────────────────────────────────────────────
+let pollTimer;
+
+function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(pollStatus, 3000);
+    pollStatus();
+}
+
+async function pollStatus() {
+    const s = await fetch('/jobs/status').then(r => r.json());
+    updateStatusUI(s);
+    if (s.status !== 'RUNNING') {
+        clearInterval(pollTimer);
+        if (s.status !== 'IDLE') location.reload();   // refresh history table
+    }
+}
+
+function updateStatusUI(s) {
+    const dot    = document.getElementById('statusDot');
+    const label  = document.getElementById('statusLabel');
+    const meta   = document.getElementById('statusMeta');
+    const cancel = document.getElementById('cancelBtn');
+    const wrap   = document.getElementById('progressWrap');
+
+    dot.className   = 'jb-dot ' + (s.status||'idle').toLowerCase();
+    label.textContent = s.status || 'IDLE';
+
+    if (s.status === 'RUNNING') {
+        meta.textContent   = 'Started ' + new Date(s.startedAt).toLocaleTimeString() + ' · ' + s.elapsedSec + 's elapsed';
+        cancel.style.display = 'inline-flex';
+        wrap.style.display   = 'block';
+        const pct = s.pctComplete || 0;
+        document.getElementById('progressBar').style.width  = pct + '%';
+        document.getElementById('progressText').textContent = s.doneCount + '/' + s.totalCount + ' (' + pct + '%)';
+        document.getElementById('progressStock').textContent = s.currentStock ? '· ' + s.currentStock : '';
+        document.getElementById('progressSaved').textContent = '· ' + s.candlesSaved + ' candles saved';
+    } else {
+        cancel.style.display = 'none';
+        wrap.style.display   = 'none';
+        meta.textContent = s.runId ? 'Last run #' + s.runId : '';
+    }
+}
+
+// Auto-start polling if job is already running when page loads
+window.addEventListener('DOMContentLoaded', () => {
+    fetch('/jobs/status').then(r => r.json()).then(s => {
+        updateStatusUI(s);
+        if (s.status === 'RUNNING') startPolling();
+    });
+});
+</script>
+
+</body>
+</html>

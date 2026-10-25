@@ -2,6 +2,7 @@ package com.angle.trading.cache.impl;
 
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.cache.CandleStore;
+import com.angle.trading.persistence.BiasInstrumentRepository;
 import com.angle.trading.persistence.CandleEntity;
 import com.angle.trading.persistence.CandleRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -37,13 +38,16 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class MysqlCandleStore implements CandleStore {
 
-    private final CandleRepository repo;
-    private final ExecutorService writer;
-    private final int batchSize;
+    private final CandleRepository         repo;
+    private final BiasInstrumentRepository  instrumentRepo;
+    private final ExecutorService           writer;
+    private final int                       batchSize;
 
-    public MysqlCandleStore(CandleRepository repo, int asyncPoolSize, int batchSize) {
-        this.repo = repo;
-        this.batchSize = batchSize;
+    public MysqlCandleStore(CandleRepository repo, BiasInstrumentRepository instrumentRepo,
+                             int asyncPoolSize, int batchSize) {
+        this.repo           = repo;
+        this.instrumentRepo = instrumentRepo;
+        this.batchSize      = batchSize;
         this.writer = Executors.newFixedThreadPool(
                 Math.max(1, asyncPoolSize),
                 r -> {
@@ -97,17 +101,29 @@ public class MysqlCandleStore implements CandleStore {
                                 String intervalType, List<Candle> candles) {
         int saved = 0;
         try {
+            // Resolve display name once per batch — one DB read, shared across all rows.
+            // NULL when instrumentRepo is unavailable or token not in bias_instrument.
+            String symbol = (instrumentRepo != null)
+                    ? instrumentRepo.findBySymbolToken(symbolToken)
+                            .map(com.angle.trading.persistence.BiasInstrumentEntity::getSymbol)
+                            .orElse(null)
+                    : null;
+
             List<CandleEntity> batch = new ArrayList<>(batchSize);
             for (Candle c : candles) {
+                // open_interest: Angel One historical API does not return OI —
+                // kept NULL here; will be populated once a dedicated OI endpoint is wired.
                 batch.add(new CandleEntity(broker, exchange, symbolToken, intervalType,
-                        c.timestamp(), c.open(), c.high(), c.low(), c.close(), c.volume()));
+                        c.timestamp(), c.open(), c.high(), c.low(), c.close(), c.volume(),
+                        symbol, null));
                 if (batch.size() >= batchSize) {
                     saved += flushSafely(batch);
                     batch.clear();
                 }
             }
             if (!batch.isEmpty()) saved += flushSafely(batch);
-            log.debug("MySQL saved {} / {} candles for {}:{}", saved, candles.size(), symbolToken, intervalType);
+            log.debug("MySQL saved {} / {} candles for {}:{} symbol={}",
+                    saved, candles.size(), symbolToken, intervalType, symbol);
         } catch (Exception e) {
             log.warn("MySQL saveAsync failed for {}:{}: {}", symbolToken, intervalType, e.getMessage());
         }
