@@ -10,6 +10,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -112,8 +113,20 @@ public class CandleJobController {
 
     @GetMapping("/jobs/status")
     @ResponseBody
-    public CandleJobService.JobStatus status() {
-        return service.status();
+    public Map<String, Object> status() {
+        CandleJobService.JobStatus s = service.status();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("status",       s.status());
+        m.put("runId",        s.runId());
+        m.put("startedAt",    s.startedAt());
+        m.put("totalCount",   s.totalCount());
+        m.put("doneCount",    s.doneCount());
+        m.put("failedCount",  s.failedCount());
+        m.put("candlesSaved", s.candlesSaved());
+        m.put("currentStock", s.currentStock());
+        m.put("pctComplete",  s.pctComplete());   // computed — not in record components
+        m.put("elapsedSec",   s.elapsedSec());    // computed — not in record components
+        return m;
     }
 
     @GetMapping("/jobs/history")

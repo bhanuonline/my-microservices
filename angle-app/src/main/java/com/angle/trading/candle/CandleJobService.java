@@ -85,6 +85,7 @@ public class CandleJobService {
     private volatile String     jobStatus    = "IDLE";
 
     private ExecutorService threadPool;
+    private ExecutorService jobExecutor;   // single-thread — one job at a time
     private Semaphore       angelSemaphore;
 
     @PostConstruct
@@ -92,6 +93,8 @@ public class CandleJobService {
         // Only initialise non-DB resources here — @PostConstruct has no transaction
         threadPool     = Executors.newFixedThreadPool(props.getThreadPoolSize(),
                 r -> new Thread(r, "candle-job-worker"));
+        jobExecutor    = Executors.newSingleThreadExecutor(
+                r -> new Thread(r, "candle-job-runner"));
         angelSemaphore = new Semaphore(props.getMaxConcurrentCalls());
         log.info("CandleJobService init — threadPool={}, semaphore={}",
                 props.getThreadPoolSize(), props.getMaxConcurrentCalls());
@@ -198,7 +201,8 @@ public class CandleJobService {
                          String triggerType, String triggeredBy, String targetToken,
                          String intervalFilter, Integer lookbackOverride,
                          LocalDate fromOverride, LocalDate toOverride) {
-        // Reset progress counters
+
+        // ── 1. Reset in-memory progress counters ──────────────────────
         doneCount.set(0);
         failedCount.set(0);
         candlesSaved.set(0);
@@ -207,7 +211,7 @@ public class CandleJobService {
         jobStartedAt = Instant.now();
         jobStatus    = "RUNNING";
 
-        // Persist run record
+        // ── 2. Persist run record NOW so caller gets the ID immediately ─
         CandleJobRunEntity run = new CandleJobRunEntity();
         run.setJobName(targetToken != null ? "SINGLE" : triggerType);
         run.setTriggerType(triggerType);
@@ -219,12 +223,33 @@ public class CandleJobService {
         run.setIntervalType(intervalFilter);
         run.setLookbackDays(lookbackOverride);
         run.setThreadCount(props.getThreadPoolSize());
+        // Store the candle date range in the summary record
+        LocalDate toDate   = toOverride   != null ? toOverride   : LocalDate.now(IST);
+        LocalDate fromDate = fromOverride != null ? fromOverride
+                : toDate.minusDays(lookbackOverride != null ? lookbackOverride
+                        : (intervalFilter != null && intervalFilter.equalsIgnoreCase("1D")
+                                ? props.getDailyLookbackDays() : props.getIntradayLookbackDays()));
+        run.setCandleFrom(fromDate);
+        run.setCandleTo(toDate);
         run = runRepo.save(run);
         currentRunId = run.getId();
-        final long runId = run.getId();
+        final long runId    = run.getId();
+        final CandleJobRunEntity savedRun = run;
 
-        log.info("CandleJob[{}] started — trigger={} instruments={} interval={} lookback={}",
+        log.info("CandleJob[{}] queued — trigger={} instruments={} interval={} lookback={}",
                 runId, triggerType, instruments.size(), intervalFilter, lookbackOverride);
+
+        // ── 3. Run actual work on background thread — HTTP returns immediately ─
+        jobExecutor.submit(() -> doRun(savedRun, instruments, intervalFilter,
+                lookbackOverride, fromOverride, toOverride));
+
+        return runId;   // caller gets ID instantly, job running in background
+    }
+
+    private void doRun(CandleJobRunEntity run,
+                       List<BiasInstrumentEntity> instruments,
+                       String intervalFilter, Integer lookbackOverride,
+                       LocalDate fromOverride, LocalDate toOverride) {
 
         // Determine intervals to fetch
         List<Interval> intervals = resolveIntervals(intervalFilter);
@@ -233,19 +258,18 @@ public class CandleJobService {
             // Main loop — sequential, cancel check between instruments
             for (BiasInstrumentEntity instr : instruments) {
                 if (cancelled.get()) {
-                    log.info("CandleJob[{}] cancelled at {}/{}", runId, doneCount.get(), totalCount);
+                    log.info("CandleJob[{}] cancelled at {}/{}", run.getId(), doneCount.get(), totalCount);
                     // Write SKIPPED detail rows for remaining instruments
-                    saveDetailSkipped(runId, instruments, instr);
+                    saveDetailSkipped(run.getId(), instruments, instr);
                     break;
                 }
                 currentStock = instr.getSymbol();
-                processInstrument(runId, instr, intervals, lookbackOverride,
+                processInstrument(run.getId(), instr, intervals, lookbackOverride,
                         fromOverride, toOverride);
             }
         } finally {
             finalise(run);
         }
-        return runId;
     }
 
     private void processInstrument(long runId, BiasInstrumentEntity instr,
@@ -281,8 +305,14 @@ public class CandleJobService {
             log.warn("CandleJob error for {}: {}", instr.getSymbol(), errorMsg);
         }
 
+        // Compute actual candle date range used for this instrument
+        LocalDate toDate   = toOverride   != null ? toOverride   : LocalDate.now(IST);
+        LocalDate fromDate = fromOverride != null ? fromOverride
+                : toDate.minusDays(lookbackOverride != null ? lookbackOverride
+                        : props.getDailyLookbackDays());
+
         // Write detail row
-        saveDetail(runId, instr, detailStatus, savedForInstr, errorMsg, instrStart);
+        saveDetail(runId, instr, detailStatus, savedForInstr, errorMsg, instrStart, fromDate, toDate);
     }
 
     private int fetchAllIntervals(BiasInstrumentEntity instr, List<Interval> intervals,
@@ -346,17 +376,11 @@ public class CandleJobService {
         try {
             Thread.sleep(props.getApiDelayMs());
 
-            if (interval == Interval.ONE_DAY) {
-                // 1D: time window doesn't matter — pass full day
-                return marketDataService.getCandles(
-                        instr.getBroker(), exchange, instr.getSymbolToken(), interval, from, to);
-            } else {
-                // Intraday: use correct trading hours per exchange
-                LocalTime[] hours = TRADING_HOURS.getOrDefault(
-                        instr.getExchange(), TRADING_HOURS.get("NSE"));
-                return angelClient.getCandlesInRange(exchange, instr.getSymbolToken(), interval,
-                        from.atTime(hours[0]), to.atTime(hours[1]));
-            }
+            // All intervals use marketDataService → gap-fill (MySQL → Angel only if missing).
+            // This prevents re-fetching from Angel when data is already saved in MySQL.
+            // MCX/CDS trading hours are handled by the broker client internally.
+            return marketDataService.getCandles(
+                    instr.getBroker(), exchange, instr.getSymbolToken(), interval, from, to);
         } finally {
             angelSemaphore.release();
         }
@@ -410,7 +434,8 @@ public class CandleJobService {
     }
 
     private void saveDetail(long runId, BiasInstrumentEntity instr,
-                            String status, int saved, String errorMsg, Instant startedAt) {
+                            String status, int saved, String errorMsg,
+                            Instant startedAt, LocalDate candleFrom, LocalDate candleTo) {
         CandleJobRunDetailEntity d = new CandleJobRunDetailEntity();
         d.setRunId(runId);
         d.setSymbolToken(instr.getSymbolToken());
@@ -421,6 +446,8 @@ public class CandleJobService {
         d.setStartedAt(startedAt);
         d.setEndedAt(Instant.now());
         d.setDurationMs((int) ChronoUnit.MILLIS.between(startedAt, d.getEndedAt()));
+        d.setCandleFrom(candleFrom);
+        d.setCandleTo(candleTo);
         detailRepo.save(d);
     }
 

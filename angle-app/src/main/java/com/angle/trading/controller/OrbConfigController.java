@@ -54,6 +54,7 @@ public class OrbConfigController {
                 case "combinationMode" -> settings.setCombinationMode(OrbSettings.CombinationMode.valueOf(value));
                 case "slMultiplier"   -> settings.setSlMultiplier(new BigDecimal(value));
                 case "tgtMultiplier"  -> settings.setTgtMultiplier(new BigDecimal(value));
+                case "enabled"        -> settings.setEnabled(Boolean.parseBoolean(value));
                 default -> throw new IllegalArgumentException("Unknown key: " + key);
             }
             log.info("ORB config updated: {} = {}", key, value);
@@ -91,6 +92,7 @@ public class OrbConfigController {
 
     private Map<String, Object> current() {
         return Map.of(
+                "enabled",          settings.isEnabled(),
                 "orbCadence",       settings.getOrbCadence().name(),
                 "adxCadence",       settings.getAdxCadence().name(),
                 "adxThreshold",     settings.getAdxThreshold().toPlainString(),

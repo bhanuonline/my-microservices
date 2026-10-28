@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <div th:replace="~{fragments/theme-head :: themeHead}"></div>
     <link rel="stylesheet" th:href="@{/css/app-shell.css}">
     <link rel="stylesheet" th:href="@{/css/admin-instruments.css}">
@@ -173,6 +175,12 @@
 const $ = (id) => document.getElementById(id);
 const API = '/admin/instruments';
 
+// CSRF helpers — read token from meta tags injected by Thymeleaf
+const csrfToken  = () => document.querySelector('meta[name="_csrf"]')?.content || '';
+const csrfHeader = () => document.querySelector('meta[name="_csrf_header"]')?.content || 'X-CSRF-TOKEN';
+const csrfHeaders = () => ({ [csrfHeader()]: csrfToken() });
+const jsonHeaders = () => ({ 'Content-Type': 'application/json', [csrfHeader()]: csrfToken() });
+
 function toast(msg, error = false) {
     const t = $('toast');
     t.textContent = msg;
@@ -186,7 +194,7 @@ async function toggle(cb) {
     const id = cb.dataset.id;
     const enabled = cb.checked;
     try {
-        const r = await fetch(`${API}/${id}/toggle?enabled=${enabled}`, {method:'PUT'});
+        const r = await fetch(`${API}/${id}/toggle?enabled=${enabled}`, {method:'PUT', headers:csrfHeaders()});
         if (!r.ok) throw new Error('Toggle failed');
         toast(enabled ? 'Enabled' : 'Disabled');
     } catch (e) {
@@ -197,7 +205,7 @@ async function toggle(cb) {
 
 async function delRow(id, symbol) {
     if (!confirm(`Delete "${symbol}"?`)) return;
-    const r = await fetch(`${API}/${id}`, {method:'DELETE'});
+    const r = await fetch(`${API}/${id}`, {method:'DELETE', headers:csrfHeaders()});
     if (r.ok) { toast('Deleted'); setTimeout(()=>location.reload(), 400); }
     else toast('Delete failed', true);
 }
@@ -249,7 +257,7 @@ async function save(e) {
     };
     const url = id ? `${API}/${id}` : API;
     const method = id ? 'PUT' : 'POST';
-    const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const r = await fetch(url, {method, headers:jsonHeaders(), body:JSON.stringify(body)});
     if (r.ok) { toast(id ? 'Updated' : 'Created'); setTimeout(()=>location.reload(), 400); }
     else {
         const msg = await r.text().catch(()=>'Save failed');
@@ -304,7 +312,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeM(); 
 // ---------- Candle backfill (single stock) ----------
 async function backfill(token, symbol) {
     if (!confirm('Backfill candle history for "' + symbol + '"?\nThis fetches the last 730 days of daily candles and 30 days of intraday candles from Angel One.')) return;
-    const r = await fetch('/jobs/run/' + token, {method:'POST'});
+    const r = await fetch('/jobs/run/' + token, {method:'POST', headers:csrfHeaders()});
     const d = await r.json();
     if (r.status === 409) { toast('Job already running — go to Candle Jobs page', true); return; }
     if (d.ok) toast('Backfill started for ' + symbol + ' (run #' + d.runId + ')');
@@ -318,7 +326,7 @@ async function bulkSeedFo() {
     btn.disabled = true;
     btn.textContent = '⏳ Seeding…';
     try {
-        const r = await fetch('/admin/instruments/bulk-seed', { method: 'POST' });
+        const r = await fetch('/admin/instruments/bulk-seed', { method: 'POST', headers:csrfHeaders() });
         const d = await r.json();
         const msg =
             `✅ Done!\n\n` +

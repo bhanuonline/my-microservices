@@ -62,6 +62,18 @@ public class SignalDetector {
         if (!props.getDetector().isEnabled()) return;
         if (!intervals().contains(e.interval())) return;
 
+        // Reject stale candles — Angel WebSocket sometimes replays old bars
+        // when market is closed. Skip any bar older than 2 hours.
+        if (e.candle() != null && e.candle().timestamp() != null) {
+            long ageMinutes = java.time.Duration.between(
+                    e.candle().timestamp(), java.time.Instant.now()).toMinutes();
+            if (ageMinutes > 120) {
+                log.debug("SignalDetector SKIP — stale candle {}m old for {}:{}",
+                        ageMinutes, e.symbolToken(), e.interval());
+                return;
+            }
+        }
+
         String token = e.symbolToken();
         Interval iv  = e.interval();
 

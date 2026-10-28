@@ -12,7 +12,31 @@
 <div th:fragment="orbConfig" id="orb-config-card" class="orb-config" th:with="cfg=${orbCfg}">
     <div class="cfg-head">
         <div class="cfg-title">ORB Config</div>
-        <span class="status-pill on"><span class="dot"></span><span>Live</span></span>
+        <!-- Status pill reflects real enabled state -->
+        <span th:class="'status-pill ' + (${cfg.enabled} ? 'on' : 'off')">
+            <span class="dot"></span>
+            <span th:text="${cfg.enabled} ? 'Live' : 'Disabled'">Live</span>
+        </span>
+    </div>
+
+    <!-- Enable / Disable toggle -->
+    <div class="cfg-row" style="padding-bottom:12px; border-bottom:1px solid var(--hair); margin-bottom:4px;">
+        <div class="cfg-label">
+            <div class="k">ORB Engine</div>
+            <div class="hint">Enable or disable all ORB processing (no Angel API calls when off)</div>
+        </div>
+        <div class="cfg-buttons">
+            <button type="button"
+                    th:classappend="${cfg.enabled} ? ' active' : ''"
+                    hx-post="/api/orb/config/set?key=enabled&value=true"
+                    hx-target="#orb-config-card" hx-swap="outerHTML"
+                    class="cfg-btn">Enable</button>
+            <button type="button"
+                    th:classappend="${!cfg.enabled} ? ' active danger' : ''"
+                    hx-post="/api/orb/config/set?key=enabled&value=false"
+                    hx-target="#orb-config-card" hx-swap="outerHTML"
+                    class="cfg-btn">Disable</button>
+        </div>
     </div>
 
     <!-- ADX Cadence -->

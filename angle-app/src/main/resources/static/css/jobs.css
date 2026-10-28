@@ -56,7 +56,23 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',san
 }
 .jb-progress-bar {
     height:100%; background:var(--primary); border-radius:999px;
-    transition:width .3s ease;
+    transition:width .5s ease;
+    position:relative; overflow:hidden;
+}
+/* Animated stripe when job is actively running */
+.jb-progress-bar.running::after {
+    content:'';
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(
+        60deg,
+        transparent, transparent 8px,
+        rgba(255,255,255,.15) 8px, rgba(255,255,255,.15) 16px
+    );
+    animation:stripe-move 1s linear infinite;
+}
+@keyframes stripe-move {
+    from { background-position: 0 0; }
+    to   { background-position: 24px 0; }
 }
 .jb-progress-info { display:flex; gap:16px; margin-top:8px; font-size:12.5px; }
 .jb-progress-info .muted { color:var(--muted); }
@@ -126,6 +142,48 @@ body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',san
 .jb-trigger {
     padding:2px 8px; border-radius:5px; font-size:11px; font-weight:700;
     background:var(--hair); color:var(--muted);
+}
+
+/* ── Inline progress bar (Status column in table) ───────────────────── */
+.jb-inline-progress {
+    position:relative; height:22px; border-radius:6px;
+    background:var(--hair); overflow:hidden; min-width:120px;
+}
+.jb-inline-bar {
+    position:absolute; inset:0; height:100%;
+    border-radius:6px; transition:width .4s ease;
+    min-width:3%;
+}
+/* Color by status (static rows from DB) */
+.jb-inline-bar.completed { background:var(--good); }
+.jb-inline-bar.failed    { background:var(--bad);  }
+.jb-inline-bar.cancelled { background:var(--warn); }
+.jb-inline-bar.running   { background:var(--primary); }
+
+/* Live rows: color set via JS inline style (pctColor function) */
+@keyframes bar-pulse  { 0%,100%{ opacity:.85; } 50%{ opacity:1; } }
+
+/* Auto-fill animation while RUNNING — grows 3%→88% over 60s.
+   Gives visual progress even when totalCount=1 (single instrument).
+   On COMPLETED, JS overrides width to 100% and stops animation. */
+@keyframes bar-fill {
+    0%  { width: 3%; }
+    10% { width: 20%; background: var(--primary); }
+    30% { width: 40%; background: #f59e0b; }
+    55% { width: 60%; background: #84cc16; }
+    80% { width: 80%; background: #22c55e; }
+   100% { width: 88%; background: #22c55e; }
+}
+.jb-inline-bar.filling {
+    animation: bar-fill 60s ease-out forwards,
+               bar-pulse 1.5s ease-in-out infinite;
+}
+
+.jb-inline-label {
+    position:absolute; inset:0;
+    display:flex; align-items:center; padding:0 8px;
+    font-size:11px; font-weight:700; color:var(--ink);
+    white-space:nowrap; gap:4px;
 }
 
 /* ── Modal ───────────────────────────────────────────────────────────── */

@@ -33,6 +33,7 @@ public class OrbController {
     public String page(Model model) {
         model.addAttribute("timeframes", OrbService.TIMEFRAMES);
         model.addAttribute("orbCfg", Map.of(
+                "enabled",          orbSettings.isEnabled(),
                 "orbCadence",       orbSettings.getOrbCadence().name(),
                 "adxCadence",       orbSettings.getAdxCadence().name(),
                 "adxThreshold",     orbSettings.getAdxThreshold().toPlainString(),

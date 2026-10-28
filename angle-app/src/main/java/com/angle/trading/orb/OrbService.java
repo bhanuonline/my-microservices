@@ -107,7 +107,7 @@ public class OrbService {
      * Kept here so we track the last-known price for the current running bar
      * if we ever want to show it in the UI.
      */
-    @EventListener
+    @EventListener(condition = "@orbSettings.isEnabled()")
     public void onTick(TickEvent e) {
         Tick t = e.tick();
         if (t == null || t.symbolToken() == null || t.ltp() == null) return;
@@ -125,7 +125,7 @@ public class OrbService {
     }
 
     /** Advance ORB state on every CLOSED candle (short intervals aggregate up). */
-    @EventListener
+    @EventListener(condition = "@orbSettings.isEnabled()")
     public void onCandleClosed(CandleClosedEvent e) {
         if (e == null || e.symbolToken() == null || e.candle() == null) return;
         BiasInstrumentEntity ins = findInstrument(e.symbolToken());
@@ -599,6 +599,7 @@ public class OrbService {
     // --------------------------------------------------------------------
 
     public List<OrbInstrumentRow> snapshot() {
+        if (!settings.isEnabled()) return List.of();   // single guard — no backfill, no cell work
         List<OrbInstrumentRow> out = new ArrayList<>();
         LocalDate today = LocalDate.now(IST);
         for (BiasInstrumentEntity ins : instrumentService.listEnabled()) {
@@ -610,8 +611,6 @@ public class OrbService {
                     if (!cell.sessionDate.equals(today)) {
                         cell.reset(today);
                     }
-                    // Lazy backfill on first snapshot too (not just events) —
-                    // handles the case where the dashboard is opened before any tick arrives.
                     backfillIfPossible(cell, ins, session, today);
                     cells.add(cell.toSnapshot(session, today));
                 }

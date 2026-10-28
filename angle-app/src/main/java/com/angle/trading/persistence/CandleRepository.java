@@ -69,4 +69,19 @@ public interface CandleRepository extends JpaRepository<CandleEntity, Long> {
             @Param("exchange") String exchange,
             @Param("symbolToken") String symbolToken,
             @Param("intervalType") String intervalType);
+
+    /**
+     * Coverage summary per (symbol_token, interval_type).
+     * Returns: symbolToken, intervalType, firstTs, latestTs, count
+     * Used by the Candle Coverage page.
+     */
+    @Query(value = """
+            SELECT c.symbol_token, c.interval_type,
+                   MIN(c.ts)  AS first_ts,
+                   MAX(c.ts)  AS latest_ts,
+                   COUNT(*)   AS candle_count
+            FROM candle_history c
+            GROUP BY c.symbol_token, c.interval_type
+            """, nativeQuery = true)
+    List<Object[]> findCoverageSummary();
 }

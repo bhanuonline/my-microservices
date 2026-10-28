@@ -47,15 +47,27 @@ public class BiasChangeDetector {
      * Runs at the configured refresh interval. Cron uses minute-precision:
      * for bias.refresh-minutes=15, we run every 15 minutes past the hour.
      */
+    private static final java.time.ZoneId IST = java.time.ZoneId.of("Asia/Kolkata");
+    private static final java.time.LocalTime MARKET_OPEN  = java.time.LocalTime.of(9, 15);
+    private static final java.time.LocalTime MARKET_CLOSE = java.time.LocalTime.of(15, 30);
+
     @Scheduled(fixedRateString = "#{@biasProperties.refreshMinutes * 60 * 1000}")
     public void tick() {
         if (!biasProperties.isEnabled()) return;
         if (!biasProperties.getChangeAlerts().isEnabled()) return;
 
-        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.ZonedDateTime nowIst = java.time.ZonedDateTime.now(IST);
+        java.time.LocalDate today = nowIst.toLocalDate();
+        java.time.LocalTime time  = nowIst.toLocalTime();
+
+        // Skip on market holidays and weekends
         if (!marketCalendar.isMarketOpen(today)) {
-            log.debug("BiasChangeDetector SKIP — market closed ({}) on {}",
-                    marketCalendar.closedReason(today), today);
+            log.debug("BiasChangeDetector SKIP — market holiday/weekend on {}", today);
+            return;
+        }
+        // Skip outside market hours (before 09:15 or after 15:30 IST)
+        if (time.isBefore(MARKET_OPEN) || time.isAfter(MARKET_CLOSE)) {
+            log.debug("BiasChangeDetector SKIP — outside market hours ({} IST)", time);
             return;
         }
 

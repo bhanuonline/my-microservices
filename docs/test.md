@@ -1,0 +1,1 @@
+1. Agent fluency2. Deep API knowledge3. Customer discovery at scale4. Deciding which tools to expose5. MCP tools and metadata6. Golden prompts and evals7. Performance and latency8. Distribution in agent directories9. Security and OAuth

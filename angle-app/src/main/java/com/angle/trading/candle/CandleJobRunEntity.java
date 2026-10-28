@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * Summary record of one CandleHistoryJob run.
@@ -76,4 +77,11 @@ public class CandleJobRunEntity {
 
     @Column(name = "thread_count")
     private Integer threadCount;
+
+    // ── Candle date range ─────────────────────────────────────────────
+    @Column(name = "candle_from")
+    private LocalDate candleFrom;     // earliest date fetched (e.g. 2024-10-25)
+
+    @Column(name = "candle_to")
+    private LocalDate candleTo;       // latest date fetched   (e.g. 2026-10-25)
 }

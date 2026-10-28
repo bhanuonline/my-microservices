@@ -46,6 +46,9 @@ public class OrbSettings {
         ADX_ONLY
     }
 
+    /** Master switch — false stops all ORB processing (no Angel API calls). */
+    private boolean enabled = true;
+
     private Cadence adxCadence = Cadence.TF_BOUNDARY;
     private Cadence orbCadence = Cadence.TF_BOUNDARY;
     private BigDecimal adxThreshold = new BigDecimal("25");

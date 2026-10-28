@@ -25,25 +25,16 @@
         </div>
     </div>
 
-    <!-- Status card -->
+    <!-- Status card — compact, no separate progress bar -->
     <div class="jb-status-card" id="statusCard">
+        <div class="jb-section-title" style="margin-bottom:12px">Current Status</div>
         <div class="jb-status-row">
             <span class="jb-dot idle" id="statusDot"></span>
             <span class="jb-status-label" id="statusLabel">IDLE</span>
-            <span class="jb-status-meta" id="statusMeta"></span>
+            <span class="jb-status-meta" id="statusMeta">No job running</span>
             <span class="spacer"></span>
+            <span id="statusStock" class="muted small"></span>
             <button class="jb-btn jb-btn-danger" id="cancelBtn" style="display:none" onclick="cancelJob()">■ Cancel</button>
-        </div>
-        <!-- Progress bar (shown when running) -->
-        <div id="progressWrap" style="display:none; margin-top:14px">
-            <div class="jb-progress-track">
-                <div class="jb-progress-bar" id="progressBar" style="width:0%"></div>
-            </div>
-            <div class="jb-progress-info">
-                <span id="progressText">0/0</span>
-                <span id="progressStock" class="muted"></span>
-                <span id="progressSaved" class="muted"></span>
-            </div>
         </div>
     </div>
 
@@ -83,7 +74,7 @@
 
     <!-- Run history table -->
     <div class="jb-section-title" style="margin-top:28px">Run History</div>
-    <div th:if="${#lists.isEmpty(history)}" class="jb-empty">
+    <div th:if="${#lists.isEmpty(history)}" class="jb-empty" id="noHistory">
         No runs yet. Click a button above to start the first backfill.
     </div>
 
@@ -96,20 +87,25 @@
                     <th>Job</th>
                     <th>Stock</th>
                     <th>Started</th>
+                    <th>Candle Range</th>
                     <th class="num">Duration</th>
                     <th class="num">Stocks</th>
-                    <th class="num">Saved</th>
+                    <th class="num">Fetched</th>
                     <th>Status</th>
                     <th></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="historyTbody">
                 <tr th:each="r : ${history}" class="jb-row">
                     <td class="mono muted" th:text="${r.id}">1</td>
                     <td><span class="jb-trigger" th:text="${r.triggerType}">MANUAL</span></td>
                     <td class="muted" th:text="${r.jobName}">ALL</td>
                     <td class="muted small" th:text="${r.targetToken != null ? r.targetToken : '—'}">—</td>
                     <td class="mono small" th:text="${#temporals.format(r.startedAt, 'dd MMM HH:mm')}">25 Oct 09:00</td>
+                    <td class="mono small"
+                        th:text="${r.candleFrom != null and r.candleTo != null}
+                                  ? ${#temporals.format(r.candleFrom, 'dd MMM yy')} + ' → ' + ${#temporals.format(r.candleTo, 'dd MMM yy')}
+                                  : '—'">25 Oct 24 → 25 Oct 26</td>
                     <td class="num mono small"
                         th:text="${r.endedAt != null ?
                             (T(java.time.temporal.ChronoUnit).SECONDS.between(r.startedAt, r.endedAt) / 60) + 'm ' +
@@ -117,11 +113,20 @@
                         2m 34s</td>
                     <td class="num" th:text="${r.doneCount} + '/' + ${r.totalCount}">50/50</td>
                     <td class="num mono" th:text="${r.totalSaved}">4821</td>
-                    <td>
-                        <span th:class="'jb-status-badge ' + ${#strings.toLowerCase(r.status)}"
-                              th:text="${r.status}">COMPLETED</span>
-                        <span th:if="${r.failedCount > 0}" class="jb-failed-badge"
-                              th:text="${r.failedCount} + 'F'">2F</span>
+                    <!-- Inline progress bar — width + colour by percentage -->
+                    <td th:with="pct=${r.totalCount} > 0 ? (${r.doneCount} * 100 / ${r.totalCount}) : 0">
+                        <div class="jb-inline-progress">
+                            <div class="jb-inline-bar"
+                                 th:class="'jb-inline-bar ' + ${#strings.toLowerCase(r.status)}"
+                                 th:style="'width:' + ${pct} + '%'"></div>
+                            <span class="jb-inline-label">
+                                <b th:text="${pct} + '%'">100%</b>
+                                &nbsp;<span style="font-weight:400;font-size:10px"
+                                      th:text="${r.status} + ' · ' + ${r.doneCount} + '/' + ${r.totalCount}
+                                               + (${r.failedCount} > 0 ? ' (' + ${r.failedCount} + 'F)' : '')">
+                                      COMPLETED · 52/52</span>
+                            </span>
+                        </div>
                     </td>
                     <td>
                         <button th:if="${r.failedCount > 0 or r.status == 'CANCELLED'}"
@@ -158,37 +163,153 @@ function postFetch(url) {
     return fetch(url, { method:'POST', headers: { [csrfHeader]: csrfToken } });
 }
 
-// ── Job trigger ────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────
+function fmtTime(d) { return d ? new Date(d).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—'; }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '—'; }
+
+// ── Color based on percentage (0→red, 50→orange, 100→green) ─────────
+function pctColor(pct, status) {
+    if (status === 'FAILED')    return 'var(--bad)';
+    if (status === 'CANCELLED') return 'var(--warn)';
+    if (status === 'COMPLETED' || pct >= 100) return 'var(--good)';
+    // RUNNING: gradient blue→orange→green as it fills
+    if (pct < 30)  return 'var(--primary)';
+    if (pct < 60)  return '#f59e0b';   // amber
+    if (pct < 90)  return '#84cc16';   // lime
+    return '#22c55e';                   // green (nearly done)
+}
+
+function fmtSec(sec) {
+    sec = sec || 0;
+    return sec < 60 ? sec + 's' : Math.floor(sec/60) + 'm ' + (sec % 60) + 's';
+}
+
+// ── Insert live row into table immediately on Run ──────────────────
+function insertLiveRow(runId, trigger, jobName, stock, startedAt) {
+    const tbody  = document.getElementById('historyTbody');
+    const noHist = document.getElementById('noHistory');
+    if (noHist) noHist.style.display = 'none';
+    if (!tbody) return;
+
+    const old = document.getElementById('live-row-' + runId);
+    if (old) old.remove();
+
+    const tr = document.createElement('tr');
+    tr.className = 'jb-row';
+    tr.id = 'live-row-' + runId;
+    tr.innerHTML = `
+      <td class="mono muted">${runId}</td>
+      <td><span class="jb-trigger">${trigger}</span></td>
+      <td class="muted">${jobName}</td>
+      <td class="muted small">${stock}</td>
+      <td class="mono small">${fmtTime(startedAt)}</td>
+      <td class="mono small" data-cell="range">—</td>
+      <td class="num mono small" data-cell="dur">0s</td>
+      <td class="num" data-cell="stocks">0/—</td>
+      <td class="num mono" data-cell="saved">0</td>
+      <td>
+        <div class="jb-inline-progress">
+          <div class="jb-inline-bar filling"></div>
+          <span class="jb-inline-label">
+            <b>0%</b>&nbsp;<span style="font-weight:400;font-size:10px">RUNNING · 0/—</span>
+          </span>
+        </div>
+      </td>
+      <td><button class="jb-btn jb-btn-small jb-btn-ghost" onclick="showDetail(${runId})">Detail</button></td>`;
+    tbody.insertBefore(tr, tbody.firstChild);
+}
+
+// ── Update live row cells from poll response ───────────────────────
+function updateLiveRow(s) {
+    if (!s || !s.runId) return;
+
+    // Find the row we inserted — use row id, not individual cell ids
+    const row = document.getElementById('live-row-' + s.runId);
+    if (!row) return;   // row not in DOM yet (page reload happened)
+
+    const pct       = Number(s.pctComplete)  || 0;
+    const done      = Number(s.doneCount)    || 0;
+    const total     = Number(s.totalCount)   || 0;
+    const saved     = Number(s.candlesSaved) || 0;
+    const status    = s.status || 'RUNNING';
+    const isRunning = status === 'RUNNING';
+    const color     = pctColor(pct, status);
+
+    // Use querySelector within the row — no ID dependency
+    const q = sel => row.querySelector(sel);
+
+    const durEl    = q('[data-cell="dur"]');
+    const stocksEl = q('[data-cell="stocks"]');
+    const savedEl  = q('[data-cell="saved"]');
+    const bar      = q('.jb-inline-bar');
+    const lbl      = q('.jb-inline-label');
+
+    if (stocksEl) stocksEl.textContent = done + '/' + (total || '—');
+    if (savedEl)  savedEl.textContent  = saved;
+    if (durEl && isRunning) durEl.textContent = fmtSec(s.elapsedSec);
+
+    // Progress bar + label — handled via fake counter
+    if (!isRunning) {
+        // Job done — stop counter, snap to real final percentage
+        stopFakeCounter(s.runId, pct, status, null);
+    }
+    // While running, fakeTimer handles the visual update every 500ms
+}
+
+// ── Status card update (dot + text only) ──────────────────────────
+function updateStatusCard(s) {
+    const dot    = document.getElementById('statusDot');
+    const label  = document.getElementById('statusLabel');
+    const meta   = document.getElementById('statusMeta');
+    const stock  = document.getElementById('statusStock');
+    const cancel = document.getElementById('cancelBtn');
+
+    dot.className     = 'jb-dot ' + (s.status||'idle').toLowerCase();
+    label.textContent = s.status || 'IDLE';
+
+    if (s.status === 'RUNNING') {
+        meta.textContent     = 'Started ' + fmtTime(s.startedAt) + ' · ' + (s.elapsedSec||0) + 's elapsed';
+        stock.textContent    = s.currentStock ? '⬡ ' + s.currentStock : '';
+        cancel.style.display = 'inline-flex';
+    } else {
+        cancel.style.display = 'none';
+        stock.textContent    = '';
+        meta.textContent     = s.runId ? 'Run #' + s.runId + ' ' + (s.status||'').toLowerCase() : 'No job running';
+    }
+}
+
+// ── Job triggers ───────────────────────────────────────────────────
 async function runJob(interval) {
     const r = await postFetch('/jobs/run?interval=' + interval);
     const d = await r.json();
-    if (r.status === 409) { alert('Job already running. Wait for it to finish or cancel it.'); return; }
-    if (d.ok) startPolling();
-    else alert('Error: ' + (d.reason || 'Unknown'));
+    if (r.status === 409) { alert('Job already running.'); return; }
+    if (!d.ok) { alert('Error: ' + (d.reason||'Unknown')); return; }
+    insertLiveRow(d.runId, 'MANUAL', interval||'ALL', '—', new Date());
+    startPolling(d.runId);
 }
 
 async function runSingle() {
     const token    = document.getElementById('singleToken').value;
     const interval = document.getElementById('singleInterval').value;
     const lookback = document.getElementById('singleLookback').value;
+    const stockName= document.getElementById('singleToken').selectedOptions[0]?.text || token;
     if (!token) { alert('Select a stock first.'); return; }
     const url = '/jobs/run/' + token + '?interval=' + interval + '&lookbackDays=' + lookback;
     const r = await postFetch(url);
     const d = await r.json();
     if (r.status === 409) { alert('Job already running.'); return; }
-    if (d.ok) startPolling();
-    else alert('Error: ' + (d.reason || 'Unknown'));
+    if (!d.ok) { alert('Error: ' + (d.reason||'Unknown')); return; }
+    insertLiveRow(d.runId, 'MANUAL', 'SINGLE', stockName, new Date());
+    startPolling(d.runId);
 }
 
-async function cancelJob() {
-    await postFetch('/jobs/cancel');
-}
+async function cancelJob() { await postFetch('/jobs/cancel'); }
 
 async function retryRun(runId) {
     const r = await postFetch('/jobs/retry/' + runId);
     const d = await r.json();
     if (r.status === 409) { alert('Job already running.'); return; }
-    if (d.ok) startPolling();
+    if (d.ok) { insertLiveRow(d.runId, 'RETRY', 'RETRY', '—', new Date()); startPolling(d.runId); }
     else alert(d.reason || 'Nothing to retry');
 }
 
@@ -199,70 +320,110 @@ async function showDetail(runId) {
     document.getElementById('detailBody').innerHTML = 'Loading…';
     const rows = await fetch('/jobs/history/' + runId + '/detail').then(r => r.json());
     if (!rows.length) { document.getElementById('detailBody').innerHTML = 'No detail records.'; return; }
-    let html = '<table class="jb-table"><thead><tr><th>Symbol</th><th>Token</th><th>Status</th><th class="num">Saved</th><th class="num">Duration</th><th>Error</th></tr></thead><tbody>';
+    let html = '<table class="jb-table"><thead><tr><th>Symbol</th><th>Status</th><th>Candle Range</th><th class="num">Saved</th><th class="num">Duration</th><th>Error</th></tr></thead><tbody>';
     rows.forEach(r => {
-        const cls = r.status === 'DONE' ? 'completed' : r.status === 'FAILED' ? 'failed' : 'cancelled';
-        html += `<tr><td>${r.symbol||'—'}</td><td class="mono small">${r.symbolToken}</td>
-                 <td><span class="jb-status-badge ${cls.toLowerCase()}">${r.status}</span></td>
-                 <td class="num">${r.candlesSaved}</td>
-                 <td class="num mono small">${r.durationMs ? (r.durationMs/1000).toFixed(1)+'s' : '—'}</td>
-                 <td class="small muted">${r.errorMsg||''}</td></tr>`;
+        const cls   = r.status==='DONE' ? 'completed' : r.status==='FAILED' ? 'failed' : 'cancelled';
+        const range = (r.candleFrom && r.candleTo) ? fmtDate(r.candleFrom)+' → '+fmtDate(r.candleTo) : '—';
+        html += `<tr>
+          <td><b>${r.symbol||r.symbolToken}</b></td>
+          <td><span class="jb-status-badge ${cls}">${r.status}</span></td>
+          <td class="mono small">${range}</td>
+          <td class="num">${r.candlesSaved}</td>
+          <td class="num mono small">${r.durationMs?(r.durationMs/1000).toFixed(1)+'s':'—'}</td>
+          <td class="small muted">${r.errorMsg||''}</td></tr>`;
     });
-    html += '</tbody></table>';
-    document.getElementById('detailBody').innerHTML = html;
+    document.getElementById('detailBody').innerHTML = html + '</tbody></table>';
 }
 
-function closeDetail() { document.getElementById('detailModal').style.display = 'none'; }
+function closeDetail() { document.getElementById('detailModal').style.display='none'; }
 
-// ── Live polling ───────────────────────────────────────────────────
+// ── Fake percentage counter (increments visually while RUNNING) ────
+let fakeTimer;
+let fakePct = 0;
+let liveRowId = null;
+
+function startFakeCounter(rowId) {
+    fakePct    = 0;
+    liveRowId  = rowId;
+    clearInterval(fakeTimer);
+    fakeTimer = setInterval(() => {
+        // Slow down as it approaches 90%
+        const inc = fakePct < 30 ? 2 : fakePct < 60 ? 1 : 0.5;
+        fakePct   = Math.min(fakePct + inc, 90);
+        setDisplayPct(rowId, Math.round(fakePct), 'RUNNING', null);
+    }, 500);
+}
+
+function stopFakeCounter(rowId, finalPct, status, stock) {
+    clearInterval(fakeTimer);
+    fakePct = finalPct;
+    setDisplayPct(rowId, finalPct, status, stock);
+}
+
+function setDisplayPct(rowId, pct, status, stock) {
+    const row = document.getElementById('live-row-' + rowId);
+    if (!row) return;
+    const bar = row.querySelector('.jb-inline-bar');
+    const lbl = row.querySelector('.jb-inline-label');
+    const color = pctColor(pct, status);
+
+    if (bar) {
+        if (status === 'RUNNING') {
+            bar.className = 'jb-inline-bar filling';   // CSS animates width
+        } else {
+            bar.className  = 'jb-inline-bar';
+            bar.style.width      = pct + '%';
+            bar.style.background = color;
+            bar.style.animation  = 'none';
+        }
+    }
+    if (lbl) {
+        const stockTxt = (status === 'RUNNING' && stock) ? ' · ' + stock : '';
+        lbl.innerHTML = '<b style="color:' + color + '">' + pct + '%</b>'
+                      + '&nbsp;<span style="font-weight:400;font-size:10px;color:var(--muted)">'
+                      + status + stockTxt + '</span>';
+    }
+}
+
+// ── Polling ────────────────────────────────────────────────────────
 let pollTimer;
 
-function startPolling() {
+function startPolling(runId) {
     clearInterval(pollTimer);
-    pollTimer = setInterval(pollStatus, 3000);
-    pollStatus();
+    startFakeCounter(runId);   // start visual counter immediately
+    pollTimer = setInterval(() => pollStatus(runId), 1000);
+    pollStatus(runId);
 }
 
-async function pollStatus() {
+async function pollStatus(runId) {
     const s = await fetch('/jobs/status').then(r => r.json());
-    updateStatusUI(s);
+    updateStatusCard(s);
+    updateLiveRow(s);   // updates duration, stocks, saved cells
+
+    // While running: keep stock name in label (fakeTimer handles pct)
+    if (s.status === 'RUNNING' && liveRowId) {
+        const row = document.getElementById('live-row-' + liveRowId);
+        if (row) {
+            const lbl = row.querySelector('.jb-inline-label');
+            if (lbl) {
+                const color = pctColor(Math.round(fakePct), 'RUNNING');
+                const stock = s.currentStock ? ' · ' + s.currentStock : '';
+                lbl.innerHTML = '<b style="color:' + color + '">' + Math.round(fakePct) + '%</b>'
+                              + '&nbsp;<span style="font-weight:400;font-size:10px;color:var(--muted)">RUNNING' + stock + '</span>';
+            }
+        }
+    }
+
     if (s.status !== 'RUNNING') {
         clearInterval(pollTimer);
-        if (s.status !== 'IDLE') location.reload();   // refresh history table
     }
 }
 
-function updateStatusUI(s) {
-    const dot    = document.getElementById('statusDot');
-    const label  = document.getElementById('statusLabel');
-    const meta   = document.getElementById('statusMeta');
-    const cancel = document.getElementById('cancelBtn');
-    const wrap   = document.getElementById('progressWrap');
-
-    dot.className   = 'jb-dot ' + (s.status||'idle').toLowerCase();
-    label.textContent = s.status || 'IDLE';
-
-    if (s.status === 'RUNNING') {
-        meta.textContent   = 'Started ' + new Date(s.startedAt).toLocaleTimeString() + ' · ' + s.elapsedSec + 's elapsed';
-        cancel.style.display = 'inline-flex';
-        wrap.style.display   = 'block';
-        const pct = s.pctComplete || 0;
-        document.getElementById('progressBar').style.width  = pct + '%';
-        document.getElementById('progressText').textContent = s.doneCount + '/' + s.totalCount + ' (' + pct + '%)';
-        document.getElementById('progressStock').textContent = s.currentStock ? '· ' + s.currentStock : '';
-        document.getElementById('progressSaved').textContent = '· ' + s.candlesSaved + ' candles saved';
-    } else {
-        cancel.style.display = 'none';
-        wrap.style.display   = 'none';
-        meta.textContent = s.runId ? 'Last run #' + s.runId : '';
-    }
-}
-
-// Auto-start polling if job is already running when page loads
+// On page load — check if a job is already running and resume polling
 window.addEventListener('DOMContentLoaded', () => {
     fetch('/jobs/status').then(r => r.json()).then(s => {
-        updateStatusUI(s);
-        if (s.status === 'RUNNING') startPolling();
+        updateStatusCard(s);
+        if (s.status === 'RUNNING') startPolling(s.runId);
     });
 });
 </script>

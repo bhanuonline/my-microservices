@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Candle Coverage — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/coverage.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='coverage')}"></div>
+<main class="app-main">
+
+    <!-- Header -->
+    <div class="cv-head">
+        <div>
+            <h1>Candle Coverage</h1>
+            <p class="sub">Per-instrument, per-interval data coverage in <code>candle_history</code>.</p>
+        </div>
+        <a th:href="@{/jobs}" class="cv-btn">↗ Run Backfill</a>
+    </div>
+
+    <!-- Stats -->
+    <div class="cv-stats">
+        <div class="cv-stat ok">
+            <div class="lbl">Up to Date</div>
+            <div class="val" th:text="${ok}">0</div>
+            <div class="hint">≤ 1 day behind</div>
+        </div>
+        <div class="cv-stat stale">
+            <div class="lbl">Stale</div>
+            <div class="val" th:text="${stale}">0</div>
+            <div class="hint">2–5 days behind</div>
+        </div>
+        <div class="cv-stat old">
+            <div class="lbl">Old</div>
+            <div class="val" th:text="${old}">0</div>
+            <div class="hint">6–30 days behind</div>
+        </div>
+        <div class="cv-stat missing">
+            <div class="lbl">Missing</div>
+            <div class="val" th:text="${missing}">0</div>
+            <div class="hint">&gt; 30 days or no data</div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="cv-legend">
+        <span class="cv-badge ok">✅ OK</span> ≤ 1 day behind &nbsp;&nbsp;
+        <span class="cv-badge stale">⚠️ STALE</span> 2–5 days &nbsp;&nbsp;
+        <span class="cv-badge old">🕐 OLD</span> 6–30 days &nbsp;&nbsp;
+        <span class="cv-badge missing">❌ MISSING</span> &gt; 30 days or no data
+    </div>
+
+    <!-- Table -->
+    <div th:if="${#lists.isEmpty(rows)}" class="cv-empty">
+        No candle data found. Run a backfill job first.
+    </div>
+
+    <div th:unless="${#lists.isEmpty(rows)}" class="cv-table-wrap">
+        <table class="cv-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Exchange</th>
+                    <th>Interval</th>
+                    <th>First Bar</th>
+                    <th>Latest Bar</th>
+                    <th class="num">Days Behind</th>
+                    <th class="num">Candles</th>
+                    <th>Status</th>
+                    <th>Coverage Bar</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="r : ${rows}"
+                    th:class="${'cv-row ' + (r.enabled() ? '' : 'disabled')}">
+
+                    <!-- Symbol -->
+                    <td>
+                        <span class="cv-symbol" th:text="${r.symbol()}">NIFTY</span>
+                        <span th:unless="${r.enabled()}" class="cv-disabled-tag">disabled</span>
+                    </td>
+
+                    <!-- Exchange -->
+                    <td><span class="cv-exch" th:text="${r.exchange()}">NSE</span></td>
+
+                    <!-- Interval -->
+                    <td>
+                        <span th:class="'cv-interval ' + ${#strings.toLowerCase(r.intervalType())}"
+                              th:text="${r.intervalType() == 'ONE_DAY'         ? '1D'
+                                      : r.intervalType() == 'ONE_HOUR'        ? '1H'
+                                      : r.intervalType() == 'FIFTEEN_MINUTE'  ? '15m'
+                                      : r.intervalType() == 'FIVE_MINUTE'     ? '5m'
+                                      : r.intervalType() == 'ONE_MINUTE'      ? '1m'
+                                      : r.intervalType()}">1D</span>
+                    </td>
+
+                    <!-- First bar -->
+                    <td class="mono small"
+                        th:text="${r.firstDate() != null ? #temporals.format(r.firstDate(), 'dd MMM yyyy') : '—'}">
+                        01 Jan 2024</td>
+
+                    <!-- Latest bar -->
+                    <td class="mono small"
+                        th:text="${r.latestDate() != null ? #temporals.format(r.latestDate(), 'dd MMM yyyy') : '—'}">
+                        25 Oct 2026</td>
+
+                    <!-- Days behind -->
+                    <td th:class="${'num ' + (r.daysBehind() <= 1 ? 'good' : (r.daysBehind() <= 5 ? 'warn' : 'bad'))}"
+                        th:text="${r.daysBehind() >= 9999 ? '—' : r.daysBehind() + 'd'}">
+                        2d</td>
+
+                    <!-- Candle count -->
+                    <td class="num mono small" th:text="${r.candleCount() > 0 ? r.candleCount() : '—'}">730</td>
+
+                    <!-- Status badge -->
+                    <td>
+                        <span th:class="'cv-badge ' + ${#strings.toLowerCase(r.status())}"
+                              th:text="${r.status() == 'OK'      ? '✅ OK'
+                                      : r.status() == 'STALE'   ? '⚠️ STALE'
+                                      : r.status() == 'OLD'     ? '🕐 OLD'
+                                      :                           '❌ MISSING'}">✅ OK</span>
+                    </td>
+
+                    <!-- Coverage bar — shows span from firstDate to today -->
+                    <td class="cv-bar-cell">
+                        <div class="cv-bar-track"
+                             th:if="${r.firstDate() != null and r.latestDate() != null}">
+                            <div class="cv-bar-fill"
+                                 th:class="'cv-bar-fill ' + ${#strings.toLowerCase(r.status())}"
+                                 th:with="
+                                   totalDays=${#temporals.format(today,'yyyyMMdd').toInteger() - #temporals.format(r.firstDate(),'yyyyMMdd').toInteger()},
+                                   coveredDays=${#temporals.format(r.latestDate(),'yyyyMMdd').toInteger() - #temporals.format(r.firstDate(),'yyyyMMdd').toInteger()},
+                                   pct=${totalDays > 0 ? (coveredDays * 100 / totalDays) : 100}"
+                                 th:style="'width:' + ${pct} + '%'">
+                            </div>
+                        </div>
+                        <div class="cv-bar-track" th:unless="${r.firstDate() != null}">
+                            <div class="cv-bar-fill missing" style="width:0%"></div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="cv-footer">
+        Data as of <b th:text="${#temporals.format(today, 'dd MMM yyyy')}">26 Oct 2026</b>.
+        Refresh page to reload. &nbsp;|&nbsp;
+        <a th:href="@{/jobs}">↗ Run backfill to fill gaps</a>
+    </div>
+
+</main>
+</div>
+</body>
+</html>

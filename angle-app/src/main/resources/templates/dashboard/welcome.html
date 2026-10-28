@@ -71,6 +71,18 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 6-6"/></svg>
                 <span>Portfolio (AI)</span>
             </a>
+            <a th:href="@{/journal}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+                <span>Trade Journal</span>
+            </a>
+            <a th:href="@{/screener}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+                <span>F&amp;O Screener</span>
+            </a>
+            <a th:href="@{/jobs}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+                <span>Candle Jobs</span>
+            </a>
             <a th:href="@{/admin/backtest}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 17l3-6 4 4 4-8"/></svg>
                 <span>Backtest</span>
@@ -176,6 +188,9 @@
                         {label:'Global Markets',     path:'/markets',             keywords:'oil gold dow nasdaq nikkei vix usd inr'},
                         {label:'Pre-Market Briefing',path:'/briefing',            keywords:'morning summary ai claude bias overnight'},
                         {label:'Portfolio (AI)',     path:'/portfolio',           keywords:'ai picks stocks investing medium term'},
+                        {label:'Trade Journal',      path:'/journal',             keywords:'journal trade entry exit pnl win loss indicator emotion'},
+                        {label:'F&O Screener',       path:'/screener',            keywords:'screener fno adx rsi ema score nse mcx nifty equity'},
+                        {label:'Candle Jobs',        path:'/jobs',                keywords:'candle job backfill history schedule intraday daily'},
                         {label:'Backtest',           path:'/admin/backtest',      keywords:'replay historical candles consensus trailing'},
                         {label:'Manage Instruments', path:'/admin/instruments',   keywords:'instruments crud scrip master lot size'},
                         {label:'Users',              path:'/admin/users',         keywords:'users admin create edit password role enable disable delete'},

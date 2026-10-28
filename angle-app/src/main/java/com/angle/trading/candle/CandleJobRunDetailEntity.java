@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 /**
  * Per-instrument result within one CandleHistoryJob run.
@@ -53,4 +54,11 @@ public class CandleJobRunDetailEntity {
 
     @Column(name = "duration_ms")
     private Integer durationMs;
+
+    // ── Candle date range fetched for this instrument ─────────────────
+    @Column(name = "candle_from")
+    private LocalDate candleFrom;     // e.g. 2024-10-25
+
+    @Column(name = "candle_to")
+    private LocalDate candleTo;       // e.g. 2026-10-25
 }
