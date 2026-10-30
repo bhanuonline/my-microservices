@@ -231,6 +231,36 @@ public class PaperTradingSession {
         );
     }
 
+    /** Manually open a position — bypasses strategy, fills immediately at {@code entry}. */
+    public synchronized SessionSnapshot manualEnter(IntentAction direction,
+                                                     BigDecimal entry,
+                                                     BigDecimal stop,
+                                                     BigDecimal target,
+                                                     String rationale) {
+        if (status != SessionStatus.RUNNING)
+            throw new IllegalStateException("Session is not RUNNING (status=" + status + ")");
+        if (direction != IntentAction.ENTER_LONG && direction != IntentAction.ENTER_SHORT)
+            throw new IllegalArgumentException("direction must be ENTER_LONG or ENTER_SHORT, got: " + direction);
+        if (entry == null)
+            throw new IllegalArgumentException("entry price is required");
+        PaperPosition pos = book.openPosition(direction, Instant.now(), entry, stop, target,
+                rationale != null ? rationale : "manual");
+        logOpen(pos);
+        return snapshot();
+    }
+
+    /** Manually close the open position at {@code exitPrice}. Saves to DB immediately. */
+    public synchronized SessionSnapshot manualExit(BigDecimal exitPrice) {
+        if (exitPrice == null)
+            throw new IllegalArgumentException("exitPrice is required");
+        if (book.getOpen() == null)
+            throw new IllegalStateException("No open position to exit");
+        Trade t = book.close(Instant.now(), exitPrice, ExitReason.MANUAL);
+        logClose(t);
+        persistTrade(t);
+        return snapshot();
+    }
+
     public String getId()          { return id; }
     public SessionStatus getStatus() { return status; }
 

@@ -47,7 +47,13 @@
             color: #fff; font-weight: 800; font-size: 16px;
         }
         .lm-brand-name { font-weight: 700; font-size: 16px; }
-        .lm-nav { display: flex; flex-direction: column; gap: 4px; }
+        .lm-nav {
+            display: flex; flex-direction: column; gap: 4px;
+            flex: 1 1 0;        /* fill available height between brand and footer */
+            min-height: 0;      /* allow shrinking below content height */
+            overflow-y: auto;   /* scroll when items exceed available space */
+            scrollbar-width: thin;
+        }
         .lm-nav a {
             display: flex; align-items: center; gap: 11px;
             padding: 10px 12px;
@@ -60,7 +66,7 @@
         .lm-nav a:hover { background: var(--lm-hair); color: var(--lm-ink); }
         .lm-nav a.active { background: var(--lm-primary-2); color: var(--lm-primary); font-weight: 600; }
         .lm-nav svg { flex: none; opacity: .9; }
-        .lm-side-spacer { flex: 1; }
+        .lm-side-spacer { display: none; }
         .lm-side-promo {
             background: linear-gradient(135deg, #FEF3C7, #FDE68A);
             border-radius: 14px;

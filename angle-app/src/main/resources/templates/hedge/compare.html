@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hedge Strategy Comparison — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/hedge.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='hedge')}"></div>
+<main class="app-main">
+
+    <div class="hc-head">
+        <h1>Hedge Strategy Comparison</h1>
+        <p>Compare Protective/Married PUT, Covered Call, Collar and Futures Hedge — scored against live RSI, ADX and EMA-21.</p>
+    </div>
+
+    <!-- ── Form ── -->
+    <form id="hedgeForm" onsubmit="runAnalysis(event)">
+
+        <!-- Step 1: Stock Position -->
+        <div class="hc-step-card">
+            <div class="hc-step-hdr">
+                <span class="hc-step-num">1</span>
+                <div>
+                    <div class="hc-step-title">Stock Position</div>
+                    <div class="hc-step-desc">Select instrument, entry price and expiry</div>
+                </div>
+            </div>
+            <div class="hc-form-row">
+                <div class="hc-form-group" style="min-width:200px;max-width:280px">
+                    <label>Instrument</label>
+                    <select id="symbolToken" required onchange="clearLtp(); autoFillNse(this); loadExpiries();">
+                        <option value="">— select —</option>
+                        <option th:each="inst : ${instruments}"
+                                th:value="${inst.symbolToken}"
+                                th:attr="data-nse=${inst.nseSymbol}"
+                                th:text="${inst.displayName}"></option>
+                    </select>
+                </div>
+                <div class="hc-form-group">
+                    <label>Entry Price (₹)</label>
+                    <div style="display:flex;gap:6px">
+                        <input type="number" id="entryPrice" step="0.05" min="1" placeholder="690.00" required style="flex:1">
+                        <button type="button" class="hc-btn-sm" onclick="fetchLivePrice()" title="Fetch live price">⚡ Live</button>
+                    </div>
+                    <span id="ltpError" style="display:none;font-size:11.5px;color:#dc2626;margin-top:2px"></span>
+                </div>
+                <div class="hc-form-group" style="max-width:140px">
+                    <label>Quantity</label>
+                    <input type="number" id="quantity" min="1" placeholder="250" required>
+                </div>
+                <div class="hc-form-group" style="max-width:260px">
+                    <label>Expiry Date</label>
+                    <select id="expiryDate" onchange="loadStrikes()">
+                        <option value="">— select instrument first —</option>
+                    </select>
+                </div>
+            </div>
+            <!-- NSE symbol: small helper row -->
+            <div class="hc-nse-row">
+                <span class="hc-nse-label">NSE Symbol (auto-filled):</span>
+                <input type="text" id="nseUnderlying" placeholder="e.g. HDFCBANK"
+                       class="hc-nse-input"
+                       oninput="this.value=this.value.toUpperCase()"
+                       onchange="loadExpiries()">
+                <span class="hc-nse-hint">Edit only if expiry/strikes don't load</span>
+            </div>
+        </div>
+
+        <!-- Step 2: Option Legs -->
+        <div class="hc-step-card">
+            <div class="hc-step-hdr">
+                <span class="hc-step-num">2</span>
+                <div>
+                    <div class="hc-step-title">Option Legs</div>
+                    <div class="hc-step-desc">Select strikes — premiums auto-fetch from Angel</div>
+                </div>
+            </div>
+            <div class="hc-leg-grid">
+                <!-- PUT -->
+                <div class="hc-leg-card hc-leg-put">
+                    <div class="hc-leg-badge hc-badge-put">PUT &nbsp;↓ Downside protection</div>
+                    <div class="hc-form-group" style="margin-bottom:10px">
+                        <label>Strike (₹)</label>
+                        <select id="putStrike" required>
+                            <option value="">— load strikes —</option>
+                        </select>
+                        <div class="hc-chip-row">
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('put','atm')">ATM</button>
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('put','3')">3% OTM</button>
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('put','5')">5% OTM</button>
+                        </div>
+                    </div>
+                    <div class="hc-form-group">
+                        <label>Premium (₹/share)</label>
+                        <div style="display:flex;gap:6px">
+                            <input type="number" id="putPremium" step="0.05" placeholder="8.00" required style="flex:1">
+                            <button type="button" class="hc-btn-sm" onclick="fetchOptionPremium('put')">⚡ Fetch</button>
+                        </div>
+                        <span id="putPremErr" style="display:none;font-size:11.5px;color:#dc2626;margin-top:3px"></span>
+                    </div>
+                </div>
+                <!-- CALL -->
+                <div class="hc-leg-card hc-leg-call">
+                    <div class="hc-leg-badge hc-badge-call">CALL &nbsp;↑ Income / cap upside</div>
+                    <div class="hc-form-group" style="margin-bottom:10px">
+                        <label>Strike (₹)</label>
+                        <select id="callStrike" required>
+                            <option value="">— load strikes —</option>
+                        </select>
+                        <div class="hc-chip-row">
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('call','atm')">ATM</button>
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('call','3')">3% OTM</button>
+                            <button type="button" class="hc-chip" onclick="autoSelectStrike('call','5')">5% OTM</button>
+                            <button type="button" class="hc-chip hc-chip-accent" onclick="autoSelectStrike('call','zerocost')">₹0 Collar</button>
+                        </div>
+                    </div>
+                    <div class="hc-form-group">
+                        <label>Premium (₹/share)</label>
+                        <div style="display:flex;gap:6px">
+                            <input type="number" id="callPremium" step="0.05" placeholder="6.00" required style="flex:1">
+                            <button type="button" class="hc-btn-sm" onclick="fetchOptionPremium('call')">⚡ Fetch</button>
+                        </div>
+                        <span id="callPremErr" style="display:none;font-size:11.5px;color:#dc2626;margin-top:3px"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Futures -->
+        <div class="hc-step-card">
+            <div class="hc-step-hdr">
+                <span class="hc-step-num">3</span>
+                <div>
+                    <div class="hc-step-title">Futures Hedge</div>
+                    <div class="hc-step-desc">Used only for the Futures Hedge strategy comparison</div>
+                </div>
+            </div>
+            <div class="hc-form-row">
+                <div class="hc-form-group" style="max-width:320px">
+                    <label>Nearest Futures Price (₹)</label>
+                    <div style="display:flex;gap:6px">
+                        <input type="number" id="futurePrice" step="0.05" placeholder="692.00" required style="flex:1">
+                        <button type="button" class="hc-btn-sm" onclick="fetchFuturesPrice()">⚡ Fetch</button>
+                    </div>
+                    <span id="futPriceErr" style="display:none;font-size:11.5px;color:#dc2626;margin-top:2px"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-refresh all prices -->
+        <div class="hc-refresh-bar">
+            <button type="button" class="hc-btn-sm hc-btn-refresh" onclick="refreshAllPrices()" id="refreshAllBtn">
+                ⚡ Refresh All Prices
+            </button>
+            <span id="refreshStatus" style="font-size:12px;color:var(--ink-soft)"></span>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="hc-actions">
+            <button type="submit" class="hc-btn hc-btn-primary" id="submitBtn">
+                ⚡ Analyze Strategies
+            </button>
+            <button type="button" class="hc-btn hc-btn-outline" id="saveSnapshotBtn"
+                    onclick="saveSnapshot()" style="display:none">Save Snapshot</button>
+            <button type="button" class="hc-btn hc-btn-outline" id="compareBtn"
+                    onclick="toggleCompare()" style="display:none">Compare with Saved</button>
+            <span id="snapshotLabel" style="font-size:12px;color:var(--ink-soft)"></span>
+        </div>
+    </form>
+
+    <div id="errorMsg" class="hc-hidden hc-error"></div>
+
+    <!-- ── Results ── -->
+    <div id="results" class="hc-hidden">
+
+        <!-- Market conditions -->
+        <div class="hc-result-section">
+            <div class="hc-result-label">Market Conditions</div>
+            <div class="hc-indicator-row" id="indicatorRow"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px">
+                <div id="regimeBadge"></div>
+                <div id="hv30Badge"></div>
+            </div>
+            <div id="expirySuggestions"></div>
+        </div>
+
+        <!-- Winner -->
+        <div id="winnerCard"></div>
+
+        <!-- Summary card for recommended strategy -->
+        <div id="summaryCard"></div>
+
+        <!-- Payoff diagram — shown first so user sees visual before numbers -->
+        <div class="hc-result-section">
+            <div class="hc-result-label">Payoff Diagram at Expiry</div>
+            <div class="hc-chart-wrap">
+                <canvas id="payoffChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Comparison table -->
+        <div class="hc-result-section">
+            <div class="hc-result-label">Strategy Comparison</div>
+            <div class="hc-table-wrap"><table class="hc-table" id="compTable"></table></div>
+            <div id="hedgeNotes"></div>
+        </div>
+
+        <!-- Time decay -->
+        <div class="hc-result-section">
+            <div class="hc-result-label">Time Decay
+                <span style="font-weight:400;font-size:11.5px;color:var(--ink-soft)">— stock stays at entry price</span>
+            </div>
+            <div class="hc-table-wrap"><table class="hc-table" id="decayTable"></table></div>
+        </div>
+
+        <!-- Scenario table -->
+        <div class="hc-result-section">
+            <div class="hc-result-label">P&amp;L Scenarios at Expiry</div>
+            <div class="hc-table-wrap"><table class="hc-table" id="scenarioTable"></table></div>
+        </div>
+
+        <!-- Compare view -->
+        <div id="compareView" class="hc-hidden">
+            <div class="hc-result-section">
+                <div class="hc-result-label" style="color:var(--accent,#6366f1)">Snapshot Comparison</div>
+                <div class="hc-table-wrap"><table class="hc-table" id="compareTable"></table></div>
+            </div>
+        </div>
+
+        <!-- Bottom actions -->
+        <div class="hc-actions" style="margin-top:8px">
+            <button class="hc-btn hc-btn-primary" onclick="openJournalModal()">Save to Trade Journal</button>
+        </div>
+    </div>
+
+    <!-- Journal modal: style="display:none" ensures hidden on page load regardless of CSS -->
+    <div id="journalModal" class="hc-modal-bg" style="display:none"
+         onclick="if(event.target===this)document.getElementById('journalModal').style.display='none'">
+        <div class="hc-modal">
+            <div class="hc-modal-title">Save to Trade Journal</div>
+            <div id="journalPreview" style="margin-bottom:14px;font-size:13px;color:var(--ink-soft)"></div>
+            <div style="margin-bottom:18px">
+                <label style="display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);
+                               text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">
+                    Strategy to save
+                </label>
+                <select id="journalStrategy"
+                        style="display:block;width:100%;padding:9px 10px;font-size:13.5px;font-family:inherit;
+                               border:1px solid var(--border);border-radius:7px;
+                               background:var(--bg);color:var(--ink);outline:none">
+                </select>
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="hc-btn"
+                        onclick="doJournalSave()">Save</button>
+                <button class="hc-btn hc-btn-outline"
+                        onclick="document.getElementById('journalModal').style.display='none'">Cancel</button>
+            </div>
+            <div id="journalMsg" style="margin-top:10px;font-size:13px"></div>
+        </div>
+    </div>
+
+</main>
+</div>
+
+<!-- Inline map: token → NSE symbol, built server-side so no attribute parsing needed -->
+<script th:inline="javascript">
+    window.NSE_SYMBOLS = /*[[${nseSymbolMap}]]*/ {};
+</script>
+
+<script>
+// ── Globals (on window so all closures see the same reference) ────────────────
+window._lastResult  = null;
+window._savedResult = null;
+window._payoffChart = null;
+
+const INR = n => {
+    if (n == null) return '—';
+    const abs = Math.abs(n);
+    const s   = new Intl.NumberFormat('en-IN', {maximumFractionDigits:0}).format(abs);
+    return (n < 0 ? '-₹' : '₹') + s;
+};
+const pct  = v  => (v != null ? (v*100).toFixed(1) + '%' : '—');
+const cls  = n  => n > 0 ? 'pnl-pos' : n < 0 ? 'pnl-neg' : 'pnl-zer';
+const stars = (s, m) =>
+    `<span class="hc-stars">${'★'.repeat(s)}</span><span class="hc-stars-empty">${'☆'.repeat(m-s)}</span>`;
+const csrf = () => ({
+    token:  document.querySelector('meta[name="_csrf"]').content,
+    header: document.querySelector('meta[name="_csrf_header"]').content
+});
+
+// ── Option chain loaders ──────────────────────────────────────────────────────
+async function loadExpiries() {
+    var underlying = document.getElementById('nseUnderlying').value.trim().toUpperCase();
+    var sel        = document.getElementById('expiryDate');
+    if (!underlying) { sel.innerHTML = '<option value="">Select instrument first</option>'; return; }
+    sel.innerHTML = '<option value="">Loading…</option>';
+    try {
+        var res  = await fetch('/hedge/expiries?underlying=' + encodeURIComponent(underlying));
+        var data = await res.json();
+        sel.innerHTML = '';
+        if (data.error || !data.expiries || !data.expiries.length) {
+            sel.innerHTML = '<option value="">' + (data.error || 'No expiries found') + '</option>';
+            return;
+        }
+        data.expiries.forEach(function(d) {
+            var opt = document.createElement('option');
+            opt.value = d;
+            var parts = d.split('-');
+            var dt    = new Date(+parts[0], +parts[1]-1, +parts[2]);
+            var diff  = Math.round((dt - new Date()) / 86400000);
+            opt.textContent = dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
+                            + ' (' + diff + 'd)';
+            sel.appendChild(opt);
+        });
+        loadStrikes();
+    } catch(e) {
+        sel.innerHTML = '<option value="">Error: ' + e.message + '</option>';
+    }
+}
+
+async function loadStrikes() {
+    var underlying = document.getElementById('nseUnderlying').value.trim().toUpperCase();
+    var expiry     = document.getElementById('expiryDate').value;
+    if (!underlying || !expiry) return;
+    ['putStrike','callStrike'].forEach(function(id) {
+        document.getElementById(id).innerHTML = '<option value="">Loading…</option>';
+    });
+    try {
+        var res  = await fetch('/hedge/strikes?underlying=' + encodeURIComponent(underlying)
+                             + '&expiry=' + encodeURIComponent(expiry));
+        var data = await res.json();
+        if (data.error || !data.strikes || !data.strikes.length) {
+            ['putStrike','callStrike'].forEach(function(id) {
+                document.getElementById(id).innerHTML =
+                    '<option value="">' + (data.error || 'No strikes found') + '</option>';
+            });
+            return;
+        }
+        ['putStrike','callStrike'].forEach(function(id) {
+            var sel = document.getElementById(id);
+            var cur = sel.value;
+            sel.innerHTML = '';
+            data.strikes.forEach(function(s) {
+                var opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = '₹' + s;
+                sel.appendChild(opt);
+            });
+            if (cur) sel.value = cur;
+        });
+    } catch(e) {
+        ['putStrike','callStrike'].forEach(function(id) {
+            document.getElementById(id).innerHTML = '<option value="">Error: ' + e.message + '</option>';
+        });
+    }
+}
+
+// Auto-select nearest strike from dropdown by mode
+function autoSelectStrike(side, mode) {
+    var spot = parseFloat(document.getElementById('entryPrice').value);
+    if (!spot) { var el=document.getElementById('ltpError'); el.textContent='Enter Entry Price first'; el.style.display='block'; return; }
+    var id  = side === 'put' ? 'putStrike' : 'callStrike';
+    var sel = document.getElementById(id);
+    var opts = Array.from(sel.options).map(function(o) { return parseFloat(o.value); }).filter(function(v) { return !isNaN(v); });
+    if (!opts.length) return;
+    var target;
+    if (mode === 'atm')      target = spot;
+    else if (mode === '3')   target = side === 'put' ? spot * 0.97 : spot * 1.03;
+    else if (mode === '5')   target = side === 'put' ? spot * 0.95 : spot * 1.05;
+    else if (mode === 'zerocost') {
+        var ps = parseFloat(document.getElementById('putStrike').value);
+        target = ps ? 2 * spot - ps : spot * 1.03;
+    }
+    // Pick closest available strike
+    var closest = opts.reduce(function(a, b) { return Math.abs(b - target) < Math.abs(a - target) ? b : a; });
+    sel.value = closest;
+}
+
+// ── Zero-cost collar: handled by autoSelectStrike('call','zerocost') ──────────
+function applyZeroCostCollar() {
+    autoSelectStrike('call', 'zerocost');
+}
+
+// ── Live price fetch ──────────────────────────────────────────────────────────
+function ltpErr(msg) {
+    var el = document.getElementById('ltpError');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+async function fetchLivePrice() {
+    var el = document.getElementById('ltpError');
+    el.style.display = 'none';
+    var token = document.getElementById('symbolToken').value;
+    if (!token) { ltpErr('Select an instrument from the dropdown first.'); return; }
+    var c = csrf();
+    try {
+        var res  = await fetch('/hedge/ltp/' + token, { headers: { [c.header]: c.token } });
+        var data = await res.json();
+        if (data.error) { ltpErr('LTP error: ' + data.error); return; }
+        document.getElementById('entryPrice').value = (+data.ltp).toFixed(2);
+        document.getElementById('entryPrice').style.borderColor = '#16a34a';
+        setTimeout(function() { document.getElementById('entryPrice').style.borderColor = ''; }, 2000);
+    } catch(e) { ltpErr('LTP fetch failed: ' + e.message); }
+}
+function clearLtp() { document.getElementById('entryPrice').value = ''; }
+
+function autoFillNse(selectEl) {
+    var token = selectEl.value;
+    var nse   = (window.NSE_SYMBOLS && window.NSE_SYMBOLS[token]) ? window.NSE_SYMBOLS[token] : '';
+    document.getElementById('nseUnderlying').value = nse;
+}
+
+async function fetchFuturesPrice() {
+    var errEl     = document.getElementById('futPriceErr');
+    var underlying = document.getElementById('nseUnderlying').value.trim().toUpperCase();
+    errEl.style.display = 'none';
+    if (!underlying) { errEl.textContent = 'Select an instrument first.'; errEl.style.display = 'block'; return; }
+    var c = csrf();
+    try {
+        var res  = await fetch('/hedge/futures-price?underlying=' + encodeURIComponent(underlying));
+        var data = await res.json();
+        if (data.error) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+        document.getElementById('futurePrice').value = (+data.ltp).toFixed(2);
+        document.getElementById('futurePrice').style.borderColor = '#16a34a';
+        setTimeout(function() { document.getElementById('futurePrice').style.borderColor = ''; }, 2000);
+    } catch(e) { errEl.textContent = 'Fetch failed: ' + e.message; errEl.style.display = 'block'; }
+}
+
+async function fetchOptionPremium(side) {
+    var errId  = side === 'put' ? 'putPremErr'  : 'callPremErr';
+    var fieldId = side === 'put' ? 'putPremium'  : 'callPremium';
+    var strikeId = side === 'put' ? 'putStrike'  : 'callStrike';
+    var errEl  = document.getElementById(errId);
+    errEl.style.display = 'none';
+
+    var underlying = document.getElementById('nseUnderlying').value.trim().toUpperCase();
+    var strike     = document.getElementById(strikeId).value;
+    var expiryStr  = document.getElementById('expiryDate').value;
+
+    if (!underlying) { errEl.textContent = 'Enter NSE Symbol first (e.g. HDFCBANK).'; errEl.style.display = 'block'; return; }
+    if (!strike)     { errEl.textContent = 'Select a strike first.'; errEl.style.display = 'block'; return; }
+    if (!expiryStr)  { errEl.textContent = 'Select an expiry date first.'; errEl.style.display = 'block'; return; }
+
+    var type = side === 'put' ? 'PE' : 'CE';
+    var c    = csrf();
+    var url  = '/hedge/option-premium?underlying=' + encodeURIComponent(underlying)
+             + '&strike=' + encodeURIComponent(strike)
+             + '&type='   + type
+             + '&expiry=' + expiryStr;
+    try {
+        var res  = await fetch(url, { headers: { [c.header]: c.token } });
+        var data = await res.json();
+        if (data.error) {
+            errEl.textContent = data.error;
+            errEl.style.display = 'block';
+            return;
+        }
+        document.getElementById(fieldId).value = (+data.ltp).toFixed(2);
+        document.getElementById(fieldId).style.borderColor = '#16a34a';
+        setTimeout(function() { document.getElementById(fieldId).style.borderColor = ''; }, 2000);
+    } catch(e) {
+        errEl.textContent = 'Fetch failed: ' + e.message;
+        errEl.style.display = 'block';
+    }
+}
+
+// ── Analyze ───────────────────────────────────────────────────────────────────
+async function runAnalysis(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="hc-spinner"></span>Analyzing…';
+    document.getElementById('errorMsg').classList.add('hc-hidden');
+    document.getElementById('results').classList.add('hc-hidden');
+
+    const c = csrf();
+    var expiry = document.getElementById('expiryDate').value;
+    var dte    = expiry ? Math.max(1, Math.round((new Date(expiry) - new Date()) / 86400000)) : 30;
+    const payload = {
+        symbolToken:  document.getElementById('symbolToken').value,
+        entryPrice:   parseFloat(document.getElementById('entryPrice').value),
+        quantity:     parseInt(document.getElementById('quantity').value),
+        putStrike:    parseFloat(document.getElementById('putStrike').value),
+        putPremium:   parseFloat(document.getElementById('putPremium').value),
+        callStrike:   parseFloat(document.getElementById('callStrike').value),
+        callPremium:  parseFloat(document.getElementById('callPremium').value),
+        futurePrice:  parseFloat(document.getElementById('futurePrice').value),
+        daysToExpiry: dte,
+    };
+    try {
+        const res  = await fetch('/hedge/compare', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', [c.header]: c.token },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) { showError(data.error || 'Server error'); return; }
+        _lastResult = data;
+        renderResults(data);
+        document.getElementById('saveSnapshotBtn').style.display = '';
+    } catch(err) { showError('Network error: ' + err.message); }
+    finally { btn.disabled = false; btn.textContent = 'Analyze Strategies'; }
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.remove('hc-hidden');
+}
+
+// ── Snapshot / compare ────────────────────────────────────────────────────────
+function saveSnapshot() {
+    _savedResult = _lastResult;
+    document.getElementById('compareBtn').style.display = '';
+    document.getElementById('snapshotLabel').textContent = '✓ Snapshot saved (' + _savedResult.symbol + ' @ ₹' + (+_savedResult.entryPrice).toFixed(2) + ')';
+}
+function toggleCompare() {
+    if (!_savedResult || !_lastResult) return;
+    const view = document.getElementById('compareView');
+    view.classList.toggle('hc-hidden');
+    if (!view.classList.contains('hc-hidden')) renderCompareTable();
+}
+function renderCompareTable() {
+    const s = _savedResult, c = _lastResult;
+    const strategies = s.analyses.map(a => a.strategy);
+    let html = '<thead><tr><th>Strategy</th>';
+    strategies.forEach(st => {
+        const sa = s.analyses.find(a => a.strategy === st);
+        const ca = c.analyses.find(a => a.strategy === st);
+        html += `<th>${sa.displayName}<br><small style="font-weight:400;color:var(--ink-soft)">Saved vs Current</small></th>`;
+    });
+    html += '</tr></thead><tbody>';
+    const rows = [
+        { label: 'Max Loss',  fn: a => INR(-(+a.maxLoss)) },
+        { label: 'Max Gain',  fn: a => a.maxGain == null ? 'Unlimited' : INR(+a.maxGain) },
+        { label: 'Breakeven', fn: a => '₹' + (+a.breakeven).toFixed(2) },
+        { label: 'P(profit)', fn: a => pct(a.probabilityOfProfit) },
+        { label: 'Regime Fit',fn: a => stars(a.regimeFitScore, 5) },
+    ];
+    rows.forEach(row => {
+        html += `<tr><td class="hc-row-label">${row.label}</td>`;
+        strategies.forEach(st => {
+            const sa = s.analyses.find(a => a.strategy === st);
+            const ca = c.analyses.find(a => a.strategy === st);
+            html += `<td>${row.fn(sa)} <span style="color:var(--ink-soft);margin:0 4px">→</span> ${row.fn(ca)}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody>';
+    document.getElementById('compareTable').innerHTML = html;
+}
+
+// ── Render all ────────────────────────────────────────────────────────────────
+function renderResults(d) {
+    renderIndicators(d.indicatorSnapshot, d.hv30, d.hv30Assessment);
+    renderExpirySuggestions(d.expiryDates);
+    renderWinner(d);   // also calls renderSummaryCard internally
+    renderCompTable(d.analyses);
+    renderHedgeNotes(d.analyses);
+    renderPayoffChart(d.analyses, d.entryPrice);
+    renderDecayTable(d.analyses);
+    renderScenarioTable(d.analyses);
+    document.getElementById('results').classList.remove('hc-hidden');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderIndicators(snap, hv30, hv30Assess) {
+    const sc = s => s >= 2 ? 'score-good' : s === 1 ? 'score-mid' : 'score-bad';
+    const inds = [
+        { label:'RSI (14)',   value: snap.rsi   != null ? (+snap.rsi).toFixed(1)  : 'N/A', sig: snap.rsiSignal,   score: snap.rsiScore,   max: 2 },
+        { label:'ADX (14)',   value: snap.adx   != null ? (+snap.adx).toFixed(1)  : 'N/A', sig: snap.adxSignal,   score: snap.adxScore,   max: 2 },
+        { label:'EMA-21',     value: snap.ema21 != null ? (+snap.ema21).toFixed(2): 'N/A', sig: snap.ema21Signal, score: snap.ema21Score, max: 2 },
+        { label:'Total',      value: snap.totalScore + '/6', sig: snap.regime.label, score: snap.totalScore, max: 6 },
+    ];
+    document.getElementById('indicatorRow').innerHTML = inds.map(i => `
+        <div class="hc-ind-card">
+            <div class="ind-label">${i.label}</div>
+            <div class="ind-value">${i.value}</div>
+            <div class="ind-signal">${i.sig}</div>
+            <div class="ind-score ${sc(i.score)}">${stars(i.score, i.max)} ${i.score}/${i.max}</div>
+        </div>`).join('');
+
+    const r = snap.regime;
+    document.getElementById('regimeBadge').innerHTML = `
+        <div class="hc-regime hc-regime-${r.name}">
+            <span class="regime-label">Regime</span>
+            <span class="regime-name">${r.label}</span>
+            <span class="regime-desc">— ${r.description}</span>
+        </div>`;
+
+    if (hv30 > 0) {
+        const hvPct  = (hv30 * 100).toFixed(1);
+        const hvCls  = hv30Assess === 'CHEAP' ? 'pnl-pos' : hv30Assess === 'EXPENSIVE' ? 'pnl-neg' : '';
+        document.getElementById('hv30Badge').innerHTML = `
+            <div class="hc-regime">
+                <span class="regime-label">HV30</span>
+                <span class="regime-name ${hvCls}">${hvPct}%</span>
+                <span class="regime-desc">— PUT premium is <b>${hv30Assess}</b></span>
+            </div>`;
+    }
+}
+
+function renderExpirySuggestions(dates) {
+    if (!dates || !dates.length) return;
+    const chips = dates.map(d => {
+        const parts = d.split('-');
+        const dt    = new Date(+parts[0], +parts[1]-1, +parts[2]);
+        const diff  = Math.round((dt - new Date()) / 86400000);
+        return `<span class="hc-expiry-chip"
+            onclick="document.getElementById('expiryDate').value='${d}';loadStrikes();"
+            title="Set expiry to ${d}">${dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})} (${diff}d)</span>`;
+    }).join('');
+    document.getElementById('expirySuggestions').innerHTML =
+        `<div class="hc-expiry-row">NSE monthly expiries: ${chips}</div>`;
+}
+
+function renderWinner(d) {
+    const w = d.analyses.find(a => a.recommended);
+    if (!w) return;
+    document.getElementById('winnerCard').innerHTML = `
+        <div class="hc-winner-card">
+            <div class="hc-winner-icon">🏆</div>
+            <div>
+                <div class="hc-winner-title">Recommended — ${d.indicatorSnapshot.regime.label}</div>
+                <div class="hc-winner-name">${w.displayName}</div>
+                <div class="hc-winner-body">${w.rationale}</div>
+            </div>
+        </div>`;
+    renderSummaryCard(w, d.daysToExpiry);
+}
+
+function renderSummaryCard(w, dte) {
+    const be    = (+w.breakeven).toFixed(2);
+    const bePct = (+w.breakevenDistancePct).toFixed(1);
+    const beSign= +w.breakevenDistancePct > 0 ? '+' : '';
+    const theta = +w.dailyTheta;
+    const thetaStr = Math.abs(theta) < 0.5 ? '~₹0/day'
+                   : (theta > 0 ? '+' : '') + INR(theta) + '/day';
+    const thetaCls = theta > 0 ? 'pnl-pos' : theta < 0 ? 'pnl-neg' : 'pnl-zer';
+    const maxLossStr = INR(-(+w.maxLoss));
+    const maxGainStr = w.maxGain == null ? 'Unlimited' : INR(+w.maxGain);
+
+    document.getElementById('summaryCard').innerHTML = `
+        <div class="hc-summary-grid">
+            <div class="hc-summary-item">
+                <div class="hc-summary-label">Max Loss</div>
+                <div class="hc-summary-value pnl-neg">${maxLossStr}</div>
+                <div class="hc-summary-sub">worst case</div>
+            </div>
+            <div class="hc-summary-item">
+                <div class="hc-summary-label">Breakeven</div>
+                <div class="hc-summary-value">₹${be}</div>
+                <div class="hc-summary-sub ${+bePct > 0 ? 'pnl-neg' : 'pnl-pos'}">${beSign}${bePct}% from entry</div>
+            </div>
+            <div class="hc-summary-item">
+                <div class="hc-summary-label">Max Gain</div>
+                <div class="hc-summary-value pnl-pos">${maxGainStr}</div>
+                <div class="hc-summary-sub">Risk/Reward: ${w.riskRewardRatio}</div>
+            </div>
+            <div class="hc-summary-item">
+                <div class="hc-summary-label">Daily Theta</div>
+                <div class="hc-summary-value ${thetaCls}">${thetaStr}</div>
+                <div class="hc-summary-sub">${dte} days to expiry</div>
+            </div>
+        </div>`;
+}
+
+// ── Auto-refresh all prices ───────────────────────────────────────────────────
+async function refreshAllPrices() {
+    const btn = document.getElementById('refreshAllBtn');
+    const st  = document.getElementById('refreshStatus');
+    btn.disabled = true;
+    btn.textContent = '⏳ Refreshing…';
+    st.textContent = '';
+    const results = await Promise.allSettled([
+        fetchLivePrice(),
+        fetchFuturesPrice(),
+        fetchOptionPremium('put'),
+        fetchOptionPremium('call')
+    ]);
+    const ok  = results.filter(r => r.status === 'fulfilled').length;
+    btn.disabled = false;
+    btn.textContent = '⚡ Refresh All Prices';
+    st.textContent = `✓ ${ok}/4 prices updated`;
+    setTimeout(() => st.textContent = '', 3000);
+}
+
+function renderCompTable(analyses) {
+    const rows = [
+        { label:'Position',      fn: a => `<small style="color:var(--ink-soft)">${a.position}</small>` },
+        { label:'Net Premium',   fn: a => premCell(a.netPremiumPerShare) },
+        { label:'Total Cost',    fn: a => costCell(a.totalPremiumCost) },
+        { label:'Breakeven',     fn: a => {
+            const pctV = (+a.breakevenDistancePct).toFixed(1);
+            const cl   = +a.breakevenDistancePct > 0 ? 'pnl-neg' : 'pnl-pos';
+            const sign = +a.breakevenDistancePct > 0 ? '+' : '';
+            return `<span style="font-family:monospace">₹${(+a.breakeven).toFixed(2)}</span>
+                    <span class="${cl}" style="font-size:11px;margin-left:4px">${sign}${pctV}%</span>`;
+        }},
+        { label:'Max Gain',      fn: a => a.maxGain == null ? '<span class="hc-unlimited">Unlimited</span>' : `<span class="pnl-pos">${INR(+a.maxGain)}</span>` },
+        { label:'Max Loss',      fn: a => `<span class="pnl-neg">${INR(-(+a.maxLoss))}</span>` },
+        { label:'Risk / Reward', fn: a => `<span style="font-family:monospace;font-size:12px">${a.riskRewardRatio}</span>` },
+        { label:'Daily Theta',   fn: a => {
+            const t = +a.dailyTheta;
+            if (Math.abs(t) < 0.5) return `<span class="pnl-zer">~₹0</span>`;
+            return `<span class="${t > 0 ? 'pnl-pos' : 'pnl-neg'}">${t > 0 ? '+' : ''}${INR(t)}/day</span>`;
+        }},
+        { label:'P(Profit)',     fn: a => `<span class="${a.probabilityOfProfit>=0.6?'pnl-pos':a.probabilityOfProfit<0.4?'pnl-neg':''}">${pct(a.probabilityOfProfit)}</span>` },
+        { label:'Days to B/E',  fn: a => a.estimatedDaysToBreakeven > 0 ? a.estimatedDaysToBreakeven + 'd' : '—' },
+        { label:'Regime Fit',   fn: a => stars(a.regimeFitScore, 5) },
+    ];
+    let thead = '<thead><tr><th>Metric</th>';
+    analyses.forEach(a => {
+        thead += `<th class="${a.recommended?'hc-col-winner':''}">${a.displayName}${a.recommended?' <span class="hc-badge-rec">BEST FIT</span>':''}</th>`;
+    });
+    thead += '</tr></thead>';
+    let tbody = '<tbody>';
+    rows.forEach(row => {
+        tbody += `<tr><td class="hc-row-label">${row.label}</td>`;
+        analyses.forEach(a => tbody += `<td>${row.fn(a)}</td>`);
+        tbody += '</tr>';
+    });
+    tbody += '</tbody>';
+    document.getElementById('compTable').innerHTML = thead + tbody;
+}
+
+function premCell(v) {
+    const n = +v;
+    if (Math.abs(n) < 0.01) return `<span class="prem-zero">₹0</span>`;
+    if (n < 0) return `<span class="prem-debit">-₹${Math.abs(n).toFixed(2)}/share</span>`;
+    return `<span class="prem-credit">+₹${n.toFixed(2)}/share</span>`;
+}
+function costCell(v) {
+    const n = +v;
+    if (Math.abs(n) < 1) return `<span class="prem-zero">—</span>`;
+    return n > 0 ? `<span class="prem-debit">${INR(-n)} paid</span>` : `<span class="prem-credit">${INR(-n)} received</span>`;
+}
+
+function renderHedgeNotes(analyses) {
+    const html = analyses.filter(a => a.hedgeNote)
+        .map(a => `<div class="hc-note"><b>${a.displayName}:</b> ${a.hedgeNote}</div>`).join('');
+    document.getElementById('hedgeNotes').innerHTML = html ? `<div style="margin-top:10px">${html}</div>` : '';
+}
+
+// ── Payoff diagram ────────────────────────────────────────────────────────────
+const CHART_COLORS = ['#6366f1','#16a34a','#f59e0b','#ef4444'];
+
+function renderPayoffChart(analyses, entryPrice) {
+    if (_payoffChart) { _payoffChart.destroy(); _payoffChart = null; }
+    const labels = analyses[0].chartScenarios.map(s => s.priceLabel);
+    const datasets = analyses.map((a, i) => ({
+        label:          a.displayName,
+        data:           a.chartScenarios.map(s => +s.netPnl),
+        borderColor:    CHART_COLORS[i],
+        backgroundColor:'transparent',
+        borderWidth:    2,
+        pointRadius:    2,
+        tension:        0.3,
+        borderDash:     a.recommended ? [] : [4,3],
+    }));
+    // zero line dataset
+    datasets.push({
+        label: 'Break-even', data: labels.map(() => 0),
+        borderColor: 'rgba(128,128,128,.4)', borderWidth: 1,
+        borderDash: [2,4], pointRadius: 0, tension: 0,
+    });
+
+    _payoffChart = new Chart(document.getElementById('payoffChart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { font: { size: 12 }, color: getComputedStyle(document.documentElement).getPropertyValue('--ink') || '#111' } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${INR(ctx.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { color: 'rgba(128,128,128,.1)' }, ticks: { maxTicksLimit: 9 } },
+                y: {
+                    grid: { color: 'rgba(128,128,128,.1)' },
+                    ticks: { callback: v => INR(v) }
+                }
+            }
+        }
+    });
+}
+
+// ── Time decay table ──────────────────────────────────────────────────────────
+function renderDecayTable(analyses) {
+    const rows = analyses[0].timeDecay;
+    let thead = '<thead><tr><th>Time</th><th>Days Left</th>';
+    analyses.forEach(a => {
+        thead += `<th class="${a.recommended?'hc-col-winner':''}">${a.displayName}${a.recommended?' <span class="hc-badge-rec">BEST</span>':''}</th>`;
+    });
+    thead += '</tr></thead><tbody>';
+    rows.forEach((_, i) => {
+        thead += `<tr><td class="hc-row-label">${analyses[0].timeDecay[i].label}</td><td>${analyses[0].timeDecay[i].daysRemaining}d</td>`;
+        analyses.forEach(a => {
+            const n = +a.timeDecay[i].estimatedNetPnl;
+            thead += `<td class="${cls(n)}">${INR(n)}</td>`;
+        });
+        thead += '</tr>';
+    });
+    thead += '</tbody>';
+    document.getElementById('decayTable').innerHTML = thead;
+}
+
+// ── Scenario table ────────────────────────────────────────────────────────────
+function renderScenarioTable(analyses) {
+    let thead = '<thead><tr><th>Price at Expiry</th><th>Move</th>';
+    analyses.forEach(a => {
+        thead += `<th class="${a.recommended?'hc-col-winner':''}">${a.displayName}${a.recommended?' <span class="hc-badge-rec">BEST FIT</span>':''}</th>`;
+    });
+    thead += '</tr></thead><tbody>';
+    analyses[0].scenarios.forEach((_, i) => {
+        const price = +analyses[0].scenarios[i].priceAtExpiry;
+        thead += `<tr><td class="hc-row-label" style="font-family:monospace">₹${price.toFixed(2)}</td><td>${analyses[0].scenarios[i].priceLabel}</td>`;
+        analyses.forEach(a => {
+            const n = +a.scenarios[i].netPnl;
+            thead += `<td class="${cls(n)}">${INR(n)}</td>`;
+        });
+        thead += '</tr>';
+    });
+    thead += '</tbody>';
+    document.getElementById('scenarioTable').innerHTML = thead;
+}
+
+// ── Journal modal ─────────────────────────────────────────────────────────────
+
+function openJournalModal() {
+    var d = window._lastResult;
+    if (!d || !d.analyses) {
+        alert('Run an analysis first, then click Save to Trade Journal.'); return;
+    }
+    var sel = document.getElementById('journalStrategy');
+    sel.innerHTML = '';
+    d.analyses.forEach(function (a) {
+        var opt = document.createElement('option');
+        opt.value       = a.strategy;
+        opt.textContent = a.displayName + (a.recommended ? ' (Recommended)' : '');
+        sel.appendChild(opt);
+    });
+    var rec = d.analyses.find(function (a) { return a.recommended; });
+    if (rec) sel.value = rec.strategy;
+
+    document.getElementById('journalPreview').textContent =
+        d.symbol + ' @ ₹' + (+d.entryPrice).toFixed(2) +
+        ' — ' + d.quantity + ' shares | ' +
+        d.indicatorSnapshot.regime.label;
+
+    // Cache the full result inside the modal so doJournalSave never needs the global
+    document.getElementById('journalModal').dataset.result = JSON.stringify(d);
+    document.getElementById('journalMsg').textContent = '';
+    document.getElementById('journalModal').style.display = 'flex';
+}
+
+async function doJournalSave() {
+    var msg = document.getElementById('journalMsg');
+    // Read data from modal DOM — guaranteed to be what was shown in the dropdown
+    var raw = document.getElementById('journalModal').dataset.result;
+    var d   = raw ? JSON.parse(raw) : window._lastResult;
+    if (!d || !d.analyses) {
+        msg.style.color = '#dc2626';
+        msg.textContent = 'No analysis data — run an analysis first.';
+        return;
+    }
+    var sel      = document.getElementById('journalStrategy');
+    var stratKey = sel.value;
+    var a        = d.analyses.find(function (x) { return x.strategy === stratKey; });
+    if (!a) { document.getElementById('journalMsg').textContent = 'Select a strategy.'; return; }
+
+    var c = csrf();
+    var payload = {
+        symbol:       d.symbol,
+        entryPrice:   d.entryPrice,
+        quantity:     d.quantity,
+        strategyName: a.displayName,
+        regime:       d.indicatorSnapshot.regime.label,
+        rationale:    a.rationale,
+        putStrike:    document.getElementById('putStrike').value   || null,
+        callStrike:   document.getElementById('callStrike').value  || null,
+        putPremium:   document.getElementById('putPremium').value  || null,
+        maxLoss:      a.maxLoss,
+        breakeven:    a.breakeven,
+    };
+    msg.textContent = 'Saving…';
+    try {
+        const res  = await fetch('/hedge/journal', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', [c.header]: c.token },
+            body:    JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.error) {
+            msg.style.color = '#dc2626';
+            msg.textContent = data.error;
+        } else {
+            msg.style.color = '#16a34a';
+            msg.textContent = '✓ ' + data.message;
+            setTimeout(function() {
+                document.getElementById('journalModal').style.display = 'none';
+            }, 1500);
+        }
+    } catch (err) {
+        msg.style.color = '#dc2626';
+        msg.textContent = 'Error: ' + err.message;
+    }
+}
+</script>
+
+</body>
+</html>

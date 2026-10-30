@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Analysis — AngleApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+  <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+  <style>
+    /* ── Layout ─────────────────────────────────────── */
+    .page          { max-width: 1100px; margin: 0 auto; padding: 20px 20px 40px; }
+    .grid-top      { display: grid; grid-template-columns: 220px 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-bottom   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media(max-width:768px) { .grid-top,.grid-bottom { grid-template-columns: 1fr; } }
+
+    /* ── Card ───────────────────────────────────────── */
+    .card          { background: var(--surface); border: 1px solid var(--border);
+                     border-radius: 12px; padding: 16px 20px; }
+    .card-title    { font-size: 11px; font-weight: 700; text-transform: uppercase;
+                     letter-spacing: .06em; color: var(--faint); margin-bottom: 12px; }
+
+    /* ── Toolbar ────────────────────────────────────── */
+    .toolbar       { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+                     margin-bottom: 14px; }
+    .toolbar input, .toolbar select {
+                     padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+                     background: var(--surface); color: var(--ink);
+                     font: 600 13px 'Inter', sans-serif; height: 36px; }
+    .toolbar input { width: 200px; }
+    .btn           { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border);
+                     background: var(--surface); color: var(--ink); cursor: pointer;
+                     font: 600 12px 'Inter', sans-serif; height: 36px;
+                     display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover     { background: var(--hover,#f5f5f5); }
+    .btn.primary   { background: var(--lm-primary,#2563EB); color: #fff; border-color: transparent; }
+    .btn.primary:hover { opacity: .9; }
+    .live-btn      { transition: background .2s; }
+    .live-btn.on   { background: #dc2626; color: #fff; border-color: transparent; }
+    .live-btn.off  { background: var(--surface); color: var(--ink); }
+
+    /* ── Market status bar ──────────────────────────── */
+    .mkt-bar       { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+                     padding: 10px 16px; border-radius: 10px; margin-bottom: 16px;
+                     font-size: 13px; font-weight: 500;
+                     background: var(--surface); border: 1px solid var(--border); }
+    .mkt-dot       { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .mkt-dot.open  { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.2); }
+    .mkt-dot.closed{ background: #dc2626; }
+    .mkt-badge     { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .badge-open    { background: #d1fae5; color: #065f46; }
+    .badge-closed  { background: #fee2e2; color: #991b1b; }
+    .mkt-sep       { color: var(--border); }
+    .countdown     { font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+                     color: var(--lm-primary,#2563EB); font-weight: 600; }
+    .mkt-right     { margin-left: auto; font-size: 12px; color: var(--faint); }
+
+    /* ── Price card ─────────────────────────────────── */
+    .price-ltp     { font-size: 36px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+    .price-change  { font-size: 14px; font-weight: 600; margin-top: 4px; }
+    .price-change.up   { color: #16a34a; }
+    .price-change.down { color: #dc2626; }
+    .price-meta    { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .price-item    { font-size: 12px; color: var(--faint); }
+    .price-item b  { color: var(--ink); font-weight: 600; }
+
+    /* ── Trade suggestion card ──────────────────────── */
+    .trade-dir     { display: inline-flex; align-items: center; gap: 8px;
+                     font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+    .badge-long    { background: #d1fae5; color: #065f46; padding: 3px 10px;
+                     border-radius: 8px; font-size: 13px; }
+    .badge-short   { background: #fee2e2; color: #991b1b; padding: 3px 10px;
+                     border-radius: 8px; font-size: 13px; }
+    .badge-notrade { background: var(--surface-2,#f7f9fc); color: var(--faint);
+                     padding: 3px 10px; border-radius: 8px; font-size: 13px; }
+    .timing-wait   { font-size: 12px; font-weight: 600; color: #f59e0b;
+                     padding: 3px 10px; background: #fef3c7; border-radius: 6px; }
+    .timing-now    { font-size: 12px; font-weight: 600; color: #16a34a;
+                     padding: 3px 10px; background: #d1fae5; border-radius: 6px; }
+    .trade-row     { display: flex; justify-content: space-between; align-items: center;
+                     padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .trade-row:last-child { border-bottom: none; }
+    .trade-label   { color: var(--faint); font-weight: 500; }
+    .trade-val     { font-weight: 700; font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+    .rr-badge      { font-size: 11px; font-weight: 600; color: var(--lm-primary,#2563EB);
+                     background: #dbeafe; padding: 2px 7px; border-radius: 5px; margin-left: 6px; }
+    .wait-note     { margin-top: 10px; font-size: 12px; color: #92400e;
+                     background: #fef3c7; padding: 8px 12px; border-radius: 8px; line-height: 1.5; }
+
+    /* ── MTF table ──────────────────────────────────── */
+    .mtf-table     { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .mtf-table th  { text-align: left; padding: 6px 10px; font-size: 10px; font-weight: 700;
+                     text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
+                     border-bottom: 2px solid var(--border); }
+    .mtf-table td  { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .mtf-table tr:last-child td { border-bottom: none; }
+    .mtf-table tr:hover td { background: var(--hover,#f9fafb); }
+    .tf-badge      { font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+                     font-weight: 600; color: var(--ink); }
+    .bull          { color: #16a34a; font-weight: 700; }
+    .bear          { color: #dc2626; font-weight: 700; }
+    .neutral       { color: var(--faint); font-weight: 500; }
+    .just-badge    { display: inline-block; background: #fef3c7; color: #92400e;
+                     font-size: 10px; font-weight: 700; padding: 1px 6px;
+                     border-radius: 4px; margin-left: 4px; }
+    .bars-mini     { font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+                     color: var(--faint); }
+
+    /* ── Conclusion block ───────────────────────────── */
+    .conclusion    { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .conf-pill     { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .conf-strong   { background: #d1fae5; color: #065f46; }
+    .conf-moderate { background: #fef3c7; color: #92400e; }
+    .conf-weak     { background: #fee2e2; color: #991b1b; }
+    .setup-pill    { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+                     background: var(--surface-2,#f7f9fc); color: var(--ink); border: 1px solid var(--border); }
+    .tf-chips      { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .tf-chip       { font-size: 10px; font-weight: 600; padding: 2px 8px;
+                     border-radius: 12px; }
+    .tf-chip.aligned   { background: #d1fae5; color: #065f46; }
+    .tf-chip.conflict  { background: #fee2e2; color: #991b1b; }
+
+    /* ── Pivot levels grid (no overlap) ────────────────── */
+    .pivot-ltp-row { display:flex; align-items:center; gap:8px; margin-bottom:10px;
+                     padding:8px 12px; background:var(--surface-2,#f7f9fc);
+                     border-radius:8px; font-size:12px; flex-wrap:wrap; }
+    .pivot-ltp-badge { background:var(--lm-primary,#2563EB); color:#fff;
+                       padding:2px 8px; border-radius:5px; font-weight:700;
+                       font-family:'IBM Plex Mono',monospace; font-size:12px; }
+    .pivot-pos-badge { padding:2px 8px; border-radius:5px; font-weight:600; font-size:11px; }
+    .pivot-grid    { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .pivot-chip    { text-align:center; padding:6px 2px; border-radius:8px; }
+    .pivot-chip .p-label { font-size:10px; font-weight:700; margin-bottom:3px; }
+    .pivot-chip .p-val   { font-size:11px; font-weight:700;
+                           font-family:'IBM Plex Mono',monospace; word-break:break-all; }
+    .pivot-chip .p-dist  { font-size:9px; margin-top:2px; color:var(--faint); }
+    .pivot-r { background:rgba(22,163,74,.1); }  .pivot-r .p-label { color:#16a34a; }
+    .pivot-p { background:rgba(37,99,235,.1); }  .pivot-p .p-label { color:#2563eb; }
+    .pivot-s { background:rgba(220,38,38,.1); }  .pivot-s .p-label { color:#dc2626; }
+
+    /* ── SMC block ──────────────────────────────────── */
+    .smc-row       { display: flex; justify-content: space-between; align-items: center;
+                     padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .smc-row:last-child { border-bottom: none; }
+    .smc-label     { color: var(--faint); font-weight: 500; font-size: 12px; }
+    .smc-val       { font-weight: 600; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+    .ob-zone       { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; }
+    .ob-bull       { background: #d1fae5; color: #065f46; }
+    .ob-bear       { background: #fee2e2; color: #991b1b; }
+    .fvg-list      { display: flex; flex-wrap: wrap; gap: 4px; }
+    .fvg-chip      { font-size: 10px; padding: 2px 7px; border-radius: 5px;
+                     background: #fef3c7; color: #92400e; font-family: 'IBM Plex Mono', monospace; }
+
+    /* ── Day breakdown ──────────────────────────────── */
+    .breakdown-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer;
+                        font-size: 13px; font-weight: 600; color: var(--faint);
+                        margin-top: 12px; }
+    .toggle-switch { width: 36px; height: 20px; background: var(--border); border-radius: 10px;
+                     position: relative; transition: background .2s; flex-shrink: 0; }
+    .toggle-switch::after { content:''; position: absolute; left: 3px; top: 3px;
+                            width: 14px; height: 14px; background: #fff; border-radius: 7px;
+                            transition: left .2s; }
+    .toggle-switch.on { background: var(--lm-primary,#2563EB); }
+    .toggle-switch.on::after { left: 19px; }
+    .breakdown-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+    .breakdown-table th { padding: 5px 8px; font-size: 10px; font-weight: 700;
+                          text-transform: uppercase; letter-spacing:.05em; color: var(--faint);
+                          border-bottom: 2px solid var(--border); white-space: nowrap; }
+    .breakdown-table td { padding: 7px 8px; border-bottom: 1px solid var(--border);
+                          font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+    .breakdown-table tr:last-child td { border-bottom: none; }
+    .breakdown-table tr:hover td { background: var(--hover,#f9fafb); }
+
+    /* ── Loading shimmer ────────────────────────────── */
+    .shimmer       { animation: shimmer 1.5s infinite linear; }
+    @keyframes shimmer {
+      0%   { opacity: 1; }
+      50%  { opacity: .4; }
+      100% { opacity: 1; }
+    }
+    .spinner       { display: inline-block; width: 16px; height: 16px;
+                     border: 2px solid var(--border); border-top-color: var(--lm-primary,#2563EB);
+                     border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty + error states ───────────────────────── */
+    .empty-state   { text-align: center; padding: 60px 20px; color: var(--faint); }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; margin: 0; }
+    .error-banner  { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 10px;
+                     padding: 12px 16px; color: #991b1b; font-size: 13px; margin-bottom: 14px; }
+
+    /* ── Toast ──────────────────────────────────────── */
+    #toast         { position: fixed; bottom: 24px; right: 24px; padding: 10px 18px;
+                     border-radius: 10px; font-size: 13px; font-weight: 600; z-index: 999;
+                     display: none; color: #fff; }
+    #toast.ok  { background: #16a34a; }
+    #toast.err { background: #dc2626; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='analysis')}"></div>
+<main class="app-main">
+<div class="page">
+
+  <!-- ── Toolbar ─────────────────────────────────────────── -->
+  <div class="toolbar">
+    <input id="symbolInput" type="text" placeholder="Symbol e.g. HDFCBANK-EQ"
+           list="symbolSuggestions" autocomplete="off" onkeydown="if(event.key==='Enter') loadAnalysis()">
+    <datalist id="symbolSuggestions"></datalist>
+
+    <select id="intervalSelect">
+      <option value="ONE_DAY"        selected>Daily (full stack)</option>
+      <option value="FOUR_HOUR">     4-Hour stack</option>
+      <option value="ONE_HOUR">      1-Hour stack</option>
+      <option value="THIRTY_MINUTE"> 30-Min stack</option>
+      <option value="FIFTEEN_MINUTE">15-Min stack</option>
+    </select>
+
+    <select id="daysSelect">
+      <option value="60" selected>60 days warmup</option>
+      <option value="90">90 days</option>
+      <option value="120">120 days</option>
+      <option value="300">300 days</option>
+    </select>
+
+    <button class="btn primary" onclick="loadAnalysis()">Analyse</button>
+
+    <button id="liveBtn" class="btn live-btn off" onclick="toggleLive()">
+      <span id="liveDot" class="mkt-dot" style="background:#888"></span>
+      <span id="liveTxt">Live OFF</span>
+    </button>
+
+    <button class="btn" onclick="toggleTheme()" style="margin-left:auto">🌙</button>
+  </div>
+
+  <!-- ── Market status bar ───────────────────────────────── -->
+  <div id="mktBar" class="mkt-bar" style="display:none">
+    <span id="mktDot" class="mkt-dot"></span>
+    <span id="mktBadge" class="mkt-badge"></span>
+    <span id="mktExchange" style="font-weight:600"></span>
+    <span class="mkt-sep">|</span>
+    <span id="mktSession"></span>
+    <span class="mkt-sep">|</span>
+    <span id="mktProgress" style="color:var(--faint);font-size:12px"></span>
+    <span class="mkt-right">
+      Next candle: <span id="mktCountdown" class="countdown">—</span>
+    </span>
+  </div>
+
+  <!-- ── Error banner ────────────────────────────────────── -->
+  <div id="errorBanner" class="error-banner" style="display:none"></div>
+
+  <!-- ── Empty state ─────────────────────────────────────── -->
+  <div id="emptyState" class="empty-state">
+    <div class="icon">📊</div>
+    <p>Enter a symbol above and click <b>Analyse</b> to get started.</p>
+    <p style="margin-top:8px;font-size:12px">Examples: HDFCBANK-EQ &nbsp;|&nbsp; RELIANCE-EQ &nbsp;|&nbsp; Nifty 50 &nbsp;|&nbsp; CRUDEOIL19NOV26FUT</p>
+  </div>
+
+  <!-- ── Main content (hidden until data loads) ──────────── -->
+  <div id="mainContent" style="display:none">
+
+    <!-- Row 1: Price + Trade Suggestion -->
+    <div class="grid-top">
+
+      <!-- Price card -->
+      <div class="card" id="priceCard">
+        <div class="card-title" id="priceSymbol">SYMBOL</div>
+        <div class="price-ltp" id="priceLtp">—</div>
+        <div class="price-change" id="priceChange">—</div>
+        <div class="price-meta">
+          <div class="price-item">O: <b id="priceOpen">—</b></div>
+          <div class="price-item">H: <b id="priceHigh">—</b></div>
+          <div class="price-item">L: <b id="priceLow">—</b></div>
+          <div class="price-item">Prev: <b id="pricePrev">—</b></div>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--faint)" id="priceNote"></div>
+      </div>
+
+      <!-- Trade suggestion card -->
+      <div class="card" id="tradeCard">
+        <div class="card-title">Trade Suggestion</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div class="trade-dir" id="tradeDir">—</div>
+          <span id="tradeTiming"></span>
+        </div>
+        <div id="tradeRows"></div>
+        <div id="tradeWaitNote" class="wait-note" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- MTF Analysis (full width) -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="card-title" style="margin:0">Multi-Timeframe Analysis</div>
+        <div id="loadingSpinner" style="display:none"><span class="spinner"></span></div>
+      </div>
+
+      <table class="mtf-table" id="mtfTable">
+        <thead>
+          <tr>
+            <th>Timeframe</th>
+            <th>RSI(14)</th>
+            <th>ADX(14)</th>
+            <th>Trend</th>
+            <th>MACD</th>
+            <th>BB Pos</th>
+            <th>>VWAP</th>
+            <th>Bars</th>
+            <th>Next Bar</th>
+          </tr>
+        </thead>
+        <tbody id="mtfBody"></tbody>
+      </table>
+
+      <!-- Conclusion -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:600;color:var(--faint)">Conclusion:</span>
+          <span id="concBias" style="font-size:16px;font-weight:800"></span>
+          <span id="concConfidence" class="conf-pill"></span>
+          <span id="concSetup" class="setup-pill"></span>
+        </div>
+        <div class="tf-chips" id="concChips" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Pivot Points + Smart Money -->
+    <div class="grid-bottom">
+
+      <!-- Pivot Points -->
+      <div class="card">
+        <div class="card-title">Pivot Points <span id="pivotBased" style="font-weight:400;text-transform:none"></span></div>
+        <div class="pivot-ltp-row" id="pivotLtpRow" style="display:none">
+          <span class="pivot-ltp-badge" id="pivotLtp"></span>
+          <span id="pivotPosLabel" class="pivot-pos-badge"></span>
+          <span id="pivotPosDesc" style="color:var(--faint);font-size:11px"></span>
+        </div>
+        <div class="pivot-grid" id="pivotGrid"></div>
+      </div>
+
+      <!-- Smart Money -->
+      <div class="card">
+        <div class="card-title">Smart Money (SMC)</div>
+        <div id="smcRows"></div>
+      </div>
+    </div>
+
+    <!-- Day Breakdown (toggle) -->
+    <div class="card" style="margin-top:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="card-title" style="margin:0">Day Breakdown</div>
+        <label class="breakdown-toggle" onclick="toggleBreakdown()">
+          <div id="breakdownSwitch" class="toggle-switch"></div>
+          <span id="breakdownLabel">Show hourly candles</span>
+        </label>
+      </div>
+      <div id="breakdownContent" style="display:none">
+        <div id="breakdownMeta" style="font-size:12px;color:var(--faint);margin:8px 0"></div>
+        <div style="overflow-x:auto">
+          <table class="breakdown-table">
+            <thead>
+              <tr>
+                <th>Time (IST)</th>
+                <th>Close</th>
+                <th>RSI</th>
+                <th>ADX</th>
+                <th>Trend</th>
+                <th>MACD</th>
+                <th>VWAP pos</th>
+                <th>Pivot pos</th>
+              </tr>
+            </thead>
+            <tbody id="breakdownBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /mainContent -->
+</div><!-- /page -->
+</main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let currentData    = null;
+let liveMode       = false;
+let liveTimer      = null;
+let breakdownOn    = false;
+let countdownTimer = null;
+
+// ── Symbol autocomplete ────────────────────────────────────────
+document.getElementById('symbolInput').addEventListener('input', async function() {
+  const q = this.value.trim();
+  if (q.length < 2) return;
+  try {
+    const res = await fetch(`/api/instruments/admin/lookup?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const dl = document.getElementById('symbolSuggestions');
+    dl.innerHTML = '';
+    (data.items || data || []).slice(0, 8).forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.symbol || item;
+      dl.appendChild(opt);
+    });
+  } catch(e) {}
+});
+
+// ── Load analysis ──────────────────────────────────────────────
+async function loadAnalysis() {
+  const symbol   = document.getElementById('symbolInput').value.trim();
+  const interval = document.getElementById('intervalSelect').value;
+  const days     = document.getElementById('daysSelect').value;
+  if (!symbol) { showToast('Enter a symbol first', 'err'); return; }
+
+  showLoading(true);
+  hideError();
+
+  try {
+    const url = `/api/stocks/analysis?symbol=${encodeURIComponent(symbol)}&interval=${interval}&days=${days}&live=${liveMode}&breakdown=${breakdownOn}`;
+    const res  = await fetch(url);
+    const data = await res.json();
+
+    if (data.status === 'ERROR') {
+      showError(data.error + (data.suggestions ? '\n' + data.suggestions[0] : ''));
+      showLoading(false);
+      return;
+    }
+
+    currentData = data;
+    renderAll(data);
+    showLoading(false);
+
+    // Schedule next refresh in live mode
+    if (liveMode && data.market?.nextCandleAt) {
+      scheduleRefresh(data.market.nextCandleAt, symbol, interval, days);
+    }
+  } catch(e) {
+    showError('Request failed: ' + e.message);
+    showLoading(false);
+  }
+}
+
+// ── Render everything ──────────────────────────────────────────
+function renderAll(d) {
+  document.getElementById('emptyState').style.display   = 'none';
+  document.getElementById('mainContent').style.display  = '';
+  document.getElementById('errorBanner').style.display  = 'none';
+
+  renderMarketBar(d.market, d.exchange);
+  renderPrice(d.price, d.symbol, d.name, d.mode);
+  renderTrade(d.tradeSuggestion);
+  renderMtf(d.multiTimeframe, d.timeframeStatus, d.conclusion);
+  renderPivots(d.multiTimeframe, d.price);
+  renderSmc(d.multiTimeframe);
+  if (breakdownOn) renderBreakdown(d.dayBreakdown);
+}
+
+// ── Market status bar ──────────────────────────────────────────
+function renderMarketBar(mkt, exchange) {
+  if (!mkt) return;
+  const bar = document.getElementById('mktBar');
+  bar.style.display = 'flex';
+
+  const isOpen = mkt.status === 'OPEN';
+  document.getElementById('mktDot').className   = 'mkt-dot ' + (isOpen ? 'open' : 'closed');
+  document.getElementById('mktBadge').className = 'mkt-badge ' + (isOpen ? 'badge-open' : 'badge-closed');
+  document.getElementById('mktBadge').textContent = mkt.status;
+  document.getElementById('mktExchange').textContent = (exchange || '') +
+    (mkt.open ? ' ' + mkt.open + '–' + mkt.close : '');
+  document.getElementById('mktSession').textContent = mkt.message || '';
+  document.getElementById('mktProgress').textContent = mkt.sessionProgress || '';
+
+  // Countdown to next candle
+  if (countdownTimer) clearInterval(countdownTimer);
+  if (mkt.nextCandleAt) {
+    const target = new Date(mkt.nextCandleAt);
+    const tick = () => {
+      const diff = Math.max(0, target - new Date());
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      document.getElementById('mktCountdown').textContent =
+        m > 0 ? `${m}m ${String(s).padStart(2,'0')}s` : `${s}s`;
+    };
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  } else {
+    document.getElementById('mktCountdown').textContent = '—';
+  }
+}
+
+// ── Price card ─────────────────────────────────────────────────
+function renderPrice(price, symbol, name, mode) {
+  document.getElementById('priceSymbol').textContent = (name || symbol || '—');
+
+  if (!price) {
+    document.getElementById('priceLtp').textContent    = '—';
+    document.getElementById('priceChange').textContent = '';
+    document.getElementById('priceNote').textContent   =
+        mode === 'HISTORICAL' ? 'Historical mode — live price not available.' : '';
+    return;
+  }
+
+  const ltp = price.ltp;
+  document.getElementById('priceLtp').textContent    = ltp ? '₹' + fmt(ltp) : '—';
+
+  const up = (price.change || 0) >= 0;
+  document.getElementById('priceChange').textContent =
+    price.change ? (up ? '+' : '') + fmt(price.change) + ' (' + fmt(price.changePercent) + '%)' : '';
+  document.getElementById('priceChange').className   = 'price-change ' + (up ? 'up' : 'down');
+
+  document.getElementById('priceOpen').textContent = price.open ? '₹' + fmt(price.open) : '—';
+  document.getElementById('priceHigh').textContent = price.high ? '₹' + fmt(price.high) : '—';
+  document.getElementById('priceLow').textContent  = price.low  ? '₹' + fmt(price.low)  : '—';
+  document.getElementById('pricePrev').textContent = price.previousClose ? '₹' + fmt(price.previousClose) : '—';
+  document.getElementById('priceNote').textContent = '';
+}
+
+// ── Trade suggestion ───────────────────────────────────────────
+function renderTrade(t) {
+  if (!t) { document.getElementById('tradeCard').style.opacity = '0.5'; return; }
+  document.getElementById('tradeCard').style.opacity = '1';
+
+  const dir = t.direction;
+  const dirEl = document.getElementById('tradeDir');
+  if (dir === 'LONG')  { dirEl.innerHTML = '<span class="badge-long">LONG</span>'; }
+  else if (dir === 'SHORT') { dirEl.innerHTML = '<span class="badge-short">SHORT</span>'; }
+  else { dirEl.innerHTML = '<span class="badge-notrade">NO TRADE</span>'; }
+
+  const timingEl = document.getElementById('tradeTiming');
+  if (t.timing === 'NOW')  timingEl.innerHTML = '<span class="timing-now">⚡ NOW</span>';
+  else if (t.timing === 'WAIT') timingEl.innerHTML = '<span class="timing-wait">⏳ WAIT</span>';
+  else timingEl.textContent = '';
+
+  const rows = document.getElementById('tradeRows');
+  rows.innerHTML = '';
+  if (t.entryZone) addTradeRow(rows, 'Entry Zone',
+    `₹${fmt(t.entryZone.from)} – ₹${fmt(t.entryZone.to)}`, t.entryZone.basis);
+  if (t.stopLoss)  addTradeRow(rows, 'Stop Loss',
+    '₹' + fmt(t.stopLoss.price), t.stopLoss.basis);
+  if (t.target1)   addTradeRow(rows, 'Target 1',
+    '₹' + fmt(t.target1.price), t.target1.basis, t.target1.riskReward);
+  if (t.target2)   addTradeRow(rows, 'Target 2',
+    '₹' + fmt(t.target2.price), t.target2.basis, t.target2.riskReward);
+
+  const waitNote = document.getElementById('tradeWaitNote');
+  if (t.waitFor) {
+    waitNote.style.display = '';
+    waitNote.textContent   = '⏳ ' + t.waitFor;
+  } else {
+    waitNote.style.display = 'none';
+  }
+}
+
+function addTradeRow(container, label, val, basis, rr) {
+  const row = document.createElement('div');
+  row.className = 'trade-row';
+  row.innerHTML = `<span class="trade-label">${label}</span>
+    <span><span class="trade-val">${val}</span>
+    ${rr ? `<span class="rr-badge">${rr}</span>` : ''}
+    ${basis ? `<small style="color:var(--faint);margin-left:6px;font-size:11px">${basis.replace(/_/g,' ')}</small>` : ''}
+    </span>`;
+  container.appendChild(row);
+}
+
+// ── MTF table ──────────────────────────────────────────────────
+function renderMtf(mtf, tfStatus, conclusion) {
+  if (!mtf) return;
+  const tbody = document.getElementById('mtfBody');
+  tbody.innerHTML = '';
+
+  Object.entries(mtf).forEach(([tf, ind]) => {
+    const sig  = ind?.signals   || {};
+    const tfs  = (tfStatus || {})[tf] || {};
+    const adx  = ind?.trend?.adx14;
+    const rsi  = ind?.momentum?.rsi14;
+    const macd = sig.macd;
+    const trend= sig.trend;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="tf-badge">${tf.replace('_',' ')}</span>
+          ${tfs.justCompleted ? '<span class="just-badge">⚡ NEW</span>' : ''}</td>
+      <td class="${rsiClass(rsi)}">${rsi ? rsi.toFixed(1) : '—'}</td>
+      <td class="${adxClass(adx)}">${adx ? adx.toFixed(1) : '—'}</td>
+      <td class="${trendClass(trend)}">${trend ? (trend==='BULLISH'?'🟢 BULL':'🔴 BEAR') : '—'}</td>
+      <td class="${macdClass(macd)}">${macd || '—'}</td>
+      <td class="neutral">${sig.bbPosition ? sig.bbPosition.replace(/_/g,' ') : '—'}</td>
+      <td>${sig.vwapPosition === 'ABOVE' ? '<span class="bull">✓</span>' : sig.vwapPosition === 'BELOW' ? '<span class="bear">✗</span>' : '—'}</td>
+      <td class="bars-mini">${tfs.completeBars ?? '—'}</td>
+      <td class="bars-mini" style="color:var(--faint)">${tfs.nextBarAt || '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Conclusion
+  if (conclusion) {
+    const bias = conclusion.primaryBias;
+    document.getElementById('concBias').textContent  = bias || '—';
+    document.getElementById('concBias').className    = bias === 'BULLISH' ? 'bull' : bias === 'BEARISH' ? 'bear' : 'neutral';
+    const confEl = document.getElementById('concConfidence');
+    confEl.textContent = conclusion.confidence || '';
+    confEl.className   = 'conf-pill ' +
+        (conclusion.confidence==='STRONG'?'conf-strong':conclusion.confidence==='MODERATE'?'conf-moderate':'conf-weak');
+    document.getElementById('concSetup').textContent =
+        (conclusion.tradeSetup || '').replace(/_/g,' ');
+
+    const chips = document.getElementById('concChips');
+    chips.innerHTML = '';
+    (conclusion.alignedTimeframes || []).forEach(tf => {
+      const c = document.createElement('span');
+      c.className = 'tf-chip aligned'; c.textContent = tf.replace('_',' '); chips.appendChild(c);
+    });
+    (conclusion.conflictingTimeframes || []).forEach(tf => {
+      const c = document.createElement('span');
+      c.className = 'tf-chip conflict'; c.textContent = tf.replace('_',' '); chips.appendChild(c);
+    });
+  }
+}
+
+// ── Pivot levels grid (no overlap) ────────────────────────────
+function renderPivots(mtf, price) {
+  const tfs    = Object.keys(mtf || {});
+  const lastTf = tfs[tfs.length - 1];
+  const pp     = mtf?.[lastTf]?.pivotPoints;
+  if (!pp) return;
+
+  document.getElementById('pivotBased').textContent = pp.basedOn ? `(based on ${pp.basedOn})` : '';
+
+  const ltp = price?.ltp;
+
+  // Determine where LTP sits
+  let pos = '', posColor = '', posDesc = '';
+  if (ltp && pp.pivot) {
+    if      (ltp > pp.r3) { pos='Above R3'; posColor='#15803d'; posDesc='Extremely overbought — very strong upside'; }
+    else if (ltp > pp.r2) { pos='R2–R3';    posColor='#16a34a'; posDesc='Strong resistance zone'; }
+    else if (ltp > pp.r1) { pos='R1–R2';    posColor='#4ade80'; posDesc='Above R1 — bullish'; }
+    else if (ltp > pp.pivot) { pos='P–R1';  posColor='#2563eb'; posDesc='Above pivot — mild bullish bias'; }
+    else if (ltp > pp.s1) { pos='S1–P';     posColor='#f59e0b'; posDesc='Below pivot — mild bearish bias'; }
+    else if (ltp > pp.s2) { pos='S2–S1';    posColor='#ef4444'; posDesc='Below S1 — bearish'; }
+    else if (ltp > pp.s3) { pos='S3–S2';    posColor='#dc2626'; posDesc='Below S2 — strong support zone'; }
+    else                  { pos='Below S3';  posColor='#991b1b'; posDesc='Extremely oversold'; }
+  }
+
+  // LTP row
+  const ltpRow = document.getElementById('pivotLtpRow');
+  if (ltp) {
+    ltpRow.style.display = 'flex';
+    document.getElementById('pivotLtp').textContent = '₹' + fmt(ltp);
+    const pb = document.getElementById('pivotPosLabel');
+    pb.textContent = pos;
+    pb.style.cssText = `background:${posColor}22;color:${posColor};padding:2px 8px;border-radius:5px;font-weight:600;font-size:11px`;
+    document.getElementById('pivotPosDesc').textContent = posDesc;
+  }
+
+  // Chips grid: S3 S2 S1 P R1 R2 R3
+  const levels = [
+    { label:'R3', val:pp.r3, cls:'pivot-r' },
+    { label:'R2', val:pp.r2, cls:'pivot-r' },
+    { label:'R1', val:pp.r1, cls:'pivot-r' },
+    { label:'P',  val:pp.pivot, cls:'pivot-p' },
+    { label:'S1', val:pp.s1, cls:'pivot-s' },
+    { label:'S2', val:pp.s2, cls:'pivot-s' },
+    { label:'S3', val:pp.s3, cls:'pivot-s' },
+  ];
+
+  const grid = document.getElementById('pivotGrid');
+  grid.innerHTML = levels.map(l => {
+    const dist = (ltp && l.val) ? (ltp - l.val).toFixed(2) : null;
+    const distStr = dist ? (dist > 0 ? `+${dist}` : dist) : '';
+    const isActive = ltp && l.val && Math.abs(ltp - l.val) < 1.5;
+    return `<div class="pivot-chip ${l.cls}" style="${isActive ? 'box-shadow:0 0 0 2px var(--lm-primary,#2563EB)' : ''}">
+      <div class="p-label">${l.label}</div>
+      <div class="p-val">₹${fmt(l.val)}</div>
+      ${distStr ? `<div class="p-dist">${distStr}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── SMC block ──────────────────────────────────────────────────
+function renderSmc(mtf) {
+  const tfs    = Object.keys(mtf || {});
+  const lastTf = tfs[tfs.length - 1];
+  const sm     = mtf?.[lastTf]?.smartMoney;
+  const ms     = mtf?.[lastTf]?.marketStructure;
+  const rows   = document.getElementById('smcRows');
+  rows.innerHTML = '';
+
+  if (ms) {
+    addSmcRow(rows, 'Bias',
+      `<span class="${ms.bias==='BULLISH'?'bull':'bear'}">${ms.bias||'—'}</span>
+       &nbsp;<small style="color:var(--faint)">${(ms.lastEvent||'').replace(/_/g,' ')}</small>`);
+    addSmcRow(rows, 'Nearest Resistance',
+      ms.nearestSwingHigh ? `<span class="smc-val bear">₹${fmt(ms.nearestSwingHigh)}</span>` : '—');
+    addSmcRow(rows, 'Nearest Support',
+      ms.nearestSwingLow  ? `<span class="smc-val bull">₹${fmt(ms.nearestSwingLow)}</span>`  : '—');
+  }
+  if (sm) {
+    const bOB = sm.nearestBullishOB;
+    const beOB = sm.nearestBearishOB;
+    addSmcRow(rows, 'Bullish OB (Support)',
+      bOB ? `<span class="ob-zone ob-bull">₹${fmt(bOB.bottom)} – ₹${fmt(bOB.top)}</span>` : '<span style="color:var(--faint)">none</span>');
+    addSmcRow(rows, 'Bearish OB (Resistance)',
+      beOB ? `<span class="ob-zone ob-bear">₹${fmt(beOB.bottom)} – ₹${fmt(beOB.top)}</span>` : '<span style="color:var(--faint)">none</span>');
+    addSmcRow(rows, 'Buy Liq Above',
+      sm.buySideLiquidityAbove  ? `<span class="smc-val">₹${fmt(sm.buySideLiquidityAbove)}</span>`  : '—');
+    addSmcRow(rows, 'Sell Liq Below',
+      sm.sellSideLiquidityBelow ? `<span class="smc-val">₹${fmt(sm.sellSideLiquidityBelow)}</span>` : '—');
+    if (sm.openFvgs?.length) {
+      const chips = sm.openFvgs.map(f =>
+        `<span class="fvg-chip">₹${fmt(f.bottom)}-${fmt(f.top)}</span>`).join('');
+      addSmcRow(rows, 'Open FVGs', `<div class="fvg-list">${chips}</div>`);
+    }
+  }
+}
+
+function addSmcRow(container, label, valHtml) {
+  const row = document.createElement('div');
+  row.className = 'smc-row';
+  row.innerHTML = `<span class="smc-label">${label}</span><span>${valHtml}</span>`;
+  container.appendChild(row);
+}
+
+// ── Day breakdown ──────────────────────────────────────────────
+function toggleBreakdown() {
+  breakdownOn = !breakdownOn;
+  document.getElementById('breakdownSwitch').className =
+    'toggle-switch ' + (breakdownOn ? 'on' : '');
+  document.getElementById('breakdownLabel').textContent =
+    breakdownOn ? 'Hourly candles ON' : 'Show hourly candles';
+  document.getElementById('breakdownContent').style.display = breakdownOn ? '' : 'none';
+  if (breakdownOn && currentData) {
+    if (currentData.dayBreakdown) { renderBreakdown(currentData.dayBreakdown); }
+    else { loadAnalysis(); }
+  }
+}
+
+function renderBreakdown(bd) {
+  if (!bd) return;
+  document.getElementById('breakdownContent').style.display = '';
+  document.getElementById('breakdownMeta').textContent =
+    `${bd.sessionProgress || ''} · ${bd.interval?.replace('_',' ')} candles`;
+
+  const tbody = document.getElementById('breakdownBody');
+  tbody.innerHTML = '';
+  (bd.rows || []).forEach(r => {
+    const sig  = r.signals || {};
+    const rsi  = r.momentum?.rsi14;
+    const pp   = r.pivotPoints;
+    const ltp  = r.candle?.close;
+    let pivotPos = '—';
+    if (pp && ltp) {
+      if (ltp > pp.r1) pivotPos = 'Above R1';
+      else if (ltp > pp.pivot) pivotPos = 'Above P';
+      else if (ltp > pp.s1) pivotPos = 'Below P';
+      else pivotPos = 'Below S1';
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--ink);font-weight:600">${r.timeIst?.split(' ')[1] || '—'}</td>
+      <td>${ltp ? '₹'+fmt(ltp) : '—'}</td>
+      <td class="${rsiClass(rsi)}">${rsi ? rsi.toFixed(1) : '—'}</td>
+      <td>${r.trend?.adx14 ? r.trend.adx14.toFixed(1) : '—'}</td>
+      <td class="${trendClass(sig.trend)}">${sig.trend ? (sig.trend==='BULLISH'?'🟢':'🔴') : '—'}</td>
+      <td class="${macdClass(sig.macd)}">${sig.macd || '—'}</td>
+      <td class="${sig.vwapPosition==='ABOVE'?'bull':'bear'}">${sig.vwapPosition || '—'}</td>
+      <td style="font-size:10px;color:var(--faint)">${pivotPos}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Live mode ──────────────────────────────────────────────────
+function toggleLive() {
+  liveMode = !liveMode;
+  const btn = document.getElementById('liveBtn');
+  const dot = document.getElementById('liveDot');
+  const txt = document.getElementById('liveTxt');
+  btn.className = 'btn live-btn ' + (liveMode ? 'on' : 'off');
+  dot.style.background = liveMode ? '#fff' : '#888';
+  txt.textContent = liveMode ? '🔴 LIVE ON' : 'Live OFF';
+  if (!liveMode && liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+  if (liveMode) loadAnalysis();
+}
+
+function scheduleRefresh(nextCandleAt, symbol, interval, days) {
+  if (liveTimer) clearTimeout(liveTimer);
+  const delay = Math.max(1000, new Date(nextCandleAt) - new Date());
+  liveTimer = setTimeout(() => {
+    if (liveMode) loadAnalysis();
+  }, delay);
+}
+
+// ── Loading + error states ─────────────────────────────────────
+function showLoading(on) {
+  document.getElementById('loadingSpinner').style.display = on ? '' : 'none';
+  if (on) document.getElementById('mtfBody').classList.add('shimmer');
+  else    document.getElementById('mtfBody').classList.remove('shimmer');
+}
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.style.display = '';
+  el.textContent = '⚠ ' + msg;
+  document.getElementById('mainContent').style.display = 'none';
+}
+function hideError() {
+  document.getElementById('errorBanner').style.display = 'none';
+}
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = type; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// ── Theme toggle ───────────────────────────────────────────────
+function toggleTheme() {
+  const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = n;
+  localStorage.setItem('angle-theme', n);
+}
+
+// ── CSS class helpers ──────────────────────────────────────────
+const rsiClass   = v => !v ? 'neutral' : v > 70 ? 'bear' : v < 30 ? 'bull' : 'neutral';
+const adxClass   = v => !v ? 'neutral' : v > 25 ? 'bull' : 'neutral';
+const trendClass = v => v === 'BULLISH' ? 'bull' : v === 'BEARISH' ? 'bear' : 'neutral';
+const macdClass  = v => v === 'BULLISH' ? 'bull' : v === 'BEARISH' ? 'bear' : 'neutral';
+
+// ── Number formatter ───────────────────────────────────────────
+const fmt = v => v == null ? '—' : Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('angle-theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+  // Pre-fill symbol from URL param if present
+  const params = new URLSearchParams(location.search);
+  const sym = params.get('symbol');
+  if (sym) { document.getElementById('symbolInput').value = sym; loadAnalysis(); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<!--
+    /paper/sessions — paper trading dashboard.
+    Sessions are loaded and polled via JS — no page reload needed.
+-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Paper Trading — AngleApp</title>
+    <!-- CSRF tokens for fetch() POSTs -->
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <link rel="stylesheet" th:href="@{/css/paper.css}">
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='paper')}"></div>
+<main class="app-main">
+
+    <div class="pt-head">
+        <h1>Paper Trading</h1>
+        <p class="sub">Run strategies against live or historical data without risking real capital. Trades save to DB automatically.</p>
+    </div>
+
+    <!-- ── New Session ───────────────────────────────────────── -->
+    <section class="pt-card">
+        <h2>New Session</h2>
+        <div class="pt-form">
+
+            <label>Strategy
+                <select id="strategyName">
+                    <option th:each="s : ${strategies}" th:value="${s}" th:text="${s}"></option>
+                </select>
+            </label>
+
+            <label>Source
+                <select id="sourceType" onchange="onSourceChange()">
+                    <option value="replay-nifty-csv">Replay — Nifty CSV</option>
+                    <option value="angel-live">Angel Live</option>
+                    <option value="angel-historical-replay">Angel Historical Replay</option>
+                </select>
+            </label>
+
+            <!-- replay-nifty-csv + angel-historical-replay -->
+            <label id="fSpeed">Speed (candles/sec)
+                <input id="candlesPerSecond" type="number" value="50" min="1" max="500">
+            </label>
+
+            <!-- angel-live + angel-historical-replay -->
+            <label id="fToken" style="display:none">Symbol Token
+                <input id="symbolToken" type="text" placeholder="e.g. 99926000">
+            </label>
+            <label id="fExchange" style="display:none">Exchange
+                <select id="exchange">
+                    <option value="NSE" selected>NSE</option>
+                    <option value="BSE">BSE</option>
+                    <option value="NFO">NFO</option>
+                    <option value="MCX">MCX</option>
+                </select>
+            </label>
+            <label id="fInterval" style="display:none">Interval
+                <select id="interval">
+                    <option value="ONE_MINUTE">1 min</option>
+                    <option value="FIVE_MINUTE">5 min</option>
+                    <option value="FIFTEEN_MINUTE">15 min</option>
+                    <option value="THIRTY_MINUTE">30 min</option>
+                    <option value="ONE_HOUR">1 hour</option>
+                    <option value="ONE_DAY" selected>Daily</option>
+                </select>
+            </label>
+
+            <!-- angel-live only -->
+            <label id="fWarmup" style="display:none">Warmup candles
+                <input id="warmupCandles" type="number" value="100" min="0">
+            </label>
+            <label id="fPoll" style="display:none">Poll interval (sec)
+                <input id="pollIntervalSeconds" type="number" value="30" min="5">
+            </label>
+
+            <!-- angel-historical-replay only -->
+            <label id="fFrom" style="display:none">From date
+                <input id="from" type="date">
+            </label>
+            <label id="fTo" style="display:none">To date
+                <input id="to" type="date">
+            </label>
+
+            <button class="pt-btn primary" style="align-self:end" onclick="startSession()">&#9654; Start Session</button>
+        </div>
+        <div id="createError" class="pt-error" style="display:none"></div>
+    </section>
+
+    <!-- ── Sessions list ─────────────────────────────────────── -->
+    <section class="pt-card">
+        <div class="pt-card-head">
+            <h2>Sessions</h2>
+            <span id="listPulse" class="pt-pulse" title="Auto-refreshing every 3 s"></span>
+        </div>
+        <div id="sessionsList">
+            <div class="pt-empty">Loading…</div>
+        </div>
+    </section>
+
+    <!-- ── Session detail ────────────────────────────────────── -->
+    <section id="detailSection" class="pt-card" style="display:none">
+        <div class="pt-card-head">
+            <h2 id="detailTitle">Session Detail</h2>
+            <span id="detailPulse" class="pt-pulse" title="Auto-refreshing every 3 s" style="display:none"></span>
+        </div>
+        <div id="detailBody"></div>
+    </section>
+
+</main>
+</div>
+
+<script th:inline="javascript">
+    const CSRF_HEADER = document.querySelector('meta[name="_csrf_header"]')?.content;
+    const CSRF_TOKEN  = document.querySelector('meta[name="_csrf"]')?.content;
+
+    function hdr(json) {
+        const h = { [CSRF_HEADER]: CSRF_TOKEN };
+        if (json) h['Content-Type'] = 'application/json';
+        return h;
+    }
+
+    /* ── Source field visibility ────────────────────────────── */
+    function onSourceChange() {
+        const src  = document.getElementById('sourceType').value;
+        const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+        const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+
+        ['fSpeed','fToken','fExchange','fInterval','fWarmup','fPoll','fFrom','fTo'].forEach(hide);
+
+        if (src === 'replay-nifty-csv') {
+            show('fSpeed');
+        } else if (src === 'angel-live') {
+            show('fToken'); show('fExchange'); show('fInterval');
+            show('fWarmup'); show('fPoll');
+        } else if (src === 'angel-historical-replay') {
+            show('fToken'); show('fExchange'); show('fInterval');
+            show('fSpeed'); show('fFrom'); show('fTo');
+        }
+    }
+
+    /* ── Start session ──────────────────────────────────────── */
+    async function startSession() {
+        const src  = document.getElementById('sourceType').value;
+        const body = {
+            strategyName: document.getElementById('strategyName').value,
+            sourceType:   src,
+        };
+        const num  = (id) => { const v = +document.getElementById(id)?.value; return v || undefined; };
+        const str  = (id) => document.getElementById(id)?.value?.trim() || undefined;
+
+        if (src !== 'angel-live') body.candlesPerSecond = num('candlesPerSecond');
+        if (src !== 'replay-nifty-csv') {
+            body.symbolToken = str('symbolToken');
+            body.exchange    = str('exchange');
+            body.interval    = str('interval');
+        }
+        if (src === 'angel-live') {
+            body.warmupCandles       = num('warmupCandles');
+            body.pollIntervalSeconds = num('pollIntervalSeconds');
+        }
+        if (src === 'angel-historical-replay') {
+            body.from = str('from');
+            body.to   = str('to');
+        }
+
+        const errEl = document.getElementById('createError');
+        errEl.style.display = 'none';
+        try {
+            const r = await fetch('/api/paper/sessions', {
+                method: 'POST', headers: hdr(true), body: JSON.stringify(body)
+            });
+            if (!r.ok) { const msg = await r.text(); throw new Error(msg); }
+            const snap = await r.json();
+            await loadSessions();
+            inspectSession(snap.sessionId);
+        } catch (e) {
+            errEl.textContent = e.message;
+            errEl.style.display = '';
+        }
+    }
+
+    /* ── Stop session ───────────────────────────────────────── */
+    async function stopSession(id) {
+        await fetch('/api/paper/sessions/' + id + '/stop', { method: 'POST', headers: hdr(false) });
+        await loadSessions();
+        if (activeId === id) loadDetail(id);
+    }
+
+    /* ── Sessions list ──────────────────────────────────────── */
+    async function loadSessions() {
+        try {
+            const r  = await fetch('/api/paper/sessions');
+            const ss = await r.json();
+            renderSessions(ss);
+        } catch (_) {}
+    }
+
+    function renderSessions(sessions) {
+        const el = document.getElementById('sessionsList');
+        if (!sessions || !sessions.length) {
+            el.innerHTML = '<div class="pt-empty">No sessions yet — start one above.</div>';
+            return;
+        }
+        sessions.sort((a, b) => {
+            if (a.status === 'RUNNING' && b.status !== 'RUNNING') return -1;
+            if (b.status === 'RUNNING' && a.status !== 'RUNNING') return  1;
+            return 0;
+        });
+        el.innerHTML =
+            '<table class="pt-table">' +
+            '<thead><tr>' +
+            '<th>ID</th><th>Strategy</th><th>Source</th>' +
+            '<th>Status</th><th>Candles</th><th>Trades</th><th>Net P&amp;L</th><th></th>' +
+            '</tr></thead><tbody>' +
+            sessions.map(s => {
+                const active = s.sessionId === activeId ? ' pt-row-active' : '';
+                return '<tr class="' + active + '">' +
+                    '<td class="mono small">' + s.sessionId.substring(0, 8) + '…</td>' +
+                    '<td>' + esc(s.strategyName) + '</td>' +
+                    '<td class="muted small" title="' + esc(s.sourceName) + '">' + shortSrc(s.sourceName) + '</td>' +
+                    '<td>' + statusBadge(s.status) + '</td>' +
+                    '<td class="mono">' + s.candleCount + '</td>' +
+                    '<td class="mono">' + s.totalTrades + '</td>' +
+                    '<td class="mono ' + pnlCls(s.netPnl) + '">' + pnlFmt(s.netPnl) + '</td>' +
+                    '<td class="pt-actions">' +
+                    '<button class="pt-btn sm" onclick="inspectSession(\'' + s.sessionId + '\')">Inspect</button>' +
+                    (s.status === 'RUNNING'
+                        ? '<button class="pt-btn sm danger" onclick="stopSession(\'' + s.sessionId + '\')">Stop</button>'
+                        : '') +
+                    '</td></tr>';
+            }).join('') +
+            '</tbody></table>';
+    }
+
+    /* ── Session detail ─────────────────────────────────────── */
+    let activeId       = null;
+    let detailInterval = null;
+
+    function inspectSession(id) {
+        activeId = id;
+        document.getElementById('detailSection').style.display = '';
+        loadDetail(id);
+        clearInterval(detailInterval);
+        detailInterval = setInterval(function () { loadDetail(id); }, 3000);
+        setTimeout(function () {
+            document.getElementById('detailSection').scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+    }
+
+    async function loadDetail(id) {
+        try {
+            const r = await fetch('/api/paper/sessions/' + id);
+            const s = await r.json();
+            renderDetail(s);
+        } catch (_) {}
+    }
+
+    function renderDetail(s) {
+        document.getElementById('detailTitle').textContent =
+            'Session: ' + s.sessionId.substring(0, 8) + '… — ' + s.strategyName + ' — ' + s.status;
+
+        const pulse = document.getElementById('detailPulse');
+        pulse.style.display = s.status === 'RUNNING' ? '' : 'none';
+
+        const winPct = s.totalTrades > 0 ? Math.round(s.winners / s.totalTrades * 100) : 0;
+
+        let html = '<div class="pt-stats">' +
+            stat('Candles',  s.candleCount,  '') +
+            stat('Trades',   s.totalTrades,  '') +
+            stat('Winners',  s.winners,  'win') +
+            stat('Losers',   s.losers,   'loss') +
+            stat('Win Rate', winPct + '%', winPct >= 50 ? 'win' : 'loss') +
+            statPnl('Net P&L', s.netPnl) +
+            '</div>';
+
+        html += '<div class="pt-intent">Last intent: ' + intentBadge(s.lastIntent?.action) + '</div>';
+
+        /* Open position */
+        if (s.openPosition) {
+            const p = s.openPosition;
+            html += '<div class="pt-open-pos">' +
+                '<div class="pt-open-title">Open Position — ' + dirBadge(p.direction) + '</div>' +
+                '<div class="pt-pos-grid">' +
+                '<span class="lbl">Entry</span><span class="mono">' + fmt(p.entry) + '</span>' +
+                '<span class="lbl">Stop</span><span class="mono ' + (p.stop ? '' : 'muted') + '">' + (p.stop ? fmt(p.stop) : '—') + '</span>' +
+                '<span class="lbl">Target</span><span class="mono ' + (p.target ? '' : 'muted') + '">' + (p.target ? fmt(p.target) : '—') + '</span>' +
+                '<span class="lbl">Note</span><span class="muted small">' + esc(p.rationale ?? '') + '</span>' +
+                '</div>';
+            if (s.status === 'RUNNING') {
+                html += '<div class="pt-manual-exit">' +
+                    '<input id="exitPrice" type="number" step="0.01" placeholder="Exit price">' +
+                    '<button class="pt-btn primary" onclick="manualExit(\'' + s.sessionId + '\')">Close Position (MANUAL)</button>' +
+                    '</div>';
+            }
+            html += '</div>';
+        }
+
+        /* Manual entry form — only when flat + running */
+        if (!s.openPosition && s.status === 'RUNNING') {
+            html += '<div class="pt-manual-entry">' +
+                '<div class="pt-section-title">Manual Entry</div>' +
+                '<div class="pt-entry-form">' +
+                '<label>Direction<select id="entryDir"><option value="ENTER_LONG">Long</option><option value="ENTER_SHORT">Short</option></select></label>' +
+                '<label>Entry price<input id="entryPrice" type="number" step="0.01" placeholder="e.g. 24500"></label>' +
+                '<label>Stop loss<input id="entryStop" type="number" step="0.01" placeholder="optional"></label>' +
+                '<label>Target<input id="entryTarget" type="number" step="0.01" placeholder="optional"></label>' +
+                '<label>Note<input id="entryRationale" type="text" placeholder="optional"></label>' +
+                '<button class="pt-btn primary" style="align-self:flex-end" onclick="manualEnter(\'' + s.sessionId + '\')">Enter Trade</button>' +
+                '</div></div>';
+        }
+
+        /* Trades table */
+        const trades = s.trades ?? [];
+        if (trades.length) {
+            const reversed = [...trades].reverse();
+            html += '<div class="pt-section-title" style="margin-top:20px">Trades (' + trades.length + ')</div>' +
+                '<table class="pt-trades"><thead><tr>' +
+                '<th>#</th><th>Dir</th><th>Entry time</th><th>Entry ₹</th>' +
+                '<th>Stop</th><th>Target</th><th>Exit time</th><th>Exit ₹</th>' +
+                '<th>Reason</th><th>P&amp;L</th>' +
+                '</tr></thead><tbody>' +
+                reversed.map(function (t, i) {
+                    const cls = (parseFloat(t.pnl) >= 0) ? 'win-row' : 'loss-row';
+                    return '<tr class="' + cls + '">' +
+                        '<td>' + (trades.length - i) + '</td>' +
+                        '<td>' + dirBadge(t.direction) + '</td>' +
+                        '<td class="mono small">' + fmtTime(t.entryTime) + '</td>' +
+                        '<td class="mono">' + fmt(t.entryPrice) + '</td>' +
+                        '<td class="mono muted">' + (t.stopLoss ? fmt(t.stopLoss) : '—') + '</td>' +
+                        '<td class="mono muted">' + (t.target   ? fmt(t.target)   : '—') + '</td>' +
+                        '<td class="mono small">' + fmtTime(t.exitTime) + '</td>' +
+                        '<td class="mono">' + fmt(t.exitPrice) + '</td>' +
+                        '<td>' + reasonBadge(t.exitReason) + '</td>' +
+                        '<td class="mono ' + pnlCls(t.pnl) + '">' + pnlFmt(t.pnl) + '</td>' +
+                        '</tr>';
+                }).join('') +
+                '</tbody></table>';
+        } else {
+            html += '<div class="pt-empty" style="margin-top:12px">No completed trades yet.</div>';
+        }
+
+        document.getElementById('detailBody').innerHTML = html;
+    }
+
+    /* ── Manual enter ───────────────────────────────────────── */
+    async function manualEnter(sessionId) {
+        const entry = parseFloat(document.getElementById('entryPrice')?.value);
+        if (!entry) { alert('Entry price is required'); return; }
+        const body = {
+            direction: document.getElementById('entryDir').value,
+            entry:     entry,
+        };
+        const stop     = parseFloat(document.getElementById('entryStop')?.value);
+        const target   = parseFloat(document.getElementById('entryTarget')?.value);
+        const rationale = document.getElementById('entryRationale')?.value?.trim();
+        if (stop)      body.stop      = stop;
+        if (target)    body.target    = target;
+        if (rationale) body.rationale = rationale;
+
+        try {
+            const r = await fetch('/api/paper/sessions/' + sessionId + '/enter', {
+                method: 'POST', headers: hdr(true), body: JSON.stringify(body)
+            });
+            if (!r.ok) { alert(await r.text()); return; }
+            loadDetail(sessionId);
+        } catch (e) { alert(e.message); }
+    }
+
+    /* ── Manual exit ────────────────────────────────────────── */
+    async function manualExit(sessionId) {
+        const ep = parseFloat(document.getElementById('exitPrice')?.value);
+        if (!ep) { alert('Enter an exit price'); return; }
+        try {
+            const r = await fetch('/api/paper/sessions/' + sessionId + '/exit', {
+                method: 'POST', headers: hdr(true), body: JSON.stringify({ exitPrice: ep })
+            });
+            if (!r.ok) { alert(await r.text()); return; }
+            loadDetail(sessionId);
+        } catch (e) { alert(e.message); }
+    }
+
+    /* ── Render helpers ─────────────────────────────────────── */
+    function stat(lbl, val, cls) {
+        return '<div class="pt-stat ' + cls + '"><div class="lbl">' + lbl + '</div><div class="val">' + val + '</div></div>';
+    }
+    function statPnl(lbl, v) {
+        const cls = v == null ? '' : (parseFloat(v) >= 0 ? 'good' : 'bad');
+        return '<div class="pt-stat highlight"><div class="lbl">' + lbl + '</div>' +
+            '<div class="val ' + (parseFloat(v) >= 0 ? 'up' : 'down') + '">' + pnlFmt(v) + '</div></div>';
+    }
+    function fmt(v) {
+        if (v == null) return '—';
+        return parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function pnlFmt(v) {
+        if (v == null) return '—';
+        const n = parseFloat(v);
+        const sign = n >= 0 ? '+₹' : '-₹';
+        return sign + Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function pnlCls(v) { return v == null ? '' : parseFloat(v) >= 0 ? 'up' : 'down'; }
+    function fmtTime(ts) {
+        if (!ts) return '—';
+        return new Date(ts).toLocaleString('en-IN', {
+            month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
+        });
+    }
+    function shortSrc(name) {
+        if (!name) return '';
+        if (name.startsWith('replay') || name.includes('csv')) return 'CSV replay';
+        if (name.includes('live'))  return 'Live';
+        if (name.includes('historical')) return 'Hist. replay';
+        return name.substring(0, 20) + '…';
+    }
+    function esc(s) {
+        return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function statusBadge(s) {
+        const map = { RUNNING:'good', STOPPED:'bad', COMPLETED:'muted' };
+        return '<span class="pt-badge ' + (map[s] ?? 'muted') + '">' + s + '</span>';
+    }
+    function intentBadge(a) {
+        const map = { ENTER_LONG:'good', ENTER_SHORT:'bad', EXIT:'warn', HOLD:'muted' };
+        return '<span class="pt-badge ' + (map[a] ?? 'muted') + '">' + (a ?? 'HOLD') + '</span>';
+    }
+    function dirBadge(d) {
+        return d === 'ENTER_LONG'
+            ? '<span class="pt-badge good">LONG</span>'
+            : '<span class="pt-badge bad">SHORT</span>';
+    }
+    function reasonBadge(r) {
+        const map = { TARGET:'good', STOP:'bad', SIGNAL_EXIT:'warn', MANUAL:'info', END_OF_SERIES:'muted' };
+        return '<span class="pt-badge ' + (map[r] ?? 'muted') + '">' + esc(r ?? '') + '</span>';
+    }
+
+    /* ── Boot ───────────────────────────────────────────────── */
+    onSourceChange();
+    loadSessions();
+    setInterval(loadSessions, 3000);
+</script>
+</body>
+</html>

@@ -7,12 +7,17 @@ import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
 import com.angle.trading.broker.model.Quote;
 import com.angle.trading.config.BrokerProperties;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +38,11 @@ public class AngelClient implements BrokerClient {
     private static final String CANDLE_PATH = "/rest/secure/angelbroking/historical/v1/getCandleData";
     private static final DateTimeFormatter ANGEL_DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    // Angel historical API: 3 requests/second. We use 2 to stay comfortably below.
+    private final Bucket candleRateLimiter = Bucket.builder()
+            .addLimit(Bandwidth.classic(2, Refill.greedy(2, Duration.ofSeconds(1))))
+            .build();
+
     private final RestClient restClient;
     private final BrokerProperties brokerProperties;
     private final AngelAuthService authService;
@@ -45,11 +55,13 @@ public class AngelClient implements BrokerClient {
     @Override
     public List<Candle> getCandles(Exchange exchange, String symbolToken,
                                    Interval interval, LocalDate from, LocalDate to) {
-        // Default intraday window — correct for NSE/BSE equities & indices.
-        // Callers that need other exchange hours (MCX, CDS) must use
-        // getCandlesInRange(...) with explicit times.
+        // Use 23:59 as the end time so the `to` date's candles are always included.
+        //   • NSE/BSE equity: last bar is at 15:15 so 23:59 has no effect
+        //   • MCX commodity:  session runs till ~23:30 so 23:59 captures evening candles
+        //   • ONE_DAY candles: Angel timestamps the daily bar at 15:30 IST and treats
+        //     todate as exclusive — using 23:59 ensures the `to` date's daily bar is returned
         return getCandlesInRange(exchange, symbolToken, interval,
-                from.atTime(9, 15), to.atTime(15, 30));
+                from.atTime(9, 15), to.atTime(23, 59));
     }
 
     /**
@@ -97,6 +109,14 @@ public class AngelClient implements BrokerClient {
 
     /** Make ONE candle POST with a fresh JWT. Returns null on transport failure. */
     private AngelCandleResponse callCandles(BrokerProperties.Angel cfg, Map<String, Object> body) {
+        // Throttle to Angel's rate limit before sending.
+        try {
+            candleRateLimiter.asBlocking().consume(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+
         String jwt = authService.getJwtToken();
         try {
             return restClient.post()
@@ -105,6 +125,11 @@ public class AngelClient implements BrokerClient {
                     .body(body)
                     .retrieve()
                     .body(AngelCandleResponse.class);
+        } catch (RestClientResponseException e) {
+            // Angel returns 403 plain-text for rate-limit; log the body so it's diagnosable.
+            log.warn("Angel candle HTTP {} for token {}: {}",
+                    e.getStatusCode().value(), body.get("symboltoken"), e.getResponseBodyAsString().trim());
+            return null;
         } catch (Exception e) {
             log.warn("Angel candle request threw for token {}: {}", body.get("symboltoken"), e.getMessage());
             return null;
@@ -141,12 +166,15 @@ public class AngelClient implements BrokerClient {
 
     private static String toAngelInterval(Interval interval) {
         return switch (interval) {
-            case ONE_MINUTE -> "ONE_MINUTE";
-            case FIVE_MINUTE -> "FIVE_MINUTE";
+            case ONE_MINUTE     -> "ONE_MINUTE";
+            case FIVE_MINUTE    -> "FIVE_MINUTE";
             case FIFTEEN_MINUTE -> "FIFTEEN_MINUTE";
-            case THIRTY_MINUTE -> "THIRTY_MINUTE";
-            case ONE_HOUR -> "ONE_HOUR";
-            case ONE_DAY -> "ONE_DAY";
+            case THIRTY_MINUTE  -> "THIRTY_MINUTE";
+            case ONE_HOUR       -> "ONE_HOUR";
+            case TWO_HOUR       -> "TWO_HOUR";
+            case THREE_HOUR     -> "THREE_HOUR";
+            case FOUR_HOUR      -> "FOUR_HOUR";
+            case ONE_DAY        -> "ONE_DAY";
         };
     }
 }

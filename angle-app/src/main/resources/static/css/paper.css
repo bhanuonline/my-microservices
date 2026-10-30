@@ -1,0 +1,174 @@
+body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+
+.app-main { padding:28px 32px; max-width:1300px; }
+
+.pt-head { margin-bottom:24px; }
+.pt-head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+.pt-head .sub { font-size:13px; color:var(--muted); margin:4px 0 0; }
+
+/* ── Cards ───────────────────────────────────────────────── */
+.pt-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:20px 22px; margin-bottom:20px;
+}
+.pt-card h2 { margin:0 0 16px; font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.pt-card-head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.pt-card-head h2 { margin:0; font-size:15px; font-weight:700; }
+
+/* ── Live pulse dot ──────────────────────────────────────── */
+.pt-pulse {
+    width:8px; height:8px; border-radius:50%; background:var(--good);
+    box-shadow:0 0 0 0 color-mix(in srgb, var(--good) 50%, transparent);
+    animation:pulse 1.8s infinite;
+}
+@keyframes pulse {
+    0%   { box-shadow:0 0 0 0 color-mix(in srgb, var(--good) 50%, transparent); }
+    70%  { box-shadow:0 0 0 6px transparent; }
+    100% { box-shadow:0 0 0 0 transparent; }
+}
+
+/* ── New session form ────────────────────────────────────── */
+.pt-form {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px 14px; align-items:end;
+}
+.pt-form label {
+    display:flex; flex-direction:column; gap:4px;
+    font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+}
+.pt-form input, .pt-form select {
+    padding:7px 10px; font:inherit; font-size:13px;
+    background:var(--surface); color:var(--ink);
+    border:1px solid var(--border); border-radius:6px;
+}
+.pt-form input:focus, .pt-form select:focus {
+    outline:none; border-color:var(--primary);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.pt-btn {
+    padding:8px 14px; font:600 12.5px 'Inter',sans-serif;
+    border:1px solid var(--border); border-radius:7px; cursor:pointer;
+    background:var(--surface); color:var(--ink); transition:background .12s;
+}
+.pt-btn:hover { background:var(--hair); }
+.pt-btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+.pt-btn.primary:hover { background:color-mix(in srgb, var(--primary) 85%, black); }
+.pt-btn.danger { color:var(--bad); border-color:var(--bad-2); }
+.pt-btn.danger:hover { background:var(--bad-2); }
+.pt-btn.sm { padding:5px 10px; font-size:11.5px; }
+
+.pt-error {
+    margin-top:10px; background:var(--bad-2); color:var(--bad);
+    border-left:3px solid var(--bad); border-radius:6px; padding:9px 12px; font-size:12.5px;
+}
+
+/* ── Sessions table ──────────────────────────────────────── */
+.pt-table {
+    width:100%; border-collapse:separate; border-spacing:0;
+    font-size:12.5px;
+}
+.pt-table th {
+    text-align:left; padding:7px 12px; border-bottom:1px solid var(--border);
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
+}
+.pt-table td { padding:9px 12px; border-bottom:1px solid var(--hair); }
+.pt-table tr:last-child td { border-bottom:none; }
+.pt-table tr:hover td { background:var(--hair); }
+.pt-table tr.pt-row-active td { background:var(--primary-2); }
+.pt-actions { display:flex; gap:6px; }
+
+/* ── Stats bar ───────────────────────────────────────────── */
+.pt-stats {
+    display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px;
+}
+.pt-stat {
+    background:var(--bg); border:1px solid var(--border); border-radius:9px;
+    padding:11px 10px; text-align:center;
+}
+.pt-stat .lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+.pt-stat .val { font-size:20px; font-weight:700; margin-top:3px; font-family:'IBM Plex Mono',monospace; }
+.pt-stat.win  .val { color:var(--good); }
+.pt-stat.loss .val { color:var(--bad); }
+.pt-stat.highlight { border-color:var(--primary); }
+
+/* ── Intent line ─────────────────────────────────────────── */
+.pt-intent { font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+
+/* ── Open position ───────────────────────────────────────── */
+.pt-open-pos {
+    background:var(--bg); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; margin-bottom:16px;
+}
+.pt-open-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:10px; }
+.pt-pos-grid { display:grid; grid-template-columns:80px 1fr; gap:4px 8px; align-items:baseline; margin-bottom:12px; }
+.pt-pos-grid .lbl { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.pt-manual-exit { display:flex; gap:8px; align-items:center; }
+.pt-manual-exit input {
+    padding:7px 10px; font:inherit; font-size:13px; width:160px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--border); border-radius:6px;
+}
+
+/* ── Manual entry form ───────────────────────────────────── */
+.pt-manual-entry {
+    background:var(--bg); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; margin-bottom:16px;
+}
+.pt-section-title {
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:10px;
+}
+.pt-entry-form { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+.pt-entry-form label {
+    display:flex; flex-direction:column; gap:4px;
+    font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+}
+.pt-entry-form input, .pt-entry-form select {
+    padding:7px 10px; font:inherit; font-size:13px; width:140px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--border); border-radius:6px;
+}
+.pt-entry-form input:focus, .pt-entry-form select:focus {
+    outline:none; border-color:var(--primary);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+/* ── Trades table ────────────────────────────────────────── */
+.pt-trades {
+    width:100%; border-collapse:separate; border-spacing:0;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px;
+    font-size:12px; overflow:hidden;
+}
+.pt-trades th {
+    padding:8px 12px; font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--muted); background:var(--bg);
+    border-bottom:1px solid var(--border); text-align:right;
+}
+.pt-trades th:nth-child(2), .pt-trades th:nth-child(3) { text-align:left; }
+.pt-trades td {
+    padding:8px 12px; border-bottom:1px solid var(--hair); text-align:right;
+    font-family:'IBM Plex Mono',monospace;
+}
+.pt-trades td:nth-child(2), .pt-trades td:nth-child(3) { text-align:left; font-family:'Inter',sans-serif; }
+.pt-trades tr:last-child td { border-bottom:none; }
+.pt-trades tr.win-row  td:last-child { color:var(--good); font-weight:600; }
+.pt-trades tr.loss-row td:last-child { color:var(--bad); font-weight:600; }
+
+/* ── Badges ──────────────────────────────────────────────── */
+.pt-badge {
+    display:inline-block; padding:2px 7px; border-radius:4px;
+    font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+}
+.pt-badge.good  { background:var(--good-2);  color:var(--good); }
+.pt-badge.bad   { background:var(--bad-2);   color:var(--bad); }
+.pt-badge.warn  { background:var(--warn-2);  color:var(--warn); }
+.pt-badge.info  { background:var(--info-2);  color:var(--info); }
+.pt-badge.muted { background:var(--hair);    color:var(--muted); }
+
+/* ── Utility ─────────────────────────────────────────────── */
+.mono  { font-family:'IBM Plex Mono',monospace; }
+.muted { color:var(--muted); }
+.small { font-size:11.5px; }
+.up    { color:var(--good); }
+.down  { color:var(--bad); }
+.pt-empty {
+    padding:40px 20px; text-align:center; color:var(--muted); font-size:13px;
+}

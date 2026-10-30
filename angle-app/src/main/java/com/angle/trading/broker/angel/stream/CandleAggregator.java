@@ -151,6 +151,9 @@ public class CandleAggregator {
             case FIFTEEN_MINUTE   -> Duration.ofMinutes(15);
             case THIRTY_MINUTE    -> Duration.ofMinutes(30);
             case ONE_HOUR         -> Duration.ofHours(1);
+            case TWO_HOUR         -> Duration.ofHours(2);
+            case THREE_HOUR       -> Duration.ofHours(3);
+            case FOUR_HOUR        -> Duration.ofHours(4);
             case ONE_DAY          -> Duration.ofDays(1);
             default -> throw new IllegalArgumentException("Unsupported interval: " + iv);
         };

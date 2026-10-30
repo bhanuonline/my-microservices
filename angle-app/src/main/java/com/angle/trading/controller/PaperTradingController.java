@@ -2,6 +2,8 @@ package com.angle.trading.controller;
 
 import com.angle.trading.paper.PaperTradingSessionManager;
 import com.angle.trading.paper.model.CreateSessionRequest;
+import com.angle.trading.paper.model.ManualEntryRequest;
+import com.angle.trading.paper.model.ManualExitRequest;
 import com.angle.trading.paper.model.SessionSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,5 +56,15 @@ public class PaperTradingController {
     @PostMapping("/sessions/{id}/stop")
     public SessionSnapshot stop(@PathVariable String id) {
         return manager.stop(id);
+    }
+
+    @PostMapping("/sessions/{id}/enter")
+    public SessionSnapshot enter(@PathVariable String id, @RequestBody ManualEntryRequest req) {
+        return manager.manualEnter(id, req.direction(), req.entry(), req.stop(), req.target(), req.rationale());
+    }
+
+    @PostMapping("/sessions/{id}/exit")
+    public SessionSnapshot exit(@PathVariable String id, @RequestBody ManualExitRequest req) {
+        return manager.manualExit(id, req.exitPrice());
     }
 }

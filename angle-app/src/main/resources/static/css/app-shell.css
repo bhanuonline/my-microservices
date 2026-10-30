@@ -26,10 +26,13 @@
     overflow: hidden;              /* parent never scrolls — the inner nav does */
 }
 
-/* The nav is the scrollable middle region. Brand and theme toggle stay pinned. */
+/* The nav is the scrollable middle region. Brand and theme toggle stay pinned.
+   flex-basis:0 means the nav starts at zero height and grows into exactly the
+   space left over after brand + theme-toggle + logout take their natural heights.
+   This prevents the nav from fighting those fixed elements when items overflow. */
 .app-nav {
     overflow-y: auto;
-    flex: 1 1 auto;                /* take all remaining height */
+    flex: 1 1 0;
     min-height: 0;                 /* required so flex child can actually shrink + scroll */
     scrollbar-width: thin;         /* Firefox */
     scrollbar-gutter: stable;      /* reserve space so hover doesn't cause layout shift */

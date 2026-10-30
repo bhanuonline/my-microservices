@@ -179,7 +179,8 @@ public class MtfConfirmationService {
         return switch (iv) {
             case ONE_MINUTE -> 1; case FIVE_MINUTE -> 5;
             case FIFTEEN_MINUTE -> 15; case THIRTY_MINUTE -> 30;
-            case ONE_HOUR -> 60; case ONE_DAY -> 390;
+            case ONE_HOUR -> 60; case TWO_HOUR -> 120; case THREE_HOUR -> 180; case FOUR_HOUR -> 240;
+            case ONE_DAY -> 390;
         };
     }
 

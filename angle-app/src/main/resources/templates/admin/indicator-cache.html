@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Indicator Cache — AngleApp</title>
+    <meta name="_csrf"        th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <style>
+        .wrap { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+        h1    { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+        .sub  { color: var(--faint); font-size: 13px; margin: 0 0 20px; }
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
+        .toolbar button, .toolbar a {
+            padding: 7px 14px; border-radius: 7px; font: 600 12px 'Inter', sans-serif;
+            cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+            color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .toolbar button:hover, .toolbar a:hover { background: var(--hover); }
+        .toolbar button.danger { border-color: #e55; color: #e55; }
+        .toolbar button.danger:hover { background: #fff0f0; }
+        .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+        .stat  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                 padding: 14px 20px; min-width: 140px; }
+        .stat .lbl { font-size: 11px; color: var(--faint); font-weight: 600; text-transform: uppercase;
+                     letter-spacing: .05em; margin-bottom: 6px; }
+        .stat .val { font-size: 22px; font-weight: 700; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px;
+                font-weight: 700; letter-spacing: .04em; }
+        .pill.on  { background: #e6f9ee; color: #1a7f4b; }
+        .pill.off { background: #fef2f2; color: #b91c1c; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th    { text-align: left; padding: 8px 12px; background: var(--surface);
+                border-bottom: 2px solid var(--border); font-weight: 600; font-size: 11px;
+                text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+        td    { padding: 9px 12px; border-bottom: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+        tr:hover td { background: var(--hover); }
+        .empty { color: var(--faint); font-size: 13px; padding: 20px 0; }
+        .section { margin-bottom: 32px; }
+        .section h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+        .refresh-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 20px; }
+        .refresh-form label { font-size: 12px; font-weight: 600; color: var(--faint); display: block; margin-bottom: 4px; }
+        .refresh-form input, .refresh-form select {
+            padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--ink); font-size: 13px; height: 34px;
+        }
+        #toast { display:none; position:fixed; bottom:24px; right:24px; background:#1a7f4b; color:#fff;
+                 padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; z-index:999; }
+        #toast.err { background:#b91c1c; }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='indicator-cache')}"></div>
+<main class="app-main">
+<div class="wrap">
+
+    <h1>Indicator Cache</h1>
+    <p class="sub">
+        Computed RSI / ADX / MACD values cached in memory.
+        Status: <span th:class="'pill ' + (${enabled} ? 'on' : 'off')" th:text="${enabled} ? 'ENABLED' : 'DISABLED'">ENABLED</span>
+        &nbsp;TTL: <b th:text="${ttl}">PT15M</b>
+    </p>
+
+    <div class="toolbar">
+        <button onclick="action('/api/admin/cache/indicators/clear', 'POST', 'All entries cleared')">Clear All</button>
+        <button class="danger" onclick="if(confirm('Clear all indicator cache entries?')) action('/api/admin/cache/indicators/clear', 'POST', 'Cache cleared')">
+            🗑 Clear All Entries
+        </button>
+        <button onclick="location.reload()">↻ Refresh Page</button>
+        <a href="/dashboard" style="margin-left:auto">← Dashboard</a>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats">
+        <div class="stat">
+            <div class="lbl">Cached Entries</div>
+            <div class="val" th:text="${size}">0</div>
+        </div>
+        <div class="stat">
+            <div class="lbl">TTL</div>
+            <div class="val" style="font-size:16px" th:text="${ttl}">PT15M</div>
+        </div>
+        <div class="stat">
+            <div class="lbl">Cache Enabled</div>
+            <div class="val" style="font-size:16px">
+                <span th:class="'pill ' + (${enabled} ? 'on' : 'off')" th:text="${enabled} ? 'YES' : 'NO'">YES</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Force Refresh form -->
+    <div class="section">
+        <h2>Force Refresh</h2>
+        <div class="refresh-form">
+            <div>
+                <label>Symbol</label>
+                <input type="text" id="rfSymbol" value="RELIANCE-EQ" style="width:140px">
+            </div>
+            <div>
+                <label>Interval</label>
+                <select id="rfInterval">
+                    <option>ONE_DAY</option>
+                    <option>ONE_HOUR</option>
+                    <option>THIRTY_MINUTE</option>
+                    <option>FIFTEEN_MINUTE</option>
+                    <option>FIVE_MINUTE</option>
+                    <option>ONE_MINUTE</option>
+                </select>
+            </div>
+            <div>
+                <label>Days</label>
+                <input type="number" id="rfDays" value="300" style="width:80px">
+            </div>
+            <div>
+                <label>Date (optional — for day breakdown)</label>
+                <input type="date" id="rfDate" style="width:160px">
+            </div>
+            <button onclick="doRefresh()">↻ Refresh</button>
+        </div>
+
+        <div>
+            <label style="font-size:12px;font-weight:600;color:var(--faint)">Clear by symbol</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+                <input type="text" id="clearSymbol" placeholder="RELIANCE-EQ" style="padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:13px;width:160px">
+                <button onclick="clearSymbol()">Clear Symbol</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live cache entries table -->
+    <div class="section">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+            <h2 style="margin:0">Live Cache Entries <span id="entryCount" style="font-weight:400;color:var(--faint);font-size:13px" th:text="'(' + ${size} + ' entries)'"></span></h2>
+            <input type="text" id="searchBox" placeholder="Search by symbol or key…"
+                   style="margin-left:auto;padding:6px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:13px;width:240px"
+                   oninput="filterAndPage()">
+            <select id="pageSizeSelect" onchange="filterAndPage()"
+                    style="padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:13px">
+                <option value="5">5 / page</option>
+                <option value="10" selected>10 / page</option>
+                <option value="25">25 / page</option>
+                <option value="9999">All</option>
+            </select>
+        </div>
+
+        <div th:if="${keys.isEmpty()}" class="empty">Cache is empty — entries appear here after the first indicator request.</div>
+        <table th:if="${!keys.isEmpty()}" id="cacheTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cache Key</th>
+                    <th>Expires At (IST)</th>
+                    <th>Remaining</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr th:each="entry : ${keys.entrySet()}" class="cache-row">
+                    <td class="row-num"></td>
+                    <td th:text="${entry.key}">indicators|RELIANCE-EQ|ONE_DAY|300|2026-10-29</td>
+                    <td class="expiry-cell" th:attr="data-expiry=${entry.value}">2026-10-29T10:30:00Z</td>
+                    <td class="remaining-cell" th:attr="data-expiry=${entry.value}">—</td>
+                    <td>
+                        <!-- key: type|symbol|interval|days|date → extract symbol between 1st and 2nd pipe -->
+                        <button style="padding:3px 10px;font-size:11px"
+                                class="del-btn"
+                                th:attr="data-symbol=${#strings.substringBefore(#strings.substringAfter(entry.key, '|'), '|')}">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Pagination controls -->
+        <div id="pagination" style="display:flex;gap:6px;align-items:center;margin-top:12px;flex-wrap:wrap"></div>
+        <div id="pageInfo" style="font-size:12px;color:var(--faint);margin-top:6px"></div>
+    </div>
+
+</div>
+</main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const CSRF_HEADER = document.querySelector('meta[name="_csrf_header"]')?.content;
+const CSRF_TOKEN  = document.querySelector('meta[name="_csrf"]')?.content;
+const csrfHdr = () => ({ [CSRF_HEADER]: CSRF_TOKEN });
+
+async function action(url, method, successMsg) {
+    try {
+        const r = await fetch(url, { method });
+        if (!r.ok) { showToast('Server error: ' + r.status, true); return; }
+        const d = await r.json();
+        showToast(successMsg + ' (' + (d.evicted ?? '') + ' entries)', false);
+        setTimeout(() => location.reload(), 800);
+    } catch(e) { showToast('Error: ' + e.message, true); }
+}
+
+async function doRefresh() {
+    const sym  = document.getElementById('rfSymbol').value.trim();
+    const intv = document.getElementById('rfInterval').value;
+    const days = document.getElementById('rfDays').value;
+    const date = document.getElementById('rfDate').value;
+    if (!sym) { showToast('Enter a symbol', true); return; }
+    let url = `/api/admin/cache/indicators/refresh?symbol=${encodeURIComponent(sym)}&interval=${intv}&days=${days}`;
+    if (date) url += `&date=${date}`;
+    try {
+        const r = await fetch(url, { method: 'POST' });
+        const d = await r.json();
+        if (!r.ok) { showToast(d.error || 'Refresh failed', true); return; }
+        showToast('Refreshed — ' + (d.candleCount ? d.candleCount + ' candles' : d.rows + ' rows') + ', TTL ' + d.ttl, false);
+        setTimeout(() => location.reload(), 1000);
+    } catch(e) { showToast('Error: ' + e.message, true); }
+}
+
+async function clearSymbol() {
+    const sym = document.getElementById('clearSymbol').value.trim();
+    if (!sym) { showToast('Enter a symbol', true); return; }
+    try {
+        const r = await fetch('/api/admin/cache/indicators/clear/' + encodeURIComponent(sym), { method: 'POST' });
+        if (!r.ok) { showToast('Server error: ' + r.status, true); return; }
+        const d = await r.json();
+        showToast('Cleared ' + d.evicted + ' entries for ' + sym, false);
+        setTimeout(() => location.reload(), 800);
+    } catch(e) { showToast('Error: ' + e.message, true); }
+}
+
+async function clearKey(symbol) {
+    try {
+        const r = await fetch('/api/admin/cache/indicators/clear/' + encodeURIComponent(symbol), { method: 'POST' });
+        if (!r.ok) { showToast('Server error: ' + r.status, true); return; }
+        const d = await r.json();
+        showToast('Cleared ' + d.evicted + ' entries for ' + symbol, false);
+        setTimeout(() => location.reload(), 800);
+    } catch(e) { showToast('Error: ' + e.message, true); }
+}
+
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.del-btn');
+    if (btn) clearKey(btn.dataset.symbol);
+});
+
+// ── Search + Pagination ──────────────────────────────────────
+let currentPage = 1;
+
+function filterAndPage() {
+    currentPage = 1;
+    renderTable();
+}
+
+function renderTable() {
+    const q        = (document.getElementById('searchBox')?.value || '').toLowerCase();
+    const pageSize = parseInt(document.getElementById('pageSizeSelect')?.value || '10');
+    const rows     = Array.from(document.querySelectorAll('#tableBody .cache-row'));
+
+    // Filter
+    const visible = rows.filter(r => {
+        const key = r.cells[1]?.textContent || '';
+        return !q || key.toLowerCase().includes(q);
+    });
+
+    // Hide all, then show current page
+    rows.forEach(r => r.style.display = 'none');
+    const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * pageSize;
+    visible.slice(start, start + pageSize).forEach((r, i) => {
+        r.style.display = '';
+        const numCell = r.querySelector('.row-num');
+        if (numCell) numCell.textContent = start + i + 1;
+    });
+
+    // Page info
+    const info = document.getElementById('pageInfo');
+    if (info) {
+        const showing = Math.min(visible.length, pageSize);
+        info.textContent = visible.length === 0
+            ? 'No entries match'
+            : `Showing ${start + 1}–${Math.min(start + pageSize, visible.length)} of ${visible.length} entries`;
+    }
+
+    // Pagination buttons
+    const pg = document.getElementById('pagination');
+    if (!pg) return;
+    pg.innerHTML = '';
+
+    const btnStyle = 'padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12px;cursor:pointer;font-weight:600';
+    const activeBtnStyle = btnStyle + ';background:var(--accent,#3b82f6);color:#fff;border-color:transparent';
+
+    const addBtn = (label, page, disabled, active) => {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.style.cssText = active ? activeBtnStyle : btnStyle;
+        b.disabled = disabled;
+        if (!disabled) b.addEventListener('click', () => { currentPage = page; renderTable(); });
+        pg.appendChild(b);
+    };
+
+    addBtn('«', 1, currentPage === 1, false);
+    addBtn('‹', currentPage - 1, currentPage === 1, false);
+
+    // Page numbers (show at most 5 around current)
+    const delta = 2;
+    for (let p = Math.max(1, currentPage - delta); p <= Math.min(totalPages, currentPage + delta); p++) {
+        addBtn(String(p), p, false, p === currentPage);
+    }
+
+    addBtn('›', currentPage + 1, currentPage === totalPages, false);
+    addBtn('»', totalPages, currentPage === totalPages, false);
+
+    if (totalPages <= 1) pg.innerHTML = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderTable();
+    formatExpiry();
+    setInterval(formatExpiry, 1000); // live countdown every second
+});
+
+function relativeTime(diffMs) {
+    if (diffMs <= 0)           return { text: 'Expired', color: '#b91c1c' };
+    if (diffMs < 60_000)       return { text: Math.ceil(diffMs / 1000) + 's', color: '#b91c1c' };
+    if (diffMs < 300_000)      return { text: Math.ceil(diffMs / 60_000) + 'm', color: '#d97706' };
+    if (diffMs < 3_600_000) {
+        const m = Math.ceil(diffMs / 60_000);
+        return { text: m + 'm', color: '#d97706' };
+    }
+    if (diffMs < 86_400_000) {
+        const h = Math.floor(diffMs / 3_600_000);
+        const m = Math.ceil((diffMs % 3_600_000) / 60_000);
+        return { text: h + 'h ' + m + 'm', color: '#1a7f4b' };
+    }
+    return { text: Math.ceil(diffMs / 86_400_000) + 'd', color: '#1a7f4b' };
+}
+
+function formatExpiry() {
+    // Expiry date/time column
+    document.querySelectorAll('.expiry-cell').forEach(td => {
+        const raw = td.dataset.expiry;
+        if (!raw) return;
+        const exp = new Date(raw);
+        const dateStr = exp.toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+            timeZone: 'Asia/Kolkata', hour12: false
+        });
+        td.textContent = dateStr;
+    });
+
+    // Remaining time column
+    document.querySelectorAll('.remaining-cell').forEach(td => {
+        const raw = td.dataset.expiry;
+        if (!raw) return;
+        const diffMs = new Date(raw) - new Date();
+        const { text, color } = relativeTime(diffMs);
+        td.innerHTML = `<span style="font-weight:700;color:${color}">${text}</span>`;
+    });
+}
+
+function showToast(msg, isErr) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isErr ? 'err' : '';
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3000);
+}
+</script>
+</body>
+</html>

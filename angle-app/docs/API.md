@@ -265,6 +265,185 @@ HTML portfolio page with scorecard.
 
 ---
 
+## Hedge comparison endpoints
+
+> These are **web-chain** endpoints (session cookie auth), not `/api/**`.
+> HTTP Basic will not work here. CSRF token required on all POSTs.
+
+### `GET /hedge`
+Thymeleaf strategy comparison page. No params. Returns HTML.
+
+---
+
+### `POST /hedge/compare`
+Run full hedge analysis for a position. Returns comparison JSON for all 4
+strategies.
+
+**Form params (application/x-www-form-urlencoded):**
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root, e.g. `HDFCBANK` |
+| `exchange` | string | `NSE` / `BSE` / `NFO` / `BFO` |
+| `entryPrice` | double | Average cost of long stock position |
+| `quantity` | int | Number of shares held |
+| `expiry` | string | Option expiry date `YYYY-MM-DD` |
+| `putStrike` | double | Strike for PUT leg (Protective PUT / Collar) |
+| `callStrike` | double | Strike for CALL leg (Covered Call / Collar) |
+
+**Response shape (JSON):**
+```json
+{
+  "regime": "MILD_BEARISH",
+  "indicators": { "rsi14": 42.1, "adx14": 28.4, "ema21": 610.5 },
+  "hv30": 0.28,
+  "spotLtp": 621.0,
+  "strategies": [
+    {
+      "name": "PROTECTIVE_PUT",
+      "score": 4,
+      "breakeven": 631.5,
+      "maxGain": null,
+      "maxLoss": -18750.0,
+      "riskRewardRatio": null,
+      "breakevenDistancePct": 1.69,
+      "dailyTheta": -42.0,
+      "probabilityOfProfit": 0.63,
+      "premiumAssessment": "FAIR",
+      "scenarios": [ { "price": 497.0, "pnl": -18750.0 }, ... ],
+      "timeDecay": [ { "daysRemaining": 21, "value": -420.0 }, ... ],
+      "payoff": [ { "price": 497.0, "pnl": -18750.0 }, ... ]
+    },
+    ...
+  ]
+}
+```
+
+**curl:**
+```bash
+curl -s -X POST http://localhost:9010/hedge/compare \
+  -b "JSESSIONID=<your-session>" \
+  -H "X-CSRF-TOKEN: <csrf>" \
+  -d "underlying=HDFCBANK&exchange=NSE&entryPrice=620&quantity=100&expiry=2026-12-29&putStrike=560&callStrike=680"
+```
+
+---
+
+### `GET /hedge/ltp/{symbolToken}`
+Live spot price for a given Angel One symbol token.
+
+| Param | Description |
+|---|---|
+| `{symbolToken}` | Angel scrip token (path variable) |
+
+Returns `{ "ltp": 621.0 }`.
+
+**curl:**
+```bash
+curl -s http://localhost:9010/hedge/ltp/1333 -b "JSESSIONID=<your-session>"
+```
+
+---
+
+### `GET /hedge/expiries`
+Option expiry dates available on the exchange for an underlying.
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root e.g. `HDFCBANK` |
+
+Returns `["2026-10-29", "2026-11-26", "2026-12-29"]`.
+
+**curl:**
+```bash
+curl -s "http://localhost:9010/hedge/expiries?underlying=HDFCBANK" -b "JSESSIONID=<your-session>"
+```
+
+---
+
+### `GET /hedge/strikes`
+Available strikes for a given underlying and expiry.
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root |
+| `expiry` | string | `YYYY-MM-DD` |
+
+Returns `[500.0, 520.0, 540.0, ..., 700.0]`.
+
+**curl:**
+```bash
+curl -s "http://localhost:9010/hedge/strikes?underlying=HDFCBANK&expiry=2026-12-29" \
+  -b "JSESSIONID=<your-session>"
+```
+
+---
+
+### `GET /hedge/option-premium`
+LTP (and implied volatility where available) for a specific option contract.
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root |
+| `strike` | double | Strike price |
+| `type` | string | `CE` or `PE` |
+| `expiry` | string | `YYYY-MM-DD` |
+
+Returns `{ "ltp": 11.5, "iv": 0.31 }`.
+
+**curl:**
+```bash
+curl -s "http://localhost:9010/hedge/option-premium?underlying=HDFCBANK&strike=560&type=PE&expiry=2026-12-29" \
+  -b "JSESSIONID=<your-session>"
+```
+
+---
+
+### `GET /hedge/futures-price`
+LTP of the nearest-expiry futures contract for an underlying.
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root |
+
+Returns `{ "ltp": 623.4 }`.
+
+**curl:**
+```bash
+curl -s "http://localhost:9010/hedge/futures-price?underlying=HDFCBANK" \
+  -b "JSESSIONID=<your-session>"
+```
+
+---
+
+### `POST /hedge/journal`
+Save a chosen strategy to the `trade_journal` table.
+
+**Form params:**
+
+| Param | Type | Description |
+|---|---|---|
+| `underlying` | string | Symbol root |
+| `strategy` | string | Strategy enum name e.g. `PROTECTIVE_PUT` |
+| `entryPrice` | double | Stock entry price |
+| `quantity` | int | Shares |
+| `expiry` | string | `YYYY-MM-DD` |
+| `putStrike` | double | (optional) PUT strike |
+| `callStrike` | double | (optional) CALL strike |
+| `notes` | string | (optional) Free-text notes |
+
+Returns `{ "saved": true, "id": 42 }`.
+
+**curl:**
+```bash
+curl -s -X POST http://localhost:9010/hedge/journal \
+  -b "JSESSIONID=<your-session>" \
+  -H "X-CSRF-TOKEN: <csrf>" \
+  -d "underlying=HDFCBANK&strategy=COLLAR&entryPrice=620&quantity=100&expiry=2026-12-29&putStrike=560&callStrike=680"
+```
+
+---
+
 ## Actuator
 
 - `GET /actuator/health` — up/down.

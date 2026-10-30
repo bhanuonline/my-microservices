@@ -7,10 +7,12 @@ package com.angle.trading.strategy.model;
  *   TARGET         — price hit the profit target
  *   SIGNAL_EXIT    — strategy emitted EXIT (or opposite-direction entry)
  *   END_OF_SERIES  — backtest ran out of candles; close at last price
+ *   MANUAL         — user manually closed the position via the API
  */
 public enum ExitReason {
     STOP,
     TARGET,
     SIGNAL_EXIT,
-    END_OF_SERIES
+    END_OF_SERIES,
+    MANUAL
 }

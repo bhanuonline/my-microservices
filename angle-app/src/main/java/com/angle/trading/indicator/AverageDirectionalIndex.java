@@ -108,6 +108,73 @@ public class AverageDirectionalIndex implements Indicator {
         return wilderSmoothList(dx, period);
     }
 
+    /**
+     * ADX value combined with +DI and -DI for the same candle.
+     *
+     * @param adx    trend strength 0-100 (null during warmup)
+     * @param plusDi bullish directional indicator
+     * @param minusDi bearish directional indicator
+     */
+    public record AdxDiValue(BigDecimal adx, BigDecimal plusDi, BigDecimal minusDi) {}
+
+    /**
+     * Computes ADX, +DI and -DI together in one pass — same warmup as {@link #compute}.
+     * Returns a list of {@link AdxDiValue} aligned 1-to-1 with the candle list.
+     */
+    public List<AdxDiValue> computeWithDi(List<Candle> candles) {
+        int n = candles.size();
+        List<BigDecimal> plusDmList  = new ArrayList<>(n);
+        List<BigDecimal> minusDmList = new ArrayList<>(n);
+        List<BigDecimal> trList      = new ArrayList<>(n);
+
+        plusDmList.add(BigDecimal.ZERO);
+        minusDmList.add(BigDecimal.ZERO);
+        trList.add(n == 0 ? BigDecimal.ZERO : candles.get(0).high().subtract(candles.get(0).low()));
+
+        for (int i = 1; i < n; i++) {
+            Candle c = candles.get(i);
+            Candle p = candles.get(i - 1);
+            BigDecimal up   = c.high().subtract(p.high());
+            BigDecimal down = p.low().subtract(c.low());
+            plusDmList.add((up.compareTo(down) > 0 && up.signum() > 0) ? up : BigDecimal.ZERO);
+            minusDmList.add((down.compareTo(up) > 0 && down.signum() > 0) ? down : BigDecimal.ZERO);
+            BigDecimal r1 = c.high().subtract(c.low()).abs();
+            BigDecimal r2 = c.high().subtract(p.close()).abs();
+            BigDecimal r3 = c.low().subtract(p.close()).abs();
+            trList.add(r1.max(r2).max(r3));
+        }
+
+        List<BigDecimal> sPlusDm  = wilderSmooth(plusDmList,  period);
+        List<BigDecimal> sMinusDm = wilderSmooth(minusDmList, period);
+        List<BigDecimal> sTr      = wilderSmooth(trList,      period);
+
+        // Build per-candle +DI and -DI lists
+        List<BigDecimal> plusDiList  = new ArrayList<>(n);
+        List<BigDecimal> minusDiList = new ArrayList<>(n);
+        List<BigDecimal> dx          = new ArrayList<>(n);
+
+        for (int i = 0; i < n; i++) {
+            BigDecimal pd = sPlusDm.get(i), md = sMinusDm.get(i), t = sTr.get(i);
+            if (pd == null || md == null || t == null || t.signum() == 0) {
+                plusDiList.add(null); minusDiList.add(null); dx.add(null); continue;
+            }
+            BigDecimal pDi = HUNDRED.multiply(pd, MC).divide(t, MC).setScale(4, RoundingMode.HALF_UP);
+            BigDecimal mDi = HUNDRED.multiply(md, MC).divide(t, MC).setScale(4, RoundingMode.HALF_UP);
+            plusDiList.add(pDi); minusDiList.add(mDi);
+            BigDecimal denom = pDi.add(mDi);
+            dx.add(denom.signum() == 0 ? BigDecimal.ZERO
+                    : HUNDRED.multiply(pDi.subtract(mDi).abs(), MC).divide(denom, MC));
+        }
+
+        List<BigDecimal> adxList = wilderSmoothList(dx, period);
+
+        List<AdxDiValue> out = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            out.add(new AdxDiValue(adxList.get(i), plusDiList.get(i), minusDiList.get(i)));
+        }
+        return out;
+    }
+
     /** Wilder smoothing (skips leading nulls) — returns list same length with nulls up front. */
     private static List<BigDecimal> wilderSmooth(List<BigDecimal> values, int period) {
         int n = values.size();

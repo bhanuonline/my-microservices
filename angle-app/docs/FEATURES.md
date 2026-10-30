@@ -306,6 +306,81 @@ For end-user walkthroughs see `HOW-TO-USE.md`. For architecture see
 
 ---
 
+## Hedge Strategy Comparison
+
+### What it does
+Lets you enter a stock position (symbol, entry price, qty, exchange) and compare
+four hedging strategies side-by-side. Each strategy is scored against the current
+market regime (derived from live indicators) and returns a full metrics breakdown,
+P&L scenarios, time-decay curve, and a 25-point payoff chart.
+
+Package: `com.angle.trading.hedge`
+
+### 4 strategies
+| Strategy | Description |
+|---|---|
+| **Protective / Married PUT** | Long stock + long PUT. Caps downside; upside unlimited. |
+| **Covered Call** | Long stock + short CALL. Generates premium; caps upside. |
+| **Collar** | Long stock + long PUT + short CALL. Both sides bounded; low/zero net cost. |
+| **Futures Hedge** | Long stock + short futures. Near-neutral; profit approximates cost-of-carry. |
+
+### Indicators and regime detection
+Computed from daily candles (Angel One historical data):
+- **RSI(14)** — momentum.
+- **ADX(14)** — trend strength.
+- **EMA-21** — trend direction (price vs EMA).
+
+Market regimes (used to score each strategy 1–5):
+`STRONG_BULLISH`, `MILD_BULLISH`, `SIDEWAYS`, `MILD_BEARISH`, `STRONG_BEARISH`
+
+### Live data (Angel One SmartAPI)
+- Spot LTP for the underlying.
+- Option chain expiry dates for NFO/BFO/CDS.
+- Available strikes for a given expiry.
+- Option premium (bid/ask/LTP) for a specific contract.
+- Nearest-expiry futures LTP.
+
+NSE symbol formats used internally:
+- NFO: `{UNDERLYING}{DD}{MMM}{YY}{STRIKE}{CE|PE}` e.g. `HDFCBANK29DEC26560PE`
+- BFO: `{UNDERLYING}{YY}{MMM}{STRIKE}{CE|PE}` e.g. `HDFCBANK26OCT640PE`
+- CDS: strikes sent ÷100000 before lookup.
+
+Historical volatility: **HV30** — 30-day rolling std-dev of daily log-returns,
+annualised (√252). Used to classify option premiums as CHEAP / FAIR / EXPENSIVE.
+
+### Metrics computed per strategy
+- `breakeven` — price at which P&L = 0.
+- `maxGain` / `maxLoss` — theoretical limits in ₹.
+- `riskRewardRatio` — |maxGain / maxLoss|.
+- `breakevenDistancePct` — how far current spot is from breakeven (%).
+- `dailyTheta` — estimated daily time decay in ₹.
+- `probabilityOfProfit` — log-normal estimate using HV30.
+- **P&L scenarios** at 7 price points (−20%, −10%, −5%, 0%, +5%, +10%, +20%).
+- **Time decay** at 4 time points (0d, 7d, 14d, 21d remaining).
+- **Payoff chart data** — 25 price points for front-end chart rendering.
+
+### UI features
+- Page at `/hedge` (Thymeleaf + HTMX, session auth).
+- Regime badge and indicator values shown alongside strategy scores.
+- Strategy cards with expandable P&L scenario table and payoff chart.
+- Journal button saves the selected strategy to `trade_journal`.
+
+### Endpoints
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/hedge` | Thymeleaf comparison page |
+| `POST` | `/hedge/compare` | Full analysis JSON for all 4 strategies |
+| `GET` | `/hedge/expiries` | Option expiry dates for an underlying |
+| `GET` | `/hedge/strikes` | Available strikes for a given underlying + expiry |
+| `GET` | `/hedge/ltp/{symbolToken}` | Live spot LTP |
+| `GET` | `/hedge/option-premium` | Option contract LTP / IV |
+| `GET` | `/hedge/futures-price` | Nearest futures contract LTP |
+| `POST` | `/hedge/journal` | Save strategy to `trade_journal` |
+
+All endpoints are web-chain (session auth). CSRF token required on POSTs.
+
+---
+
 ## Config properties (prefixes)
 
 | Prefix | What it controls |

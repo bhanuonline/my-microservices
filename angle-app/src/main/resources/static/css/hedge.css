@@ -1,0 +1,457 @@
+/* ── Hedge Strategy Comparison ─────────────────────────────────────────── */
+
+.hc-head { margin-bottom: 20px; }
+.hc-head h1 { font-size: 22px; font-weight: 700; color: var(--ink); margin: 0 0 4px; }
+.hc-head p  { font-size: 13px; color: var(--ink-soft); margin: 0; }
+
+/* Step cards */
+.hc-step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 12px;
+}
+.hc-step-hdr {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.hc-step-num {
+    width: 26px; height: 26px; flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--accent, #6366f1);
+    color: #fff;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.hc-step-title { font-size: 14px; font-weight: 700; color: var(--ink); }
+.hc-step-desc  { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+
+/* NSE symbol helper row */
+.hc-nse-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed var(--border);
+}
+.hc-nse-label { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+.hc-nse-input {
+    width: 140px; padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--ink);
+    font-size: 12px; font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+}
+.hc-nse-hint { font-size: 11px; color: var(--ink-soft); font-style: italic; }
+
+/* PUT / CALL side-by-side grid */
+.hc-leg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+@media (max-width: 700px) { .hc-leg-grid { grid-template-columns: 1fr; } }
+
+.hc-leg-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.hc-leg-put  { border-color: rgba(239,68,68,.3);  background: rgba(239,68,68,.03); }
+.hc-leg-call { border-color: rgba(34,197,94,.3);   background: rgba(34,197,94,.03); }
+
+.hc-leg-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 700;
+    padding: 3px 10px; border-radius: 20px;
+    margin-bottom: 12px; letter-spacing: .03em;
+}
+.hc-badge-put  { background: rgba(239,68,68,.12); color: #dc2626; }
+.hc-badge-call { background: rgba(34,197,94,.12);  color: #16a34a; }
+
+/* Chip row */
+.hc-chip-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Action buttons row */
+.hc-actions {
+    display: flex; gap: 10px; align-items: center;
+    flex-wrap: wrap; margin-bottom: 24px;
+}
+.hc-btn-primary {
+    background: var(--accent, #6366f1);
+    font-size: 14px; padding: 11px 28px;
+}
+
+/* ── Summary card (4-metric strip for recommended strategy) ── */
+.hc-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+@media (max-width: 700px) { .hc-summary-grid { grid-template-columns: 1fr 1fr; } }
+
+.hc-summary-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+}
+.hc-summary-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-soft); margin-bottom: 6px;
+}
+.hc-summary-value {
+    font-size: 20px; font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink); margin-bottom: 4px;
+}
+.hc-summary-sub {
+    font-size: 11.5px; color: var(--ink-soft);
+}
+
+/* ── Refresh all bar ── */
+.hc-refresh-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0 0;
+}
+.hc-btn-refresh {
+    background: var(--surface);
+    border: 1px solid var(--accent, #6366f1);
+    color: var(--accent, #6366f1);
+    font-weight: 600;
+}
+.hc-btn-refresh:hover { background: var(--accent, #6366f1); color: #fff; }
+
+/* Result sections */
+.hc-result-section {
+    margin-bottom: 20px;
+}
+.hc-result-label {
+    font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Form card (kept for modal usage) */
+.hc-form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+}
+.hc-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.hc-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1 1 200px;   /* grow, but start at 200px — prevents too many per row */
+    min-width: 180px;
+    max-width: 360px;
+}
+.hc-form-group label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.hc-form-group input,
+.hc-form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13.5px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+}
+
+/* Modal selects need the same treatment */
+.hc-modal select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 13.5px;
+    font-family: inherit;
+    outline: none;
+    margin-top: 4px;
+}
+.hc-form-group input:focus,
+.hc-form-group select:focus { border-color: var(--accent, #6366f1); }
+
+.hc-btn {
+    padding: 10px 22px;
+    background: var(--accent, #6366f1);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font: 600 13.5px 'Inter', sans-serif;
+    cursor: pointer;
+    transition: opacity .15s;
+}
+.hc-btn:hover   { opacity: .88; }
+.hc-btn:disabled{ opacity: .5; cursor: not-allowed; }
+
+/* Section title */
+.hc-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-soft);
+    margin: 28px 0 12px;
+}
+
+/* Indicator cards */
+.hc-indicator-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+.hc-ind-card {
+    flex: 1;
+    min-width: 160px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.hc-ind-card .ind-label  { font-size: 11px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; }
+.hc-ind-card .ind-value  { font-size: 22px; font-weight: 700; color: var(--ink); margin: 4px 0 2px; font-family: 'IBM Plex Mono', monospace; }
+.hc-ind-card .ind-signal { font-size: 12px; color: var(--ink-soft); }
+.hc-ind-card .ind-score  { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+.score-good  { background: rgba(34,197,94,.15); color: #16a34a; }
+.score-mid   { background: rgba(234,179,8,.15);  color: #b45309; }
+.score-bad   { background: rgba(239,68,68,.15);  color: #dc2626; }
+
+/* Regime badge */
+.hc-regime {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 4px;
+}
+.hc-regime .regime-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.hc-regime .regime-name  { font-size: 14px; font-weight: 700; color: var(--ink); }
+.hc-regime .regime-desc  { font-size: 12px; color: var(--ink-soft); }
+.hc-regime-STRONG_BULLISH  .regime-name { color: #16a34a; }
+.hc-regime-MILD_BULLISH    .regime-name { color: #65a30d; }
+.hc-regime-SIDEWAYS        .regime-name { color: #b45309; }
+.hc-regime-MILD_BEARISH    .regime-name { color: #ea580c; }
+.hc-regime-STRONG_BEARISH  .regime-name { color: #dc2626; }
+
+/* Table wrapper */
+.hc-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.hc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.hc-table th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.hc-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--ink);
+    white-space: nowrap;
+}
+.hc-table tr:last-child td { border-bottom: none; }
+.hc-table tr:hover td { background: var(--surface); }
+
+/* Strategy column header with recommended badge */
+.hc-col-winner { position: relative; }
+.hc-badge-rec {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--accent, #6366f1);
+    color: #fff;
+    border-radius: 20px;
+    vertical-align: middle;
+    letter-spacing: .04em;
+}
+
+/* Stars for regime fit */
+.hc-stars { color: var(--accent, #6366f1); letter-spacing: 2px; }
+.hc-stars-empty { color: var(--border); }
+
+/* P&L value colors */
+.pnl-pos { color: #16a34a; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.pnl-neg { color: #dc2626; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+.pnl-zer { color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+
+/* Row label */
+.hc-row-label { font-weight: 600; color: var(--ink-soft); }
+
+/* Unlimited badge */
+.hc-unlimited {
+    display: inline-block;
+    padding: 1px 8px;
+    background: rgba(34,197,94,.12);
+    color: #16a34a;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+/* Net premium debit/credit */
+.prem-debit  { color: #dc2626; font-weight: 600; }
+.prem-credit { color: #16a34a; font-weight: 600; }
+.prem-zero   { color: var(--ink-soft); }
+
+/* Hedge note */
+.hc-note {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 2px;
+}
+
+/* Winner summary */
+.hc-winner-card {
+    background: var(--surface);
+    border: 1px solid var(--accent, #6366f1);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.hc-winner-icon { font-size: 24px; line-height: 1; }
+.hc-winner-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--ink-soft); letter-spacing: .05em; }
+.hc-winner-name  { font-size: 17px; font-weight: 700; color: var(--ink); margin: 2px 0 6px; }
+.hc-winner-body  { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+
+/* Error & hidden */
+.hc-hidden { display: none; }
+.hc-error {
+    background: rgba(239,68,68,.1);
+    border: 1px solid rgba(239,68,68,.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 16px;
+}
+
+/* Strike suggestion chips */
+.hc-chip {
+    padding: 5px 10px; font-size: 11.5px; font-weight: 600;
+    border: 1px solid var(--border); border-radius: 20px;
+    background: var(--surface); color: var(--ink-soft);
+    cursor: pointer; white-space: nowrap; transition: all .12s;
+}
+.hc-chip:hover { background: var(--hair); color: var(--ink); }
+.hc-chip-accent { border-color: var(--accent,#6366f1); color: var(--accent,#6366f1); }
+.hc-chip-accent:hover { background: var(--accent,#6366f1); color: #fff; }
+
+/* Small button inside input row */
+.hc-btn-sm {
+    padding: 8px 12px; font-size: 12px; font-weight: 600;
+    background: var(--surface); color: var(--ink-soft);
+    border: 1px solid var(--border); border-radius: 7px;
+    cursor: pointer; white-space: nowrap; transition: all .12s;
+}
+.hc-btn-sm:hover { background: var(--hair); color: var(--ink); }
+
+/* Outline button */
+.hc-btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+}
+.hc-btn-outline:hover { background: var(--hair); color: var(--ink); opacity: 1; }
+
+/* Expiry suggestion chips */
+.hc-expiry-row {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; margin-bottom: 14px;
+    font-size: 12px; color: var(--ink-soft);
+}
+.hc-expiry-chip {
+    padding: 3px 10px; border: 1px solid var(--border); border-radius: 20px;
+    background: var(--surface); cursor: pointer; font-size: 12px;
+    transition: all .12s;
+}
+.hc-expiry-chip:hover { border-color: var(--accent,#6366f1); color: var(--accent,#6366f1); }
+
+/* Payoff chart — fixed height so canvas fills it fully */
+.hc-chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 420px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.hc-chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Modal */
+.hc-modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+}
+.hc-modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 32px; min-width: 380px; max-width: 520px;
+}
+.hc-modal-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 12px; }
+
+/* Loading spinner */
+.hc-spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: hc-spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+@keyframes hc-spin { to { transform: rotate(360deg); } }

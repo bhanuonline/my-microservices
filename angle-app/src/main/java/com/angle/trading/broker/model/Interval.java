@@ -10,5 +10,8 @@ public enum Interval {
     FIFTEEN_MINUTE,
     THIRTY_MINUTE,
     ONE_HOUR,
+    TWO_HOUR,
+    THREE_HOUR,
+    FOUR_HOUR,
     ONE_DAY
 }

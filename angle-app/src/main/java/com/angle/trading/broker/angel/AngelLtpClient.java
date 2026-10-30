@@ -34,8 +34,18 @@ public class AngelLtpClient {
     private final BrokerProperties brokerProperties;
     private final AngelAuthService authService;
 
+    /** Returns the current live LTP for the token, or empty on any failure. */
+    public Optional<BigDecimal> fetchLtp(String exchange, String tradingSymbol, String symbolToken) {
+        return fetchField(exchange, tradingSymbol, symbolToken, "ltp");
+    }
+
     /** Returns yesterday's close for the token, or empty on any failure. */
     public Optional<BigDecimal> fetchPreviousClose(String exchange, String tradingSymbol, String symbolToken) {
+        return fetchField(exchange, tradingSymbol, symbolToken, "close");
+    }
+
+    /** Returns all quote fields (ltp, open, high, low, previousClose) in a single API call. */
+    public Optional<QuoteData> fetchQuote(String exchange, String tradingSymbol, String symbolToken) {
         LtpResponse resp = call(exchange, tradingSymbol, symbolToken);
         if (resp != null && !resp.status && isInvalidToken(resp)) {
             log.info("Angel LTP invalid-token for {} — refreshing JWT and retrying once", symbolToken);
@@ -47,12 +57,52 @@ public class AngelLtpClient {
             log.warn("Angel LTP fetch failed for {}:{}: {}", exchange, symbolToken, msg);
             return Optional.empty();
         }
-        Object close = resp.data.get("close");
-        if (close == null) return Optional.empty();
+        Map<String, Object> d = resp.data;
+        return Optional.of(new QuoteData(
+                parseBD(d, "ltp"),
+                parseBD(d, "open"),
+                parseBD(d, "high"),
+                parseBD(d, "low"),
+                parseBD(d, "close")
+        ));
+    }
+
+    private static BigDecimal parseBD(Map<String, Object> data, String field) {
+        Object v = data.get(field);
+        if (v == null) return null;
         try {
-            return Optional.of(new BigDecimal(close.toString()));
+            return new BigDecimal(v.toString());
         } catch (NumberFormatException e) {
-            log.warn("Angel LTP close not parseable for {}: {}", symbolToken, close);
+            return null;
+        }
+    }
+
+    public record QuoteData(
+            BigDecimal ltp,
+            BigDecimal open,
+            BigDecimal high,
+            BigDecimal low,
+            BigDecimal previousClose
+    ) {}
+
+    private Optional<BigDecimal> fetchField(String exchange, String tradingSymbol, String symbolToken, String field) {
+        LtpResponse resp = call(exchange, tradingSymbol, symbolToken);
+        if (resp != null && !resp.status && isInvalidToken(resp)) {
+            log.info("Angel LTP invalid-token for {} — refreshing JWT and retrying once", symbolToken);
+            authService.invalidate();
+            resp = call(exchange, tradingSymbol, symbolToken);
+        }
+        if (resp == null || !resp.status || resp.data == null) {
+            String msg = resp == null ? "null response" : (resp.message + " [" + resp.errorcode + "]");
+            log.warn("Angel LTP fetch failed for {}:{}: {}", exchange, symbolToken, msg);
+            return Optional.empty();
+        }
+        Object value = resp.data.get(field);
+        if (value == null) return Optional.empty();
+        try {
+            return Optional.of(new BigDecimal(value.toString()));
+        } catch (NumberFormatException e) {
+            log.warn("Angel LTP field '{}' not parseable for {}: {}", field, symbolToken, value);
             return Optional.empty();
         }
     }

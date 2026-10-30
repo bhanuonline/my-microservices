@@ -1,0 +1,245 @@
+# ============================================================
+# Indian Stock Market Holidays — 2026
+# ============================================================
+#
+# enabled: true  → treated as holiday (market closed)
+# enabled: false → ignored (market open — use for doubtful dates)
+#
+# To manage a doubt:
+#   1. Set enabled: false
+#   2. Restart app
+#   If later confirmed as holiday → change to true + restart
+#
+# MCX session values:
+#   FULL_CLOSED           — both morning (9am-5pm) + evening (5pm-11:30pm) closed
+#   MORNING_ONLY_CLOSED   — morning closed, evening open (most MCX partial holidays)
+#   EVENING_ONLY_CLOSED   — morning open, evening closed
+# ============================================================
+
+# ── NSE / BSE — Equity, Derivatives (NIFTY, BANKNIFTY options) ─────
+
+nse:
+  2026:
+
+    # DOUBT — NSE typically does NOT close for municipal elections.
+    # Verify from official NSE circular before enabling.
+    - date: 2026-01-15
+      name: Maharashtra Municipal Election
+      enabled: false
+
+    - date: 2026-01-26
+      name: Republic Day
+      enabled: true
+
+    - date: 2026-03-03
+      name: Holi
+      enabled: true
+
+    # DOUBT — Eid-ul-Fitr 2026 expected around 20-21 March.
+    # Exact date depends on moon sighting. Verify and update date + enable.
+    - date: 2026-03-20
+      name: Eid-ul-Fitr
+      enabled: false
+
+    - date: 2026-03-26
+      name: Ram Navami
+      enabled: true
+
+    - date: 2026-03-31
+      name: Mahavir Jayanti
+      enabled: true
+
+    - date: 2026-04-03
+      name: Good Friday
+      enabled: true
+
+    - date: 2026-04-14
+      name: Dr. Ambedkar Jayanti
+      enabled: true
+
+    - date: 2026-05-01
+      name: Maharashtra Day
+      enabled: true
+
+    - date: 2026-05-28
+      name: Bakri Id (Eid ul-Adha)
+      enabled: true
+
+    - date: 2026-06-26
+      name: Muharram
+      enabled: true
+
+    - date: 2026-09-14
+      name: Ganesh Chaturthi
+      enabled: true
+
+    - date: 2026-10-02
+      name: Gandhi Jayanti
+      enabled: true
+
+    - date: 2026-10-20
+      name: Dussehra
+      enabled: true
+
+    # DOUBT — Diwali Laxmi Pujan (main Diwali day).
+    # NSE sometimes closes on this day too. Verify from NSE circular.
+    - date: 2026-11-09
+      name: Diwali Laxmi Pujan
+      enabled: false
+
+    - date: 2026-11-10
+      name: Diwali Balipratipada
+      enabled: true
+
+    - date: 2026-11-24
+      name: Guru Nanak Jayanti
+      enabled: true
+
+    - date: 2026-12-25
+      name: Christmas
+      enabled: true
+
+  # Special session — Muhurat Trading (extra session, NOT a holiday)
+  # This is on a Sunday so regular market is already closed.
+  # Muhurat trading timings announced separately by NSE.
+  special:
+    - date: 2026-11-08
+      name: Diwali Muhurat Trading
+      type: EXTRA_SESSION
+      note: Sunday — special evening session, timings announced by NSE
+
+
+# ── Special Open Days ────────────────────────────────────────────────
+# These OVERRIDE the normal weekend/holiday block.
+# Use for Muhurat Trading or any exchange-announced special sessions.
+# enabled: false → treat as normal closed day
+
+special_open:
+  - date: 2026-11-08
+    name: Diwali Muhurat Trading
+    exchanges: [NSE, MCX]
+    marketOpen:  "18:00"
+    marketClose: "19:15"
+    enabled: true
+    note: >
+      Sunday override — special Muhurat session.
+      Exact timings are announced by exchange circular.
+      Update marketOpen/marketClose if timings change, then restart.
+
+
+# ── MCX — Commodity Trading (Crude Oil, Gold, Silver etc.) ─────────
+
+mcx:
+  2026:
+
+    # DOUBT — New Year: listed as Morning Open, Evening Closed.
+    # Unusual pattern. Set EVENING_ONLY_CLOSED — verify from MCX circular.
+    - date: 2026-01-01
+      name: New Year
+      enabled: true
+      session: EVENING_ONLY_CLOSED
+
+    - date: 2026-01-26
+      name: Republic Day
+      enabled: true
+      session: FULL_CLOSED
+
+    # Holi: morning closed, evening resumes at 5pm
+    - date: 2026-03-03
+      name: Holi
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    # DOUBT — Eid-ul-Fitr: verify date and whether MCX closes
+    - date: 2026-03-20
+      name: Eid-ul-Fitr
+      enabled: false
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-03-26
+      name: Ram Navami
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-03-31
+      name: Mahavir Jayanti
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-04-03
+      name: Good Friday
+      enabled: true
+      session: FULL_CLOSED
+
+    - date: 2026-04-14
+      name: Dr. Ambedkar Jayanti
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-05-01
+      name: Maharashtra Day
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-05-28
+      name: Bakri Id (Eid ul-Adha)
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-06-26
+      name: Muharram
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-09-14
+      name: Ganesh Chaturthi
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-10-02
+      name: Gandhi Jayanti
+      enabled: true
+      session: FULL_CLOSED
+
+    - date: 2026-10-20
+      name: Dussehra
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    # DOUBT — verify if MCX closes on Diwali Laxmi Pujan
+    - date: 2026-11-09
+      name: Diwali Laxmi Pujan
+      enabled: false
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-11-10
+      name: Diwali Balipratipada
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-11-24
+      name: Guru Nanak Jayanti
+      enabled: true
+      session: MORNING_ONLY_CLOSED
+
+    - date: 2026-12-25
+      name: Christmas
+      enabled: true
+      session: FULL_CLOSED
+
+
+# ── MCX Trading Sessions ────────────────────────────────────────────
+#
+# Morning session:  09:00 – 17:00 IST
+# Evening session:  17:00 – 23:30 IST  (23:55 IST for some commodities)
+#
+# On MORNING_ONLY_CLOSED days:
+#   → Live analysis available from 17:00 IST onwards (evening session)
+#   → MarketCalendarService uses marketOpen=17:00, marketClose=23:30
+#
+# On FULL_CLOSED days:
+#   → No trading. API returns intelligent closed message.
+#
+# On EVENING_ONLY_CLOSED days (New Year):
+#   → Live analysis available from 09:00–17:00 only
+#   → MarketCalendarService uses marketOpen=09:00, marketClose=17:00

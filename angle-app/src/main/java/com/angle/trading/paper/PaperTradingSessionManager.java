@@ -9,6 +9,9 @@ import com.angle.trading.marketdata.MarketDataService;
 import com.angle.trading.marketdata.NiftyFileLoader;
 import com.angle.trading.paper.model.CreateSessionRequest;
 import com.angle.trading.paper.model.SessionSnapshot;
+import com.angle.trading.strategy.model.IntentAction;
+
+import java.math.BigDecimal;
 import com.angle.trading.paper.persistence.PaperTradePersistenceService;
 import com.angle.trading.paper.source.AngelHistoricalReplayCandleSource;
 import com.angle.trading.paper.source.AngelLiveCandleSource;
@@ -88,6 +91,20 @@ public class PaperTradingSessionManager {
         return sessions.values().stream()
                 .map(PaperTradingSession::snapshot)
                 .toList();
+    }
+
+    public SessionSnapshot manualEnter(String id, IntentAction direction,
+                                        BigDecimal entry, BigDecimal stop,
+                                        BigDecimal target, String rationale) {
+        PaperTradingSession s = sessions.get(id);
+        if (s == null) throw new IllegalArgumentException("No session with id: " + id);
+        return s.manualEnter(direction, entry, stop, target, rationale);
+    }
+
+    public SessionSnapshot manualExit(String id, BigDecimal exitPrice) {
+        PaperTradingSession s = sessions.get(id);
+        if (s == null) throw new IllegalArgumentException("No session with id: " + id);
+        return s.manualExit(exitPrice);
     }
 
     private CandleSource buildSource(CreateSessionRequest req) {

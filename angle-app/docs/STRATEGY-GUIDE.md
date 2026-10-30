@@ -223,6 +223,147 @@ See `strategy/MyStrategyTest.java`. Test with fixed candle sequences:
 
 ---
 
+## Hedge strategies
+
+Implemented in `com.angle.trading.hedge`. These are **position-hedging**
+strategies for an existing long-stock holding — distinct from the intraday
+signal strategies above.
+
+### Indicator inputs (daily candles)
+
+| Indicator | Period | Role |
+|---|---|---|
+| RSI | 14 | Momentum strength |
+| ADX | 14 | Trend strength (directional or ranging) |
+| EMA | 21 | Trend direction (is price above/below?) |
+| HV30 | 30-day | Historical vol, annualised (√252), used for premium assessment |
+
+### Market regimes
+
+Derived by combining RSI, ADX, and price-vs-EMA:
+
+| Regime | Typical conditions |
+|---|---|
+| `STRONG_BULLISH` | RSI > 60, ADX > 25, price above EMA-21 |
+| `MILD_BULLISH` | RSI 50–60, moderate ADX, price above EMA-21 |
+| `SIDEWAYS` | RSI ~50, ADX < 20, price near EMA-21 |
+| `MILD_BEARISH` | RSI 40–50, price below EMA-21 |
+| `STRONG_BEARISH` | RSI < 40, ADX > 25, price below EMA-21 |
+
+---
+
+### Strategy 1: Protective / Married PUT
+
+Buy a PUT option to insure a long stock position. Cost of insurance = PUT
+premium.
+
+```
+Breakeven  = entryPrice + putPremium
+Max loss   = (entryPrice - putStrike + putPremium) × qty
+Max gain   = unlimited (uncapped upside)
+```
+
+The PUT strike sets the loss floor. Lower strike = cheaper premium, lower floor.
+
+Best regime score: `STRONG_BEARISH`, `MILD_BEARISH` (insurance is most valuable).
+
+---
+
+### Strategy 2: Covered Call
+
+Sell a CALL against the long stock position to collect premium. Upside is capped
+at the CALL strike.
+
+```
+Breakeven  = entryPrice - callPremium
+Max gain   = (callStrike - entryPrice + callPremium) × qty
+Max loss   = (entryPrice - callPremium) × qty  [stock → 0, effectively]
+```
+
+Call premium reduces effective cost basis and adds a downside cushion equal to
+the premium received.
+
+Best regime score: `SIDEWAYS`, `MILD_BULLISH` (premium income offsets flat/slow
+market; upside cap is less likely to bite).
+
+---
+
+### Strategy 3: Collar
+
+Combine a long PUT (downside floor) and a short CALL (upside cap). Net premium
+can be zero or close to zero (zero-cost collar).
+
+```
+Net premium = callPremium - putPremium    (positive = net credit)
+Breakeven   = entryPrice - net
+Max loss    = (entryPrice - putStrike - net) × qty
+Max gain    = (callStrike - entryPrice + net) × qty
+```
+
+Zero-cost achieved when callPremium ≈ putPremium. Trade-off: both floor and
+ceiling are fixed.
+
+Best regime score: `SIDEWAYS`, `MILD_BEARISH` (controlled risk both ways with
+minimal cost).
+
+---
+
+### Strategy 4: Futures Hedge
+
+Short a same-underlying futures contract against the long stock position.
+Effectively delta-neutral: stock gains offset futures losses (and vice versa).
+Net profit ≈ cost-of-carry (basis).
+
+```
+Profit      ≈ (futuresPrice - spotPrice) × qty   [as basis converges on expiry]
+Max gain    ≈ basis if basis > 0 (futures in contango)
+Max loss    ≈ basis if basis < 0 (backwardation)
+Breakeven   ≈ futuresPrice
+```
+
+Not suitable for directional positions. Useful when you want to hold the stock
+(dividends, corporate actions) but temporarily neutralise market risk.
+
+Best regime score: `STRONG_BEARISH` (full hedge), `STRONG_BULLISH` (lower score
+— foregoes upside).
+
+---
+
+### P&L scenario table (example)
+
+Position: 100 shares, entry ₹620, Protective PUT strike ₹560, PUT premium ₹11.50.
+
+| Stock price | Change | Strategy P&L |
+|---|---|---|
+| ₹496 | −20% | −₹18,750 (floor at PUT strike) |
+| ₹558 | −10% | −₹18,750 (floor — below PUT strike) |
+| ₹589 | −5% | −₹4,250 |
+| ₹620 | 0% | −₹1,150 (premium paid) |
+| ₹651 | +5% | +₹1,850 |
+| ₹682 | +10% | +₹4,850 |
+| ₹744 | +20% | +₹10,850 |
+
+Max loss is bounded regardless of how far the stock falls. P&L above breakeven
+(₹631.50) is net positive.
+
+---
+
+### Regime scoring table
+
+Score 1 = poor fit, 5 = best fit for the regime.
+
+| Strategy | STRONG_BULLISH | MILD_BULLISH | SIDEWAYS | MILD_BEARISH | STRONG_BEARISH |
+|---|---|---|---|---|---|
+| Protective PUT | 2 | 3 | 3 | 4 | 5 |
+| Covered Call | 3 | 5 | 5 | 3 | 1 |
+| Collar | 2 | 3 | 5 | 4 | 3 |
+| Futures Hedge | 1 | 2 | 3 | 4 | 5 |
+
+The `/hedge/compare` response includes the numeric `score` per strategy so
+the UI can rank and highlight the best fit for the detected regime.
+
+---
+
 ## Common pitfalls
 
 - **Look-ahead bias**: using future candles in `evaluate()`. The backtest

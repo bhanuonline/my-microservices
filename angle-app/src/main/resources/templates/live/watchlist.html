@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Watchlist — AngleApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+  <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+  <style>
+    /* ── Layout ─────────────────────────────────────── */
+    .page       { max-width: 1100px; margin: 0 auto; padding: 20px 20px 40px; }
+
+    /* ── Toolbar ────────────────────────────────────── */
+    .toolbar    { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+                  margin-bottom: 20px; }
+    .page-title { font-size: 20px; font-weight: 700; flex: 1; }
+    .btn        { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border);
+                  background: var(--surface); color: var(--ink); cursor: pointer;
+                  font: 600 12px 'Inter', sans-serif; height: 36px;
+                  display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover  { background: var(--hover,#f5f5f5); }
+    .btn.primary{ background: var(--lm-primary,#2563EB); color:#fff; border-color:transparent; }
+    .btn.primary:hover { opacity:.9; }
+    .live-btn.on  { background: #dc2626; color: #fff; border-color: transparent; }
+    .live-btn.off { background: var(--surface); color: var(--ink); }
+
+    /* ── Stats row ──────────────────────────────────── */
+    .stats      { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat-pill  { padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .stat-bull  { background: #d1fae5; color: #065f46; }
+    .stat-bear  { background: #fee2e2; color: #991b1b; }
+    .stat-mix   { background: var(--surface); color: var(--faint); border: 1px solid var(--border); }
+    .stat-total { background: var(--surface-2,#f7f9fc); color: var(--ink); border: 1px solid var(--border); }
+    #lastUpdate { font-size: 11px; color: var(--faint); margin-left: auto; align-self: center; }
+
+    /* ── Table ──────────────────────────────────────── */
+    .wl-table   { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .wl-table th{ text-align: left; padding: 8px 14px; font-size: 10px; font-weight: 700;
+                  text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
+                  border-bottom: 2px solid var(--border);
+                  background: var(--surface); position: sticky; top: 0; z-index: 1; }
+    .wl-table td{ padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .wl-table tbody tr { cursor: pointer; transition: background .12s; }
+    .wl-table tbody tr:hover td { background: var(--hover,#f5f7ff) !important; }
+    .wl-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Row color coding */
+    .row-bull td { background: rgba(22,163,74,.04); }
+    .row-bear td { background: rgba(220,38,38,.04); }
+    .row-mix  td { background: transparent; }
+
+    /* Symbol cell */
+    .sym-name   { font-weight: 700; color: var(--ink); font-size: 14px; }
+    .sym-meta   { font-size: 11px; color: var(--faint); margin-top: 2px; }
+    .exch-badge { display: inline-block; padding: 1px 6px; border-radius: 4px;
+                  font-size: 10px; font-weight: 700; margin-right: 4px;
+                  background: var(--surface-2,#f7f9fc); color: var(--faint); }
+
+    /* Price cell */
+    .ltp        { font-family: 'IBM Plex Mono', monospace; font-size: 15px; font-weight: 700; }
+    .chg        { font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .chg.up     { color: #16a34a; }
+    .chg.down   { color: #dc2626; }
+
+    /* Bias cell */
+    .bias-bull  { font-weight: 800; color: #16a34a; font-size: 14px; }
+    .bias-bear  { font-weight: 800; color: #dc2626; font-size: 14px; }
+    .bias-none  { color: var(--faint); }
+
+    /* Confidence */
+    .conf       { display: inline-block; padding: 2px 10px; border-radius: 12px;
+                  font-size: 11px; font-weight: 700; }
+    .conf-strong   { background: #d1fae5; color: #065f46; }
+    .conf-moderate { background: #fef3c7; color: #92400e; }
+    .conf-weak     { background: #fee2e2; color: #991b1b; }
+
+    /* Trade cell */
+    .trade-dir  { display: inline-block; padding: 3px 10px; border-radius: 6px;
+                  font-size: 12px; font-weight: 700; }
+    .td-long    { background: #d1fae5; color: #065f46; }
+    .td-short   { background: #fee2e2; color: #991b1b; }
+    .td-notrade { background: var(--surface-2,#f7f9fc); color: var(--faint); }
+    .timing-badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600;
+                    padding: 1px 6px; border-radius: 4px; }
+    .t-now      { background: #d1fae5; color: #065f46; }
+    .t-wait     { background: #fef3c7; color: #92400e; }
+
+    /* Actions cell */
+    .del-btn    { background: none; border: none; color: var(--faint); cursor: pointer;
+                  font-size: 16px; padding: 4px 8px; border-radius: 6px; }
+    .del-btn:hover { background: #fee2e2; color: #dc2626; }
+
+    /* ── Empty state ────────────────────────────────── */
+    .empty      { text-align: center; padding: 80px 20px; color: var(--faint); }
+    .empty .icon{ font-size: 48px; margin-bottom: 12px; }
+    .empty p    { font-size: 14px; margin: 4px 0; }
+
+    /* ── Loading shimmer ────────────────────────────── */
+    .shimmer    { animation: shimmer 1.5s infinite linear; }
+    @keyframes shimmer { 0%{opacity:1} 50%{opacity:.35} 100%{opacity:1} }
+    .spinner    { display: inline-block; width: 14px; height: 14px;
+                  border: 2px solid var(--border); border-top-color: var(--lm-primary,#2563EB);
+                  border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal ──────────────────────────────────────── */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4);
+                      display:none; align-items:center; justify-content:center; z-index:100; }
+    .modal-backdrop.open { display:flex; }
+    .modal      { background: var(--surface); border-radius: 16px; padding: 28px 28px 24px;
+                  width: 420px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
+    .modal h2   { font-size: 16px; font-weight: 700; margin: 0 0 18px; }
+    .field      { margin-bottom: 14px; }
+    .field label{ display: block; font-size: 12px; font-weight: 600; color: var(--faint);
+                  margin-bottom: 5px; }
+    .field input, .field select {
+                  width: 100%; padding: 8px 12px; border-radius: 8px;
+                  border: 1px solid var(--border); background: var(--surface);
+                  color: var(--ink); font: 600 13px 'Inter', sans-serif;
+                  box-sizing: border-box; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--lm-primary,#2563EB); }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+    /* ── Toast ──────────────────────────────────────── */
+    #toast      { position:fixed; bottom:24px; right:24px; padding:10px 18px;
+                  border-radius:10px; font-size:13px; font-weight:600; z-index:999;
+                  display:none; color:#fff; }
+    #toast.ok   { background:#16a34a; }
+    #toast.err  { background:#dc2626; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='watchlist')}"></div>
+<main class="app-main">
+<div class="page">
+
+  <!-- ── Toolbar ─────────────────────────────────────── -->
+  <div class="toolbar">
+    <div class="page-title">Watchlist</div>
+    <button class="btn primary" onclick="openModal()">+ Add Symbol</button>
+    <button id="liveBtn" class="btn live-btn off" onclick="toggleLive()">
+      <span id="liveDot" style="width:8px;height:8px;border-radius:50%;background:#888;display:inline-block"></span>
+      <span id="liveTxt">Live OFF</span>
+    </button>
+    <div id="loadIndicator" style="display:none"><span class="spinner"></span></div>
+    <button class="btn" onclick="toggleTheme()" style="margin-left:auto">🌙</button>
+  </div>
+
+  <!-- ── Stats row ───────────────────────────────────── -->
+  <div class="stats" id="statsRow" style="display:none">
+    <span id="statTotal" class="stat-pill stat-total"></span>
+    <span id="statBull"  class="stat-pill stat-bull"></span>
+    <span id="statBear"  class="stat-pill stat-bear"></span>
+    <span id="statMix"   class="stat-pill stat-mix"></span>
+    <span id="lastUpdate"></span>
+  </div>
+
+  <!-- ── Empty state ─────────────────────────────────── -->
+  <div id="emptyState" class="empty">
+    <div class="icon">📋</div>
+    <p><b>Your watchlist is empty.</b></p>
+    <p>Click <b>+ Add Symbol</b> to start tracking stocks.</p>
+    <p style="font-size:12px;margin-top:8px">Suggestions: HDFCBANK-EQ &nbsp;|&nbsp; RELIANCE-EQ &nbsp;|&nbsp; Nifty 50 &nbsp;|&nbsp; CRUDEOIL19NOV26FUT</p>
+  </div>
+
+  <!-- ── Watchlist table ─────────────────────────────── -->
+  <div id="tableWrap" style="display:none; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+    <table class="wl-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Price</th>
+          <th>Bias</th>
+          <th>Confidence</th>
+          <th>Setup</th>
+          <th>Trade</th>
+          <th>Market</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="wlBody"></tbody>
+    </table>
+  </div>
+
+</div><!-- /page -->
+</main>
+</div>
+
+<!-- ── Add Symbol Modal ─────────────────────────────── -->
+<div class="modal-backdrop" id="addModal" onclick="closeModalOnBg(event)">
+  <div class="modal">
+    <h2>Add Symbol to Watchlist</h2>
+    <div class="field">
+      <label>Symbol</label>
+      <input id="modalSymbol" type="text" placeholder="e.g. HDFCBANK-EQ"
+             list="modalSuggestions" autocomplete="off"
+             onkeydown="if(event.key==='Enter') addSymbol()">
+      <datalist id="modalSuggestions"></datalist>
+    </div>
+    <div class="field">
+      <label>Interval (MTF highest timeframe)</label>
+      <select id="modalInterval">
+        <option value="ONE_DAY" selected>Daily — full 7-TF stack</option>
+        <option value="FOUR_HOUR">4-Hour — 6-TF stack</option>
+        <option value="ONE_HOUR">1-Hour — 3-TF stack</option>
+        <option value="THIRTY_MINUTE">30-Min</option>
+        <option value="FIFTEEN_MINUTE">15-Min</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Warmup History</label>
+      <select id="modalDays">
+        <option value="60" selected>60 days</option>
+        <option value="90">90 days</option>
+        <option value="120">120 days</option>
+        <option value="300">300 days (for EMA200)</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="addSymbol()">Add to Watchlist</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+const STORAGE_KEY = 'angleapp-watchlist-v1';
+let watchlist  = [];
+let liveMode   = false;
+let liveTimers = {};
+
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('angle-theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+  loadWatchlist();
+  if (watchlist.length) refresh();
+});
+
+// ── Persistence ────────────────────────────────────────────────
+function loadWatchlist() {
+  try { watchlist = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch(e) { watchlist = []; }
+}
+function saveWatchlist() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
+}
+
+// ── Add symbol ─────────────────────────────────────────────────
+function addSymbol() {
+  const symbol   = document.getElementById('modalSymbol').value.trim();
+  const interval = document.getElementById('modalInterval').value;
+  const days     = parseInt(document.getElementById('modalDays').value);
+  if (!symbol) { showToast('Enter a symbol', 'err'); return; }
+
+  // Prevent duplicates
+  if (watchlist.some(w => w.symbol === symbol)) {
+    showToast(`${symbol} already in watchlist`, 'err');
+    closeModal();
+    return;
+  }
+
+  watchlist.push({ symbol, interval, days });
+  saveWatchlist();
+  closeModal();
+  showToast(`${symbol} added`, 'ok');
+  refresh();
+}
+
+// ── Remove symbol ──────────────────────────────────────────────
+function removeSymbol(symbol) {
+  watchlist = watchlist.filter(w => w.symbol !== symbol);
+  saveWatchlist();
+  // Clear timer if live
+  if (liveTimers[symbol]) { clearTimeout(liveTimers[symbol]); delete liveTimers[symbol]; }
+  refresh();
+  showToast(`${symbol} removed`, 'ok');
+}
+
+// ── Refresh (bulk fetch) ───────────────────────────────────────
+async function refresh() {
+  if (!watchlist.length) { renderEmpty(); return; }
+
+  showLoading(true);
+
+  try {
+    const body = {
+      live: liveMode,
+      breakdown: false,
+      symbols: watchlist.map(w => ({
+        symbol: w.symbol, interval: w.interval, days: w.days
+      }))
+    };
+
+    const res  = await fetch('/api/stocks/analysis/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    renderTable(data.results || []);
+    renderStats(data.results || []);
+    document.getElementById('lastUpdate').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST';
+
+    // Schedule next refresh at soonest nextCandleAt across all symbols
+    if (liveMode) scheduleNextRefresh(data.results || []);
+
+  } catch(e) {
+    showToast('Refresh failed: ' + e.message, 'err');
+  }
+
+  showLoading(false);
+}
+
+// ── Render table ───────────────────────────────────────────────
+function renderTable(results) {
+  document.getElementById('emptyState').style.display  = 'none';
+  document.getElementById('tableWrap').style.display   = '';
+  document.getElementById('statsRow').style.display    = 'flex';
+
+  const tbody = document.getElementById('wlBody');
+  tbody.innerHTML = '';
+
+  results.forEach(r => {
+    if (r.status === 'ERROR') { renderErrorRow(tbody, r); return; }
+
+    const conc  = r.conclusion  || {};
+    const trade = r.tradeSuggestion || {};
+    const price = r.price || {};
+    const mkt   = r.market || {};
+    const bias  = conc.primaryBias;
+    const setup = conc.tradeSetup || '';
+    const dir   = trade.direction || '';
+    const wItem = watchlist.find(w => w.symbol === r.symbol) || {};
+
+    const tr = document.createElement('tr');
+    tr.className = bias === 'BULLISH' ? 'row-bull' : bias === 'BEARISH' ? 'row-bear' : 'row-mix';
+
+    // Click → open analysis page
+    tr.onclick = (e) => {
+      if (e.target.closest('.del-btn')) return;
+      const url = `/live/analysis?symbol=${encodeURIComponent(r.symbol)}&interval=${wItem.interval || 'ONE_DAY'}&days=${wItem.days || 60}`;
+      window.open(url, '_blank');
+    };
+
+    const up = (price.change || 0) >= 0;
+    tr.innerHTML = `
+      <td>
+        <div class="sym-name">${r.symbol || '—'}</div>
+        <div class="sym-meta">
+          <span class="exch-badge">${r.exchange || ''}</span>
+          ${(wItem.interval || '').replace('_',' ')} · ${wItem.days || 60}d
+        </div>
+      </td>
+      <td>
+        <div class="ltp">${price.ltp ? '₹' + fmt(price.ltp) : '—'}</div>
+        <div class="chg ${up ? 'up' : 'down'}">
+          ${price.change ? (up?'+':'') + fmt(price.change) + ' (' + fmt(price.changePercent) + '%)' : ''}
+        </div>
+      </td>
+      <td>
+        <span class="${bias==='BULLISH'?'bias-bull':bias==='BEARISH'?'bias-bear':'bias-none'}">
+          ${bias==='BULLISH'?'🟢 BULLISH':bias==='BEARISH'?'🔴 BEARISH':'—'}
+        </span>
+      </td>
+      <td>
+        <span class="conf conf-${(conc.confidence||'').toLowerCase()}">
+          ${conc.confidence || '—'}
+        </span>
+      </td>
+      <td style="font-size:12px;color:var(--faint)">
+        ${setup.replace(/_/g,' ') || '—'}
+      </td>
+      <td>
+        <span class="trade-dir ${dir==='LONG'?'td-long':dir==='SHORT'?'td-short':'td-notrade'}">
+          ${dir || 'NO TRADE'}
+        </span>
+        ${trade.timing==='NOW' ? '<span class="timing-badge t-now">NOW</span>' :
+          trade.timing==='WAIT'? '<span class="timing-badge t-wait">WAIT</span>' : ''}
+      </td>
+      <td>
+        <span class="${mkt.status==='OPEN'?'bias-bull':'bias-none'}" style="font-size:12px">
+          ${mkt.status || '—'}
+        </span>
+        <div style="font-size:11px;color:var(--faint)">${mkt.sessionProgress?.split('(')[1]?.replace(')','') || ''}</div>
+      </td>
+      <td onclick="event.stopPropagation()">
+        <button class="del-btn" title="Remove" onclick="removeSymbol('${r.symbol}')">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderErrorRow(tbody, r) {
+  const wItem = watchlist.find(w => w.symbol === r.symbol) || {};
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>
+      <div class="sym-name" style="color:var(--faint)">${r.symbol || '—'}</div>
+      <div class="sym-meta">${(wItem.interval || '').replace('_',' ')}</div>
+    </td>
+    <td colspan="6" style="color:#dc2626;font-size:12px">${r.error || 'Failed'}</td>
+    <td><button class="del-btn" title="Remove" onclick="removeSymbol('${r.symbol}')">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function renderEmpty() {
+  document.getElementById('emptyState').style.display  = '';
+  document.getElementById('tableWrap').style.display   = 'none';
+  document.getElementById('statsRow').style.display    = 'none';
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function renderStats(results) {
+  const bull = results.filter(r => r.conclusion?.primaryBias === 'BULLISH').length;
+  const bear = results.filter(r => r.conclusion?.primaryBias === 'BEARISH').length;
+  const mix  = results.length - bull - bear;
+  document.getElementById('statTotal').textContent = results.length + ' symbols';
+  document.getElementById('statBull').textContent  = bull + ' Bullish';
+  document.getElementById('statBear').textContent  = bear + ' Bearish';
+  document.getElementById('statMix').textContent   = mix  + ' Mixed';
+  document.getElementById('statBull').style.display = bull ? '' : 'none';
+  document.getElementById('statBear').style.display = bear ? '' : 'none';
+  document.getElementById('statMix').style.display  = mix  ? '' : 'none';
+}
+
+// ── Live mode ──────────────────────────────────────────────────
+function toggleLive() {
+  liveMode = !liveMode;
+  const btn = document.getElementById('liveBtn');
+  const dot = document.getElementById('liveDot');
+  const txt = document.getElementById('liveTxt');
+  btn.className = 'btn live-btn ' + (liveMode ? 'on' : 'off');
+  dot.style.background = liveMode ? '#fff' : '#888';
+  txt.textContent = liveMode ? '🔴 LIVE ON' : 'Live OFF';
+
+  if (!liveMode) {
+    // Cancel all timers
+    Object.values(liveTimers).forEach(clearTimeout);
+    liveTimers = {};
+  } else {
+    refresh();
+  }
+}
+
+function scheduleNextRefresh(results) {
+  // Find soonest nextCandleAt across all results
+  const times = results
+    .map(r => r.market?.nextCandleAt)
+    .filter(Boolean)
+    .map(t => new Date(t));
+  if (!times.length) return;
+
+  const soonest = new Date(Math.min(...times));
+  const delay   = Math.max(1000, soonest - new Date());
+
+  const timer = setTimeout(() => { if (liveMode) refresh(); }, delay);
+  // Store as 'bulk' timer
+  if (liveTimers['__bulk__']) clearTimeout(liveTimers['__bulk__']);
+  liveTimers['__bulk__'] = timer;
+}
+
+// ── Modal ──────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('modalSymbol').focus(), 100);
+}
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modalSymbol').value = '';
+}
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('addModal')) closeModal();
+}
+
+// Symbol autocomplete in modal
+document.getElementById('modalSymbol').addEventListener('input', async function() {
+  const q = this.value.trim();
+  if (q.length < 2) return;
+  try {
+    const res = await fetch(`/api/instruments/admin/lookup?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const dl = document.getElementById('modalSuggestions');
+    dl.innerHTML = '';
+    (data.items || data || []).slice(0, 8).forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.symbol || item;
+      dl.appendChild(opt);
+    });
+  } catch(e) {}
+});
+
+// ── Loading ────────────────────────────────────────────────────
+function showLoading(on) {
+  document.getElementById('loadIndicator').style.display = on ? '' : 'none';
+  if (on) document.getElementById('wlBody').classList.add('shimmer');
+  else    document.getElementById('wlBody').classList.remove('shimmer');
+}
+
+// ── Theme ──────────────────────────────────────────────────────
+function toggleTheme() {
+  const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = n;
+  localStorage.setItem('angle-theme', n);
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = type; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2500);
+}
+
+// ── Number formatter ───────────────────────────────────────────
+const fmt = v => v == null ? '—' : Number(v).toLocaleString('en-IN',
+  { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+</script>
+</body>
+</html>
