@@ -193,10 +193,57 @@
     <h2>Add Symbol to Watchlist</h2>
     <div class="field">
       <label>Symbol</label>
-      <input id="modalSymbol" type="text" placeholder="e.g. HDFCBANK-EQ"
+      <select id="modalSymbolSelect" onchange="onSymbolSelectChange()">
+        <optgroup label="── NSE Indices ──────────────">
+          <option value="Nifty 50">Nifty 50</option>
+          <option value="Nifty Bank">Bank Nifty</option>
+          <option value="Nifty IT">Nifty IT</option>
+          <option value="Nifty Midcap 50">Nifty Midcap 50</option>
+          <option value="Sensex">Sensex (BSE)</option>
+        </optgroup>
+        <optgroup label="── NSE Large Cap ─────────────">
+          <option value="HDFCBANK-EQ">HDFC Bank</option>
+          <option value="RELIANCE-EQ">Reliance Industries</option>
+          <option value="TCS-EQ">TCS</option>
+          <option value="INFY-EQ">Infosys</option>
+          <option value="ICICIBANK-EQ">ICICI Bank</option>
+          <option value="SBIN-EQ">SBI</option>
+          <option value="BHARTIARTL-EQ">Bharti Airtel</option>
+          <option value="AXISBANK-EQ">Axis Bank</option>
+          <option value="ITC-EQ">ITC</option>
+          <option value="LT-EQ">L&amp;T</option>
+          <option value="KOTAKBANK-EQ">Kotak Mahindra Bank</option>
+          <option value="HINDUNILVR-EQ">HUL</option>
+          <option value="WIPRO-EQ">Wipro</option>
+          <option value="HCLTECH-EQ">HCL Tech</option>
+          <option value="MARUTI-EQ">Maruti Suzuki</option>
+          <option value="SUNPHARMA-EQ">Sun Pharma</option>
+          <option value="TITAN-EQ">Titan</option>
+          <option value="ULTRACEMCO-EQ">UltraTech Cement</option>
+          <option value="BAJFINANCE-EQ">Bajaj Finance</option>
+          <option value="ONGC-EQ">ONGC</option>
+        </optgroup>
+        <optgroup label="── MCX Commodities ───────────">
+          <option value="CRUDEOIL19NOV26FUT">Crude Oil (Nov 26)</option>
+          <option value="GOLD-I">Gold</option>
+          <option value="SILVER-I">Silver</option>
+          <option value="NATURALGAS-I">Natural Gas</option>
+        </optgroup>
+        <optgroup label="── Custom ────────────────────">
+          <option value="__custom__">Other — type symbol manually...</option>
+        </optgroup>
+      </select>
+    </div>
+    <!-- Custom symbol input — shown only when "Other" is selected -->
+    <div class="field" id="customSymbolField" style="display:none">
+      <label>Custom Symbol</label>
+      <input id="modalSymbol" type="text" placeholder="e.g. BAJAJFINSV-EQ"
              list="modalSuggestions" autocomplete="off"
              onkeydown="if(event.key==='Enter') addSymbol()">
       <datalist id="modalSuggestions"></datalist>
+      <small style="color:var(--faint);font-size:11px;margin-top:4px;display:block">
+        Find exact name: <code>GET /api/instruments/lookup?symbol=...</code>
+      </small>
     </div>
     <div class="field">
       <label>Interval (MTF highest timeframe)</label>
@@ -250,12 +297,27 @@ function saveWatchlist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist));
 }
 
+// ── Symbol select toggle ────────────────────────────────────────
+function onSymbolSelectChange() {
+  const val = document.getElementById('modalSymbolSelect').value;
+  const customField = document.getElementById('customSymbolField');
+  if (val === '__custom__') {
+    customField.style.display = '';
+    document.getElementById('modalSymbol').focus();
+  } else {
+    customField.style.display = 'none';
+  }
+}
+
 // ── Add symbol ─────────────────────────────────────────────────
 function addSymbol() {
-  const symbol   = document.getElementById('modalSymbol').value.trim();
+  const selectVal = document.getElementById('modalSymbolSelect').value;
+  const symbol = selectVal === '__custom__'
+    ? document.getElementById('modalSymbol').value.trim()
+    : selectVal;
   const interval = document.getElementById('modalInterval').value;
   const days     = parseInt(document.getElementById('modalDays').value);
-  if (!symbol) { showToast('Enter a symbol', 'err'); return; }
+  if (!symbol || symbol === '__custom__') { showToast('Select or enter a symbol', 'err'); return; }
 
   // Prevent duplicates
   if (watchlist.some(w => w.symbol === symbol)) {
@@ -473,7 +535,9 @@ function openModal() {
 }
 function closeModal() {
   document.getElementById('addModal').classList.remove('open');
+  document.getElementById('modalSymbolSelect').selectedIndex = 0;
   document.getElementById('modalSymbol').value = '';
+  document.getElementById('customSymbolField').style.display = 'none';
 }
 function closeModalOnBg(e) {
   if (e.target === document.getElementById('addModal')) closeModal();

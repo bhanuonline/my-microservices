@@ -54,6 +54,12 @@
             </svg>
             <span>Analysis</span>
         </a>
+        <a th:href="@{/live/trades}"      target="_blank" rel="noopener" th:classappend="${active == 'trades'}      ? 'active' : ''" data-nav="trades">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+            <span>Trade Journal</span>
+        </a>
         <a th:href="@{/live/watchlist}"   target="_blank" rel="noopener" th:classappend="${active == 'watchlist'}   ? 'active' : ''" data-nav="watchlist">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -140,6 +146,13 @@
                 <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 010 20"/><path d="M12 2a15 15 0 000 20"/>
             </svg>
             <span>Global Markets</span>
+        </a>
+        <a th:href="@{/research}"          target="_blank" rel="noopener" th:classappend="${active == 'research'}     ? 'active' : ''" data-nav="research">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+                <path d="M8 11h6M11 8v6"/>
+            </svg>
+            <span>AI Research</span>
         </a>
         <a th:href="@{/paper/sessions}"   target="_blank" rel="noopener" th:classappend="${active == 'paper'}       ? 'active' : ''" data-nav="paper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

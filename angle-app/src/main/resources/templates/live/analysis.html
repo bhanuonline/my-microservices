@@ -287,6 +287,13 @@
         </div>
         <div id="tradeRows"></div>
         <div id="tradeWaitNote" class="wait-note" style="display:none"></div>
+        <button id="saveTradeBtn" class="btn primary" onclick="saveTrade()"
+                style="display:none;margin-top:12px;width:100%;justify-content:center">
+          💾 Save Trade to Journal
+        </button>
+        <div id="savedMsg" style="display:none;margin-top:8px;font-size:12px;color:#16a34a;text-align:center">
+          ✓ Trade saved! <a href="/live/trades" target="_blank">View journal →</a>
+        </div>
       </div>
     </div>
 
@@ -521,6 +528,31 @@ function renderPrice(price, symbol, name, mode) {
   document.getElementById('priceNote').textContent = '';
 }
 
+// ── Save trade to journal ──────────────────────────────────────
+async function saveTrade() {
+  if (!currentData) { showToast('No analysis loaded', 'err'); return; }
+  const p = currentData.price;
+  const body = {
+    symbol:        currentData.symbol,
+    exchange:      currentData.exchange,
+    intervalStack: currentData.requestedInterval || document.getElementById('intervalSelect').value,
+    entryPrice:    p?.ltp || null,
+    analysis:      currentData
+  };
+  try {
+    const r = await fetch('/api/analysis/trades', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok) { showToast(d.error || 'Save failed', 'err'); return; }
+    document.getElementById('saveTradeBtn').style.display = 'none';
+    document.getElementById('savedMsg').style.display = '';
+    showToast('Trade saved to journal!', 'ok');
+  } catch(e) { showToast('Error: ' + e.message, 'err'); }
+}
+
 // ── Trade suggestion ───────────────────────────────────────────
 function renderTrade(t) {
   if (!t) { document.getElementById('tradeCard').style.opacity = '0.5'; return; }
@@ -528,9 +560,11 @@ function renderTrade(t) {
 
   const dir = t.direction;
   const dirEl = document.getElementById('tradeDir');
-  if (dir === 'LONG')  { dirEl.innerHTML = '<span class="badge-long">LONG</span>'; }
-  else if (dir === 'SHORT') { dirEl.innerHTML = '<span class="badge-short">SHORT</span>'; }
-  else { dirEl.innerHTML = '<span class="badge-notrade">NO TRADE</span>'; }
+  const saveBtn = document.getElementById('saveTradeBtn');
+  const savedMsg = document.getElementById('savedMsg');
+  if (dir === 'LONG')  { dirEl.innerHTML = '<span class="badge-long">LONG</span>'; saveBtn.style.display=''; savedMsg.style.display='none'; }
+  else if (dir === 'SHORT') { dirEl.innerHTML = '<span class="badge-short">SHORT</span>'; saveBtn.style.display=''; savedMsg.style.display='none'; }
+  else { dirEl.innerHTML = '<span class="badge-notrade">NO TRADE</span>'; saveBtn.style.display='none'; }
 
   const timingEl = document.getElementById('tradeTiming');
   if (t.timing === 'NOW')  timingEl.innerHTML = '<span class="timing-now">⚡ NOW</span>';

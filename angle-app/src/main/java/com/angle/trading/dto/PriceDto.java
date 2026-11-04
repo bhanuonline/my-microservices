@@ -14,5 +14,7 @@ public record PriceDto(
         BigDecimal low,
         BigDecimal previousClose,
         BigDecimal change,
-        BigDecimal changePercent
+        BigDecimal changePercent,
+        /** Open Interest — populated for F&O only (futures/options). Null for equity/indices. */
+        OpenInterestDto openInterest
 ) {}

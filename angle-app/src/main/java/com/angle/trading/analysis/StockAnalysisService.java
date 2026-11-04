@@ -2,11 +2,16 @@ package com.angle.trading.analysis;
 
 import com.angle.trading.analysis.model.MarketStatus;
 import com.angle.trading.broker.angel.AngelLtpClient;
+import com.angle.trading.broker.angel.AngelMarketDataClient;
 import com.angle.trading.broker.model.Candle;
 import com.angle.trading.broker.model.Exchange;
 import com.angle.trading.broker.model.Interval;
 import com.angle.trading.cache.IndicatorCacheStore;
+import com.angle.trading.config.AnalysisHaProperties;
 import com.angle.trading.config.AnalysisLiveProperties;
+import com.angle.trading.dto.CombinedConclusionDto;
+import com.angle.trading.dto.HeikinAshiDto;
+import com.angle.trading.indicator.HeikinAshiConverter;
 import com.angle.trading.config.IndicatorCacheProperties;
 import com.angle.trading.dto.AnalysisStatus;
 import com.angle.trading.dto.BollingerBandsDto;
@@ -19,6 +24,7 @@ import com.angle.trading.dto.LastSessionDto;
 import com.angle.trading.dto.MacdDto;
 import com.angle.trading.dto.MarketStatusDto;
 import com.angle.trading.dto.MomentumDto;
+import com.angle.trading.dto.OpenInterestDto;
 import com.angle.trading.dto.OrbDto;
 import com.angle.trading.dto.OrbTimeframeDto;
 import com.angle.trading.dto.MovingAveragesDto;
@@ -90,24 +96,27 @@ public class StockAnalysisService {
 
     // ── Injected services ────────────────────────────────────────────
     private final AnalysisLiveProperties  props;
+    private final AnalysisHaProperties    haProps;
     private final MarketCalendarService   calendar;
     private final InstrumentMasterService instruments;
     private final MarketDataService       marketDataService;
     private final AngelLtpClient          ltpClient;
-    private final IndicatorCacheStore     indicatorCache;
+    private final IndicatorCacheStore      indicatorCache;
     private final IndicatorCacheProperties cacheProps;
-    private final SmcAnalysisService      smcAnalysis;
+    private final SmcAnalysisService       smcAnalysis;
+    private final AngelMarketDataClient    marketDataClient;
 
     // ── MTF hierarchy ────────────────────────────────────────────────
     // key = highest TF, value = ordered list from lowest → highest TF
     static final Map<Interval, List<Interval>> MTF_HIERARCHY = Map.of(
-            Interval.FIFTEEN_MINUTE, List.of(Interval.FIFTEEN_MINUTE),
-            Interval.THIRTY_MINUTE,  List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE),
-            Interval.ONE_HOUR,       List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR),
-            Interval.TWO_HOUR,       List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR),
-            Interval.THREE_HOUR,     List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR),
-            Interval.FOUR_HOUR,      List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR),
-            Interval.ONE_DAY,        List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR, Interval.ONE_DAY)
+            Interval.FIVE_MINUTE,    List.of(Interval.FIVE_MINUTE),
+            Interval.FIFTEEN_MINUTE, List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE),
+            Interval.THIRTY_MINUTE,  List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE),
+            Interval.ONE_HOUR,       List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR),
+            Interval.TWO_HOUR,       List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR),
+            Interval.THREE_HOUR,     List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR),
+            Interval.FOUR_HOUR,      List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR),
+            Interval.ONE_DAY,        List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR, Interval.ONE_DAY)
     );
 
     // ── Analysis modes ───────────────────────────────────────────────
@@ -289,12 +298,23 @@ public class StockAnalysisService {
             }
         }
 
+        // 12. Heikin Ashi (ha=true + config enabled)
+        HeikinAshiDto         haDtoResult   = null;
+        CombinedConclusionDto combinedConc  = null;
+        if (params.ha() && haProps.isEnabled()) {
+            haDtoResult  = computeHeikinAshi(inst, tfs, topIv, baseIv, days, toDate, mode, mkt);
+            if (haDtoResult != null) {
+                combinedConc = buildCombinedConclusion(conclusion, haDtoResult.conclusion());
+            }
+        }
+
         return new StockAnalysisDto(
                 inst.symbol(), inst.name(), inst.exchSeg(), mode.name(), baseIv.name(),
                 toDate.toString(),
                 AnalysisStatus.OK, null,
                 false, null, null, null,
-                price, mktDto, tfStatus, mtf, conclusion, trade, orb, breakdown, null
+                price, mktDto, tfStatus, mtf, conclusion, trade, orb,
+                haDtoResult, combinedConc, breakdown, null
         );
     }
 
@@ -336,13 +356,13 @@ public class StockAnalysisService {
                 toDate.toString(),
                 AnalysisStatus.OK, null,
                 false, null, null, null,
-                price, mktDto, null, mtf, conclusion, trade, null, null, suggestions
+                price, mktDto, null, mtf, conclusion, trade, null, null, null, null, suggestions
         );
     }
 
     // ── Price ─────────────────────────────────────────────────────
 
-    private PriceDto fetchPrice(Instrument inst) {
+    private PriceDto fetchPrice(Instrument inst) {  // inst used for F&O detection + OI
         try {
             AngelLtpClient.QuoteData q = ltpClient
                     .fetchQuote(inst.exchSeg(), inst.symbol(), inst.token())
@@ -355,8 +375,15 @@ public class StockAnalysisService {
                     ? change.divide(q.previousClose(), 4, RoundingMode.HALF_UP)
                              .multiply(BigDecimal.valueOf(100))
                     : null;
+            // Fetch OI separately from Market Data API — only for F&O instruments
+            OpenInterestDto oiDto = null;
+            if (inst.isFuture() || inst.isOption()) {
+                oiDto = marketDataClient.fetchOi(inst.exchange(), inst.token())
+                        .map(oi -> buildOiDto(oi.openInterest(), oi.oiChange(), change))
+                        .orElse(null);
+            }
             return new PriceDto(q.ltp(), q.open(), q.high(), q.low(),
-                    q.previousClose(), change, changePct);
+                    q.previousClose(), change, changePct, oiDto);
         } catch (Exception e) {
             log.warn("[Analysis] Price fetch failed for {}: {}", inst.symbol(), e.getMessage());
             return null;
@@ -891,6 +918,44 @@ public class StockAnalysisService {
         return "1:" + entry.subtract(target).abs().divide(risk, 1, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Builds OI interpretation from raw OI data.
+     * Only meaningful for F&O instruments — returns null for equity/indices.
+     */
+    private static OpenInterestDto buildOiDto(BigDecimal oi, BigDecimal oiChange, BigDecimal priceChange) {
+        if (oi == null || oi.compareTo(BigDecimal.ZERO) == 0) return null;
+
+        String changePct = null;
+        if (oiChange != null && oi.compareTo(BigDecimal.ZERO) != 0) {
+            BigDecimal base = oi.subtract(oiChange.abs());
+            if (base.compareTo(BigDecimal.ZERO) > 0) {
+                changePct = oiChange.divide(base, 4, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                        .setScale(2, RoundingMode.HALF_UP) + "%";
+            }
+        }
+
+        boolean priceUp = priceChange != null && priceChange.compareTo(BigDecimal.ZERO) > 0;
+        boolean oiUp    = oiChange != null && oiChange.compareTo(BigDecimal.ZERO) > 0;
+
+        String interpretation, description;
+        if (priceUp && oiUp) {
+            interpretation = "LONG_BUILDUP";
+            description    = "Bulls entering new positions — BULLISH signal";
+        } else if (!priceUp && oiUp) {
+            interpretation = "SHORT_BUILDUP";
+            description    = "Bears entering new positions — BEARISH signal";
+        } else if (priceUp) {
+            interpretation = "SHORT_COVERING";
+            description    = "Bears exiting (shorts closing) — weak rally, may reverse";
+        } else {
+            interpretation = "LONG_UNWINDING";
+            description    = "Bulls exiting (longs closing) — bearish but temporary";
+        }
+
+        return new OpenInterestDto(oi, oiChange, changePct, interpretation, description);
+    }
+
     /** Fetches 15m candles for ORB computation — reuses cache. */
     private List<Candle> fetchCandlesForOrb(Instrument inst, LocalDate toDate, int days) {
         try {
@@ -969,6 +1034,115 @@ public class StockAnalysisService {
      * Used to select a sensible breakdown interval — we cap at ONE_HOUR
      * to avoid returning a single row (e.g. ONE_DAY breakdown = 1 row, not useful).
      */
+    // ── Heikin Ashi ────────────────────────────────────────────────
+
+    /**
+     * Computes Heikin Ashi indicators for all TFs in the stack.
+     * Converts regular candles to HA candles, then runs the same
+     * indicator computation — same structure, smoother values.
+     */
+    private HeikinAshiDto computeHeikinAshi(Instrument inst, List<Interval> tfs,
+                                             Interval topIv, Interval baseIv,
+                                             int days, LocalDate toDate,
+                                             AnalysisMode mode, Object mkt) {
+        try {
+            LinkedHashMap<String, IndicatorsDto> haMtf = new LinkedHashMap<>(tfs.size());
+
+            // Pre-fetch 1h candles for synthetic 2h/3h/4h
+            List<Candle> oneHourCandles = null;
+            boolean needsSynthetic = tfs.stream().anyMatch(
+                    tf -> tf == Interval.TWO_HOUR || tf == Interval.THREE_HOUR || tf == Interval.FOUR_HOUR);
+            if (needsSynthetic) {
+                try {
+                    List<Candle> raw1h = marketDataService.getCandles(
+                            "ANGEL", inst.exchange(), inst.token(),
+                            Interval.ONE_HOUR, toDate.minusDays(days), toDate);
+                    oneHourCandles = HeikinAshiConverter.convert(raw1h);
+                } catch (Exception e) {
+                    log.warn("[HA] Could not fetch 1h candles for synthetic TFs: {}", e.getMessage());
+                }
+            }
+
+            for (Interval tf : tfs) {
+                try {
+                    List<Candle> rawCandles;
+                    if ((tf == Interval.TWO_HOUR || tf == Interval.THREE_HOUR || tf == Interval.FOUR_HOUR)
+                            && oneHourCandles != null) {
+                        int multiplier = switch (tf) {
+                            case TWO_HOUR   -> 2;
+                            case THREE_HOUR -> 3;
+                            default         -> 4;
+                        };
+                        rawCandles = CandleAggregatorUtil.aggregate(oneHourCandles, multiplier);
+                        // Already converted to HA above
+                    } else {
+                        List<Candle> regular = marketDataService.getCandles(
+                                "ANGEL", inst.exchange(), inst.token(),
+                                tf, toDate.minusDays(days), toDate);
+                        rawCandles = HeikinAshiConverter.convert(regular);
+                    }
+                    if (!rawCandles.isEmpty()) {
+                        IndicatorsDto haInd = buildIndicatorsFromCandles(rawCandles, inst, tf, toDate);
+                        if (haInd != null) haMtf.put(tf.name(), haInd);
+                    }
+                } catch (Exception e) {
+                    log.warn("[HA] Failed for {} {}: {}", inst.symbol(), tf, e.getMessage());
+                }
+            }
+
+            if (haMtf.isEmpty()) return null;
+            MtfConclusionDto haConclusion = buildConclusion(haMtf, tfs);
+            return new HeikinAshiDto(haMtf, haConclusion);
+        } catch (Exception e) {
+            log.warn("[HA] Heikin Ashi computation failed for {}: {}", inst.symbol(), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Cross-validates regular vs HA conclusions to produce a combined signal.
+     * When both agree → VERY_STRONG confidence + clear trade recommendation.
+     * When conflicting → WAIT (use with caution).
+     */
+    private CombinedConclusionDto buildCombinedConclusion(MtfConclusionDto regular,
+                                                           MtfConclusionDto ha) {
+        if (regular == null || ha == null) return null;
+
+        String regBias = regular.primaryBias();
+        String haBias  = ha.primaryBias();
+        boolean agree  = regBias != null && regBias.equals(haBias);
+
+        String finalBias, strength, recommendation, note;
+
+        if (agree && "BULLISH".equals(regBias)) {
+            finalBias      = "BULLISH";
+            strength       = "VERY_STRONG";
+            recommendation = "LONG";
+            note = "Regular + HA both BULLISH — high confidence. " + regular.tradeSetup().replace("_"," ")
+                    + " (Regular) vs " + ha.tradeSetup().replace("_"," ") + " (HA).";
+        } else if (agree && "BEARISH".equals(regBias)) {
+            finalBias      = "BEARISH";
+            strength       = "VERY_STRONG";
+            recommendation = "SHORT";
+            note = "Regular + HA both BEARISH — high confidence. " + regular.tradeSetup().replace("_"," ")
+                    + " (Regular) vs " + ha.tradeSetup().replace("_"," ") + " (HA).";
+        } else if (regBias == null && haBias == null) {
+            finalBias      = null;
+            strength       = "WEAK";
+            recommendation = "WAIT";
+            note           = "No clear bias in either Regular or HA candles — stay out.";
+        } else {
+            finalBias      = haBias;   // HA is often leading indicator
+            strength       = "CONFLICTING";
+            recommendation = "WAIT";
+            note = "Regular=" + regBias + " vs HA=" + haBias + " — conflicting signals. "
+                    + "Wait for alignment before entering. HA often leads regular by 1-2 bars.";
+        }
+
+        return new CombinedConclusionDto(regBias, haBias, agree, finalBias,
+                strength, recommendation, note);
+    }
+
     private static boolean isHigherThanHour(Interval interval) {
         return switch (interval) {
             case TWO_HOUR, THREE_HOUR, FOUR_HOUR, ONE_DAY -> true;

@@ -89,15 +89,16 @@ public class StockAnalysisController {
             @RequestParam(required = false)
                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)         LocalDate asOf,
             @RequestParam(defaultValue = "false")                     boolean   breakdown,
+            @RequestParam(defaultValue = "false")                     boolean   ha,
             @RequestParam(required = false)                            String    marketOpen,
             @RequestParam(required = false)                            String    marketClose
     ) {
-        log.info("GET /api/stocks/analysis symbol={} live={} interval={} days={} asOf={}",
-                symbol, live, interval, days, asOf);
+        log.info("GET /api/stocks/analysis symbol={} live={} interval={} days={} asOf={} ha={}",
+                symbol, live, interval, days, asOf, ha);
 
         AnalysisParams params = new AnalysisParams(
                 symbol, live, interval, baseInterval, days,
-                asOf, breakdown, marketOpen, marketClose);
+                asOf, breakdown, ha, marketOpen, marketClose);
 
         StockAnalysisDto result = analysisService.analyze(params);
 
@@ -179,6 +180,7 @@ public class StockAnalysisController {
                                 req.days()         != null ? req.days()         : 60,
                                 req.asOf(),
                                 request.breakdown(),
+                                false,   // ha=false in bulk (compute separately if needed)
                                 req.marketOpen(),
                                 req.marketClose())),
                         BULK_EXECUTOR))

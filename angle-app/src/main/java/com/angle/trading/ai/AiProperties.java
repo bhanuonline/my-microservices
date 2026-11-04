@@ -28,6 +28,15 @@ public class AiProperties {
     private int     timeoutSeconds = 15;
 
     private Anthropic anthropic = new Anthropic();
+    private Agent     agent     = new Agent();
+
+    @Data
+    public static class Agent {
+        private String model        = "claude-sonnet-4-6";
+        private int    maxTokens    = 4096;
+        private int    maxRounds    = 6;
+        private int    cacheMinutes = 30;
+    }
 
     @Data
     public static class Anthropic {

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Symbol Research — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+    <style>
+        body { margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px; }
+        .app-main { padding:28px 32px; max-width:860px; }
+
+        .rh { margin-bottom:24px; }
+        .rh h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.02em; }
+        .rh p  { margin:4px 0 0; font-size:13px; color:var(--muted); }
+
+        /* Search bar */
+        .search-bar { display:flex; gap:10px; align-items:center; margin-bottom:28px; }
+        .search-bar input {
+            flex:1; padding:11px 14px; font:inherit; font-size:14px;
+            background:var(--surface); color:var(--ink);
+            border:1px solid var(--border); border-radius:8px;
+        }
+        .search-bar input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 15%,transparent); }
+        .search-bar button {
+            padding:11px 22px; font:600 13.5px 'Inter',sans-serif;
+            background:var(--primary); color:#fff; border:0; border-radius:8px; cursor:pointer;
+        }
+        .search-bar button:disabled { opacity:.5; cursor:not-allowed; }
+
+        /* Spinner */
+        .spinner { display:none; align-items:center; gap:10px; color:var(--muted); font-size:13px; margin-bottom:20px; }
+        .spinner svg { animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* Steps log */
+        .steps { display:none; margin-bottom:20px; }
+        .step-item { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:12.5px; color:var(--muted); border-bottom:1px solid var(--hair); }
+        .step-item:last-child { border:none; }
+        .step-dot { width:8px; height:8px; border-radius:50%; background:var(--primary); flex:none; }
+        .step-done .step-dot { background:var(--good); }
+
+        /* Result card */
+        #result { display:none; }
+        .rc { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px 26px; }
+
+        .rc-top { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+        .rc-action { font-size:28px; font-weight:800; letter-spacing:-.02em; }
+        .rc-action.BUY  { color:var(--good); }
+        .rc-action.SELL { color:var(--bad); }
+        .rc-action.HOLD { color:var(--warn); }
+        .rc-symbol { font-size:14px; font-weight:600; color:var(--muted); }
+        .rc-conf { margin-left:auto; text-align:right; }
+        .rc-conf .num { font-size:22px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+        .rc-conf .lbl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+
+        /* Confidence bar */
+        .conf-bar { height:6px; background:var(--hair); border-radius:3px; margin-bottom:20px; overflow:hidden; }
+        .conf-fill { height:100%; border-radius:3px; transition:width .6s ease; }
+        .conf-fill.BUY  { background:var(--good); }
+        .conf-fill.SELL { background:var(--bad); }
+        .conf-fill.HOLD { background:var(--warn); }
+
+        /* Levels grid */
+        .levels { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+        .level { background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:12px; text-align:center; }
+        .level .lbl { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+        .level .val { font-size:18px; font-weight:700; font-family:'IBM Plex Mono',monospace; margin-top:4px; }
+        .level.entry .val { color:var(--primary); }
+        .level.stop  .val { color:var(--bad); }
+        .level.tgt   .val { color:var(--good); }
+
+        /* Reasoning */
+        .reasoning { background:var(--bg); border-left:3px solid var(--primary); border-radius:0 8px 8px 0; padding:12px 14px; font-size:13px; line-height:1.7; margin-bottom:16px; }
+
+        /* Tools used */
+        .tools-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .tools-lbl { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-right:4px; }
+        .tool-chip { background:var(--primary-2); color:var(--primary); font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; }
+
+        .rc-meta { font-size:11px; color:var(--muted); margin-top:14px; }
+
+        /* Error */
+        .error-box { background:var(--bad-2); color:var(--bad); border-left:3px solid var(--bad); border-radius:0 8px 8px 0; padding:12px 14px; font-size:13px; display:none; margin-bottom:16px; }
+
+        /* Quick symbols */
+        .quick { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:24px; }
+        .quick span { font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; align-self:center; }
+        .qbtn { padding:4px 10px; font:600 11.5px 'Inter',sans-serif; background:var(--surface); color:var(--ink); border:1px solid var(--border); border-radius:6px; cursor:pointer; }
+        .qbtn:hover { background:var(--hair); }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='research')}"></div>
+<main class="app-main">
+
+    <div class="rh">
+        <h1>Symbol Research Agent</h1>
+        <p>AI-powered analysis using indicators, backtest, and news sentiment. Takes 5–10 seconds.</p>
+    </div>
+
+    <div class="search-bar">
+        <input id="symbolInput" type="text" placeholder="e.g. HDFCBANK-EQ, RELIANCE-EQ, NIFTY-INDEX"
+               onkeydown="if(event.key==='Enter') analyse()">
+        <button id="analyseBtn" onclick="analyse()">&#9654; Analyse</button>
+    </div>
+
+    <div class="quick">
+        <span>Quick:</span>
+        <button class="qbtn" onclick="quickSearch('HDFCBANK-EQ')">HDFCBANK</button>
+        <button class="qbtn" onclick="quickSearch('RELIANCE-EQ')">RELIANCE</button>
+        <button class="qbtn" onclick="quickSearch('INFY-EQ')">INFOSYS</button>
+        <button class="qbtn" onclick="quickSearch('TCS-EQ')">TCS</button>
+        <button class="qbtn" onclick="quickSearch('ICICIBANK-EQ')">ICICIBANK</button>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="spinner" id="spinner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        Researching — Claude is calling tools...
+    </div>
+
+    <div class="steps" id="stepsBox">
+        <div class="step-item step-done" id="s1"><div class="step-dot"></div>Fetching indicators</div>
+        <div class="step-item" id="s2"><div class="step-dot"></div>Running backtest</div>
+        <div class="step-item" id="s3"><div class="step-dot"></div>Checking news sentiment</div>
+        <div class="step-item" id="s4"><div class="step-dot"></div>Synthesising recommendation</div>
+    </div>
+
+    <div id="result">
+        <div class="rc">
+            <div class="rc-top">
+                <div>
+                    <div class="rc-action" id="rcAction">BUY</div>
+                    <div class="rc-symbol" id="rcSymbol">HDFCBANK-EQ</div>
+                </div>
+                <div class="rc-conf">
+                    <div class="num" id="rcConf">72%</div>
+                    <div class="lbl">Confidence</div>
+                </div>
+            </div>
+            <div class="conf-bar"><div class="conf-fill" id="rcConfBar" style="width:0%"></div></div>
+
+            <div class="levels">
+                <div class="level entry"><div class="lbl">Entry ₹</div><div class="val" id="rcEntry">—</div></div>
+                <div class="level stop"><div class="lbl">Stop ₹</div><div class="val" id="rcStop">—</div></div>
+                <div class="level tgt"><div class="lbl">Target ₹</div><div class="val" id="rcTarget">—</div></div>
+            </div>
+
+            <div class="reasoning" id="rcReasoning"></div>
+
+            <div class="tools-row">
+                <span class="tools-lbl">Tools used:</span>
+                <div id="rcTools"></div>
+            </div>
+
+            <div class="rc-meta" id="rcMeta"></div>
+        </div>
+    </div>
+
+</main>
+</div>
+
+<script>
+    // Client-side cache: symbol → report (session only)
+    const reportCache = {};
+
+    function quickSearch(symbol) {
+        document.getElementById('symbolInput').value = symbol;
+        analyse();
+    }
+
+    async function analyse() {
+        const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+        if (!symbol) return;
+
+        // Client-side cache hit
+        if (reportCache[symbol]) {
+            renderReport(reportCache[symbol]);
+            return;
+        }
+
+        setLoading(true);
+        document.getElementById('errorBox').style.display = 'none';
+        document.getElementById('result').style.display = 'none';
+        startStepAnimation();
+
+        try {
+            const r = await fetch('/api/research?symbol=' + encodeURIComponent(symbol));
+            if (!r.ok) { const t = await r.text(); throw new Error(t || 'Server error ' + r.status); }
+            const report = await r.json();
+            reportCache[symbol] = report;
+            renderReport(report);
+        } catch(e) {
+            const eb = document.getElementById('errorBox');
+            eb.textContent = 'Error: ' + e.message;
+            eb.style.display = '';
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function renderReport(r) {
+        document.getElementById('rcAction').textContent = r.action;
+        document.getElementById('rcAction').className   = 'rc-action ' + r.action;
+        document.getElementById('rcSymbol').textContent = r.symbol;
+        document.getElementById('rcConf').textContent   = r.confidence + '%';
+
+        const bar = document.getElementById('rcConfBar');
+        bar.style.width = r.confidence + '%';
+        bar.className   = 'conf-fill ' + r.action;
+
+        document.getElementById('rcEntry').textContent  = r.entry  ? '₹' + fmt(r.entry)  : '—';
+        document.getElementById('rcStop').textContent   = r.stop   ? '₹' + fmt(r.stop)   : '—';
+        document.getElementById('rcTarget').textContent = r.target ? '₹' + fmt(r.target) : '—';
+        document.getElementById('rcReasoning').textContent = r.reasoning;
+
+        const toolsEl = document.getElementById('rcTools');
+        toolsEl.innerHTML = (r.toolsUsed || []).map(t =>
+            '<span class="tool-chip">' + t.replace('get_', '').replace('run_', '').replace('_', ' ') + '</span>'
+        ).join(' ');
+
+        const sec = (r.durationMs / 1000).toFixed(1);
+        document.getElementById('rcMeta').textContent =
+            'Model: ' + r.model + '  •  ' + sec + 's  •  Generated: ' + new Date(r.generatedAt).toLocaleTimeString('en-IN');
+
+        document.getElementById('result').style.display = '';
+        document.getElementById('stepsBox').style.display = 'none';
+    }
+
+    function fmt(v) {
+        return parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function setLoading(on) {
+        document.getElementById('spinner').style.display = on ? 'flex' : 'none';
+        document.getElementById('analyseBtn').disabled   = on;
+    }
+
+    let stepTimer = null;
+    function startStepAnimation() {
+        document.getElementById('stepsBox').style.display = '';
+        ['s1','s2','s3','s4'].forEach(id => {
+            document.getElementById(id).className = 'step-item';
+        });
+        let step = 0;
+        const ids = ['s1','s2','s3','s4'];
+        stepTimer = setInterval(() => {
+            if (step < ids.length) {
+                document.getElementById(ids[step]).className = 'step-item step-done';
+                step++;
+            } else {
+                clearInterval(stepTimer);
+            }
+        }, 1800);
+    }
+</script>
+</body>
+</html>

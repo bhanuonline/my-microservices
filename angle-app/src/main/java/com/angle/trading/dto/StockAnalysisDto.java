@@ -78,6 +78,14 @@ public record StockAnalysisDto(
         // Populated for LIVE and CONSOLIDATED modes. null in HISTORICAL.
         OrbDto orb,
 
+        // ── Heikin Ashi (ha=true only) ────────────────────────────
+        // Computed on HA candles — smoother trend signals
+        HeikinAshiDto       heikinAshi,
+
+        // ── Combined conclusion (when ha=true) ────────────────────
+        // Cross-validates regular vs HA bias for higher confidence
+        CombinedConclusionDto combinedConclusion,
+
         // ── Optional day breakdown (breakdown=true only) ──────────
         DayBreakdownDto dayBreakdown,
 
@@ -99,7 +107,7 @@ public record StockAnalysisDto(
                 AnalysisStatus.ERROR, reason,
                 false, null, null, null,
                 null, null, null, null,
-                null, null, null, null, null
+                null, null, null, null, null, null, null
         );
     }
 }

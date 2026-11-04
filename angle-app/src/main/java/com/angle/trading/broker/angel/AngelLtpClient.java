@@ -58,12 +58,15 @@ public class AngelLtpClient {
             return Optional.empty();
         }
         Map<String, Object> d = resp.data;
+        // Note: getLtpData does NOT return OI — use AngelMarketDataClient for OI
         return Optional.of(new QuoteData(
                 parseBD(d, "ltp"),
                 parseBD(d, "open"),
                 parseBD(d, "high"),
                 parseBD(d, "low"),
-                parseBD(d, "close")
+                parseBD(d, "close"),
+                null,   // OI not available in getLtpData
+                null
         ));
     }
 
@@ -82,7 +85,11 @@ public class AngelLtpClient {
             BigDecimal open,
             BigDecimal high,
             BigDecimal low,
-            BigDecimal previousClose
+            BigDecimal previousClose,
+            /** Open Interest — only available for F&O (futures/options). Null for equity/indices. */
+            BigDecimal openInterest,
+            /** OI change from previous session. Positive = new positions, Negative = positions closed. */
+            BigDecimal oiChange
     ) {}
 
     private Optional<BigDecimal> fetchField(String exchange, String tradingSymbol, String symbolToken, String field) {

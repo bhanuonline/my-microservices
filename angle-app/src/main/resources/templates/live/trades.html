@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Trade Journal — AngleApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+  <link rel="stylesheet" th:href="@{/css/app-shell.css}">
+  <style>
+    .page       { max-width: 1200px; margin: 0 auto; padding: 20px 20px 40px; }
+    .toolbar    { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .page-title { font-size: 20px; font-weight: 700; flex: 1; }
+    .btn        { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border);
+                  background: var(--surface); color: var(--ink); cursor: pointer;
+                  font: 600 12px 'Inter',sans-serif; height: 36px; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover  { background: var(--hover,#f5f5f5); }
+    .btn.primary{ background: var(--lm-primary,#2563EB); color:#fff; border-color: transparent; }
+
+    /* Stats row */
+    .stats      { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-card  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+                  padding: 14px 20px; min-width: 130px; }
+    .stat-lbl   { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+                  color: var(--faint); margin-bottom: 6px; }
+    .stat-val   { font-size: 22px; font-weight: 700; }
+
+    /* Filter tabs */
+    .tabs       { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab        { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+                  cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--faint); }
+    .tab.active { background: var(--lm-primary,#2563EB); color: #fff; border-color: transparent; }
+
+    /* Table */
+    .tbl        { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface);
+                  border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .tbl th     { padding: 8px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;
+                  letter-spacing: .05em; color: var(--faint); border-bottom: 2px solid var(--border);
+                  background: var(--surface); text-align: left; }
+    .tbl td     { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl tbody tr:hover td { background: var(--hover,#f9fafb); }
+
+    /* Status badges */
+    .badge      { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .b-open     { background: #fef3c7; color: #92400e; }
+    .b-win      { background: #d1fae5; color: #065f46; }
+    .b-loss     { background: #fee2e2; color: #991b1b; }
+    .b-manual   { background: var(--surface-2,#f7f9fc); color: var(--faint); border: 1px solid var(--border); }
+    .dir-long   { font-weight: 800; color: #16a34a; }
+    .dir-short  { font-weight: 800; color: #dc2626; }
+    .mono       { font-family: 'IBM Plex Mono',monospace; }
+    .pnl-pos    { color: #16a34a; font-weight: 700; }
+    .pnl-neg    { color: #dc2626; font-weight: 700; }
+
+    /* Empty */
+    .empty      { text-align: center; padding: 60px 20px; color: var(--faint); }
+
+    /* Close modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none;
+                      align-items:center; justify-content:center; z-index:100; }
+    .modal-backdrop.open { display:flex; }
+    .modal      { background:var(--surface); border-radius:14px; padding:24px; width:360px; max-width:95vw; }
+    .modal h3   { margin:0 0 16px; font-size:16px; }
+    .field      { margin-bottom:12px; }
+    .field label{ display:block; font-size:12px; font-weight:600; color:var(--faint); margin-bottom:4px; }
+    .field input, .field textarea { width:100%; padding:8px 10px; border-radius:8px;
+                   border:1px solid var(--border); background:var(--surface); color:var(--ink);
+                   font:13px 'Inter',sans-serif; box-sizing:border-box; }
+    .modal-footer { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+
+    #toast { position:fixed; bottom:24px; right:24px; padding:10px 18px; border-radius:10px;
+             font-size:13px; font-weight:600; z-index:999; display:none; color:#fff; }
+    #toast.ok { background:#16a34a; } #toast.err { background:#dc2626; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+<div th:replace="~{fragments/app-sidebar :: sidebar(active='trades')}"></div>
+<main class="app-main">
+<div class="page">
+
+  <div class="toolbar">
+    <div class="page-title">Trade Journal</div>
+    <button class="btn" onclick="loadAll()">↻ Refresh</button>
+    <button class="btn" onclick="toggleTheme()" style="margin-left:auto">🌙</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsRow">
+    <div class="stat-card"><div class="stat-lbl">Total</div><div class="stat-val" id="stTotal">—</div></div>
+    <div class="stat-card"><div class="stat-lbl">Open</div><div class="stat-val" id="stOpen" style="color:#f59e0b">—</div></div>
+    <div class="stat-card"><div class="stat-lbl">Win Rate</div><div class="stat-val" id="stWinRate" style="color:#16a34a">—</div></div>
+    <div class="stat-card"><div class="stat-lbl">Wins</div><div class="stat-val" id="stWins" style="color:#16a34a">—</div></div>
+    <div class="stat-card"><div class="stat-lbl">Losses</div><div class="stat-val" id="stLosses" style="color:#dc2626">—</div></div>
+    <div class="stat-card"><div class="stat-lbl">Total P&L (pts)</div><div class="stat-val mono" id="stPnl">—</div></div>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="filterTrades('ALL',this)">All</div>
+    <div class="tab" onclick="filterTrades('OPEN',this)">🟡 Open</div>
+    <div class="tab" onclick="filterTrades('WIN',this)">🟢 Wins</div>
+    <div class="tab" onclick="filterTrades('LOSS',this)">🔴 Losses</div>
+  </div>
+
+  <!-- Table -->
+  <div id="tableWrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>#</th><th>Symbol</th><th>Dir</th><th>Entry</th><th>Stop</th>
+          <th>T1</th><th>T2</th><th>Status</th><th>Close</th><th>P&L</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="tradeBody"></tbody>
+    </table>
+    <div id="emptyMsg" class="empty" style="display:none">
+      <p>No trades yet.</p>
+      <p style="font-size:12px">Open <a href="/live/analysis">Analysis page</a>, get a suggestion, click <b>Save Trade</b>.</p>
+    </div>
+  </div>
+
+</div>
+</main>
+</div>
+
+<!-- Manual close modal -->
+<div class="modal-backdrop" id="closeModal" onclick="closeModalBg(event)">
+  <div class="modal">
+    <h3>Manual Close Trade</h3>
+    <input type="hidden" id="closeTradeId">
+    <div class="field">
+      <label>Close Price (current LTP)</label>
+      <input type="number" id="closePrice" step="0.05" placeholder="e.g. 685.50">
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="closeNotes" rows="2" placeholder="reason for manual close"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="submitClose()">Close Trade</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let allTrades = [];
+let currentFilter = 'ALL';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const t = localStorage.getItem('angle-theme');
+  if (t) document.documentElement.dataset.theme = t;
+  loadAll();
+});
+
+async function loadAll() {
+  try {
+    const [trades, stats] = await Promise.all([
+      fetch('/api/analysis/trades').then(r => r.json()),
+      fetch('/api/analysis/trades/stats').then(r => r.json())
+    ]);
+    allTrades = trades;
+    renderStats(stats);
+    renderTable(filterList(allTrades, currentFilter));
+  } catch(e) { showToast('Load failed: ' + e.message, 'err'); }
+}
+
+function renderStats(s) {
+  document.getElementById('stTotal').textContent   = s.totalTrades;
+  document.getElementById('stOpen').textContent    = s.openTrades;
+  document.getElementById('stWinRate').textContent = s.winRate || '—';
+  document.getElementById('stWins').textContent    = s.wins;
+  document.getElementById('stLosses').textContent  = s.losses;
+  const pnl = s.totalProfitPoints;
+  const pnlEl = document.getElementById('stPnl');
+  pnlEl.textContent = pnl != null ? (pnl >= 0 ? '+' : '') + Number(pnl).toFixed(2) : '—';
+  pnlEl.className = 'stat-val mono ' + (pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+}
+
+function filterList(trades, filter) {
+  if (filter === 'OPEN') return trades.filter(t => t.status === 'OPEN');
+  if (filter === 'WIN')  return trades.filter(t => t.status?.includes('TARGET'));
+  if (filter === 'LOSS') return trades.filter(t => t.status === 'STOP_HIT');
+  return trades;
+}
+
+function filterTrades(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderTable(filterList(allTrades, filter));
+}
+
+function renderTable(trades) {
+  const tbody = document.getElementById('tradeBody');
+  const empty = document.getElementById('emptyMsg');
+  tbody.innerHTML = '';
+  if (!trades.length) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  trades.forEach(t => {
+    const isOpen = t.status === 'OPEN';
+    const isWin  = t.status?.includes('TARGET');
+    const isLoss = t.status === 'STOP_HIT';
+    const pnl    = t.profitPoints;
+    const badgeCls = isOpen ? 'b-open' : isWin ? 'b-win' : isLoss ? 'b-loss' : 'b-manual';
+    const statusLabel = t.status?.replace('_',' ') || '—';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="mono" style="color:var(--faint);font-size:11px">#${t.id}</td>
+      <td><b>${t.symbol}</b><br><span style="font-size:10px;color:var(--faint)">${t.exchange} · ${t.intervalStack||''}</span></td>
+      <td class="${t.direction==='LONG'?'dir-long':'dir-short'}">${t.direction}</td>
+      <td class="mono">₹${fmt(t.entryPrice)}<br><span style="font-size:10px;color:var(--faint)">${fmtTime(t.entryTime)}</span></td>
+      <td class="mono" style="color:#dc2626">₹${fmt(t.stopLoss)||'—'}</td>
+      <td class="mono" style="color:#16a34a">₹${fmt(t.target1)||'—'}<br><small style="color:var(--faint)">${t.target1Rr||''}</small></td>
+      <td class="mono" style="color:#16a34a">${t.target2?'₹'+fmt(t.target2):'—'}<br><small style="color:var(--faint)">${t.target2Rr||''}</small></td>
+      <td><span class="badge ${badgeCls}">${statusLabel}</span></td>
+      <td class="mono">${t.closePrice?'₹'+fmt(t.closePrice):'—'}<br><small style="color:var(--faint)">${t.closeTime?fmtTime(t.closeTime):''}</small></td>
+      <td class="mono ${pnl==null?'':pnl>=0?'pnl-pos':'pnl-neg'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl)+' pts':'—'}</td>
+      <td>${isOpen?`<button class="btn" style="font-size:11px;padding:4px 10px" onclick="openCloseModal(${t.id})">Close</button>`:''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openCloseModal(id) {
+  document.getElementById('closeTradeId').value = id;
+  document.getElementById('closePrice').value = '';
+  document.getElementById('closeNotes').value = '';
+  document.getElementById('closeModal').classList.add('open');
+}
+function closeModal() { document.getElementById('closeModal').classList.remove('open'); }
+function closeModalBg(e) { if (e.target === document.getElementById('closeModal')) closeModal(); }
+
+async function submitClose() {
+  const id    = document.getElementById('closeTradeId').value;
+  const price = document.getElementById('closePrice').value;
+  const notes = document.getElementById('closeNotes').value;
+  if (!price) { showToast('Enter close price', 'err'); return; }
+  try {
+    const r = await fetch(`/api/analysis/trades/${id}/close?closePrice=${price}&notes=${encodeURIComponent(notes)}`, {method:'PUT'});
+    const d = await r.json();
+    if (!r.ok) { showToast(d.error || 'Close failed', 'err'); return; }
+    showToast('Trade closed', 'ok');
+    closeModal();
+    loadAll();
+  } catch(e) { showToast('Error: ' + e.message, 'err'); }
+}
+
+function toggleTheme() {
+  const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = n;
+  localStorage.setItem('angle-theme', n);
+}
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = type; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+const fmt = v => v == null ? '—' : Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtTime = iso => iso ? new Date(iso).toLocaleString('en-IN', {timeZone:'Asia/Kolkata', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', hour12:true}) : '—';
+</script>
+</body>
+</html>

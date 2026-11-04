@@ -87,13 +87,14 @@ public class StockQuoteController {
     // MTF hierarchy — ordered lowest → highest
     // -------------------------------------------------------------------------
     private static final Map<Interval, List<Interval>> MTF_HIERARCHY = Map.of(
-            Interval.FIFTEEN_MINUTE, List.of(Interval.FIFTEEN_MINUTE),
-            Interval.THIRTY_MINUTE,  List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE),
-            Interval.ONE_HOUR,       List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR),
-            Interval.TWO_HOUR,       List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR),
-            Interval.THREE_HOUR,     List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR),
-            Interval.FOUR_HOUR,      List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR),
-            Interval.ONE_DAY,        List.of(Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR, Interval.ONE_DAY)
+            Interval.FIVE_MINUTE,    List.of(Interval.FIVE_MINUTE),
+            Interval.FIFTEEN_MINUTE, List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE),
+            Interval.THIRTY_MINUTE,  List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE),
+            Interval.ONE_HOUR,       List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR),
+            Interval.TWO_HOUR,       List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR),
+            Interval.THREE_HOUR,     List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR),
+            Interval.FOUR_HOUR,      List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR),
+            Interval.ONE_DAY,        List.of(Interval.FIVE_MINUTE, Interval.FIFTEEN_MINUTE, Interval.THIRTY_MINUTE, Interval.ONE_HOUR, Interval.TWO_HOUR, Interval.THREE_HOUR, Interval.FOUR_HOUR, Interval.ONE_DAY)
     );
 
     /**
