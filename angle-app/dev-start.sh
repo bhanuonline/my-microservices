@@ -207,14 +207,19 @@ if [ -n "$CACHE_PROVIDER_OVERRIDE" ]; then
 fi
 
 echo ""
-echo -e "${BOLD}  App URL : http://localhost:9010${RESET}"
-echo -e "${BOLD}  Login   : admin / admin123${RESET}"
-echo -e "${BOLD}  Journal : http://localhost:9010/journal${RESET}"
-echo -e "${BOLD}  Screener: http://localhost:9010/screener${RESET}"
-echo -e "${BOLD}  Admin   : http://localhost:9010/admin/instruments${RESET}"
+echo -e "${BOLD}  App URL  : http://localhost:9010${RESET}"
+echo -e "${BOLD}  Login    : admin / admin123${RESET}"
+echo -e "${BOLD}  Signals  : http://localhost:9010/signal-calculator${RESET}"
+echo -e "${BOLD}  History  : http://localhost:9010/signal-calculator/history${RESET}"
+echo -e "${BOLD}  Journal  : http://localhost:9010/journal${RESET}"
+echo -e "${BOLD}  Screener : http://localhost:9010/screener${RESET}"
+echo -e "${BOLD}  Admin    : http://localhost:9010/admin/instruments${RESET}"
 echo ""
 echo -e "  Press ${BOLD}Ctrl+C${RESET} to stop."
 echo ""
 
 cd "$SCRIPT_DIR"
-exec mvn spring-boot:run $MVN_OPTS
+exec ./mvnw spring-boot:run \
+  -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=false -Dspring.devtools.livereload.enabled=false" \
+  -Dspring-boot.run.profiles=dev \
+  $MVN_OPTS

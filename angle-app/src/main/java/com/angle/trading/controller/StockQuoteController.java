@@ -429,7 +429,7 @@ public class StockQuoteController {
         }
     }
 
-    IndicatorsDto computeIndicators(Instrument inst, Interval interval, int days, LocalDate asOf) {
+    public IndicatorsDto computeIndicators(Instrument inst, Interval interval, int days, LocalDate asOf) {
         try {
             LocalDate to   = asOf != null ? asOf : LocalDate.now();
             LocalDate from = to.minusDays(days);

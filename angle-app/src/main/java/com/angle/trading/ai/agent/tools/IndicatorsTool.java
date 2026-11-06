@@ -76,9 +76,12 @@ public class IndicatorsTool implements ResearchTool {
                 "  MACD Signal:   %s\n" +
                 "  MACD Histogram:%s",
                 symbol, intervalStr, dto.candleCount(),
-                dto.rsi14(), dto.adx14(), dto.atr14(),
-                dto.ema9(), dto.ema20(), dto.ema50(), dto.ema200(), dto.sma20(),
-                dto.macdLine(), dto.macdSignal(), dto.macdHistogram()
+                dto.momentum().rsi14(), dto.trend().adx14(), dto.volatility().atr14(),
+                dto.movingAverages().ema9(), dto.movingAverages().ema20(),
+                dto.movingAverages().ema50(), dto.movingAverages().ema200(),
+                dto.movingAverages().sma20(),
+                dto.momentum().macd().line(), dto.momentum().macd().signal(),
+                dto.momentum().macd().histogram()
         );
     }
 }

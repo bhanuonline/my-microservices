@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Signal Calculator — AngleApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <div th:replace="~{fragments/theme-head :: themeHead}"></div>
+    <link rel="stylesheet" th:href="@{/css/signal-calculator.css}">
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+<div class="lm-shell">
+
+    <!-- ═══════════════════ SIDEBAR ═══════════════════════════════════════════ -->
+    <aside class="lm-side">
+        <div class="lm-brand">
+            <div class="lm-logo">A</div>
+            <div class="lm-brand-name">AngleApp</div>
+        </div>
+        <nav class="lm-nav">
+            <a th:href="@{/dashboard}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                <span>Dashboard</span>
+            </a>
+            <a th:href="@{/bias}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 13 8 13 10 8 14 18 16 13 21 13"/></svg>
+                <span>Bias</span>
+            </a>
+            <a th:href="@{/live/chart}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V6"/><path d="M4 14l4-4 4 4 4-4 4 4"/><circle cx="20" cy="4" r="1.6" fill="currentColor"/></svg>
+                <span>Live Chart</span>
+            </a>
+            <a th:href="@{/live/ticker}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+                <span>Live Ticker</span>
+            </a>
+            <a th:href="@{/live/orb}" target="_blank" rel="noopener">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="10" width="4" height="10" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="17" y="7" width="4" height="13" rx="1"/><path d="M3 7l7-3 7 2 4-2"/></svg>
+                <span>ORB Signals</span>
+            </a>
+            <a th:href="@{/signal-calculator}" class="active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/><line x1="15" y1="9" x2="15" y2="21"/></svg>
+                <span>Signal Calculator</span>
+            </a>
+            <a th:href="@{/signal-calculator/history}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="12" x2="15" y2="14"/></svg>
+                <span>Signal History</span>
+            </a>
+            <a th:href="@{/journal}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+                <span>Trade Journal</span>
+            </a>
+            <a th:href="@{/screener}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+                <span>F&amp;O Screener</span>
+            </a>
+            <a th:href="@{/admin/pipeline}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="6" y1="8" x2="6" y2="16"/><line x1="18" y1="8" x2="18" y2="16"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                <span>Pipeline</span>
+            </a>
+            <a th:href="@{/account}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>My Account</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- ═══════════════════ MAIN ═══════════════════════════════════════════════ -->
+    <div class="lm-main">
+
+        <!-- Topbar -->
+        <div class="lm-topbar">
+            <div>
+                <h1 th:if="${editId == null}">New Signal Record</h1>
+                <h1 th:if="${editId != null}">Edit Record #<span th:text="${editId}"></span></h1>
+                <div class="sub">Click cell to cycle −1 → 0 → +1. Conflicts and weighted score auto-update.</div>
+            </div>
+            <div class="spacer"></div>
+            <a th:href="@{/signal-calculator/history}" class="btn btn-ghost" style="text-decoration:none">History →</a>
+        </div>
+
+        <div class="lm-content">
+
+            <!-- Context row -->
+            <div class="context-row">
+                <div class="ctx-field">
+                    <label class="ctx-label">Market</label>
+                    <select id="ctxMarket" class="ctx-select">
+                        <option th:each="m : ${markets}" th:value="${m}" th:text="${m}"
+                                th:selected="${m == market}"></option>
+                    </select>
+                </div>
+                <div class="ctx-field ctx-field--grow">
+                    <label class="ctx-label">Symbol</label>
+                    <input type="text" id="ctxSymbol" class="ctx-input" placeholder="e.g. NIFTY 50, CRUDEOIL"
+                           th:value="${symbol}" maxlength="64">
+                </div>
+                <div class="ctx-field">
+                    <label class="ctx-label">Date</label>
+                    <input type="date" id="ctxDate" class="ctx-input" th:value="${tradeDate}">
+                </div>
+                <div class="ctx-field ctx-field--grow">
+                    <label class="ctx-label">Note (optional)</label>
+                    <input type="text" id="ctxNote" class="ctx-input" placeholder="Quick note…"
+                           th:value="${note}" maxlength="200">
+                </div>
+            </div>
+
+            <!-- ══ Overall signal banner ══════════════════════════════════════ -->
+            <div class="overall-banner">
+
+                <!-- Row 1: signal + conflict + alignment + toggle + buttons -->
+                <div class="overall-row1">
+                    <span id="overallSignal" class="overall-signal neutral">NO TRADE</span>
+                    <span id="conflictBadge" class="conflict-badge hidden">⚠ CONFLICT</span>
+                    <span id="tfBreakdown" class="tf-breakdown"></span>
+                    <div class="spacer"></div>
+                    <!-- Weighted mode toggle -->
+                    <label class="weighted-toggle" title="Weight higher timeframes more">
+                        <input type="checkbox" id="weightedToggle" onchange="onWeightedToggle(this)">
+                        <span class="wt-track"></span>
+                        <span>Weighted</span>
+                    </label>
+                    <!-- Save -->
+                    <button class="btn btn-primary" onclick="saveRecord(false)"
+                            th:if="${editId == null}">Save as New Record</button>
+                    <button class="btn btn-primary" onclick="saveRecord(true)"
+                            th:if="${editId != null}">Update Record</button>
+                    <button class="btn btn-ghost" onclick="resetAll()">Reset</button>
+                    <span id="saveStatus" class="save-status"></span>
+                </div>
+
+                <!-- Row 2: sum breakdown -->
+                <div class="overall-row2">
+                    <span>Raw sum: <strong id="rawSumVal">0</strong></span>
+                    <span>│</span>
+                    <span>Weighted sum: <strong id="weightedSumVal">0</strong>
+                        <span style="color:#475569;font-size:11px"> (1m×w1 + 5m×w2 + …)</span>
+                    </span>
+                    <span style="margin-left:auto;font-size:12px;color:#475569"
+                          id="modeLabel">Mode: raw sum</span>
+                </div>
+            </div>
+
+            <!-- ══ Candle Timers ═══════════════════════════════════════════ -->
+            <div class="timer-section">
+                <div class="timer-header">
+                    <span class="timer-title">⏱ Candle Timers</span>
+                    <label class="chain-label">
+                        <input type="checkbox" id="chainMode">
+                        Chain: auto-start next TF when done
+                    </label>
+                </div>
+                <div class="timer-cards" id="timerCards"></div>
+            </div>
+
+            <!-- ══ Session Notes ══════════════════════════════════════════════ -->
+            <div class="notes-section">
+                <label class="ctx-label" style="display:block;margin-bottom:6px">Session Notes</label>
+                <textarea id="sessionNotes" class="notes-area"
+                          placeholder="Observations, trade setup, bias, key levels…"></textarea>
+            </div>
+
+            <!-- Add indicator toolbar -->
+            <div class="toolbar">
+                <input type="text" id="newIndicator" placeholder="Indicator name…" maxlength="32">
+                <button class="btn btn-primary" onclick="addIndicator()">+ Add Indicator</button>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrap">
+                <table id="signalTable">
+                    <thead>
+                    <tr id="headerRow">
+                        <th class="col-indicator">Indicator</th>
+                        <!-- TF headers injected by JS (includes weight input when weighted mode on) -->
+                        <th class="col-add-tf">
+                            <div class="add-tf-row">
+                                <input type="text" id="newTf" placeholder="e.g. 4h" maxlength="6">
+                                <button class="add-tf-btn" onclick="addTimeframe()">+</button>
+                            </div>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot id="tableFoot"></tfoot>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Data injected from server -->
+<script th:inline="javascript">
+    const EDIT_ID    = /*[[${editId}]]*/ null;
+    const SAVED_JSON = /*[[${savedJson}]]*/ null;
+</script>
+
+<script>
+/* ── Default weights: higher TF = higher weight ──────────────────────────────
+   1m=1, 5m=2, 15m=3, 30m=4, 1h=5
+   User can edit these live. Formula: weightedSum = Σ (colSum(tf) × weight(tf))
+   Conflict: flagged when at least one TF is BUY AND at least one is SELL.
+   Neutral TFs (sum=0) do not count toward conflict.
+*/
+
+const DEFAULT_WEIGHTS = { '1m': 1, '5m': 2, '15m': 3, '30m': 4, '1h': 5 };
+
+const DEFAULT_STATE = {
+    timeframes:    ['1m', '5m', '15m', '30m', '1h'],
+    weights:       { ...DEFAULT_WEIGHTS },
+    weightedMode:  false,
+    indicators:    ['RSI', 'MACD', 'EMA Cross', 'Volume'],
+    cells:         {},
+    sessionNotes:  ''
+};
+
+let state = (() => {
+    if (SAVED_JSON) {
+        try {
+            const s = typeof SAVED_JSON === 'string' ? JSON.parse(SAVED_JSON) : SAVED_JSON;
+            // Back-fill weights if loading an old record that didn't have them
+            if (!s.weights) s.weights = buildDefaultWeights(s.timeframes);
+            if (s.weightedMode === undefined) s.weightedMode = false;
+            return s;
+        } catch (_) {}
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+})();
+
+/* ── Core helpers ───────────────────────────────────────────────────────────── */
+function getCell(ind, tf) {
+    return (state.cells[ind] && state.cells[ind][tf] != null) ? state.cells[ind][tf] : 0;
+}
+function setCell(ind, tf, val) {
+    if (!state.cells[ind]) state.cells[ind] = {};
+    state.cells[ind][tf] = val;
+}
+function getWeight(tf) { return state.weights[tf] ?? 1; }
+
+function columnSum(tf) { return state.indicators.reduce((s, i) => s + getCell(i, tf), 0); }
+
+function rawTotal() {
+    return state.timeframes.reduce((s, tf) => s + columnSum(tf), 0);
+}
+
+function weightedTotal() {
+    return state.timeframes.reduce((s, tf) => s + columnSum(tf) * getWeight(tf), 0);
+}
+
+function buildDefaultWeights(tfs) {
+    // Auto-assign ascending weights based on order: first TF=1, second=2, …
+    const w = {};
+    tfs.forEach((tf, i) => { w[tf] = i + 1; });
+    return w;
+}
+
+function signalFromSum(n) {
+    if (n > 0)  return { label: 'BUY',     cls: 'buy' };
+    if (n < 0)  return { label: 'SELL',    cls: 'sell' };
+    return          { label: 'NEUTRAL', cls: 'neutral' };
+}
+function formatVal(v) { return v === 1 ? '+1' : v === -1 ? '−1' : '0'; }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+
+/* ── Conflict detection ─────────────────────────────────────────────────────
+   Rules:
+   - For each TF compute columnSum → classify as BUY/SELL/NEUTRAL
+   - CONFLICT = at least one TF is BUY AND at least one TF is SELL
+   - Neutral TFs are ignored for conflict (they're just undecided)
+*/
+function computeAlignment() {
+    let buyCount = 0, sellCount = 0, neutralCount = 0;
+    state.timeframes.forEach(tf => {
+        const s = columnSum(tf);
+        if (s > 0)      buyCount++;
+        else if (s < 0) sellCount++;
+        else            neutralCount++;
+    });
+    const hasConflict = buyCount > 0 && sellCount > 0;
+    return { buyCount, sellCount, neutralCount, hasConflict };
+}
+
+/* ── Render ─────────────────────────────────────────────────────────────────── */
+function render() { renderHeader(); renderBody(); renderFooter(); renderOverall(); renderTimers(); }
+
+function renderHeader() {
+    const row    = document.getElementById('headerRow');
+    const addTh  = row.querySelector('th.col-add-tf');
+    row.querySelectorAll('th.col-tf').forEach(th => th.remove());
+
+    state.timeframes.forEach(tf => {
+        const th = document.createElement('th');
+        th.className = 'col-tf';
+        const w = getWeight(tf);
+        th.innerHTML = `
+            <div class="tf-header">
+                <span>${esc(tf)}</span>
+                <button class="tf-remove" onclick="removeTimeframe('${esc(tf)}')" title="Remove ${esc(tf)}">×</button>
+            </div>
+            <div class="weight-input-row" style="${state.weightedMode ? '' : 'display:none'}">
+                w:<input class="weight-input" type="number" value="${w}" min="1" max="20"
+                    title="Weight for ${esc(tf)}"
+                    oninput="updateWeight('${esc(tf)}', this.value)">
+            </div>`;
+        row.insertBefore(th, addTh);
+    });
+
+    // Sync the toggle checkbox
+    document.getElementById('weightedToggle').checked = state.weightedMode;
+}
+
+function renderBody() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    if (!state.indicators.length) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = state.timeframes.length + 2;
+        td.className = 'empty-state';
+        td.textContent = 'No indicators yet — add one above.';
+        tr.appendChild(td); tbody.appendChild(tr); return;
+    }
+    state.indicators.forEach(ind => {
+        const tr = document.createElement('tr');
+        const nameTd = document.createElement('td');
+        nameTd.className = 'col-indicator';
+        nameTd.innerHTML = `<div class="ind-row">
+            <button class="ind-remove" onclick="removeIndicator('${esc(ind)}')" title="Remove">×</button>
+            <span>${esc(ind)}</span></div>`;
+        tr.appendChild(nameTd);
+        state.timeframes.forEach(tf => {
+            const val = getCell(ind, tf);
+            const td = document.createElement('td');
+            td.innerHTML = `<span class="signal-cell" data-val="${val}"
+                data-ind="${esc(ind)}" data-tf="${esc(tf)}"
+                onclick="cycleCell(this)">${formatVal(val)}</span>`;
+            tr.appendChild(td);
+        });
+        tr.appendChild(document.createElement('td'));
+        tbody.appendChild(tr);
+    });
+}
+
+function renderFooter() {
+    const tfoot  = document.getElementById('tableFoot');
+    tfoot.innerHTML = '';
+
+    // Sum row
+    const sumTr = document.createElement('tr'); sumTr.className = 'sum-row';
+    const sigTr = document.createElement('tr'); sigTr.className = 'signal-row';
+    const lSum  = document.createElement('td'); lSum.className = 'col-indicator'; lSum.textContent = 'Sum';
+    const lSig  = document.createElement('td'); lSig.className = 'col-indicator'; lSig.textContent = 'Signal';
+    sumTr.appendChild(lSum); sigTr.appendChild(lSig);
+
+    state.timeframes.forEach(tf => {
+        const sum = columnSum(tf);
+        const cls = sum > 0 ? 'pos' : sum < 0 ? 'neg' : 'zero';
+        const { label, cls: sCls } = signalFromSum(sum);
+
+        const sumTd = document.createElement('td');
+        sumTd.innerHTML = `<span class="sum-val ${cls}">${sum > 0 ? '+' : ''}${sum}</span>`;
+        const sigTd = document.createElement('td');
+        sigTd.innerHTML = `<span class="tf-signal ${sCls}">${label}</span>`;
+        sumTr.appendChild(sumTd); sigTr.appendChild(sigTd);
+    });
+    sumTr.appendChild(document.createElement('td'));
+    sigTr.appendChild(document.createElement('td'));
+    tfoot.appendChild(sumTr); tfoot.appendChild(sigTr);
+}
+
+function renderOverall() {
+    const { buyCount, sellCount, neutralCount, hasConflict } = computeAlignment();
+    const raw      = rawTotal();
+    const weighted = weightedTotal();
+    const active   = state.weightedMode ? weighted : raw;
+    const { label, cls } = signalFromSum(active);
+
+    // Signal badge
+    const sigEl = document.getElementById('overallSignal');
+    sigEl.textContent = label; sigEl.className = 'overall-signal ' + cls;
+
+    // Conflict badge
+    const cb = document.getElementById('conflictBadge');
+    if (hasConflict) {
+        cb.textContent = '⚠ CONFLICT';
+        cb.classList.remove('hidden');
+    } else {
+        cb.classList.add('hidden');
+    }
+
+    // Alignment breakdown
+    const total = state.timeframes.length;
+    document.getElementById('tfBreakdown').innerHTML =
+        `<span class="b">${buyCount}B</span> ` +
+        `<span class="s">${sellCount}S</span> ` +
+        `<span class="n">${neutralCount}N</span>` +
+        (total ? ` / ${total}TF` : '');
+
+    // Sum values
+    document.getElementById('rawSumVal').textContent =
+        (raw > 0 ? '+' : '') + raw;
+    document.getElementById('weightedSumVal').textContent =
+        (weighted > 0 ? '+' : '') + weighted;
+
+    // Mode label
+    document.getElementById('modeLabel').textContent =
+        state.weightedMode ? 'Mode: weighted' : 'Mode: raw sum';
+}
+
+/* ── Cell & table actions ───────────────────────────────────────────────────── */
+function cycleCell(el) {
+    const val  = parseInt(el.dataset.val, 10);
+    const next = val >= 1 ? -1 : val + 1;
+    setCell(el.dataset.ind, el.dataset.tf, next);
+    el.dataset.val = next; el.textContent = formatVal(next);
+    renderFooter(); renderOverall();
+}
+
+function addIndicator() {
+    const inp  = document.getElementById('newIndicator');
+    const name = inp.value.trim();
+    if (!name || state.indicators.includes(name)) { inp.focus(); return; }
+    state.indicators.push(name); inp.value = ''; render();
+}
+
+function removeIndicator(ind) {
+    state.indicators = state.indicators.filter(i => i !== ind);
+    delete state.cells[ind]; render();
+}
+
+function addTimeframe() {
+    const inp = document.getElementById('newTf');
+    const tf  = inp.value.trim();
+    if (!tf || state.timeframes.includes(tf)) { inp.focus(); return; }
+    // Auto weight = last weight + 1
+    const maxW = state.timeframes.length
+        ? Math.max(...state.timeframes.map(t => getWeight(t)))
+        : 0;
+    state.weights[tf] = maxW + 1;
+    state.timeframes.push(tf);
+    inp.value = ''; render();
+}
+
+function removeTimeframe(tf) {
+    state.timeframes = state.timeframes.filter(t => t !== tf);
+    delete state.weights[tf];
+    Object.keys(state.cells).forEach(ind => { if (state.cells[ind]) delete state.cells[ind][tf]; });
+    render();
+}
+
+function resetAll() { state.cells = {}; render(); }
+
+/* ── Weighted mode ──────────────────────────────────────────────────────────── */
+function onWeightedToggle(checkbox) {
+    state.weightedMode = checkbox.checked;
+    // Show/hide weight inputs without full table rebuild
+    document.querySelectorAll('.weight-input-row').forEach(el => {
+        el.style.display = state.weightedMode ? '' : 'none';
+    });
+    document.getElementById('modeLabel').textContent =
+        state.weightedMode ? 'Mode: weighted' : 'Mode: raw sum';
+    renderOverall();
+}
+
+function updateWeight(tf, val) {
+    const n = parseInt(val, 10);
+    if (isNaN(n) || n < 1) return;
+    state.weights[tf] = n;
+    renderOverall();
+}
+
+/* ── Enter shortcuts ────────────────────────────────────────────────────────── */
+document.getElementById('newIndicator').addEventListener('keydown', e => { if (e.key === 'Enter') addIndicator(); });
+document.getElementById('newTf').addEventListener('keydown',        e => { if (e.key === 'Enter') addTimeframe(); });
+
+/* ── Save to backend ────────────────────────────────────────────────────────── */
+function buildPayload() {
+    const weighted = weightedTotal();
+    const raw      = rawTotal();
+    const active   = state.weightedMode ? weighted : raw;
+    const { label } = signalFromSum(active);
+    // Snapshot session notes into state before saving
+    state.sessionNotes = document.getElementById('sessionNotes').value;
+    return {
+        market:        document.getElementById('ctxMarket').value,
+        symbol:        document.getElementById('ctxSymbol').value.trim() || '—',
+        tradeDate:     document.getElementById('ctxDate').value,
+        note:          document.getElementById('ctxNote').value.trim(),
+        overallSignal: label,
+        overallSum:    active,
+        stateJson:     JSON.stringify(state)
+    };
+}
+
+function setStatus(msg, cls) {
+    const el = document.getElementById('saveStatus');
+    el.textContent = msg; el.className = 'save-status ' + cls;
+    if (cls === 'saved') setTimeout(() => { el.textContent = ''; el.className = 'save-status'; }, 3000);
+}
+
+function saveRecord(isUpdate) {
+    const payload = buildPayload();
+    if (!payload.tradeDate) { setStatus('Pick a date first', 'error'); return; }
+    setStatus('Saving…', 'saving');
+    const url    = isUpdate ? `/signal-calculator/records/${EDIT_ID}` : '/signal-calculator/records';
+    const method = isUpdate ? 'PUT' : 'POST';
+    fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(r => r.json())
+        .then(data => {
+            setStatus('Saved ✓', 'saved');
+            if (!isUpdate && data.id) {
+                setTimeout(() => window.location.href = `/signal-calculator?load=${data.id}`, 800);
+            }
+        })
+        .catch(() => setStatus('Save failed', 'error'));
+}
+
+/* ── Candle Timers ───────────────────────────────────────────────────────────
+   timers are in-memory only (live session tool — not persisted to DB).
+   Each TF gets a countdown equal to its candle duration.
+   Chain mode: when TF at index i finishes → auto-start TF at index i+1
+               (ordered by duration ascending: 1m→5m→15m→30m→1h)
+   Blink: CSS animation on the card when remaining reaches 0.
+*/
+const timerState = {}; // { '5m': { secs, remaining, running, iv } }
+
+function parseTfSecs(tf) {
+    const m = tf.match(/^(\d+)(m|h|d)$/i);
+    if (!m) return null;
+    const n = parseInt(m[1], 10);
+    const u = m[2].toLowerCase();
+    return u === 'm' ? n * 60 : u === 'h' ? n * 3600 : u === 'd' ? n * 86400 : null;
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function fmtSecs(total) {
+    if (total >= 3600) {
+        return `${pad2(Math.floor(total / 3600))}:${pad2(Math.floor((total % 3600) / 60))}:${pad2(total % 60)}`;
+    }
+    return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
+}
+
+function renderTimers() {
+    const container = document.getElementById('timerCards');
+    if (!container) return;
+
+    // Register any new TFs not yet in timerState
+    state.timeframes.forEach(tf => {
+        if (!timerState[tf]) {
+            const secs = parseTfSecs(tf);
+            if (secs !== null) timerState[tf] = { secs, remaining: secs, running: false, iv: null };
+        }
+    });
+
+    const validTfs = state.timeframes.filter(tf => timerState[tf]);
+    if (!validTfs.length) {
+        container.innerHTML = '<span style="color:#475569;font-size:13px">No parseable timeframes. Use format: 1m 5m 15m 1h 4h</span>';
+        return;
+    }
+
+    // Rebuild cards (preserves live timers — only DOM, not timerState)
+    container.innerHTML = '';
+    validTfs.forEach(tf => {
+        const t   = timerState[tf];
+        const card = document.createElement('div');
+        const cls  = t.running ? ' running' : t.remaining === 0 ? ' done' : '';
+        card.className = 'timer-card' + cls;
+        card.id = 'tc-' + tf;
+        card.innerHTML = `
+            <div class="tc-label">${esc(tf)}</div>
+            <div class="tc-time" id="tc-time-${esc(tf)}">${fmtSecs(t.remaining)}</div>
+            <div class="tc-btns">
+                <button class="tc-btn" onclick="startTimer('${esc(tf)}')" title="Start">▶</button>
+                <button class="tc-btn" onclick="pauseTimer('${esc(tf)}')" title="Pause">⏸</button>
+                <button class="tc-btn" onclick="resetTimer('${esc(tf)}')" title="Reset">↺</button>
+            </div>`;
+        container.appendChild(card);
+    });
+}
+
+function startTimer(tf) {
+    const t = timerState[tf];
+    if (!t || t.running) return;
+    if (t.remaining <= 0) t.remaining = t.secs; // auto-reset if at 0
+    t.running = true;
+    updateTimerCard(tf);
+    t.iv = setInterval(() => tickTimer(tf), 1000);
+}
+
+function pauseTimer(tf) {
+    const t = timerState[tf];
+    if (!t) return;
+    clearInterval(t.iv); t.iv = null;
+    t.running = false;
+    updateTimerCard(tf);
+}
+
+function resetTimer(tf) {
+    const t = timerState[tf];
+    if (!t) return;
+    clearInterval(t.iv); t.iv = null;
+    t.remaining = t.secs;
+    t.running   = false;
+    const card  = document.getElementById('tc-' + tf);
+    if (card) card.className = 'timer-card';
+    updateTimerCard(tf);
+}
+
+function tickTimer(tf) {
+    const t = timerState[tf];
+    if (!t) return;
+    t.remaining = Math.max(0, t.remaining - 1);
+    updateTimerCard(tf);
+    if (t.remaining === 0) onTimerDone(tf);
+}
+
+function onTimerDone(tf) {
+    const t = timerState[tf];
+    clearInterval(t.iv); t.iv = null;
+    t.running = false;
+    const card = document.getElementById('tc-' + tf);
+    if (card) { card.className = 'timer-card done'; }
+    showToast(`⏱ ${tf} candle closed!`);
+
+    // Chain: find next TF by duration and auto-start it
+    if (document.getElementById('chainMode').checked) {
+        const ordered = state.timeframes
+            .filter(tf2 => timerState[tf2])
+            .sort((a, b) => timerState[a].secs - timerState[b].secs);
+        const idx = ordered.indexOf(tf);
+        if (idx >= 0 && idx < ordered.length - 1) {
+            const next = ordered[idx + 1];
+            setTimeout(() => { resetTimer(next); startTimer(next); }, 1500);
+            showToast(`▶ Starting ${next} timer…`);
+        }
+    }
+}
+
+function updateTimerCard(tf) {
+    const t      = timerState[tf];
+    const timeEl = document.getElementById('tc-time-' + tf);
+    const card   = document.getElementById('tc-' + tf);
+    if (timeEl) timeEl.textContent = fmtSecs(t.remaining);
+    if (card && t.remaining > 0) {
+        card.classList.toggle('running', t.running);
+        card.classList.remove('done');
+    }
+}
+
+function showToast(msg) {
+    const c     = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = msg;
+    c.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity .3s';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+/* ── Init ───────────────────────────────────────────────────────────────────── */
+render();
+// Restore session notes if loading a saved record
+if (state.sessionNotes) document.getElementById('sessionNotes').value = state.sessionNotes;
+</script>
+</body>
+</html>
